@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "pepeunit-backend"
+version = "0.0.0"
+description = "IOT Device Platform"
+authors = ["Ivan Serebrennikov <admin@silberworks.com>"]
+license = "MIT License"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.10.9"
+python-dotenv = "^1.0.0"
+py2neo = "^2021.2.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
