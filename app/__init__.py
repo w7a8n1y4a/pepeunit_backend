@@ -5,4 +5,3 @@ from app.core.config import Settings
 load_dotenv()
 
 settings = Settings()
-

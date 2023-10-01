@@ -10,6 +10,11 @@ readme = "README.md"
 python = "3.10.9"
 python-dotenv = "^1.0.0"
 neomodel = "^5.1.1"
+uvicorn = "^0.23.2"
+fastapi = "^0.103.2"
+pyjwt = "^2.8.0"
+pyaes = "^1.6.1"
+pydantic-settings = "^2.0.3"
 
 [build-system]
 requires = ["poetry-core"]

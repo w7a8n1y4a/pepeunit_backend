@@ -1,12 +1,9 @@
 import uvicorn
 from fastapi import FastAPI
-from telebot import types
 
 from app import settings
 from app.api.api_v1.endpoints import api_router
 from app.core.models import Root
-
-from app.modules.bot import *
 
 
 app = FastAPI(
