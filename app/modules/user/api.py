@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends
 from fastapi_filter import FilterDepends
+from sqlmodel import Session
 from starlette.status import HTTP_200_OK
 
 from app.core.auth.user_auth import token_required, Context
+from app.core.db import get_session
 from app.modules.user import crud
 from app.modules.user.api_models import UserRead, UserCreate, UserFilter
 
@@ -10,11 +12,11 @@ router = APIRouter()
 
 
 @router.post("", response_model=UserRead, status_code=HTTP_200_OK)
-def create_user(data: UserCreate, context: Context = Depends(token_required)):
-    return crud.create(data, context.user, context.db)
+def create_user(data: UserCreate, db: Session = Depends(get_session)):
+    return crud.create(data, db)
 
 
-@router.get("/{id}", response_model=UserRead, status_code=HTTP_200_OK)
+@router.get("/{uuid}", response_model=UserRead, status_code=HTTP_200_OK)
 def get_user(uuid: str, context: Context = Depends(token_required)):
     return crud.get(uuid, context.user, context.db)
 

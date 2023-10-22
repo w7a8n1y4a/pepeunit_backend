@@ -13,7 +13,7 @@ class Unit(SQLModel, table=True):
 
     __tablename__ = 'units'
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default=uuid_pkg.uuid4())
 
     # уровень видимости для пользователей
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)

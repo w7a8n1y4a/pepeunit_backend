@@ -13,7 +13,7 @@ class UnitOutput(SQLModel, table=True):
 
     __tablename__ = 'units_outputs'
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default=uuid_pkg.uuid4())
 
     # уровень видимости для пользователей
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
@@ -27,4 +27,4 @@ class UnitOutput(SQLModel, table=True):
     last_state: str = Field(nullable=True)
 
     # родительский Unit
-    unit_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('unit.uuid', ondelete='CASCADE')))
+    unit_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))

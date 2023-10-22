@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pepeunit-backend"
 version = "0.0.0"
-description = "Fediverse IoT Platform - backend"
+description = "Federative IoT Platform - backend"
 authors = ["Ivan Serebrennikov <admin@silberworks.com>"]
 license = "MIT License"
 readme = "README.md"

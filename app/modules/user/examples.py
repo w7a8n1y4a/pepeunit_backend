@@ -1,7 +1,7 @@
 ex_user_read = {
     'uuid': 'c646609f-8953-484e-b0ca-b629460b5335',
     'role': 'User',
-    'status': 'Verified',
+    'status': 'Unverified',
     'login': 'Amogus',
     'email': 'pepe@pepeunit.com',
     'create_datetime': '2023-06-27 01:27:57.470868',

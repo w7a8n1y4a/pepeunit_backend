@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     version: str
     description: str
 
-    secret_key: str
     auth_token_expiration: str
     sqlalchemy_database_url: str
+
+    secret_key: str
+    encrypt_key: str
+    static_salt: str
