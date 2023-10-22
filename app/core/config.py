@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -12,4 +12,4 @@ class Settings(BaseSettings):
     description: str
 
     secret_key: str
-    neo4j_database_url: str
+    sqlalchemy_database_url: str

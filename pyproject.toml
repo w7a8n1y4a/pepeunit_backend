@@ -1,20 +1,32 @@
 [tool.poetry]
 name = "pepeunit-backend"
 version = "0.0.0"
-description = "IOT Device Platform"
+description = "Fediverse IoT Platform - backend"
 authors = ["Ivan Serebrennikov <admin@silberworks.com>"]
 license = "MIT License"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "3.10.9"
+fastapi = "^0.95.0"
+sqlmodel = "^0.0.8"
+uvicorn = "^0.21.1"
 python-dotenv = "^1.0.0"
-neomodel = "^5.1.1"
-uvicorn = "^0.23.2"
-fastapi = "^0.103.2"
-pyjwt = "^2.8.0"
+asyncpg = "^0.27.0"
+alembic = "^1.10.2"
+psycopg2 = "^2.9.5"
+httpx = "^0.23.3"
+uuid = "^1.30"
+python-multipart = "^0.0.6"
+minio = "^7.1.15"
+pyjwt = "^2.7.0"
+fastapi-filter = "^0.6.0"
+pytelegrambotapi = "^4.12.0"
+filetype = "^1.2.0"
+jinja2 = "^3.1.2"
 pyaes = "^1.6.1"
-pydantic-settings = "^2.0.3"
+black = "^23.10.0"
+
 
 [build-system]
 requires = ["poetry-core"]
