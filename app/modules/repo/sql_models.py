@@ -13,7 +13,7 @@ class Repo(SQLModel, table=True):
 
     __tablename__ = 'repos'
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default=uuid_pkg.uuid4())
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # уровень видимости для пользователей
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
