@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from functools import wraps
 
 import jwt
 
@@ -10,6 +11,7 @@ from sqlmodel import Session, select
 
 from app import settings
 from app.core.db import get_session
+from app.modules.user.enum import UserRole
 from app.modules.user.sql_models import User
 
 
@@ -21,23 +23,22 @@ class Context:
         self.user: User = user
 
 
-def generate_token(user: User) -> str:
+def generate_user_access_token(user: User) -> str:
     """Генерирует авторизационный токен"""
 
     # время жизни токена задаётся из окружения
-    auth_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))
+    access_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))
 
-    # refresh_token позволяет мгновенно отозвать старые токены
-    auth_token = jwt.encode(
-        {'uuid': str(user.uuid), 'exp': auth_token_exp},
+    access_token = jwt.encode(
+        {'uuid': str(user.uuid), 'exp': access_token_exp},
         settings.secret_key,
         'HS256',
     )
 
-    return auth_token
+    return access_token
 
 
-def token_required(auth_token: Annotated[str | None, Header()], db: Session = Depends(get_session)):
+def user_token_required(auth_token: Annotated[str | None, Header()], db: Session = Depends(get_session)):
     """Создание бизнес контекста резольверов"""
 
     # проверяет что токен отправлен
@@ -59,3 +60,17 @@ def token_required(auth_token: Annotated[str | None, Header()], db: Session = De
         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
     return Context(db, user)
+
+
+def check_access(roles: list[UserRole] = None):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+
+            # если переданный роли, но роли пользователя нет в списке
+            if roles is not None and args[1].role not in roles:
+                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+
+            return fn(*args, **kwargs)
+
+

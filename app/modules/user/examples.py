@@ -8,7 +8,15 @@ ex_user_read = {
 }
 
 ex_user_create = {
-    'login': 'Sus',
-    'email': 'sus@pepeunit.com',
+    'credentials': 'Sus',
     'password': 'strong_password',
+}
+
+ex_user_auth = {
+    'credentials': 'Sus',
+    'password': 'strong_password',
+}
+
+ex_access_token = {
+    'access_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiNzFkYmUyZGEtZTljMS00OWIyLWFmNzctMjVmOWFiY2ExODhiIiwiZXhwIjoxNzAwNjk1NTk1fQ.LN6ddb-wDpMDWxB1kPkoIeRNGxn-Brng2K0uXkvzwMk'
 }

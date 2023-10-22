@@ -3,10 +3,10 @@ from fastapi_filter import FilterDepends
 from sqlmodel import Session
 from starlette.status import HTTP_200_OK
 
-from app.core.auth.user_auth import token_required, Context
+from app.core.auth.user_auth import user_token_required, Context
 from app.core.db import get_session
 from app.modules.user import crud
-from app.modules.user.api_models import UserRead, UserCreate, UserFilter
+from app.modules.user.api_models import UserRead, UserCreate, UserAuth, UserFilter, AccessToken
 
 router = APIRouter()
 
@@ -16,16 +16,21 @@ def create_user(data: UserCreate, db: Session = Depends(get_session)):
     return crud.create(data, db)
 
 
+@router.post("/auth", response_model=AccessToken, status_code=HTTP_200_OK)
+def generate_access_token(data: UserAuth, db: Session = Depends(get_session)):
+    return crud.create_token(data, db)
+
+
 @router.get("/{uuid}", response_model=UserRead, status_code=HTTP_200_OK)
-def get_user(uuid: str, context: Context = Depends(token_required)):
+def get_user(uuid: str, context: Context = Depends(user_token_required)):
     return crud.get(uuid, context.user, context.db)
 
 
 @router.get("", response_model=list[UserRead], status_code=HTTP_200_OK)
-def get_users(filters: UserFilter = FilterDepends(UserFilter), context: Context = Depends(token_required)):
+def get_users(filters: UserFilter = FilterDepends(UserFilter), context: Context = Depends(user_token_required)):
     return crud.get_all(filters, context.user, context.db)
 
 
 @router.delete("", response_model=bool, status_code=HTTP_200_OK)
-def delete_user(uuid: str, context: Context = Depends(token_required)):
+def delete_user(uuid: str, context: Context = Depends(user_token_required)):
     return crud.delete(uuid, context.user, context.db)
