@@ -1,11 +1,11 @@
 from fastapi import APIRouter
-from app.modules.devices.api import router as devices_router
+from app.modules.user.api import router as user_router
 
 api_router = APIRouter()
 
 include_api = api_router.include_router
 
-routers = ((devices_router, "devices", "devices"),)
+routers = ((user_router, "users", "users"),)
 
 for router, prefix, tag in routers:
 
