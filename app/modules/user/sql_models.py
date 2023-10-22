@@ -7,7 +7,7 @@ from app.modules.user.enum import UserRole, UserStatus
 
 
 class User(SQLModel, table=True):
-    """ Пользователь узла """
+    """Пользователь узла"""
 
     __tablename__ = 'users'
 

@@ -9,7 +9,7 @@ from app.core.enum import VisibilityLevel
 
 
 class UnitInput(SQLModel, table=True):
-    """ Представление входящей переменной Unit """
+    """Представление входящей переменной Unit"""
 
     __tablename__ = 'units_inputs'
 

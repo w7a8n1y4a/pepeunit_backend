@@ -15,7 +15,7 @@ class OrderByDate(str, Enum):
 
 
 class UserRead(BaseModel):
-    """ Экземпляр пользователя """
+    """Экземпляр пользователя"""
 
     uuid: uuid_pkg.UUID
     role: str
@@ -29,7 +29,7 @@ class UserRead(BaseModel):
 
 
 class UserCreate(BaseModel):
-    """ Создание пользователя """
+    """Создание пользователя"""
 
     login: str
     email: str
@@ -40,7 +40,7 @@ class UserCreate(BaseModel):
 
 
 class UserFilter(Filter):
-    """ Фильтр выборки пользователей """
+    """Фильтр выборки пользователей"""
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     search_string: Optional[str] = None

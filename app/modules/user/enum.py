@@ -2,14 +2,14 @@ import enum
 
 
 class UserRole(enum.Enum):
-    """ Роль пользователя """
+    """Роль пользователя"""
 
     USER = 'User'
     ADMIN = 'Admin'
 
 
 class UserStatus(enum.Enum):
-    """ Статус пользователя """
+    """Статус пользователя"""
 
     UNVERIFIED = 'Unverified'
     VERIFIED = 'Verified'

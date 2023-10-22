@@ -9,7 +9,7 @@ from app.core.enum import VisibilityLevel
 
 
 class Repo(SQLModel, table=True):
-    """ Репозиторий """
+    """Репозиторий"""
 
     __tablename__ = 'repos'
 
@@ -38,4 +38,6 @@ class Repo(SQLModel, table=True):
     last_update_datetime: datetime = Field(nullable=True)
 
     # создатель
-    creator_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE')))
+    creator_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+    )

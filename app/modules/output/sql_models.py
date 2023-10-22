@@ -9,7 +9,7 @@ from app.core.enum import VisibilityLevel
 
 
 class UnitOutput(SQLModel, table=True):
-    """ Представление выходящей переменной Unit """
+    """Представление выходящей переменной Unit"""
 
     __tablename__ = 'units_outputs'
 

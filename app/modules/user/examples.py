@@ -4,7 +4,7 @@ ex_user_read = {
     'status': 'Verified',
     'login': 'Amogus',
     'email': 'pepe@pepeunit.com',
-    'create_datetime': '2023-06-27 01:27:57.470868'
+    'create_datetime': '2023-06-27 01:27:57.470868',
 }
 
 ex_user_create = {

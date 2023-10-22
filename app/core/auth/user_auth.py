@@ -14,14 +14,15 @@ from app.modules.user.sql_models import User
 
 
 class Context:
-    """ Бизнес контекст приложения """
+    """Бизнес контекст приложения"""
+
     def __init__(self, db: Session, user: User):
         self.db: Session = db
         self.user: User = user
 
 
 def generate_token(user: User) -> str:
-    """ Генерирует авторизационный токен """
+    """Генерирует авторизационный токен"""
 
     # время жизни токена задаётся из окружения
     auth_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))

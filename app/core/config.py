@@ -2,7 +2,7 @@ from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
-    """ .env variables """
+    """.env variables"""
 
     debug: bool
     app_prefix: str
