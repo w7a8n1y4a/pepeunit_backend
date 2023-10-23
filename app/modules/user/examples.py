@@ -8,7 +8,8 @@ ex_user_read = {
 }
 
 ex_user_create = {
-    'credentials': 'Sus',
+    'login': 'Sus',
+    'email': 'pepe@pepeunit.com',
     'password': 'strong_password',
 }
 

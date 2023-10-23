@@ -21,7 +21,7 @@ class Repo(SQLModel, table=True):
     # уникальное название Repo на узле
     name: str = Field(nullable=False, unique=True)
     # время создания Repo
-    create_datetime: datetime = Field(nullable=False, default=datetime.utcnow())
+    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # линк до удалённого репозитория
     repo_url: str = Field(nullable=False)

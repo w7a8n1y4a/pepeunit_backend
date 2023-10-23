@@ -19,8 +19,8 @@ class UserRead(BaseModel):
     """Экземпляр пользователя"""
 
     uuid: uuid_pkg.UUID
-    role: str
-    status: str
+    role: UserRole
+    status: UserStatus
     login: str
     email: str
     create_datetime: datetime

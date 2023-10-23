@@ -29,4 +29,4 @@ class User(SQLModel, table=True):
     cipher_dynamic_salt: str = Field(nullable=False)
 
     # время создания User
-    create_datetime: datetime = Field(nullable=False, default=datetime.utcnow())
+    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)

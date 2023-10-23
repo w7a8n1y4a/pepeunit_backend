@@ -21,7 +21,7 @@ class Unit(SQLModel, table=True):
     # уникальное название Unit на узле
     name: str = Field(nullable=False)
     # время создания Unit
-    create_datetime: datetime = Field(nullable=False, default=datetime.utcnow())
+    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # автоматически обновляться при обновлении родительского Repo?
     is_auto_update_from_repo_unit: bool = Field(nullable=False, default=True)

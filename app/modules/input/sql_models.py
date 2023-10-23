@@ -23,7 +23,7 @@ class UnitInput(SQLModel, table=True):
     # название топика Input переменной
     topic_name: str = Field(nullable=False)
     # время создания Input
-    create_datetime: datetime = Field(nullable=False, default=datetime.utcnow())
+    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # последнее состояние Input переменной
     last_state: str = Field(nullable=True)

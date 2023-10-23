@@ -21,7 +21,7 @@ class UnitOutput(SQLModel, table=True):
     # название топика output переменной
     topic_name: str = Field(nullable=False)
     # время создания Output
-    create_datetime: datetime = Field(nullable=False, default=datetime.utcnow())
+    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # последнее состояние Output переменной
     last_state: str = Field(nullable=True)
