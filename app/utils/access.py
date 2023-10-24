@@ -5,6 +5,6 @@ from app.modules.user.enum import UserRole
 from app.modules.user.sql_models import User
 
 
-def access_check(user: User):
-    if user.role != UserRole.ADMIN.value:
+def access_check(user: User, roles: list[UserRole]):
+    if user.role not in [role.value for role in roles]:
         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")

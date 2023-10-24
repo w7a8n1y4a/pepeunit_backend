@@ -63,7 +63,6 @@ def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: 
 
 
 def apply_ilike_search_string(query, filters, fields: list):
-
     if filters.dict()['search_string'] and len(filters.dict()['search_string']) > 0:
         for word in filters.search_string.split():
             query = query.where(or_(*[field.ilike(f'%{word}%') for field in fields]))

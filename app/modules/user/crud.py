@@ -5,10 +5,11 @@ from sqlmodel import Session, select, func, or_, asc, desc
 from app.core.auth.user_auth import generate_user_access_token
 from app.core.db import get_session
 from app.modules.user.api_models import UserCreate, UserRead, UserAuth, AccessToken, UserFilter, OrderByDate
+from app.modules.user.enum import UserRole
 from app.modules.user.sql_models import User
-from app.modules.user.utils import access_check
 from app.modules.user.validators import is_valid_email, is_valid_login, is_valid_password, is_valid_object
 from app.utils.utils import password_to_hash, apply_offset_and_limit, apply_ilike_search_string, apply_enums
+from app.utils.access import access_check
 
 
 def create(data: UserCreate, db: Session = Depends(get_session)) -> UserRead:
@@ -30,7 +31,6 @@ def create(data: UserCreate, db: Session = Depends(get_session)) -> UserRead:
 
 
 def create_token(data: UserAuth, db: Session = Depends(get_session)) -> AccessToken:
-
     user = db.exec(select(User).where(or_(User.login == data.credentials, User.email == data.credentials))).first()
 
     is_valid_object(user)
@@ -42,8 +42,7 @@ def create_token(data: UserAuth, db: Session = Depends(get_session)) -> AccessTo
 
 
 def get(uuid: str, user: User, db: Session = Depends(get_session)) -> UserRead:
-
-    access_check(user)
+    access_check(user, [UserRole.ADMIN])
 
     user = db.get(User, uuid)
 
@@ -56,9 +55,8 @@ def get_current(user: User) -> UserRead:
     return UserRead(**user.dict())
 
 
-def get_all(filters: UserFilter, user: User, db: Session = Depends(get_session)) -> list[UserRead]:
-
-    access_check(user)
+def gets(filters: UserFilter, user: User, db: Session = Depends(get_session)) -> list[UserRead]:
+    access_check(user, [UserRole.ADMIN])
 
     query = select(User)
 

@@ -33,4 +33,4 @@ def get_current_user(context: Context = Depends(user_token_required)):
 
 @router.get("", response_model=list[UserRead], status_code=HTTP_200_OK)
 def get_users(filters: UserFilter = FilterDepends(UserFilter), context: Context = Depends(user_token_required)):
-    return crud.get_all(filters, context.user, context.db)
+    return crud.gets(filters, context.user, context.db)

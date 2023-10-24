@@ -1,6 +1,11 @@
 import enum
 
 
+class OrderByDate(str, enum.Enum):
+    asc = 'asc'
+    desc = 'desc'
+
+
 class VisibilityLevel(enum.Enum):
     """Уровень видимости для сущностей"""
 

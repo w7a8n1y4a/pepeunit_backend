@@ -30,12 +30,14 @@ class Repo(SQLModel, table=True):
     # зашифрованные данные доступа до приватного репозитория
     cipher_credentials_private_repository: str = Field(nullable=True)
 
+    # ветка по умолчанию для обновляющихся Unit, Unit нельзя ответвить пока не установлена ветка по умолчанию
+    default_branch: str = Field(nullable=True)
     # репозиторий автоматически обновляем?
     is_auto_update_repo: bool = Field(nullable=False, default=True)
-    # частота обновлений в секундах, cron будет это делать 1 раз за 10 минут
-    update_frequency_in_seconds: int = Field(nullable=True, default=86400)
+    # частота обновлений в секундах, cron делает этот таск 1 раз в 10 минут
+    update_frequency_in_seconds: int = Field(nullable=False, default=86400)
     # время последнего обновления, от которого отсчитывается следующий запрос
-    last_update_datetime: datetime = Field(nullable=True)
+    last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # создатель
     creator_uuid: uuid_pkg.UUID = Field(
