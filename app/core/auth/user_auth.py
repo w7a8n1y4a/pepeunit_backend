@@ -60,14 +60,3 @@ def user_token_required(auth_token: Annotated[str | None, Header()], db: Session
         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
     return Context(db, user)
-
-
-def check_access(roles: list[UserRole] = None):
-    def decorator(fn):
-        @wraps(fn)
-        def wrapper(*args, **kwargs):
-            # если переданный роли, но роли пользователя нет в списке
-            if roles is not None and args[1].role not in roles:
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
-
-            return fn(*args, **kwargs)
