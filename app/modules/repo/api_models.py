@@ -22,14 +22,14 @@ class RepoRead(BaseModel):
     is_public_repository: bool
     is_credentials_set: bool
 
-    default_branch: str
+    default_branch: Optional[str] = None
     is_auto_update_repo: bool
     update_frequency_in_seconds: int
     last_update_datetime: datetime
 
-    # todo брать напрямую из локального репозитория, но структурно
-    # branches: list[str]
-    # commits: list[str]
+    branches: list[str]
+
+    creator_uuid: uuid_pkg.UUID
 
     class Config:
         schema_extra = {"example": ex_repo_read}

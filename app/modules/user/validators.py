@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import HTTPException
 from fastapi import status as http_status
 from sqlmodel import Session, select, func
