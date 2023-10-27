@@ -6,7 +6,7 @@ class OrderByDate(str, enum.Enum):
     desc = 'desc'
 
 
-class VisibilityLevel(enum.Enum):
+class VisibilityLevel(str, enum.Enum):
     """Уровень видимости для сущностей"""
 
     PUBLIC = 'Public'

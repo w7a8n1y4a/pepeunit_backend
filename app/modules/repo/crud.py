@@ -5,7 +5,7 @@ from fastapi import status as http_status
 from sqlmodel import Session, select, func, or_, asc, desc
 
 from app.core.db import get_session
-from app.modules.repo.api_models import RepoCreate, RepoRead, Credentials
+from app.modules.repo.api_models import RepoCreate, RepoRead, Credentials, RepoUpdate
 from app.modules.repo.sql_models import Repo
 from app.modules.repo.utils import clone_remote_repo, get_branches_repo, get_url_for_clone, get_repo
 from app.modules.repo.validators import is_valid_name, is_valid_private_repo, is_valid_repo_url, is_private_repository, \
@@ -74,6 +74,31 @@ def set_default_branch(uuid: str, default_branch: str, user: User, db: Session =
     is_valid_branch(repo, default_branch)
 
     repo.default_branch = default_branch
+
+    db.add(repo)
+    db.commit()
+    db.refresh(repo)
+
+    git_repo = get_repo(repo.uuid)
+
+    return RepoRead(
+        is_credentials_set=bool(repo.cipher_credentials_private_repository),
+        branches=get_branches_repo(git_repo),
+        **repo.dict()
+    )
+
+
+def update(uuid: str, data: RepoUpdate, user: User, db: Session = Depends(get_session)) -> RepoRead:
+
+    repo = db.get(Repo, uuid)
+    is_valid_name(data.name, db, update=True)
+    is_valid_object(repo)
+    creator_check(user, repo)
+
+    for key, value in data.dict().items():
+        setattr(repo, key, value)
+
+    repo.cipher_credentials_private_repository = None
 
     db.add(repo)
     db.commit()
