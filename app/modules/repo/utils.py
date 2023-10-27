@@ -14,7 +14,7 @@ def clone_remote_repo(repo: Repo, repo_url: str) -> GitRepo:
         # клонирование
         git_repo = GitRepo.clone_from(repo_url, f'repositories/{repo.uuid}')
     except GitCommandError:
-        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url")
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials")
 
     # получает все удалённые ветки
     for remote in git_repo.remotes:

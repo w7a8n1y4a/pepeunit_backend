@@ -7,9 +7,10 @@ from app.core.db import get_session
 from app.modules.user.api_models import UserCreate, UserRead, UserAuth, AccessToken, UserFilter, OrderByDate
 from app.modules.user.enum import UserRole
 from app.modules.user.sql_models import User
-from app.modules.user.validators import is_valid_email, is_valid_login, is_valid_password, is_valid_object
+from app.modules.user.validators import is_valid_email, is_valid_login, is_valid_password
 from app.utils.utils import password_to_hash, apply_offset_and_limit, apply_ilike_search_string, apply_enums
 from app.utils.access import access_check
+from app.utils.validators import is_valid_object
 
 
 def create(data: UserCreate, db: Session = Depends(get_session)) -> UserRead:
