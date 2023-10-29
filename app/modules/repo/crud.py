@@ -50,8 +50,6 @@ def update_credentials_private(uuid: str, data: Credentials, user: User, db: Ses
 
     repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
 
-    print(repo.cipher_credentials_private_repository)
-
     db.add(repo)
     db.commit()
     db.refresh(repo)
@@ -91,9 +89,9 @@ def set_default_branch(uuid: str, default_branch: str, user: User, db: Session =
 def update(uuid: str, data: RepoUpdate, user: User, db: Session = Depends(get_session)) -> RepoRead:
 
     repo = db.get(Repo, uuid)
-    is_valid_name(data.name, db, update=True)
     is_valid_object(repo)
     creator_check(user, repo)
+    is_valid_name(data.name, db, update=True, update_uuid=repo.uuid)
 
     for key, value in data.dict().items():
         setattr(repo, key, value)
@@ -103,6 +101,21 @@ def update(uuid: str, data: RepoUpdate, user: User, db: Session = Depends(get_se
     db.add(repo)
     db.commit()
     db.refresh(repo)
+
+    git_repo = get_repo(repo.uuid)
+
+    return RepoRead(
+        is_credentials_set=bool(repo.cipher_credentials_private_repository),
+        branches=get_branches_repo(git_repo),
+        **repo.dict()
+    )
+
+
+def get(uuid: str, user: User, db: Session = Depends(get_session)) -> RepoRead:
+
+    repo = db.get(Repo, uuid)
+    is_valid_object(repo)
+    # todo разработка системы доступов
 
     git_repo = get_repo(repo.uuid)
 

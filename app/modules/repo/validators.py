@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import HTTPException
 from fastapi import status as http_status
 from sqlmodel import Session, select, func
@@ -9,9 +7,10 @@ from app.modules.repo.sql_models import Repo
 from app.modules.repo.utils import get_repo, get_branches_repo
 
 
-def is_valid_name(name: str, db: Session, update: bool = False):
-    count_repos = db.exec(select(func.count(Repo.uuid)).where(Repo.name == name)).first()
-    if count_repos == 1 and not update:
+def is_valid_name(name: str, db: Session, update: bool = False, update_uuid: str = ''):
+    repo = db.exec(select(Repo.uuid).where(Repo.name == name)).first()
+
+    if (repo and not update) or (repo and update and repo.uuid != update_uuid):
         raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not unique")
 
 

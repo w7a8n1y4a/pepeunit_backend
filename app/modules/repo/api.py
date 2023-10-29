@@ -18,6 +18,7 @@ def create_repo(data: RepoCreate, context: Context = Depends(user_token_required
 def update_credentials_private_repo(uuid: str, data: Credentials, context: Context = Depends(user_token_required)):
     return crud.update_credentials_private(uuid, data, context.user, context.db)
 
+# todo update repo pull for all branches
 
 @router.patch("/default_branch/{uuid}", response_model=RepoRead, status_code=HTTP_200_OK)
 def set_default_branch_repo(uuid: str, default_branch: str, context: Context = Depends(user_token_required)):
