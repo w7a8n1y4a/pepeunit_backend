@@ -24,6 +24,11 @@ def get_unit(uuid: str, context: Context = Depends(user_token_required)):
     return crud.get(uuid, context.user, context.db)
 
 
+@router.get("/program/{uuid}", response_model=str, status_code=HTTP_200_OK)
+def get_unit_program(uuid: str, context: Context = Depends(user_token_required)):
+    return crud.get_program(uuid, context.user, context.db)
+
+
 @router.get("", response_model=list[UnitRead], status_code=HTTP_200_OK)
 def get_unis(filters: UnitFilter = FilterDepends(UnitFilter), context: Context = Depends(user_token_required)):
     return crud.gets(filters, context.user, context.db)
