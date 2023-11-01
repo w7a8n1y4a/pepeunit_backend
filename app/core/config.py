@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     version: str
     description: str
 
+    backend_domain: str
+
     auth_token_expiration: str
     sqlalchemy_database_url: str
 

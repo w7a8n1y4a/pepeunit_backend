@@ -4,7 +4,7 @@ from sqlmodel import Session, select, func
 
 from app.modules.repo.api_models import RepoCreate, RepoUpdate
 from app.modules.repo.sql_models import Repo
-from app.modules.repo.utils import get_repo, get_branches_repo
+from app.modules.repo.utils import get_repo, get_branches_repo, get_commits_repo
 
 
 def is_valid_name(name: str, db: Session, update: bool = False, update_uuid: str = ''):
@@ -34,3 +34,7 @@ def is_valid_branch(repo: Repo, branch: str):
     if branch not in get_branches_repo(get_repo(repo.uuid)):
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid branch")
 
+
+def is_valid_commit(repo: Repo, branch: str, commit: str):
+    if commit not in [hash_commit for hash_commit, name in get_commits_repo(get_repo(repo.uuid), branch)]:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid commit")

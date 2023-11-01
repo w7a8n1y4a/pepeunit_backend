@@ -46,8 +46,10 @@ def get_branches_repo(repo: GitRepo) -> list[str]:
     return [r.remote_head for r in repo.remote().refs][1:]
 
 
-def get_commits_repo(repo: GitRepo, branch: str, depth: int) -> list[tuple]:
-    return [(item.name_rev.split()[0], item.summary) for item in repo.iter_commits(rev=f'remotes/origin/{branch}')][:depth]
+def get_commits_repo(repo: GitRepo, branch: str, depth: int = None) -> list[tuple[str, str]]:
+    return [
+               (item.name_rev.split()[0], item.summary) for item in repo.iter_commits(rev=f'remotes/origin/{branch}')
+           ][:depth]
 
 
 def get_tags_repo(repo: GitRepo) -> list[tuple]:
