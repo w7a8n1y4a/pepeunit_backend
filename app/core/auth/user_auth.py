@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from functools import wraps
 
 import jwt
 
@@ -11,7 +10,6 @@ from sqlmodel import Session, select
 
 from app import settings
 from app.core.db import get_session
-from app.modules.user.enum import UserRole
 from app.modules.user.sql_models import User
 
 

@@ -1,20 +1,15 @@
-import json
-
 from fastapi import Depends, HTTPException
-from fastapi import status as http_status
 from sqlmodel import Session, select, func, or_, asc, desc
 
+from app.core.auth.unit_auth import generate_unit_access_token
+from fastapi import status as http_status
 from app.core.db import get_session
-from app.modules.repo.api_models import RepoCreate, RepoRead, Credentials, RepoUpdate
 from app.modules.repo.sql_models import Repo
-from app.modules.repo.utils import clone_remote_repo, get_branches_repo, get_url_for_clone, get_repo
 from app.modules.unit.api_models import UnitCreate, UnitRead
 from app.modules.unit.sql_models import Unit
 from app.modules.unit.utils import program_link_generation
 from app.modules.unit.validators import is_valid_name, is_valid_no_updated_unit
 from app.modules.user.sql_models import User
-from app.utils.access import creator_check
-from app.utils.utils import aes_encode
 from app.utils.validators import is_valid_object
 
 
@@ -41,63 +36,17 @@ def create(data: UnitCreate, user: User, db: Session = Depends(get_session)) -> 
     )
 
 
-def update_credentials_private(uuid: str, data: Credentials, user: User, db: Session = Depends(get_session)) -> RepoRead:
+async def get_auth(unit: Unit, db):
 
-    repo = db.get(Repo, uuid)
-    is_valid_object(repo)
-    creator_check(user, repo)
-    is_private_repository(repo)
+    print(unit.dict())
 
-    repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
-
-    db.add(repo)
-    db.commit()
-    db.refresh(repo)
-
-    git_repo = get_repo(repo.uuid)
-
-    return RepoRead(
-        is_credentials_set=bool(repo.cipher_credentials_private_repository),
-        branches=get_branches_repo(git_repo),
-        **repo.dict()
-    )
+    return True
 
 
-def update(uuid: str, data: RepoUpdate, user: User, db: Session = Depends(get_session)) -> RepoRead:
+async def get_auth_acl(data, unit: Unit, db):
 
-    repo = db.get(Repo, uuid)
-    is_valid_object(repo)
-    creator_check(user, repo)
-    is_valid_name(data.name, db, update=True, update_uuid=repo.uuid)
+    # todo права доступа на отдельные топики, мб стоит научиться обновлять acl лист на mosquitto
 
-    for key, value in data.dict().items():
-        setattr(repo, key, value)
+    print(await data.json())
 
-    repo.cipher_credentials_private_repository = None
-
-    db.add(repo)
-    db.commit()
-    db.refresh(repo)
-
-    git_repo = get_repo(repo.uuid)
-
-    return RepoRead(
-        is_credentials_set=bool(repo.cipher_credentials_private_repository),
-        branches=get_branches_repo(git_repo),
-        **repo.dict()
-    )
-
-
-def get(uuid: str, user: User, db: Session = Depends(get_session)) -> RepoRead:
-
-    repo = db.get(Repo, uuid)
-    is_valid_object(repo)
-    # todo разработка системы доступов
-
-    git_repo = get_repo(repo.uuid)
-
-    return RepoRead(
-        is_credentials_set=bool(repo.cipher_credentials_private_repository),
-        branches=get_branches_repo(git_repo),
-        **repo.dict()
-    )
+    return True
