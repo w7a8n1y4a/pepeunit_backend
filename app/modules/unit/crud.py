@@ -40,13 +40,15 @@ async def get_auth(unit: Unit, db):
 
     print(unit.dict())
 
+    print('user_route', 'TRUE')
+
     return True
 
 
 async def get_auth_acl(data, unit: Unit, db):
+    print('acl_route', await data.json())
 
     # todo права доступа на отдельные топики, мб стоит научиться обновлять acl лист на mosquitto
-
     print(await data.json())
 
     return True

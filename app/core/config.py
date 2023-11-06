@@ -19,3 +19,9 @@ class Settings(BaseSettings):
     secret_key: str
     encrypt_key: str
     static_salt: str
+
+    mqtt_host: str
+    mqtt_port: int
+    mqtt_keepalive: int
+    mqtt_username: str
+    mqtt_password: str
