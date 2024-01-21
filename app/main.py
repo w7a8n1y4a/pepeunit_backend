@@ -1,7 +1,8 @@
 import uvicorn
 import datetime
+import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
@@ -30,6 +31,18 @@ mqtt = FastMQTT(
 )
 
 mqtt.init_app(app)
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    print('123')
+    try:
+        await websocket.accept()
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_text(str(time.time()))
+    except Exception as e:
+        await websocket.close()
 
 
 @mqtt.on_connect()
