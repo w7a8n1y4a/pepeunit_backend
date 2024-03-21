@@ -3,4 +3,4 @@ venv
 .idea
 test.py
 test.ipynb
-repositories/*
+repo_cache/*
