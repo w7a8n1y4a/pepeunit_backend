@@ -6,7 +6,7 @@ from fastapi_filter.contrib.sqlalchemy import Filter
 from sqlalchemy.orm import Session
 
 from app.core.db import get_session
-from app.domain import User
+from app.domain.user_model import User
 from app.repositories.enum import OrderByDate
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 
