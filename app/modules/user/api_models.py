@@ -4,6 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 from fastapi_filter.contrib.sqlalchemy import Filter
+from sqlalchemy import inspect
 
 from app.core.enum import OrderByDate
 from app.modules.user.enum import UserStatus, UserRole
