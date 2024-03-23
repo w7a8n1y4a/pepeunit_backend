@@ -1,4 +1,4 @@
-import uuid
+import uuid as uuid_pkg
 from datetime import datetime
 
 from sqlmodel import SQLModel, Field
@@ -11,7 +11,7 @@ class User(SQLModel, table=True):
 
     __tablename__ = 'users'
 
-    uuid: uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid.uuid4)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # роль на узле
     role: str = Field(nullable=False, default=UserRole.USER.value)

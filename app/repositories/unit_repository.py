@@ -60,15 +60,14 @@ class UnitRepository:
         fields = [Unit.name]
         query = apply_ilike_search_string(query, filters, fields)
 
-        fields = {UnitFilter.visibility_level: Unit.visibility_level}
+        fields = {'visibility_level': Unit.visibility_level}
         query = apply_enums(query, filters, fields)
 
-        query = apply_offset_and_limit(query, filters)
-
         fields = {
-            UnitFilter.order_by_create_date: Unit.create_datetime,
-            UnitFilter.order_by_last_update: Unit.last_update_datetime
+            'order_by_create_date': Unit.create_datetime,
+            'order_by_last_update': Unit.last_update_datetime
         }
         query = apply_orders_by(query, filters, fields)
 
+        query = apply_offset_and_limit(query, filters)
         return query.all()
