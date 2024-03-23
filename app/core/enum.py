@@ -1,5 +1,7 @@
 import enum
 
+import strawberry
+
 
 class OrderByDate(str, enum.Enum):
     asc = 'asc'

@@ -1,8 +1,11 @@
+from typing import Union
+
 from fastapi import Depends
 
 from app.domain.user_model import User
-from app.repositories.user_repository import UserRepository, UserFilter
-from app.schemas.pydantic.user import UserCreate, UserRead, UserUpdate
+from app.repositories.user_repository import UserRepository
+from app.schemas.graphql.user import UserCreateInput, UserFilterInput, UserUpdateInput
+from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter
 from app.services.validators import is_valid_object
 from app.utils.utils import password_to_hash
 
@@ -17,7 +20,7 @@ class UserService:
     ) -> None:
         self.user_repository = user_repository
 
-    def create(self, data: UserCreate) -> User:
+    def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
 
         self.user_repository.is_valid_login(data.login)
         self.user_repository.is_valid_email(data.email)
@@ -34,7 +37,7 @@ class UserService:
         is_valid_object(user)
         return user
 
-    def update(self, uuid: str, data: UserUpdate) -> User:
+    def update(self, uuid: str, data: Union[UserUpdate, UserUpdateInput]) -> User:
 
         self.user_repository.is_valid_login(data.login, uuid)
         self.user_repository.is_valid_email(data.email, uuid)
@@ -50,6 +53,6 @@ class UserService:
     def delete(self, uuid: str) -> None:
         return self.user_repository.delete(User(uuid=uuid))
 
-    def list(self, filters: UserFilter) -> list[User]:
+    def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         return self.user_repository.list(filters)
 

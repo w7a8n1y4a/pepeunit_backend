@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
+from fastapi_filter.contrib.sqlalchemy import Filter
 
 from app.modules.user.enum import UserStatus, UserRole
 from app.modules.user.examples import ex_user_create, ex_user_read, ex_user_auth, ex_access_token
+from app.repositories.enum import OrderByDate
 
 
 class UserRead(BaseModel):
@@ -58,3 +60,17 @@ class AccessToken(BaseModel):
 
     class Config:
         schema_extra = {"example": ex_access_token}
+
+
+class UserFilter(Filter):
+    """Фильтр выборки пользователей"""
+
+    search_string: Optional[str] = None
+
+    role: Optional[UserRole] = None
+    status: Optional[UserStatus] = None
+
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None

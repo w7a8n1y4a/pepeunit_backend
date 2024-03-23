@@ -1,47 +1,15 @@
-import enum
-from typing import Optional
+from typing import Union
 
-import strawberry
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
-from fastapi_filter.contrib.sqlalchemy import Filter
-from sqlalchemy.orm import Session
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select
 
 from app.core.db import get_session
 from app.domain.user_model import User
-from app.repositories.enum import OrderByDate
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-
-@strawberry.enum
-class UserRole(enum.Enum):
-    """Роль пользователя"""
-
-    USER = 'User'
-    ADMIN = 'Admin'
-
-@strawberry.enum
-class UserStatus(enum.Enum):
-    """Статус пользователя"""
-
-    UNVERIFIED = 'Unverified'
-    VERIFIED = 'Verified'
-    BLOCKED = 'Blocked'
-
-
-class UserFilter(Filter):
-    """Фильтр выборки пользователей"""
-
-    search_string: Optional[str] = None
-
-    role: Optional[UserRole] = None
-    status: Optional[UserStatus] = None
-
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+from app.schemas.graphql.user import UserFilterInput
+from app.schemas.pydantic.user import UserFilter
 
 
 class UserRepository:
@@ -65,14 +33,14 @@ class UserRepository:
         user.uuid = uuid
         self.db.merge(user)
         self.db.commit()
-        return user
+        return self.get(user)
 
     def delete(self, user: User) -> None:
         self.db.delete(self.get(user))
         self.db.commit()
         self.db.flush()
 
-    def list(self, filters: UserFilter) -> list[User]:
+    def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         query = self.db.query(User)
 
         fields = [User.login, User.email]
