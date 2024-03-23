@@ -1,6 +1,7 @@
 import enum
 from typing import Optional
 
+import strawberry
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
@@ -13,14 +14,14 @@ from app.domain.user_model import User
 from app.repositories.enum import OrderByDate
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 
-
+@strawberry.enum
 class UserRole(enum.Enum):
     """Роль пользователя"""
 
     USER = 'User'
     ADMIN = 'Admin'
 
-
+@strawberry.enum
 class UserStatus(enum.Enum):
     """Статус пользователя"""
 

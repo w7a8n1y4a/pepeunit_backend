@@ -4,11 +4,14 @@ import time
 
 from fastapi import FastAPI, WebSocket
 from fastapi_mqtt import FastMQTT, MQTTConfig
+from strawberry import Schema
+from strawberry.fastapi import GraphQLRouter
 
 from app import settings
 from app.api.api_v1.endpoints import api_router
+from app.configs.gql import get_graphql_context
 from app.core.models import Root
-
+from app.schemas.graphql.query import Query
 
 app = FastAPI(
     title=settings.project_name,
@@ -16,6 +19,21 @@ app = FastAPI(
     openapi_url=f"{settings.app_prefix}{settings.api_v1_prefix}/openapi.json",
     docs_url=f"{settings.app_prefix}/docs",
     debug=settings.debug,
+)
+
+# GraphQL Schema and Application Instance
+schema = Schema(query=Query)
+graphql = GraphQLRouter(
+    schema,
+    graphiql=True,
+    context_getter=get_graphql_context,
+)
+
+# Integrate GraphQL Application to the Core one
+app.include_router(
+    graphql,
+    prefix="/graphql",
+    include_in_schema=False,
 )
 
 mqtt_config = MQTTConfig(
