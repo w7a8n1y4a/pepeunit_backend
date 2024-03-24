@@ -6,6 +6,7 @@ from app.domain.user_model import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.graphql.user import UserCreateInput, UserFilterInput, UserUpdateInput
 from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter
+from app.services.user_auth_service import UserAuthService
 from app.services.validators import is_valid_object
 from app.utils.utils import password_to_hash
 
@@ -13,12 +14,15 @@ from app.utils.utils import password_to_hash
 class UserService:
 
     user_repository = UserRepository()
+    user_auth_service = UserAuthService()
 
     def __init__(
         self,
         user_repository: UserRepository = Depends(),
+        user_auth_service: UserAuthService = Depends()
     ) -> None:
         self.user_repository = user_repository
+        self.user_auth_service = user_auth_service
 
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
 
@@ -54,5 +58,7 @@ class UserService:
         return self.user_repository.delete(User(uuid=uuid))
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
+
+        print(self.user_auth_service.jwt_token)
         return self.user_repository.list(filters)
 
