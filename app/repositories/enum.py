@@ -25,6 +25,7 @@ class VisibilityLevel(str, enum.Enum):
 class UserRole(enum.Enum):
     """Роль пользователя"""
 
+    BOT = 'Bot'
     USER = 'User'
     ADMIN = 'Admin'
 
