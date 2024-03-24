@@ -3,6 +3,7 @@ from typing import Union
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from app.core.db import get_session
@@ -28,6 +29,11 @@ class UserRepository:
 
     def get(self, user: User) -> User:
         return self.db.get(User, user.uuid)
+
+    def get_user_by_credentials(self, credentials: str) -> User:
+        return self.db.exec(
+            select(User).where(or_(User.login == credentials, User.email == credentials))
+        ).first()
 
     def update(self, uuid, user: User) -> User:
         user.uuid = uuid

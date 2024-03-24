@@ -102,11 +102,11 @@ def root():
         'version': settings.version,
         'description': settings.description,
         'swagger': f'{settings.app_prefix}/docs',
-        'graphql': f'{settings.app_prefix}/graphql'
+        'graphql': f'{settings.app_prefix}/graphql',
     }
 
 
 app.include_router(api_router, prefix=f'{settings.app_prefix}{settings.api_v1_prefix}')
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', port=8080, host='0.0.0.0', reload=True)
+    uvicorn.run('app.main:app', port=8080, host='0.0.0.0', reload=True)

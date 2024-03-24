@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi_filter import FilterDepends
 
 from app.repositories.user_repository import UserFilter
-from app.schemas.pydantic.user import UserRead, UserCreate, UserUpdate
+from app.schemas.pydantic.user import UserRead, UserCreate, UserUpdate, AccessToken, UserAuth
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -14,10 +14,10 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 def create(
-    user: UserCreate,
+    data: UserCreate,
     user_service: UserService = Depends()
 ):
-    return UserRead(**user_service.create(user).dict())
+    return UserRead(**user_service.create(data).dict())
 
 
 @router.get("/{uuid}", response_model=UserRead)
@@ -28,13 +28,21 @@ def get(
     return UserRead(**user_service.get(uuid).dict())
 
 
+@router.post("/auth", response_model=AccessToken)
+def get_token(
+    data: UserAuth,
+    user_service: UserService = Depends()
+):
+    return AccessToken(token=user_service.get_token(data))
+
+
 @router.patch("/{id}", response_model=UserRead)
 def update(
     uuid: str,
-    user: UserUpdate,
+    data: UserUpdate,
     user_service: UserService = Depends()
 ):
-    return UserRead(**user_service.update(uuid, user).dict())
+    return UserRead(**user_service.update(uuid, data).dict())
 
 
 @router.delete(

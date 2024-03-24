@@ -5,10 +5,10 @@ from fastapi import Depends
 from app.domain.user_model import User
 from app.repositories.enum import UserRole
 from app.repositories.user_repository import UserRepository
-from app.schemas.graphql.user import UserCreateInput, UserFilterInput, UserUpdateInput
-from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter
-from app.services.user_auth_service import AccessService
-from app.services.validators import is_valid_object
+from app.schemas.graphql.user import UserCreateInput, UserFilterInput, UserUpdateInput, UserAuthInput
+from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAuth
+from app.services.access_service import AccessService
+from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import password_to_hash
 
 
@@ -42,6 +42,16 @@ class UserService:
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
         return user
+
+    def get_token(self, data: Union[UserAuth, UserAuthInput]) -> str:
+        self.access_service.access_check([UserRole.BOT])
+
+        user = self.user_repository.get_user_by_credentials(data.credentials)
+
+        is_valid_object(user)
+        is_valid_password(data.password, user)
+
+        return self.access_service.generate_user_token(user)
 
     def update(self, uuid: str, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.access_check([UserRole.USER])

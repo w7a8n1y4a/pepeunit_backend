@@ -4,7 +4,7 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_user_service
-from app.schemas.graphql.user import UserType, UserFilterInput
+from app.schemas.graphql.user import UserType, UserFilterInput, UserAuthInput
 
 
 @strawberry.type()
@@ -15,6 +15,13 @@ class Query:
     ) -> UserType:
         user_service = get_user_service(info)
         return UserType(**user_service.get(uuid).dict())
+
+    @strawberry.field()
+    def get_token(
+        self, data: UserAuthInput, info: Info
+    ) -> str:
+        user_service = get_user_service(info)
+        return user_service.get_token(data)
 
     @strawberry.field()
     def get_users(

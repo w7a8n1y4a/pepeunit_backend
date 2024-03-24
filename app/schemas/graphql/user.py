@@ -24,6 +24,10 @@ class UserType:
     hashed_password: strawberry.Private[object]
     cipher_dynamic_salt: strawberry.Private[object]
 
+@strawberry.input()
+class UserAuthInput(BaseMixin):
+    credentials: str
+    password: str
 
 @strawberry.input()
 class UserCreateInput(BaseMixin):

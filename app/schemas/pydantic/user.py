@@ -56,7 +56,7 @@ class UserAuth(BaseModel):
 class AccessToken(BaseModel):
     """Возврат авторизационного токена"""
 
-    access_token: str
+    token: str
 
     class Config:
         schema_extra = {"example": ex_access_token}
