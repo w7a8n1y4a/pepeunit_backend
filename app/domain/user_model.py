@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlmodel import SQLModel, Field
 
-from app.modules.user.enum import UserRole, UserStatus
+from app.repositories.enum import UserRole, UserStatus
 
 
 class User(SQLModel, table=True):
