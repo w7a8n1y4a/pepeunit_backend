@@ -95,14 +95,13 @@ def subscribe(client, mid, qos, properties):
     print('subscribed', client, mid, qos, properties)
 
 
-@app.get(settings.app_prefix, response_model=Root, tags=['status'])
+@app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])
 def root():
     return {
         'name': settings.project_name,
         'version': settings.version,
         'description': settings.description,
-        'swagger': f'{settings.app_prefix}/docs',
-        'graphql': f'{settings.app_prefix}/graphql',
+        'swagger': f'{settings.app_prefix}/docs'
     }
 
 

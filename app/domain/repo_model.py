@@ -1,4 +1,4 @@
-import uuid
+import uuid as pkg_uuid
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, Column
@@ -13,7 +13,7 @@ class Repo(SQLModel, table=True):
 
     __tablename__ = 'repos'
 
-    uuid: uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid.uuid4)
+    uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
 
     # уровень видимости для пользователей
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
