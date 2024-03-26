@@ -8,11 +8,11 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.api.api_v1.endpoints import api_router
+from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
 from app.core.models import Root
-from app.schemas.graphql.mutation import Mutation
-from app.schemas.graphql.query import Query
+from app.schemas.gql.mutation import Mutation
+from app.schemas.gql.query import Query
 
 app = FastAPI(
     title=settings.project_name,

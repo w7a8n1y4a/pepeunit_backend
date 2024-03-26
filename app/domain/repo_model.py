@@ -40,6 +40,6 @@ class Repo(SQLModel, table=True):
     last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # создатель
-    creator_uuid: uuid.UUID = Field(
+    creator_uuid: pkg_uuid.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
     )

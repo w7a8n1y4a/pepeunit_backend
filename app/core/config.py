@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     encrypt_key: str
     static_salt: str
 
+    save_repo_path: str
+
     mqtt_host: str
     mqtt_port: int
     mqtt_keepalive: int

@@ -1,50 +1,33 @@
-import uuid as uuid_pkg
-from datetime import datetime
 from typing import Optional
 
 import strawberry
 
 from app.repositories.enum import UserRole, UserStatus, OrderByDate
+from app.schemas.gql.type_input_mixin import TypeInputMixin
 
-
-class BaseMixin:
-    def dict(self):
-        return self.__dict__
-
-
-@strawberry.type()
-class UserType:
-    uuid: uuid_pkg.UUID
-    role: UserRole
-    status: UserStatus
-    login: str
-    email: str
-    create_datetime: datetime
-
-    hashed_password: strawberry.Private[object]
-    cipher_dynamic_salt: strawberry.Private[object]
 
 @strawberry.input()
-class UserAuthInput(BaseMixin):
+class UserAuthInput(TypeInputMixin):
     credentials: str
     password: str
 
+
 @strawberry.input()
-class UserCreateInput(BaseMixin):
+class UserCreateInput(TypeInputMixin):
     login: str
     email: str
     password: str
 
 
 @strawberry.input()
-class UserUpdateInput(BaseMixin):
+class UserUpdateInput(TypeInputMixin):
     login: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
 
 
 @strawberry.input()
-class UserFilterInput(BaseMixin):
+class UserFilterInput(TypeInputMixin):
     search_string: Optional[str] = None
 
     role: Optional[UserRole] = None

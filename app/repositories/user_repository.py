@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from app.core.db import get_session
 from app.domain.user_model import User
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-from app.schemas.graphql.user import UserFilterInput
+from app.schemas.gql.inputs.user import UserFilterInput
 from app.schemas.pydantic.user import UserFilter
 
 

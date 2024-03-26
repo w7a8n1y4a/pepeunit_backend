@@ -1,30 +1,14 @@
-from typing import Optional
 
 from fastapi import Depends
-from fastapi_filter.contrib.sqlalchemy import Filter
+from fastapi import HTTPException
+from fastapi import status as http_status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_session
 from app.domain.repo_model import Repo
-from app.repositories.enum import VisibilityLevel, OrderByDate
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-
-
-class RepoFilter(Filter):
-    """Фильтр выборки репозиториев"""
-
-    search_string: Optional[str] = None
-
-    is_public_repository: Optional[bool] = None
-    is_auto_update_repo: Optional[bool] = None
-
-    visibility_level: Optional[VisibilityLevel] = None
-
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate
 
 
 class RepoRepository:
@@ -48,10 +32,10 @@ class RepoRepository:
         repo.uuid = uuid
         self.db.merge(repo)
         self.db.commit()
-        return repo
+        return self.get(repo)
 
     def delete(self, repo: Repo) -> None:
-        self.db.delete(repo)
+        self.db.delete(self.get(repo))
         self.db.commit()
         self.db.flush()
 
@@ -72,3 +56,27 @@ class RepoRepository:
 
         query = apply_offset_and_limit(query, filters)
         return query.all()
+
+    def is_valid_name(self, name: str, uuid: str = None):
+        repo_uuid = self.db.exec(select(Repo.uuid).where(Repo.name == name)).first()
+        repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
+
+        if (uuid is None and repo_uuid) or (uuid and repo_uuid != uuid and repo_uuid is not None):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not unique")
+
+    @staticmethod
+    def is_valid_repo_url(repo: Repo):
+        url = repo.repo_url
+        if url[-4:] != '.git' and not (url.find('https://') == 0 or url.find('http://') == 0):
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url")
+
+    @staticmethod
+    def is_valid_private_repo(data: RepoCreate or RepoUpdate):
+        if not data.is_public_repository and (
+                not data.credentials or (not data.credentials.username or not data.credentials.pat_token)):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"No valid credentials")
+
+    @staticmethod
+    def is_private_repository(repo: Repo):
+        if repo.is_public_repository:
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Is public repo")

@@ -9,7 +9,6 @@ from app.repositories.enum import OrderByDate, UserRole, UserStatus
 
 
 class UserRead(BaseModel):
-    """Экземпляр пользователя"""
 
     uuid: uuid_pkg.UUID
     role: UserRole
@@ -20,7 +19,6 @@ class UserRead(BaseModel):
 
 
 class UserCreate(BaseModel):
-    """Создание пользователя"""
 
     login: str
     email: str
@@ -28,7 +26,6 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Обновление пользователя"""
 
     login: Optional[str] = None
     email: Optional[str] = None
@@ -36,20 +33,17 @@ class UserUpdate(BaseModel):
 
 
 class UserAuth(BaseModel):
-    """Данные для авторизации пользователя"""
 
     credentials: str
     password: str
 
 
 class AccessToken(BaseModel):
-    """Возврат авторизационного токена"""
 
     token: str
 
 
 class UserFilter(Filter):
-    """Фильтр выборки пользователей"""
 
     search_string: Optional[str] = None
 
