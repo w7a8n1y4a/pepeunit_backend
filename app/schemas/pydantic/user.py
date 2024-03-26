@@ -9,7 +9,6 @@ from app.repositories.enum import OrderByDate, UserRole, UserStatus
 
 
 class UserRead(BaseModel):
-
     uuid: uuid_pkg.UUID
     role: UserRole
     status: UserStatus
@@ -19,32 +18,27 @@ class UserRead(BaseModel):
 
 
 class UserCreate(BaseModel):
-
     login: str
     email: str
     password: str
 
 
 class UserUpdate(BaseModel):
-
     login: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
 
 
 class UserAuth(BaseModel):
-
     credentials: str
     password: str
 
 
 class AccessToken(BaseModel):
-
     token: str
 
 
 class UserFilter(Filter):
-
     search_string: Optional[str] = None
 
     role: Optional[UserRole] = None

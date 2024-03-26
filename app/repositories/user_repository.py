@@ -16,9 +16,7 @@ from app.schemas.pydantic.user import UserFilter
 class UserRepository:
     db: Session
 
-    def __init__(
-        self, db: Session = Depends(get_session)
-    ) -> None:
+    def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
 
     def create(self, user: User) -> User:
@@ -32,9 +30,7 @@ class UserRepository:
         return self.db.get(User, user.uuid)
 
     def get_user_by_credentials(self, credentials: str) -> User:
-        return self.db.exec(
-            select(User).where(or_(User.login == credentials, User.email == credentials))
-        ).first()
+        return self.db.exec(select(User).where(or_(User.login == credentials, User.email == credentials))).first()
 
     def update(self, uuid, user: User) -> User:
         user.uuid = uuid

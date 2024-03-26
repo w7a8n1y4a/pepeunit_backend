@@ -72,7 +72,7 @@ class UnitUpdate(BaseModel):
 class UnitFilter(Filter):
     """Фильтр выборки репозиториев"""
 
-    search_string: Optional[str] = Field(description="descr text")
+    search_string: Optional[str] = None
 
     is_auto_update_from_repo_unit: Optional[bool] = None
 

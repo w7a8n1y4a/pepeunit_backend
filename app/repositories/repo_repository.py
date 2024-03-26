@@ -1,4 +1,3 @@
-
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
@@ -13,9 +12,7 @@ from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate
 class RepoRepository:
     db: Session
 
-    def __init__(
-        self, db: Session = Depends(get_session)
-    ) -> None:
+    def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
 
     def create(self, repo: Repo) -> Repo:
@@ -47,10 +44,7 @@ class RepoRepository:
         fields = {'visibility_level': Repo.visibility_level}
         query = apply_enums(query, filters, fields)
 
-        fields = {
-            'order_by_create_date': Repo.create_datetime,
-            'order_by_last_update': Repo.last_update_datetime
-        }
+        fields = {'order_by_create_date': Repo.create_datetime, 'order_by_last_update': Repo.last_update_datetime}
         query = apply_orders_by(query, filters, fields)
 
         query = apply_offset_and_limit(query, filters)
@@ -72,7 +66,8 @@ class RepoRepository:
     @staticmethod
     def is_valid_private_repo(data: RepoCreate or RepoUpdate):
         if not data.is_public_repository and (
-                not data.credentials or (not data.credentials.username or not data.credentials.pat_token)):
+            not data.credentials or (not data.credentials.username or not data.credentials.pat_token)
+        ):
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"No valid credentials")
 
     @staticmethod

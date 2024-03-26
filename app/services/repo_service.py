@@ -16,16 +16,11 @@ from app.utils.utils import aes_encode
 
 
 class RepoService:
-
     repo_repository = RepoRepository()
     git_repo_repository = GitRepoRepository()
     access_service = AccessService()
 
-    def __init__(
-        self,
-        repo_repository: RepoRepository = Depends(),
-        access_service: AccessService = Depends()
-    ) -> None:
+    def __init__(self, repo_repository: RepoRepository = Depends(), access_service: AccessService = Depends()) -> None:
         self.repo_repository = repo_repository
         self.access_service = access_service
 

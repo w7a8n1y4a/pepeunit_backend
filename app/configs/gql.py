@@ -5,14 +5,8 @@ from app.services.repo_service import RepoService
 from app.services.user_service import UserService
 
 
-async def get_graphql_context(
-    user_service: UserService = Depends(),
-    repo_service: RepoService = Depends()
-):
-    return {
-        "user_service": user_service,
-        "repo_service": repo_service
-    }
+async def get_graphql_context(user_service: UserService = Depends(), repo_service: RepoService = Depends()):
+    return {"user_service": user_service, "repo_service": repo_service}
 
 
 def get_user_service(info: Info) -> UserService:

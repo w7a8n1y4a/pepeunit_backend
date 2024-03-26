@@ -15,22 +15,16 @@ from app.services.utils import get_jwt_token
 
 
 class AccessService:
-
     user_repository = UserRepository()
     jwt_token: Optional[str] = None
     current_user: Optional[User] = None
 
-    def __init__(
-        self,
-        user_repository: UserRepository = Depends(),
-        jwt_token: str = Depends(get_jwt_token)
-    ) -> None:
+    def __init__(self, user_repository: UserRepository = Depends(), jwt_token: str = Depends(get_jwt_token)) -> None:
         self.user_repository = user_repository
         self.jwt_token = jwt_token
         self.token_required()
 
     def token_required(self):
-
         if isinstance(self.jwt_token, params.Depends):
             pass
         elif self.jwt_token is not None:

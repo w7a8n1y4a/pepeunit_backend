@@ -8,41 +8,31 @@ from app.schemas.gql.types.shared import NoneType
 
 
 @strawberry.mutation
-def create_repo(
-    info: Info, repo: RepoCreateInput
-) -> RepoType:
+def create_repo(info: Info, repo: RepoCreateInput) -> RepoType:
     repo_service = get_repo_service(info)
     return RepoType(**repo_service.create(repo).dict())
 
 
 @strawberry.mutation
-def update_repo(
-    info: Info, uuid: str, repo: RepoUpdateInput
-) -> RepoType:
+def update_repo(info: Info, uuid: str, repo: RepoUpdateInput) -> RepoType:
     repo_service = get_repo_service(info)
     return RepoType(**repo_service.update(uuid, repo).dict())
 
 
 @strawberry.mutation
-def update_repo_credentials(
-    info: Info, uuid: str, data: CredentialsInput
-) -> RepoType:
+def update_repo_credentials(info: Info, uuid: str, data: CredentialsInput) -> RepoType:
     repo_service = get_repo_service(info)
     return RepoType(**repo_service.update_credentials(uuid, data).dict())
 
 
 @strawberry.mutation
-def update_repo_default_branch(
-    info: Info, uuid: str, default_branch: str
-) -> RepoType:
+def update_repo_default_branch(info: Info, uuid: str, default_branch: str) -> RepoType:
     repo_service = get_repo_service(info)
     return RepoType(**repo_service.update_default_branch(uuid, default_branch).dict())
 
 
 @strawberry.mutation
-def delete_repo(
-    info: Info, uuid: str
-) -> NoneType:
+def delete_repo(info: Info, uuid: str) -> NoneType:
     repo_service = get_repo_service(info)
     repo_service.delete(uuid)
     return NoneType()
