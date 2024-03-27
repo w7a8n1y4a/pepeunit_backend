@@ -26,7 +26,6 @@ class UserRepository:
         return user
 
     def get(self, user: User) -> User:
-        print(self.db)
         return self.db.get(User, user.uuid)
 
     def get_user_by_credentials(self, credentials: str) -> User:

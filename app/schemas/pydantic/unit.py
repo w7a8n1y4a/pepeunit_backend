@@ -2,16 +2,13 @@ import uuid as uuid_pkg
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from fastapi_filter.contrib.sqlalchemy import Filter
 
 from app.core.enum import OrderByDate, VisibilityLevel
-from app.modules.unit.examples import ex_unit_read, ex_unit_create, ex_unit_update
 
 
 class UnitRead(BaseModel):
-    """Экземпляр Unit"""
-
     uuid: uuid_pkg.UUID
     visibility_level: VisibilityLevel
 
@@ -30,16 +27,8 @@ class UnitRead(BaseModel):
     creator_uuid: uuid_pkg.UUID
     repo_uuid: uuid_pkg.UUID
 
-    # только для создателя Unit - т.к. внутри архива всегда лежит ещё и .env файл
-    unit_program_url: Optional[str] = None
-
-    class Config:
-        schema_extra = {"example": ex_unit_read}
-
 
 class UnitCreate(BaseModel):
-    """Создание Unit"""
-
     repo_uuid: uuid_pkg.UUID
 
     visibility_level: VisibilityLevel
@@ -50,13 +39,8 @@ class UnitCreate(BaseModel):
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
-    class Config:
-        schema_extra = {"example": ex_unit_create}
-
 
 class UnitUpdate(BaseModel):
-    """Обновление данных репозитория"""
-
     visibility_level: VisibilityLevel
     name: str
 
@@ -65,13 +49,8 @@ class UnitUpdate(BaseModel):
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
-    class Config:
-        schema_extra = {"example": ex_unit_update}
-
 
 class UnitFilter(Filter):
-    """Фильтр выборки репозиториев"""
-
     search_string: Optional[str] = None
 
     is_auto_update_from_repo_unit: Optional[bool] = None

@@ -4,3 +4,4 @@ venv
 test.py
 test.ipynb
 repo_cache/*
+tmp/*

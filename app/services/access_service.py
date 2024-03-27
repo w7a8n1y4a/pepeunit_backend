@@ -8,16 +8,19 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
+from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.repositories.enum import UserRole
+from app.repositories.enum import UserRole, AgentType
+from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.utils import get_jwt_token
 
 
 class AccessService:
     user_repository = UserRepository()
+    unit_repository = UnitRepository()
     jwt_token: Optional[str] = None
-    current_user: Optional[User] = None
+    current_agent: Optional[User] = None
 
     def __init__(self, user_repository: UserRepository = Depends(), jwt_token: str = Depends(get_jwt_token)) -> None:
         self.user_repository = user_repository
@@ -35,28 +38,43 @@ class AccessService:
             except jwt.exceptions.InvalidTokenError:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
-            user = self.user_repository.get(User(uuid=data['uuid']))
+            if data['type'] == AgentType.USER.value:
+                agent = self.user_repository.get(User(uuid=data['uuid']))
+            else:
+                agent = self.unit_repository.get(Unit(uuid=data['uuid']))
 
-            if not user:
+            if not agent:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
-            self.current_user = user
+            self.current_agent = agent
         else:
-            self.current_user = User(role=UserRole.BOT.value)
+            self.current_agent = User(role=UserRole.BOT.value)
 
-    def access_check(self, available_user_role: list[UserRole]) -> bool:
-        if self.current_user.role not in [role.value for role in available_user_role]:
-            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+    def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
+        if isinstance(self.current_agent, User):
+            if self.current_agent.role not in [role.value for role in available_user_role]:
+                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+        elif isinstance(self.current_agent, Unit):
+            if not is_unit_available:
+                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
     @staticmethod
     def generate_user_token(user: User) -> str:
-        """Генерирует авторизационный токен"""
-
         # время жизни токена задаётся из окружения
         access_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))
 
         token = jwt.encode(
-            {'uuid': str(user.uuid), 'exp': access_token_exp},
+            {'uuid': str(user.uuid), 'type': AgentType.USER.value, 'exp': access_token_exp},
+            settings.secret_key,
+            'HS256',
+        )
+
+        return token
+
+    @staticmethod
+    def generate_unit_token(unit: Unit) -> str:
+        token = jwt.encode(
+            {'uuid': str(unit.uuid), 'type': AgentType.UNIT.value},
             settings.secret_key,
             'HS256',
         )
