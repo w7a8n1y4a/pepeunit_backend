@@ -5,7 +5,7 @@ from sqlalchemy import ForeignKey, Column
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import SQLModel, Field
 
-from app.core.enum import VisibilityLevel
+from app.repositories.enum import VisibilityLevel
 
 
 class Repo(SQLModel, table=True):

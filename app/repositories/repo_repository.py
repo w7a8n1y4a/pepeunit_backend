@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 from sqlmodel import Session, select
 
-from app.core.db import get_session
+from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate
