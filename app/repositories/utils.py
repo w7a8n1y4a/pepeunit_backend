@@ -1,7 +1,7 @@
 from sqlalchemy import desc, asc
 from sqlmodel import or_
 
-from app.core.enum import OrderByDate
+from app.repositories.enum import OrderByDate
 
 
 def apply_ilike_search_string(query, filters, fields: list):

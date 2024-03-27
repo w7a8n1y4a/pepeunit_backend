@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi_filter.contrib.sqlalchemy import Filter
 
-from app.core.enum import OrderByDate, VisibilityLevel
+from app.repositories.enum import OrderByDate, VisibilityLevel
 
 
 class UnitRead(BaseModel):

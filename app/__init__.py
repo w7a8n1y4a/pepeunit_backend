@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 
-from app.core.config import Settings
+from app.configs.config import Settings
 
 load_dotenv()
 
