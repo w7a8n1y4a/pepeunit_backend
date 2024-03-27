@@ -7,8 +7,8 @@ from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.schemas.gql.inputs.repo import RepoUpdateInput, RepoFilterInput, RepoCreateInput
-from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, RepoFilter, RepoRead
+from app.schemas.gql.inputs.repo import RepoUpdateInput, RepoFilterInput, RepoCreateInput, CredentialsInput
+from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, RepoFilter, RepoRead, Credentials
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
 from app.services.validators import is_valid_object
@@ -60,6 +60,32 @@ class RepoService:
         creator_check(self.access_service.current_user, repo)
         self.repo_repository.is_valid_name(data.name, uuid)
 
+        repo = self.repo_repository.update(uuid, repo)
+
+        return self.mapper_repo_to_repo_read(repo)
+
+    def update_credentials(self, uuid: str, data: Union[Credentials, CredentialsInput]) -> RepoRead:
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+        is_valid_object(repo)
+        creator_check(self.access_service.current_user, repo)
+        self.repo_repository.is_private_repository(repo)
+
+        repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
+        repo = self.repo_repository.update(uuid, repo)
+
+        return self.mapper_repo_to_repo_read(repo)
+
+    def update_default_branch(self, uuid: str, default_branch: str) -> RepoRead:
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+        is_valid_object(repo)
+        creator_check(self.access_service.current_user, repo)
+        self.git_repo_repository.is_valid_branch(repo, default_branch)
+
+        repo.default_branch = default_branch
         repo = self.repo_repository.update(uuid, repo)
 
         return self.mapper_repo_to_repo_read(repo)

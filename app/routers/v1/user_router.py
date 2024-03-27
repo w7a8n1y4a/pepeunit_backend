@@ -36,7 +36,7 @@ def get_token(
     return AccessToken(token=user_service.get_token(data))
 
 
-@router.patch("/{id}", response_model=UserRead)
+@router.patch("/{uuid}", response_model=UserRead)
 def update(
     uuid: str,
     data: UserUpdate,
