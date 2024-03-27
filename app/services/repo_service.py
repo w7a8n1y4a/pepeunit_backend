@@ -52,7 +52,7 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
 
         is_valid_object(repo)
-        creator_check(self.access_service.current_user, repo)
+        creator_check(self.access_service.current_agent, repo)
         self.repo_repository.is_valid_name(data.name, uuid)
 
         repo = self.repo_repository.update(uuid, repo)
@@ -64,7 +64,7 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        creator_check(self.access_service.current_user, repo)
+        creator_check(self.access_service.current_agent, repo)
         self.repo_repository.is_private_repository(repo)
 
         repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
@@ -77,7 +77,7 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        creator_check(self.access_service.current_user, repo)
+        creator_check(self.access_service.current_agent, repo)
         self.git_repo_repository.is_valid_branch(repo, default_branch)
 
         repo.default_branch = default_branch
@@ -89,7 +89,7 @@ class RepoService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
-        creator_check(self.access_service.current_user, repo)
+        creator_check(self.access_service.current_agent, repo)
 
         return self.repo_repository.delete(repo)
 
@@ -98,7 +98,7 @@ class RepoService:
         return [self.mapper_repo_to_repo_read(repo) for repo in self.repo_repository.list(filters)]
 
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
-        repo = self.repo_repository.create(repo)
+        repo = self.repo_repository.get(repo)
         branches = self.git_repo_repository.get_branches(repo)
         is_credentials_set = bool(repo.cipher_credentials_private_repository)
         return RepoRead(branches=branches, is_credentials_set=is_credentials_set, **repo.dict())

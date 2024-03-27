@@ -25,6 +25,7 @@ class VisibilityLevel(str, enum.Enum):
 class UserRole(enum.Enum):
     """Роль пользователя"""
 
+    # специальная роль для внешних пользователей
     BOT = 'Bot'
     USER = 'User'
     ADMIN = 'Admin'
@@ -37,3 +38,8 @@ class UserStatus(enum.Enum):
     UNVERIFIED = 'Unverified'
     VERIFIED = 'Verified'
     BLOCKED = 'Blocked'
+
+
+class AgentType(enum.Enum):
+    USER = 'User'
+    UNIT = 'Unit'

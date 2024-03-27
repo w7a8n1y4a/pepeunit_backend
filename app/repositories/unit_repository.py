@@ -1,29 +1,12 @@
-from typing import Optional
-
 from fastapi import Depends
-from fastapi_filter.contrib.sqlalchemy import Filter
-from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from fastapi import status as http_status
+from sqlmodel import Session, select
 
 from app.core.db import get_session
 from app.domain.unit_model import Unit
-from app.repositories.enum import VisibilityLevel, OrderByDate
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-
-
-class UnitFilter(Filter):
-    """Фильтр выборки Unit"""
-
-    search_string: Optional[str] = None
-
-    is_auto_update_from_repo_unit: Optional[bool] = None
-
-    visibility_level: Optional[VisibilityLevel] = None
-
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+from app.schemas.pydantic.unit import UnitFilter
 
 
 class UnitRepository:
@@ -45,10 +28,10 @@ class UnitRepository:
         unit.uuid = uuid
         self.db.merge(unit)
         self.db.commit()
-        return unit
+        return self.get(unit)
 
     def delete(self, unit: Unit) -> None:
-        self.db.delete(unit)
+        self.db.delete(self.get(unit))
         self.db.commit()
         self.db.flush()
 
@@ -66,3 +49,10 @@ class UnitRepository:
 
         query = apply_offset_and_limit(query, filters)
         return query.all()
+
+    def is_valid_name(self, name: str, uuid: str = None):
+        repo_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
+        repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
+
+        if (uuid is None and repo_uuid) or (uuid and repo_uuid != uuid and repo_uuid is not None):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not unique")

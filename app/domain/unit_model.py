@@ -1,4 +1,4 @@
-import uuid
+import uuid as uuid_pkg
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, Column
@@ -13,7 +13,7 @@ class Unit(SQLModel, table=True):
 
     __tablename__ = 'units'
 
-    uuid: uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid.uuid4)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # уровень видимости для пользователей
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
@@ -42,6 +42,8 @@ class Unit(SQLModel, table=True):
     cipher_env_dict: str = Field(nullable=True)
 
     # создатель
-    creator_uuid: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE')))
+    creator_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+    )
     # родительский репозиторий
-    repo_uuid: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE')))
+    repo_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE')))

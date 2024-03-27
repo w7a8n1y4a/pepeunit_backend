@@ -17,7 +17,6 @@ def create_user(info: Info, user: UserCreateInput) -> UserType:
 def update_user(info: Info, uuid: str, user: UserUpdateInput) -> UserType:
     user_service = get_user_service(info)
     user = user_service.update(uuid, user).dict()
-    print(user)
     return UserType(**user)
 
 
