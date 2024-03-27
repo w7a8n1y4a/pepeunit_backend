@@ -7,9 +7,8 @@ from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.repo import RepoUpdateInput, RepoFilterInput, RepoCreateInput
-from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, RepoFilter
+from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, RepoFilter, RepoRead
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
 from app.services.validators import is_valid_object
@@ -24,13 +23,13 @@ class RepoService:
 
     def __init__(
         self,
-        repo_repository: UserRepository = Depends(),
+        repo_repository: RepoRepository = Depends(),
         access_service: AccessService = Depends()
     ) -> None:
-        self.user_repository = repo_repository
+        self.repo_repository = repo_repository
         self.access_service = access_service
 
-    def create(self, data: Union[RepoCreate, RepoCreateInput]) -> Repo:
+    def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         self.repo_repository.is_valid_name(data.name)
@@ -44,15 +43,15 @@ class RepoService:
 
         self.git_repo_repository.clone_remote_repo(repo, data)
 
-        return self.repo_repository.create(repo)
+        return self.mapper_repo_to_repo_read(repo)
 
-    def get(self, uuid: str) -> Repo:
+    def get(self, uuid: str) -> RepoRead:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        return repo
+        return self.mapper_repo_to_repo_read(repo)
 
-    def update(self, uuid: str, data: Union[RepoUpdate, RepoUpdateInput]) -> Repo:
+    def update(self, uuid: str, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -61,17 +60,24 @@ class RepoService:
         creator_check(self.access_service.current_user, repo)
         self.repo_repository.is_valid_name(data.name, uuid)
 
-        return self.repo_repository.update(uuid, repo)
+        repo = self.repo_repository.update(uuid, repo)
+
+        return self.mapper_repo_to_repo_read(repo)
 
     def delete(self, uuid: str) -> None:
-        self.access_service.access_check([UserRole.User, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         creator_check(self.access_service.current_user, repo)
 
         return self.repo_repository.delete(repo)
 
-    def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> list[Repo]:
+    def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> list[RepoRead]:
         self.access_service.access_check([UserRole.ADMIN])
-        return self.repo_repository.list(filters)
+        return [self.mapper_repo_to_repo_read(repo) for repo in self.repo_repository.list(filters)]
 
+    def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
+        repo = self.repo_repository.create(repo)
+        branches = self.git_repo_repository.get_branches(repo)
+        is_credentials_set = bool(repo.cipher_credentials_private_repository)
+        return RepoRead(branches=branches, is_credentials_set=is_credentials_set, **repo.dict())

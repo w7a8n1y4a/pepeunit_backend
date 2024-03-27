@@ -41,7 +41,7 @@ class RepoUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoFilterInput(TypeInputMixin):
-    search_string: Optional[str]
+    search_string: Optional[str] = None
 
     is_public_repository: Optional[bool] = None
     is_auto_update_repo: Optional[bool] = None

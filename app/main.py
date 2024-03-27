@@ -10,9 +10,9 @@ from strawberry.fastapi import GraphQLRouter
 from app import settings
 from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
-from app.core.models import Root
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
+from app.schemas.pydantic.shared import Root
 
 app = FastAPI(
     title=settings.project_name,
@@ -101,7 +101,8 @@ def root():
         'name': settings.project_name,
         'version': settings.version,
         'description': settings.description,
-        'swagger': f'{settings.app_prefix}/docs'
+        'swagger': f'{settings.app_prefix}/docs',
+        'graphql': f'{settings.app_prefix}/graphql'
     }
 
 

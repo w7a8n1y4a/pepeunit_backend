@@ -6,3 +6,4 @@ class Root(BaseModel):
     version: str
     description: str
     swagger: str
+    graphql: str

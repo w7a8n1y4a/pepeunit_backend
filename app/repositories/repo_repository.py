@@ -2,8 +2,7 @@
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from app.core.db import get_session
 from app.domain.repo_model import Repo

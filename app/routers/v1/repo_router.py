@@ -16,7 +16,7 @@ def create(
     data: RepoCreate,
     repo_service: RepoService = Depends()
 ):
-    return RepoRead(**repo_service.create(data).dict())
+    return repo_service.create(data)
 
 
 @router.get("/{uuid}", response_model=RepoRead)
@@ -24,7 +24,7 @@ def get(
     uuid: str,
     repo_service: RepoService = Depends()
 ):
-    return RepoRead(**repo_service.get(uuid).dict())
+    return repo_service.get(uuid)
 
 @router.patch("/{id}", response_model=RepoRead)
 def update(
@@ -32,7 +32,7 @@ def update(
     data: RepoUpdate,
     repo_service: RepoService = Depends()
 ):
-    return RepoRead(**repo_service.update(uuid, data).dict())
+    return repo_service.update(uuid, data)
 
 
 @router.delete(
@@ -51,6 +51,4 @@ def get_repos(
     filters: RepoFilter = FilterDepends(RepoFilter),
     repo_service: RepoService = Depends()
 ):
-    return [
-        RepoRead(**repo.dict()) for repo in repo_service.list(filters)
-    ]
+    return repo_service.list(filters)

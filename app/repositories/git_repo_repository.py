@@ -16,7 +16,10 @@ class GitRepoRepository:
     def clone_remote_repo(self, repo: Repo, data: RepoCreate) -> None:
 
         repo_save_path = f'{settings.save_repo_path}/{repo.uuid}'
-        shutil.rmtree(repo_save_path)
+        try:
+            shutil.rmtree(repo_save_path)
+        except FileNotFoundError:
+            pass
 
         try:
             # клонирование
