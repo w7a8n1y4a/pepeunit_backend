@@ -13,15 +13,10 @@ from app.utils.utils import password_to_hash
 
 
 class UserService:
-
     user_repository = UserRepository()
     access_service = AccessService()
 
-    def __init__(
-        self,
-        user_repository: UserRepository = Depends(),
-        access_service: AccessService = Depends()
-    ) -> None:
+    def __init__(self, user_repository: UserRepository = Depends(), access_service: AccessService = Depends()) -> None:
         self.user_repository = user_repository
         self.access_service = access_service
 
@@ -74,4 +69,3 @@ class UserService:
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         self.access_service.access_check([UserRole.ADMIN])
         return self.user_repository.list(filters)
-

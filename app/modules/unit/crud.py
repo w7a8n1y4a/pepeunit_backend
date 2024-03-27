@@ -23,21 +23,16 @@ def create(data: UnitCreate, user: User, db: Session = Depends(get_session)) -> 
 
     is_valid_no_updated_unit(repo, data)
 
-    unit = Unit(creator_uuid=user.uuid,
-                **data.dict())
+    unit = Unit(creator_uuid=user.uuid, **data.dict())
 
     db.add(unit)
     db.commit()
     db.refresh(unit)
 
-    return UnitRead(
-        unit_program_url=program_link_generation(unit),
-        **unit.dict()
-    )
+    return UnitRead(unit_program_url=program_link_generation(unit), **unit.dict())
 
 
 async def get_auth(unit: Unit, db):
-
     print(unit.dict())
 
     print('user_route', 'TRUE')

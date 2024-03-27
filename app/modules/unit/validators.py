@@ -16,7 +16,7 @@ def is_valid_name(name: str, db: Session, update: bool = False, update_uuid: str
 
 
 def is_valid_no_updated_unit(repo: Repo, data: UnitCreate):
-    """ Для unit которые не обновляются автоматически, ветка и коммит должны быть указаны и при этом не None """
+    """Для unit которые не обновляются автоматически, ветка и коммит должны быть указаны и при этом не None"""
     if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid no auto updated unit")
 

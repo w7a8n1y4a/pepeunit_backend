@@ -42,12 +42,10 @@ mqtt_config = MQTTConfig(
     port=settings.mqtt_port,
     keepalive=settings.mqtt_keepalive,
     username=settings.mqtt_username,
-    password=settings.mqtt_password
+    password=settings.mqtt_password,
 )
 
-mqtt = FastMQTT(
-    config=mqtt_config
-)
+mqtt = FastMQTT(config=mqtt_config)
 
 mqtt.init_app(app)
 
@@ -66,7 +64,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @mqtt.on_connect()
 def connect(client, flags, rc, properties):
-    mqtt.client.subscribe('co2') #subscribing mqtt topic
+    mqtt.client.subscribe('co2')  # subscribing mqtt topic
     print('Connected: ', client, flags, rc, properties)
 
 
@@ -102,7 +100,7 @@ def root():
         'version': settings.version,
         'description': settings.description,
         'swagger': f'{settings.app_prefix}/docs',
-        'graphql': f'{settings.app_prefix}/graphql'
+        'graphql': f'{settings.app_prefix}/graphql',
     }
 
 

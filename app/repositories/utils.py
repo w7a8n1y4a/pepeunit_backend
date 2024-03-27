@@ -26,5 +26,9 @@ def apply_offset_and_limit(query, filters):
 def apply_orders_by(query, filters, fields: dict):
     for filter_name, value in fields.items():
         if filter_name in filters.dict() and filters.dict()[filter_name]:
-            query = query.order_by(asc(fields[filter_name]) if filters.dict()[filter_name] == OrderByDate.asc else desc(fields[filter_name]))
+            query = query.order_by(
+                asc(fields[filter_name])
+                if filters.dict()[filter_name] == OrderByDate.asc
+                else desc(fields[filter_name])
+            )
     return query

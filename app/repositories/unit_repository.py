@@ -29,9 +29,7 @@ class UnitFilter(Filter):
 class UnitRepository:
     db: Session
 
-    def __init__(
-        self, db: Session = Depends(get_session)
-    ) -> None:
+    def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
 
     def create(self, unit: Unit) -> Unit:
@@ -63,10 +61,7 @@ class UnitRepository:
         fields = {'visibility_level': Unit.visibility_level}
         query = apply_enums(query, filters, fields)
 
-        fields = {
-            'order_by_create_date': Unit.create_datetime,
-            'order_by_last_update': Unit.last_update_datetime
-        }
+        fields = {'order_by_create_date': Unit.create_datetime, 'order_by_last_update': Unit.last_update_datetime}
         query = apply_orders_by(query, filters, fields)
 
         query = apply_offset_and_limit(query, filters)

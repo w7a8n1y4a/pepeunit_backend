@@ -42,8 +42,6 @@ class Unit(SQLModel, table=True):
     cipher_env_dict: str = Field(nullable=True)
 
     # создатель
-    creator_uuid: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
-    )
+    creator_uuid: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE')))
     # родительский репозиторий
     repo_uuid: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE')))
