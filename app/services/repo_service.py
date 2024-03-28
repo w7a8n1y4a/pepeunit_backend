@@ -38,6 +38,9 @@ class RepoService:
 
         self.git_repo_repository.clone_remote_repo(repo, data)
 
+        # todo проверка валидности schema.json
+        # todo проверка валидности env_example.json
+
         return self.mapper_repo_to_repo_read(repo)
 
     def get(self, uuid: str) -> RepoRead:
@@ -89,6 +92,8 @@ class RepoService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
+
+        # todo проверка на пристыкованные unit
         creator_check(self.access_service.current_agent, repo)
 
         return self.repo_repository.delete(repo)

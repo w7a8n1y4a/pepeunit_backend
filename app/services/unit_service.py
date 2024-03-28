@@ -42,6 +42,8 @@ class UnitService:
 
         is_valid_object(repo)
 
+        # todo проверка, что репозиторий готов отстыковать от себя unit, мб флажок в RepoRead и RepoType
+
         self.is_valid_no_updated_unit(repo, data)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
@@ -74,6 +76,14 @@ class UnitService:
         self.unit_repository.is_valid_name(data.name, uuid)
 
         return self.unit_repository.update(uuid, unit)
+
+    # todo update_cipher_env - часть заполнится руками, часть автоматически - принимает json
+
+    # todo set_unit_state - чтобы юниты у которых нет mqtt могли по http всё сделать
+    """
+    todo get_generate_programm - zip с прошивкой готовой к установке на устройство. Удаляет из репозитория всё лишнее
+    сначала копирует репозиторий в tmp, и только потом производит действия
+    """
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
