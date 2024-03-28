@@ -85,6 +85,8 @@ class UnitService:
     сначала копирует репозиторий в tmp, и только потом производит действия
     """
 
+    # todo auth for emqx 200 auth 400 not auth
+
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
