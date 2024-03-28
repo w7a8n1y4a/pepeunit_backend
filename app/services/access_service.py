@@ -60,7 +60,6 @@ class AccessService:
 
     @staticmethod
     def generate_user_token(user: User) -> str:
-        # время жизни токена задаётся из окружения
         access_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))
 
         token = jwt.encode(

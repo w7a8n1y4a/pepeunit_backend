@@ -62,6 +62,9 @@ class UserService:
 
         return self.user_repository.update(uuid, update_user)
 
+    # todo система верификации пользователей
+    # todo система блокировки пользователей, unit должны заблокироваться, зависимые юниты надо думать
+
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])
         return self.user_repository.delete(User(uuid=uuid))
