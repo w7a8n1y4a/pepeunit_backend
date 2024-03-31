@@ -31,10 +31,12 @@ class RepoService:
         self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
         self.repo_repository.is_valid_private_repo(data)
 
-        repo = Repo(creator_uuid=self.access_service.current_user.uuid, **data.dict())
+        repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
         if not repo.is_public_repository:
             repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.credentials.dict()))
+
+        repo = self.repo_repository.create(repo)
 
         self.git_repo_repository.clone_remote_repo(repo, data)
 

@@ -1,13 +1,18 @@
+from functools import wraps
+
 import uvicorn
 import datetime
 import time
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Depends
 from fastapi_mqtt import FastMQTT, MQTTConfig
+from sqlmodel import Session
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
+from app.configs.db import get_session
+from app.domain.test_model import Test
 from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
 from app.schemas.gql.mutation import Mutation
@@ -64,23 +69,34 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @mqtt.on_connect()
 def connect(client, flags, rc, properties):
-    mqtt.client.subscribe('co2')  # subscribing mqtt topic
+    mqtt.client.subscribe('test/#')  # subscribing mqtt topic
     print('Connected: ', client, flags, rc, properties)
 
 
-@mqtt.on_message()
-async def message(client, topic, payload, qos, properties):
-    print('Received message: ', topic, payload.decode(), qos, properties)
+# @mqtt.on_message()
+# async def message(client, topic, payload, qos, properties):
+#     print('Received message: ', topic, payload.decode(), qos, properties)
 
 
-@mqtt.subscribe('co2')
+@mqtt.subscribe('test/#')
 async def message_to_topic(client, topic, payload, qos, properties):
-    print(f'{datetime.datetime.utcnow()}', topic, payload.decode(), qos, properties)
+
+    db = next(get_session())
+
+    test = Test(value=f'{str(topic)}, {str(payload.decode())}')
+    test.uuid = '7af0cb07-a0d0-41a8-81e9-251457e1a9d0'
+
+    db.merge(test)
+
+    start_time = time.perf_counter()
+    db.commit()
+    print(f'{time.perf_counter() - start_time}')
 
 
-@mqtt.subscribe('co2', qos=1)
-async def message_to_topic_with_high_qos(client, topic, payload, qos, properties):
-    print(f'{datetime.datetime.utcnow()}', topic, payload.decode(), qos, properties)
+
+# @mqtt.subscribe('co2', qos=1)
+# async def message_to_topic_with_high_qos(client, topic, payload, qos, properties):
+#     print(f'{datetime.datetime.utcnow()}', topic, payload.decode(), qos, properties)
 
 
 @mqtt.on_disconnect()
