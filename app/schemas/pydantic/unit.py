@@ -62,3 +62,8 @@ class UnitFilter(Filter):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+
+class UnitMqttTokenAuth(BaseModel):
+    token: str
+    topic: str

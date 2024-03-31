@@ -32,12 +32,10 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
-from app.modules.user.sql_models import User
-from app.modules.unit.sql_models import Unit
-from app.modules.repo.sql_models import Repo
-from app.modules.output.sql_models import UnitOutput
-from app.modules.input.sql_models import UnitInput
-
+from app.domain.user_model import User
+from app.domain.repo_model import Repo
+from app.domain.unit_model import Unit
+from app.domain.test_model import Test
 
 target_metadata = SQLModel.metadata
 
