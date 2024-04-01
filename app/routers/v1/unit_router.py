@@ -37,7 +37,6 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
     db = next(get_session())
 
-    # todo добавить проверку доступных топиков
     access_service = AccessService(
         user_repository=UserRepository(db=db),
         unit_repository=UnitRepository(db=db),

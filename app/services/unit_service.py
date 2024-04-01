@@ -80,12 +80,15 @@ class UnitService:
     # todo update_cipher_env - часть заполнится руками, часть автоматически - принимает json
 
     # todo set_unit_state - чтобы юниты у которых нет mqtt могли по http всё сделать
-    """
-    todo get_generate_programm - zip с прошивкой готовой к установке на устройство. Удаляет из репозитория всё лишнее
-    сначала копирует репозиторий в tmp, и только потом производит действия
-    """
 
-    # todo auth for emqx 200 auth 400 not auth
+
+    # todo update_env_input_state - обновление env на unit, unit должен сам скачать все свои input на которые он будет подписан
+    # обязательно должен использоваться при приклиплении к input и при удалении связи на input
+
+
+    # todo get_generate_programm - zip с прошивкой готовой к установке на устройство. Удаляет из репозитория всё лишнее
+    # сначала копирует репозиторий в tmp, и только потом производит действия
+
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
