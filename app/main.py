@@ -77,9 +77,13 @@ def connect(client, flags, rc, properties):
 # async def message(client, topic, payload, qos, properties):
 #     print('Received message: ', topic, payload.decode(), qos, properties)
 
+# todo разделить на input и output
+# cписок подписок на устройстве должен обновляться
 
 @mqtt.subscribe('test/#')
 async def message_to_topic(client, topic, payload, qos, properties):
+
+    # todo аналог кэша через redis, чтобы можно было 
 
     db = next(get_session())
 
