@@ -83,7 +83,7 @@ def connect(client, flags, rc, properties):
 @mqtt.subscribe('test/#')
 async def message_to_topic(client, topic, payload, qos, properties):
 
-    # todo аналог кэша через redis, чтобы можно было 
+    # todo аналог кэша через redis, чтобы можно было не обращаться к бд постоянно
 
     db = next(get_session())
 
