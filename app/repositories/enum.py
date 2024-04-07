@@ -43,3 +43,8 @@ class UserStatus(enum.Enum):
 class AgentType(enum.Enum):
     USER = 'User'
     UNIT = 'Unit'
+
+
+class UnitNodeType(enum.Enum):
+    OUTPUT = 'Output'
+    INPUT = 'Input'
