@@ -48,6 +48,8 @@ class UnitService:
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
+        # todo создание IO в соответствии с schema.json
+
         return self.unit_repository.create(unit)
 
     def get(self, uuid: str) -> Unit:
