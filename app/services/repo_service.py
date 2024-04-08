@@ -40,9 +40,6 @@ class RepoService:
 
         self.git_repo_repository.clone_remote_repo(repo, data)
 
-        # todo проверка валидности schema.json
-        # todo проверка валидности env_example.json
-
         return self.mapper_repo_to_repo_read(repo)
 
     def get(self, uuid: str) -> RepoRead:

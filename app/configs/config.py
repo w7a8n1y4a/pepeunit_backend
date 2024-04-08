@@ -27,3 +27,14 @@ class Settings(BaseSettings):
     mqtt_keepalive: int
     mqtt_username: str
     mqtt_password: str
+
+    binding_schema_keys: list = [
+        'input_base_topic',
+        'output_base_topic',
+        'input_topic',
+        'output_topic'
+    ]
+
+    available_topic_symbols: str = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-'
+
+

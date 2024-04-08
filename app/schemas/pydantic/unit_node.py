@@ -30,7 +30,7 @@ class UnitNodeSetState(BaseModel):
     state: Optional[str] = None
 
 
-class UnitFilter(Filter):
+class UnitNodeFilter(Filter):
     search_string: Optional[str] = None
 
     type: Optional[UnitNodeType] = None
