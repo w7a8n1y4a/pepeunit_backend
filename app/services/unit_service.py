@@ -9,6 +9,7 @@ from app.domain.unit_model import Unit
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
@@ -21,6 +22,7 @@ class UnitService:
     unit_repository = UnitRepository()
     repo_repository = RepoRepository()
     git_repo_repository = GitRepoRepository()
+    unit_node_repository = UnitNodeRepository()
     access_service = AccessService()
 
     def __init__(
@@ -42,13 +44,20 @@ class UnitService:
 
         is_valid_object(repo)
 
-        # todo проверка, что репозиторий готов отстыковать от себя unit, мб флажок в RepoRead и RepoType
+        # todo валидная проверка коммита
+
+        self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
+
+        # todo проверка валидности schema.json на определённой версии
+        # todo проверка валидности env_example.json на определённой версии
 
         self.is_valid_no_updated_unit(repo, data)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
         # todo создание IO в соответствии с schema.json
+
+        assert 1 == 0
 
         return self.unit_repository.create(unit)
 

@@ -2,12 +2,10 @@ from fastapi import Depends
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-
-
-class UnitNodeFilter:
-    pass
+from app.schemas.pydantic.unit_node import UnitNodeFilter
 
 
 class UnitNodeRepository:
@@ -16,14 +14,16 @@ class UnitNodeRepository:
     def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
 
-    def create(self, unit_node: UnitNode) -> UnitNode:
-        self.db.add(unit_node)
+    def bulk_create(self, unit_nodes: list[UnitNode]) -> None:
+        self.db.bulk_save_objects(unit_nodes)
         self.db.commit()
-        self.db.refresh(unit_node)
-        return unit_node
 
     def get(self, unit_node: UnitNode) -> UnitNode:
         return self.db.get(UnitNode, unit_node.uuid)
+
+    def get_unit_nodes(self, unit: Unit) -> list[UnitNode]:
+        query = self.db.query(UnitNode).filter(UnitNode.unit_uuid == unit.uuid)
+        return query.all()
 
     def update(self, uuid, unit_node: UnitNode) -> UnitNode:
         unit_node.uuid = uuid

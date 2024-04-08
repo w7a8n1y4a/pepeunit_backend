@@ -1,4 +1,4 @@
-import uuid
+import uuid as pkg_uuid
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, Column
@@ -13,7 +13,7 @@ class UnitNode(SQLModel, table=True):
 
     __tablename__ = 'units_nodes'
 
-    uuid: uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid.uuid4)
+    uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
 
     # определяет тип ноды - input или output
     type: str = Field(nullable=False)
@@ -32,4 +32,4 @@ class UnitNode(SQLModel, table=True):
     state: str = Field(nullable=True)
 
     # родительский Unit
-    unit_uuid: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))
+    unit_uuid: pkg_uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))
