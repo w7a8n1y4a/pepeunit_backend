@@ -79,7 +79,7 @@ class GitRepoRepository:
 
         return buffer
 
-    def is_valid_schema_file(self, repo: Repo, commit: str) -> bool:
+    def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
 
         file_buffer = self.get_file(repo, commit, 'schema.json')
 

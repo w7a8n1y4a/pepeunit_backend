@@ -4,6 +4,7 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
 from app.configs.db import get_session
+from app.configs.redis import get_redis_session
 from app.domain.test_model import Test
 
 mqtt_config = MQTTConfig(
@@ -27,18 +28,30 @@ def connect(client, flags, rc, properties):
 
 @mqtt.subscribe('test/#')
 async def message_to_topic(client, topic, payload, qos, properties):
-
-    # todo аналог кэша через redis, чтобы можно было не обращаться к бд постоянно
-
-    db = next(get_session())
-
-    test = Test(value=f'{str(topic)}, {str(payload.decode())}')
-    test.uuid = '7af0cb07-a0d0-41a8-81e9-251457e1a9d0'
-
-    db.merge(test)
-
     start_time = time.perf_counter()
-    db.commit()
+
+    print(f'{str(topic)}, {str(payload.decode())}')
+
+    redis = await anext(get_redis_session())
+
+    redis_topic_value = await redis.get(str(topic))
+
+
+    if redis_topic_value != str(payload.decode()):
+
+        # todo разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
+
+        await redis.set(str(topic), str(payload.decode()))
+
+        db = next(get_session())
+
+        test = Test(value=f'{str(topic)}, {str(payload.decode())}')
+        test.uuid = '7af0cb07-a0d0-41a8-81e9-251457e1a9d0'
+
+        db.merge(test)
+
+        db.commit()
+
     print(f'{time.perf_counter() - start_time}')
 
 @mqtt.on_disconnect()

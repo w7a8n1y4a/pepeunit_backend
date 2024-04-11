@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     mqtt_username: str
     mqtt_password: str
 
+    redis_url: str
+
     binding_schema_keys: list = [
         'input_base_topic',
         'output_base_topic',
