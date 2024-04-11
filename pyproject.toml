@@ -30,6 +30,7 @@ gitpython = "^3.1.40"
 fastapi-mqtt = "^1.2.0"
 strawberry-graphql = "^0.220.0"
 aioredis = "^2.0.1"
+gunicorn = "^21.2.0"
 
 
 [build-system]
