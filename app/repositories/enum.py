@@ -22,7 +22,7 @@ class VisibilityLevel(str, enum.Enum):
 
 
 @strawberry.enum
-class UserRole(enum.Enum):
+class UserRole(str, enum.Enum):
     """Роль пользователя"""
 
     # специальная роль для внешних пользователей
@@ -32,7 +32,7 @@ class UserRole(enum.Enum):
 
 
 @strawberry.enum
-class UserStatus(enum.Enum):
+class UserStatus(str, enum.Enum):
     """Статус пользователя"""
 
     UNVERIFIED = 'Unverified'
@@ -40,11 +40,11 @@ class UserStatus(enum.Enum):
     BLOCKED = 'Blocked'
 
 
-class AgentType(enum.Enum):
+class AgentType(str, enum.Enum):
     USER = 'User'
     UNIT = 'Unit'
 
 
-class UnitNodeType(enum.Enum):
+class UnitNodeType(str, enum.Enum):
     OUTPUT = 'Output'
     INPUT = 'Input'

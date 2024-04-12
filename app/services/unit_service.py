@@ -1,3 +1,4 @@
+import copy
 from typing import Union
 
 from fastapi import Depends
@@ -6,7 +7,8 @@ from fastapi import status as http_status
 
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import UserRole
+from app.domain.unit_node_model import UnitNode
+from app.repositories.enum import UserRole, UnitNodeType
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -29,10 +31,12 @@ class UnitService:
         self,
         unit_repository: UnitRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
+        unit_node_repository: UnitNodeRepository = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
         self.repo_repository = repo_repository
+        self.unit_node_repository = unit_node_repository
         self.access_service = access_service
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
@@ -43,23 +47,42 @@ class UnitService:
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
 
         is_valid_object(repo)
-
         # todo валидная проверка коммита
-
         self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
-
-        # todo проверка валидности schema.json на определённой версии
         # todo проверка валидности env_example.json на определённой версии
 
         self.is_valid_no_updated_unit(repo, data)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+        unit = self.unit_repository.create(unit)
+        unit_deepcopy = copy.deepcopy(unit)
 
-        # todo создание IO в соответствии с schema.json
+        schema_dict = self.git_repo_repository.get_unit_schema_dict(repo, data.repo_commit)
 
-        assert 1 == 0
+        unit_nodes_list = []
+        for input_topic in schema_dict['input_topic']:
+            unit_nodes_list.append(
+                UnitNode(
+                    type=UnitNodeType.INPUT,
+                    isibility_level=unit.visibility_level,
+                    topic_name=input_topic,
+                    unit_uuid=unit.uuid
+                )
+            )
 
-        return self.unit_repository.create(unit)
+        for output_topic in schema_dict['output_topic']:
+            unit_nodes_list.append(
+                UnitNode(
+                    type=UnitNodeType.OUTPUT,
+                    isibility_level=unit.visibility_level,
+                    topic_name=output_topic,
+                    unit_uuid=unit.uuid
+                )
+            )
+
+        self.unit_node_repository.bulk_create(unit_nodes_list)
+
+        return unit_deepcopy
 
     def get(self, uuid: str) -> Unit:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
