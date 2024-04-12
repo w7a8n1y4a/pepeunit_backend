@@ -11,8 +11,6 @@ from app.schemas.gql.types.unit import UnitType
 def create_unit(info: Info, unit: UnitCreateInput) -> UnitType:
     unit_service = get_unit_service(info)
     unit = unit_service.create(unit).dict()
-
-    print(unit)
     return UnitType(**unit)
 
 

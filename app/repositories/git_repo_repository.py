@@ -79,6 +79,12 @@ class GitRepoRepository:
 
         return buffer
 
+    def get_unit_schema_dict(self, repo: Repo, commit: str) -> dict:
+
+        schema_buffer = self.get_file(repo, commit, 'schema.json')
+
+        return json.loads(schema_buffer.getvalue().decode())
+
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
 
         file_buffer = self.get_file(repo, commit, 'schema.json')
