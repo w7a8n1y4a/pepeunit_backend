@@ -17,16 +17,11 @@ mqtt_config = MQTTConfig(
 
 mqtt = FastMQTT(config=mqtt_config)
 
-@mqtt.on_connect()
-def connect(client, flags, rc, properties):
-    mqtt.client.subscribe('test/#')  # subscribing mqtt topic
-    print('Connected: ', client, flags, rc, properties)
-
 
 # todo разделить на input и output
 # cписок подписок на устройстве должен обновляться
 
-@mqtt.subscribe('test/#')
+@mqtt.subscribe('output/+/#')
 async def message_to_topic(client, topic, payload, qos, properties):
     start_time = time.perf_counter()
 
@@ -53,6 +48,12 @@ async def message_to_topic(client, topic, payload, qos, properties):
         db.commit()
 
     print(f'{time.perf_counter() - start_time}')
+
+@mqtt.subscribe('output_base/+/#')
+async def message_to_topic(client, topic, payload, qos, properties):
+
+    print(f'{str(topic)}, {str(payload.decode())}')
+
 
 @mqtt.on_disconnect()
 def disconnect(client, packet, exc=None):
