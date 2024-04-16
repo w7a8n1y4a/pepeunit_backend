@@ -14,6 +14,7 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
+from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
@@ -64,7 +65,7 @@ class UnitService:
             unit_nodes_list.append(
                 UnitNode(
                     type=UnitNodeType.INPUT,
-                    isibility_level=unit.visibility_level,
+                    visibility_level=unit.visibility_level,
                     topic_name=input_topic,
                     unit_uuid=unit.uuid
                 )
@@ -74,13 +75,16 @@ class UnitService:
             unit_nodes_list.append(
                 UnitNode(
                     type=UnitNodeType.OUTPUT,
-                    isibility_level=unit.visibility_level,
+                    visibility_level=unit.visibility_level,
                     topic_name=output_topic,
                     unit_uuid=unit.uuid
                 )
             )
 
         self.unit_node_repository.bulk_create(unit_nodes_list)
+
+        mqtt.publish("test/kek", "Hello from Fastapi")  # publishing mqtt topic
+        mqtt.publish("test/kek2", "Hello from Fastapi")  # publishing mqtt topic
 
         return unit_deepcopy
 
