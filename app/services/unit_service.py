@@ -1,10 +1,14 @@
+import base64
 import copy
+import json
+import os
 from typing import Union
 
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app import settings
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -17,8 +21,9 @@ from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFi
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.services.access_service import AccessService
-from app.services.utils import creator_check
-from app.services.validators import is_valid_object
+from app.services.utils import creator_check, merge_two_dict_first_priority
+from app.services.validators import is_valid_object, is_valid_json
+from app.utils.utils import aes_decode, aes_encode
 
 
 class UnitService:
@@ -58,7 +63,7 @@ class UnitService:
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
-        schema_dict = self.git_repo_repository.get_unit_schema_dict(repo, data.repo_commit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repo, data.repo_commit)
 
         unit_nodes_list = []
         for input_topic in schema_dict['input_topic']:
@@ -115,18 +120,44 @@ class UnitService:
 
         return self.unit_repository.update(uuid, unit)
 
-    # todo update_cipher_env - часть заполнится руками, часть автоматически - принимает json
+    def get_env(self, uuid: str) -> dict:
 
-    # todo set_unit_state - чтобы юниты у которых нет mqtt могли по http всё сделать
+        self.access_service.access_check([UserRole.USER])
 
+        unit = self.unit_repository.get(Unit(uuid=uuid))
 
-    # todo update_env_input_state - обновление env на unit, unit должен сам скачать все свои input на которые он будет подписан
-    # обязательно должен использоваться при приклиплении к input и при удалении связи на input
+        if not unit.cipher_env_dict:
+            repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+            env_dict = self.git_repo_repository.get_env_example(repo, unit.repo_commit)
+        else:
 
+            env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+
+        return env_dict
+
+    def set_env(self, uuid: str, env_json_str: str) -> None:
+        self.access_service.access_check([UserRole.USER])
+
+        env_dict = is_valid_json(env_json_str)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        gen_env_dict = self.gen_env_dict(unit.uuid)
+        merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
+
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        self.git_repo_repository.is_valid_env_file(repo, unit.repo_commit, merged_env_dict)
+
+        print(merged_env_dict)
+
+        unit.cipher_env_dict = aes_encode(json.dumps(merged_env_dict))
+
+        self.unit_repository.update(unit.uuid, unit)
+
+        return None
 
     # todo get_generate_programm - zip с прошивкой готовой к установке на устройство. Удаляет из репозитория всё лишнее
     # сначала копирует репозиторий в tmp, и только потом производит действия
 
+    # todo set_unit_state - чтобы юниты у которых нет mqtt могли по http всё сделать
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -139,6 +170,17 @@ class UnitService:
     def list(self, filters: Union[UnitFilter, UnitFilterInput]) -> list[Unit]:
         self.access_service.access_check([UserRole.ADMIN])
         return self.unit_repository.list(filters)
+
+    def gen_env_dict(self, uuid: str) -> dict:
+        return {
+            'PEPEUNIT_URL': settings.backend_domain,
+            'MQTT_URL': settings.mqtt_host,
+            'PEPEUNIT_TOKEN': self.generate_token(uuid),
+            'SYNC_ENCRYPT_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),
+            'SECRET_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),
+            'PING_INTERVAL': 30,
+            'STATE_SEND_INTERVAL': 300
+        }
 
     def is_valid_no_updated_unit(self, repo: Repo, data: UnitCreate):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
