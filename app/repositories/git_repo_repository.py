@@ -13,6 +13,7 @@ from git.exc import GitCommandError
 
 from app import settings
 from app.domain.repo_model import Repo
+from app.repositories.enum import SchemaStructName, ReservedEnvVariableName
 from app.schemas.pydantic.repo import RepoCreate
 
 
@@ -79,11 +80,31 @@ class GitRepoRepository:
 
         return buffer
 
-    def get_unit_schema_dict(self, repo: Repo, commit: str) -> dict:
+    def get_schema_dict(self, repo: Repo, commit: str) -> dict:
 
         schema_buffer = self.get_file(repo, commit, 'schema.json')
 
         return json.loads(schema_buffer.getvalue().decode())
+
+    def get_env_dict(self, repo: Repo, commit: str) -> dict:
+
+        schema_buffer = self.get_file(repo, commit, 'env_example.json')
+
+        try:
+            env_dict = json.loads(schema_buffer.getvalue().decode())
+        except JSONDecodeError:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
+                                detail=f'This env_example.json file is not a json serialise')
+
+        return env_dict
+
+    def get_env_example(self, repo: Repo, commit: str) -> dict:
+
+        env_dict = self.get_env_dict(repo, commit)
+
+        reserved_env_names = [i.value for i in ReservedEnvVariableName]
+
+        return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
 
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
 
@@ -95,7 +116,9 @@ class GitRepoRepository:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=f'This schema file is not a json file')
 
-        if len(settings.binding_schema_keys) != len(set(schema_dict.keys()) & set(settings.binding_schema_keys)):
+        binding_schema_keys = [i.value for i in SchemaStructName]
+
+        if len(binding_schema_keys) != len(set(schema_dict.keys()) & set(binding_schema_keys)):
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=f'This schema file has unresolved IO and base IO keys')
 
@@ -116,7 +139,13 @@ class GitRepoRepository:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
                                 detail=f'The length of the topic title is too long')
 
+    def is_valid_env_file(self, repo: Repo, commit: str, env: dict) -> None:
 
+        env_example_dict = self.get_env_dict(repo, commit)
+
+        if env_example_dict.keys() - env.keys() != set():
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
+                                detail=f'This env file has unresolved variable')
 
     def is_valid_branch(self, repo: Repo, branch: str):
         if branch not in self.get_branches(repo):

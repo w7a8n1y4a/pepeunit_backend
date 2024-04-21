@@ -50,5 +50,27 @@ class UnitNodeType(str, enum.Enum):
     INPUT = 'Input'
 
 
-class OutputBaseTopic(str, enum.Enum):
+class ReservedOutputBaseTopic(str, enum.Enum):
+    """ Забронированные топики вывода у Unit """
+
     STATE = 'state'
+
+
+class SchemaStructName(str, enum.Enum):
+    """ Разрешённые назначения топиков схемы у Unit """
+
+    INPUT_BASE_TOPIC = 'input_base_topic'
+    OUTPUT_BASE_TOPIC = 'output_base_topic'
+    INPUT_TOPIC = 'input_topic'
+    OUTPUT_TOPIC = 'output_topic'
+
+
+class ReservedEnvVariableName(str, enum.Enum):
+    """ Разрешённые топиков схемы у Unit """
+
+    PEPEUNIT_URL = 'PEPEUNIT_URL'
+    PEPEUNIT_TOKEN = 'PEPEUNIT_TOKEN'
+    SYNC_ENCRYPT_KEY = 'SYNC_ENCRYPT_KEY'
+    SECRET_KEY = 'SECRET_KEY'
+    PING_INTERVAL = 'PING_INTERVAL'
+    STATE_SEND_INTERVAL = 'STATE_SEND_INTERVAL'

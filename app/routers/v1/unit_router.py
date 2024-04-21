@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, status
 from fastapi_filter import FilterDepends
 from pydantic import BaseModel
@@ -24,6 +26,11 @@ def create(data: UnitCreate, unit_service: UnitService = Depends()):
 @router.get("/{uuid}", response_model=UnitRead)
 def get(uuid: str, unit_service: UnitService = Depends()):
     return UnitRead(**unit_service.get(uuid).dict())
+
+
+@router.get("/env/{uuid}", response_model=str)
+def get_env(uuid: str, unit_service: UnitService = Depends()):
+    return json.dumps(unit_service.get_env(uuid))
 
 
 # todo подлежит удалению
@@ -53,6 +60,11 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 @router.patch("/{uuid}", response_model=UnitRead)
 def update(uuid: str, data: UnitUpdate, unit_service: UnitService = Depends()):
     return UnitRead(**unit_service.update(uuid, data).dict())
+
+
+@router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def set_env(uuid: str, env_json_str: str, unit_service: UnitService = Depends()):
+    return unit_service.set_env(uuid, env_json_str)
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
