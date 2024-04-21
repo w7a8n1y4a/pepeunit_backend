@@ -21,6 +21,12 @@ class UnitNodeRepository:
     def get(self, unit_node: UnitNode) -> UnitNode:
         return self.db.get(UnitNode, unit_node.uuid)
 
+    def get_by_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
+        return self.db.query(UnitNode).filter(
+            UnitNode.unit_uuid == unit_uuid,
+            UnitNode.topic_name == unit_node.topic_name
+        ).first()
+
     def get_unit_nodes(self, unit: Unit) -> list[UnitNode]:
         query = self.db.query(UnitNode).filter(UnitNode.unit_uuid == unit.uuid)
         return query.all()
