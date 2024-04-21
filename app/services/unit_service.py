@@ -2,6 +2,7 @@ import base64
 import copy
 import json
 import os
+import shutil
 from typing import Union
 
 from fastapi import Depends
@@ -154,10 +155,56 @@ class UnitService:
 
         return None
 
-    # todo get_generate_programm - zip с прошивкой готовой к установке на устройство. Удаляет из репозитория всё лишнее
-    # сначала копирует репозиторий в tmp, и только потом производит действия
+    def get_unit_firmware(self, uuid: str) -> str:
+        self.access_service.access_check([UserRole.USER])
 
-    # todo set_unit_state - чтобы юниты у которых нет mqtt могли по http всё сделать
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+
+        env_dict = self.get_env(unit.uuid)
+
+        self.git_repo_repository.is_valid_env_file(repo, unit.repo_commit, env_dict)
+
+        # todo refactor мб упаковать в git_repo_repository
+        tmp_git_repo = self.git_repo_repository.get_tmp_repo(repo)
+        tmp_git_repo.git.checkout(unit.repo_commit)
+
+        tmp_git_repo_path = tmp_git_repo.working_tree_dir
+
+        with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
+            f.write(json.dumps(env_dict, indent=4))
+
+        del_path_list = [
+            '.gitignore',
+            'env_example.json',
+            '.git',
+            'docs',
+            'model'
+            'readme.md',
+            'README.md'
+        ]
+
+        for path in del_path_list:
+
+            merge_path = f'{tmp_git_repo_path}/{path}'
+
+            if os.path.isfile(merge_path):
+                os.remove(merge_path)
+            else:
+                shutil.rmtree(merge_path, ignore_errors=True)
+
+        return tmp_git_repo_path
+
+    def get_unit_firmware_zip(self, uuid: str) -> str:
+        self.access_service.access_check([UserRole.USER])
+
+        firmware_path = self.get_unit_firmware(uuid)
+        firmware_zip_path = f"tmp/{uuid}"
+
+        shutil.make_archive(firmware_zip_path, 'zip', firmware_path)
+        shutil.rmtree(firmware_path, ignore_errors=True)
+
+        return f'{firmware_zip_path}.zip'
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

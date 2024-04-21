@@ -1,8 +1,10 @@
 import json
+import os
 
 from fastapi import APIRouter, Depends, status
 from fastapi_filter import FilterDepends
-from pydantic import BaseModel
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse
 
 from app.configs.db import get_session
 from app.repositories.unit_repository import UnitRepository
@@ -31,6 +33,16 @@ def get(uuid: str, unit_service: UnitService = Depends()):
 @router.get("/env/{uuid}", response_model=str)
 def get_env(uuid: str, unit_service: UnitService = Depends()):
     return json.dumps(unit_service.get_env(uuid))
+
+
+@router.get("/firmware/{uuid}", response_model=bytes)
+def get_firmware(uuid: str, unit_service: UnitService = Depends()):
+    zip_filepath = unit_service.get_unit_firmware_zip(uuid)
+
+    def cleanup():
+        os.remove(zip_filepath)
+
+    return FileResponse(zip_filepath, background=BackgroundTask(cleanup))
 
 
 # todo подлежит удалению
