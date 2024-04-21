@@ -3,8 +3,8 @@ import json
 import shutil
 from collections import Counter
 from json import JSONDecodeError
-from typing import Sequence
 
+import uuid
 from fastapi import HTTPException
 from fastapi import status as http_status
 
@@ -40,6 +40,16 @@ class GitRepoRepository:
     @staticmethod
     def get_repo(repo: Repo) -> GitRepo:
         return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')
+
+    @staticmethod
+    def get_tmp_repo(repo: Repo) -> GitRepo:
+
+        tmp_path = f'tmp/{uuid.uuid4()}'
+        current_path = f'{settings.save_repo_path}/{repo.uuid}'
+
+        shutil.copytree(current_path, tmp_path)
+
+        return GitRepo(tmp_path)
 
     @staticmethod
     def get_url(data: RepoCreate):
