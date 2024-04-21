@@ -48,3 +48,7 @@ class AgentType(str, enum.Enum):
 class UnitNodeType(str, enum.Enum):
     OUTPUT = 'Output'
     INPUT = 'Input'
+
+
+class OutputBaseTopic(str, enum.Enum):
+    STATE = 'state'

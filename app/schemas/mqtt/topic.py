@@ -5,7 +5,12 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 from app import settings
 from app.configs.db import get_session
 from app.configs.redis import get_redis_session
-from app.domain.test_model import Test
+from app.domain.unit_model import Unit
+from app.domain.unit_node_model import UnitNode
+from app.repositories.enum import OutputBaseTopic
+from app.repositories.unit_node_repository import UnitNodeRepository
+from app.repositories.unit_repository import UnitRepository
+from app.schemas.mqtt.utils import get_topic_split
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -17,9 +22,7 @@ mqtt_config = MQTTConfig(
 
 mqtt = FastMQTT(config=mqtt_config)
 
-
-# todo разделить на input и output
-# cписок подписок на устройстве должен обновляться
+# todo refactor оценить вынос функционала в отдельный сервис unit_node_service
 
 @mqtt.subscribe('output/+/#')
 async def message_to_topic(client, topic, payload, qos, properties):
@@ -38,19 +41,33 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         await redis.set(str(topic), str(payload.decode()))
 
+        destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
+
         db = next(get_session())
 
-        test = Test(value=f'{str(topic)}, {str(payload.decode())}')
-        test.uuid = '7af0cb07-a0d0-41a8-81e9-251457e1a9d0'
+        # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
+        unit_node_repository = UnitNodeRepository(db)
+        unit_node = unit_node_repository.get_by_topic(unit_uuid, UnitNode(topic_name=topic_name))
+        unit_node.state = str(payload.decode())
+        unit_node_repository.update(unit_node.uuid, unit_node)
 
-        db.merge(test)
-
-        db.commit()
+        db.close()
 
     print(f'{time.perf_counter() - start_time}')
 
+
 @mqtt.subscribe('output_base/+/#')
 async def message_to_topic(client, topic, payload, qos, properties):
+
+    destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
+
+    if topic_name == OutputBaseTopic.STATE:
+        db = next(get_session())
+
+        unit_repository = UnitRepository(db)
+        unit_repository.update(unit_uuid, Unit(unit_state_dict=str(payload.decode())))
+
+        db.close()
 
     print(f'{str(topic)}, {str(payload.decode())}')
 
