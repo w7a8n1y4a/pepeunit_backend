@@ -69,6 +69,7 @@ class ReservedEnvVariableName(str, enum.Enum):
     """ Разрешённые топиков схемы у Unit """
 
     PEPEUNIT_URL = 'PEPEUNIT_URL'
+    MQTT_URL = 'MQTT_URL'
     PEPEUNIT_TOKEN = 'PEPEUNIT_TOKEN'
     SYNC_ENCRYPT_KEY = 'SYNC_ENCRYPT_KEY'
     SECRET_KEY = 'SECRET_KEY'
