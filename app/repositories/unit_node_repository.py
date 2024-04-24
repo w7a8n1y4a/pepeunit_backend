@@ -37,6 +37,8 @@ class UnitNodeRepository:
         self.db.commit()
         return self.get(unit_node)
 
+    # todo bulk_update добавить для обновления версии юнита
+
     def delete(self, unit_node: UnitNode) -> None:
         self.db.delete(self.get(unit_node))
         self.db.commit()
