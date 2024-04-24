@@ -35,14 +35,26 @@ def get_env(uuid: str, unit_service: UnitService = Depends()):
     return json.dumps(unit_service.get_env(uuid))
 
 
-@router.get("/firmware/{uuid}", response_model=bytes)
+@router.get("/firmware/zip/{uuid}", response_model=bytes)
 def get_firmware(uuid: str, unit_service: UnitService = Depends()):
     zip_filepath = unit_service.get_unit_firmware_zip(uuid)
 
     def cleanup():
         os.remove(zip_filepath)
 
+    print(zip_filepath)
+
     return FileResponse(zip_filepath, background=BackgroundTask(cleanup))
+
+
+@router.get("/firmware/tgz/{uuid}", response_model=bytes)
+def get_firmware(uuid: str, unit_service: UnitService = Depends()):
+    tgz_filepath = unit_service.get_unit_firmware_tgz(uuid)
+
+    def cleanup():
+        os.remove(tgz_filepath)
+
+    return FileResponse(tgz_filepath, background=BackgroundTask(cleanup))
 
 
 # todo подлежит удалению

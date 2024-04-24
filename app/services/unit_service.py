@@ -1,8 +1,10 @@
 import base64
 import copy
+import io
 import json
 import os
 import shutil
+import zlib
 from typing import Union
 
 from fastapi import Depends
@@ -89,13 +91,14 @@ class UnitService:
 
         self.unit_node_repository.bulk_create(unit_nodes_list)
 
-        mqtt.publish("test/kek", "Hello from Fastapi")  # publishing mqtt topic
+        mqtt.publish("input_base/1a5c9898-0936-4fcd-afbe-d61f653e92c4/update", "Hello from Fastapi")  # publishing mqtt topic
         mqtt.publish("test/kek2", "Hello from Fastapi")  # publishing mqtt topic
 
         return unit_deepcopy
 
     def get(self, uuid: str) -> Unit:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        # todo refactor unit доступ
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
         return unit
@@ -123,7 +126,7 @@ class UnitService:
 
     def get_env(self, uuid: str) -> dict:
 
-        self.access_service.access_check([UserRole.USER])
+        self.access_service.access_check([UserRole.USER], is_unit_available=True)
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -156,8 +159,6 @@ class UnitService:
         return None
 
     def get_unit_firmware(self, uuid: str) -> str:
-        self.access_service.access_check([UserRole.USER])
-
         unit = self.unit_repository.get(Unit(uuid=uuid))
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
@@ -196,7 +197,7 @@ class UnitService:
         return tmp_git_repo_path
 
     def get_unit_firmware_zip(self, uuid: str) -> str:
-        self.access_service.access_check([UserRole.USER])
+        self.access_service.access_check([UserRole.USER], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
         firmware_zip_path = f"tmp/{uuid}"
@@ -205,6 +206,26 @@ class UnitService:
         shutil.rmtree(firmware_path, ignore_errors=True)
 
         return f'{firmware_zip_path}.zip'
+
+    def get_unit_firmware_tgz(self, uuid: str) -> str:
+        self.access_service.access_check([UserRole.USER], is_unit_available=True)
+
+        firmware_path = self.get_unit_firmware(uuid)
+        firmware_tar_path = f"tmp/{uuid}"
+
+        shutil.make_archive(firmware_tar_path, 'tar', firmware_path)
+        shutil.rmtree(firmware_path, ignore_errors=True)
+
+        with open(firmware_tar_path + '.tar', 'rb') as tar_file:
+            producer = zlib.compressobj(wbits=9, level=9)
+            tar_data = producer.compress(tar_file.read()) + producer.flush()
+
+            with open(f'{firmware_tar_path}.tgz', 'wb') as tgz:
+                tgz.write(tar_data)
+
+        shutil.rmtree(firmware_tar_path + '.tar', ignore_errors=True)
+
+        return f'{firmware_tar_path}.tgz'
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
