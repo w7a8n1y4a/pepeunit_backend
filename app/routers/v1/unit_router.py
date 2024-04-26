@@ -47,6 +47,16 @@ def get_firmware(uuid: str, unit_service: UnitService = Depends()):
     return FileResponse(zip_filepath, background=BackgroundTask(cleanup))
 
 
+@router.get("/firmware/tar/{uuid}", response_model=bytes)
+def get_firmware(uuid: str, unit_service: UnitService = Depends()):
+    tar_filepath = unit_service.get_unit_firmware_tar(uuid)
+
+    def cleanup():
+        os.remove(tar_filepath)
+
+    return FileResponse(tar_filepath, background=BackgroundTask(cleanup))
+
+
 @router.get("/firmware/tgz/{uuid}", response_model=bytes)
 def get_firmware(uuid: str, unit_service: UnitService = Depends()):
     tgz_filepath = unit_service.get_unit_firmware_tgz(uuid)
