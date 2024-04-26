@@ -207,6 +207,19 @@ class UnitService:
 
         return f'{firmware_zip_path}.zip'
 
+
+    def get_unit_firmware_tar(self, uuid: str) -> str:
+        self.access_service.access_check([UserRole.USER], is_unit_available=True)
+
+        firmware_path = self.get_unit_firmware(uuid)
+        firmware_tar_path = f"tmp/{uuid}"
+
+        shutil.make_archive(firmware_tar_path, 'tar', firmware_path)
+        shutil.rmtree(firmware_path, ignore_errors=True)
+
+        return f'{firmware_tar_path}.tar'
+
+
     def get_unit_firmware_tgz(self, uuid: str) -> str:
         self.access_service.access_check([UserRole.USER], is_unit_available=True)
 
