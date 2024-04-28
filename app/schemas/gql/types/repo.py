@@ -28,3 +28,12 @@ class RepoType(TypeInputMixin):
     branches: list[str]
 
     creator_uuid: uuid_pkg.UUID
+
+
+@strawberry.type()
+class CommitType(TypeInputMixin):
+    """Данные о коммите"""
+
+    commit: str
+    summary: str
+    tag: Optional[str] = None

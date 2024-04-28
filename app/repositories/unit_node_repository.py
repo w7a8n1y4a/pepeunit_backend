@@ -28,7 +28,7 @@ class UnitNodeRepository:
             .filter(
                 UnitNode.unit_uuid == unit_uuid,
                 UnitNode.topic_name == unit_node.topic_name,
-                UnitNode.type == UnitNodeType.OUTPUT
+                UnitNode.type == UnitNodeType.OUTPUT,
             )
             .first()
         )
@@ -44,7 +44,6 @@ class UnitNodeRepository:
         return self.get(unit_node)
 
     def delete(self, del_uuid_list: list[str]) -> None:
-
         self.db.query(UnitNode).filter(UnitNode.uuid.in_(del_uuid_list)).delete()
         self.db.commit()
 

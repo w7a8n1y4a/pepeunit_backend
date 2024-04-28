@@ -7,8 +7,22 @@ from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.schemas.gql.inputs.repo import RepoUpdateInput, RepoFilterInput, RepoCreateInput, CredentialsInput
-from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, RepoFilter, RepoRead, Credentials
+from app.schemas.gql.inputs.repo import (
+    RepoUpdateInput,
+    RepoFilterInput,
+    RepoCreateInput,
+    CredentialsInput,
+    CommitFilterInput,
+)
+from app.schemas.pydantic.repo import (
+    RepoCreate,
+    RepoUpdate,
+    RepoFilter,
+    RepoRead,
+    Credentials,
+    CommitRead,
+    CommitFilter,
+)
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
 from app.services.validators import is_valid_object
@@ -47,6 +61,17 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
         return self.mapper_repo_to_repo_read(repo)
+
+    def get_branch_commits(self, uuid: str, filters: Union[CommitFilter, CommitFilterInput]) -> list[CommitRead]:
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+
+        self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
+
+        commits_with_tag = self.git_repo_repository.get_commits_with_tag(repo, filters.repo_branch)
+
+        return [CommitRead(**item) for item in commits_with_tag][filters.offset:filters.offset + filters.limit]
 
     def update(self, uuid: str, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

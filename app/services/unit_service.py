@@ -156,10 +156,13 @@ class UnitService:
         unit_node_uuid_delete = []
         for assignment, topic_list in schema_dict.items():
             if assignment == SchemaStructName.INPUT_TOPIC:
-                unit_node_uuid_delete.extend([input_node_dict[topic] for topic in input_node_dict.keys() - set(topic_list)])
+                unit_node_uuid_delete.extend(
+                    [input_node_dict[topic] for topic in input_node_dict.keys() - set(topic_list)]
+                )
             elif assignment == SchemaStructName.OUTPUT_TOPIC:
                 unit_node_uuid_delete.extend(
-                    [output_node_dict[topic] for topic in output_node_dict.keys() - set(topic_list)])
+                    [output_node_dict[topic] for topic in output_node_dict.keys() - set(topic_list)]
+                )
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
@@ -217,15 +220,7 @@ class UnitService:
         with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))
 
-        del_path_list = [
-            '.gitignore',
-            'env_example.json',
-            '.git',
-            'docs',
-            'model'
-            'readme.md',
-            'README.md'
-        ]
+        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md']
 
         for path in del_path_list:
             merge_path = f'{tmp_git_repo_path}/{path}'
