@@ -32,6 +32,13 @@ def update_repo_default_branch(info: Info, uuid: str, default_branch: str) -> Re
 
 
 @strawberry.mutation
+def update_local_repo(info: Info, uuid: str) -> NoneType:
+    repo_service = get_repo_service(info)
+    repo_service.update_local_repo(uuid)
+    return NoneType()
+
+
+@strawberry.mutation
 def delete_repo(info: Info, uuid: str) -> NoneType:
     repo_service = get_repo_service(info)
     repo_service.delete(uuid)
