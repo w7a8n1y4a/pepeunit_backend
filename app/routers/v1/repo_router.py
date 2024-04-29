@@ -1,7 +1,15 @@
 from fastapi import APIRouter, Depends, status
 from fastapi_filter import FilterDepends
 
-from app.schemas.pydantic.repo import RepoRead, RepoCreate, RepoUpdate, RepoFilter, Credentials
+from app.schemas.pydantic.repo import (
+    RepoRead,
+    RepoCreate,
+    RepoUpdate,
+    RepoFilter,
+    Credentials,
+    CommitRead,
+    CommitFilter,
+)
 from app.services.repo_service import RepoService
 
 router = APIRouter()
@@ -44,3 +52,10 @@ def delete(uuid: str, repo_service: RepoService = Depends()):
 @router.get("", response_model=list[RepoRead])
 def get_repos(filters: RepoFilter = FilterDepends(RepoFilter), repo_service: RepoService = Depends()):
     return repo_service.list(filters)
+
+
+@router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
+def get_branch_commits(
+    uuid: str, filters: CommitFilter = FilterDepends(CommitFilter), repo_service: RepoService = Depends()
+):
+    return repo_service.get_branch_commits(uuid, filters)

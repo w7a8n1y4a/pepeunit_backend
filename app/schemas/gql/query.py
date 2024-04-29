@@ -5,4 +5,7 @@ from app.schemas.gql.queries.user import *
 from app.schemas.gql.queries.unit import *
 
 
-Query = create_type("Query", [get_user, get_token, get_users, get_repo, get_repos, get_unit, get_unit_env, get_units])
+Query = create_type(
+    "Query",
+    [get_user, get_token, get_users, get_repo, get_repos, get_branch_commits, get_unit, get_unit_env, get_units],
+)

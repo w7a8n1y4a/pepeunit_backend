@@ -53,3 +53,13 @@ class RepoFilterInput(TypeInputMixin):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+
+@strawberry.input()
+class CommitFilterInput(TypeInputMixin):
+    """Фильтр выборки коммитов"""
+
+    repo_branch: str
+
+    offset: Optional[int] = 0
+    limit: Optional[int] = 10

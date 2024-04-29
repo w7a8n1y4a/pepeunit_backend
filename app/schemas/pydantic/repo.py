@@ -38,6 +38,14 @@ class Credentials(BaseModel):
     pat_token: str
 
 
+class CommitRead(BaseModel):
+    """Данные о коммите"""
+
+    commit: str
+    summary: str
+    tag: Optional[str] = None
+
+
 class RepoCreate(BaseModel):
     """Создание репозитория"""
 
@@ -80,3 +88,12 @@ class RepoFilter(Filter):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+
+class CommitFilter(Filter):
+    """Фильтр выборки коммитов"""
+
+    repo_branch: str
+
+    offset: Optional[int] = 0
+    limit: Optional[int] = 10

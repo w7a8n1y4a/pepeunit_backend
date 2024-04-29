@@ -64,15 +64,35 @@ class GitRepoRepository:
         repo = self.get_repo(repo)
         return [r.remote_head for r in repo.remote().refs][1:]
 
-    def get_commits(self, repo: Repo, branch: str, depth: int = None) -> list[tuple[str, str]]:
+    def get_commits(self, repo: Repo, branch: str, depth: int = None) -> list[dict]:
         repo = self.get_repo(repo)
-        return [(item.name_rev.split()[0], item.summary) for item in repo.iter_commits(rev=f'remotes/origin/{branch}')][
-            :depth
+        return [
+            {'commit': item.name_rev.split()[0], 'summary': item.summary}
+            for item in repo.iter_commits(rev=f'remotes/origin/{branch}')
+        ][:depth]
+
+    def get_tags(self, repo: Repo) -> list[dict]:
+        repo = self.get_repo(repo)
+        return [
+            {'commit': item.commit.name_rev.split()[0], 'summary': item.commit.summary, 'tag': item.name}
+            for item in repo.tags
         ]
 
-    def get_tags(self, repo: Repo) -> list[tuple[str, tuple[str, str]]]:
-        repo = self.get_repo(repo)
-        return [(item.name, (item.commit.name_rev.split()[0], item.commit.summary)) for item in repo.tags]
+    def get_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
+        commits_dict = self.get_commits(repo, branch)
+        tags_dict = self.get_tags(repo)
+
+        commits_with_tag = []
+        for commit in commits_dict:
+            commit_dict = commit
+
+            for tag in tags_dict:
+                if commit['commit'] == tag['commit']:
+                    commit_dict['tag'] = tag['tag']
+
+            commits_with_tag.append(commit_dict)
+
+        return commits_with_tag
 
     def get_file(self, repo: Repo, commit: str, path: str) -> io.BytesIO:
         repo = self.get_repo(repo)
