@@ -36,7 +36,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
     redis_topic_value = await redis.get(str(topic))
 
     if redis_topic_value != str(payload.decode()):
-        # todo разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
+        # todo refactor разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
 
         await redis.set(str(topic), str(payload.decode()))
 
