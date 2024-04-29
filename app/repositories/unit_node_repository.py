@@ -4,6 +4,7 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
+from app.repositories.enum import UnitNodeType
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 
@@ -14,18 +15,23 @@ class UnitNodeRepository:
     def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
 
-    def bulk_create(self, unit_nodes: list[UnitNode]) -> None:
+    def bulk_save(self, unit_nodes: list[UnitNode]) -> None:
         self.db.bulk_save_objects(unit_nodes)
         self.db.commit()
 
     def get(self, unit_node: UnitNode) -> UnitNode:
         return self.db.get(UnitNode, unit_node.uuid)
 
-    def get_by_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
-        return self.db.query(UnitNode).filter(
-            UnitNode.unit_uuid == unit_uuid,
-            UnitNode.topic_name == unit_node.topic_name
-        ).first()
+    def get_output_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
+        return (
+            self.db.query(UnitNode)
+            .filter(
+                UnitNode.unit_uuid == unit_uuid,
+                UnitNode.topic_name == unit_node.topic_name,
+                UnitNode.type == UnitNodeType.OUTPUT
+            )
+            .first()
+        )
 
     def get_unit_nodes(self, unit: Unit) -> list[UnitNode]:
         query = self.db.query(UnitNode).filter(UnitNode.unit_uuid == unit.uuid)
@@ -37,12 +43,10 @@ class UnitNodeRepository:
         self.db.commit()
         return self.get(unit_node)
 
-    # todo bulk_update добавить для обновления версии юнита
+    def delete(self, del_uuid_list: list[str]) -> None:
 
-    def delete(self, unit_node: UnitNode) -> None:
-        self.db.delete(self.get(unit_node))
+        self.db.query(UnitNode).filter(UnitNode.uuid.in_(del_uuid_list)).delete()
         self.db.commit()
-        self.db.flush()
 
     def list(self, filters: UnitNodeFilter) -> list[UnitNode]:
         query = self.db.query(UnitNode)

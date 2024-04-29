@@ -51,13 +51,13 @@ class UnitNodeType(str, enum.Enum):
 
 
 class ReservedOutputBaseTopic(str, enum.Enum):
-    """ Забронированные топики вывода у Unit """
+    """Забронированные топики вывода у Unit"""
 
     STATE = 'state'
 
 
 class SchemaStructName(str, enum.Enum):
-    """ Разрешённые назначения топиков схемы у Unit """
+    """Разрешённые назначения топиков схемы у Unit"""
 
     INPUT_BASE_TOPIC = 'input_base_topic'
     OUTPUT_BASE_TOPIC = 'output_base_topic'
@@ -66,7 +66,7 @@ class SchemaStructName(str, enum.Enum):
 
 
 class ReservedEnvVariableName(str, enum.Enum):
-    """ Разрешённые топиков схемы у Unit """
+    """Разрешённые топиков схемы у Unit"""
 
     PEPEUNIT_URL = 'PEPEUNIT_URL'
     MQTT_URL = 'MQTT_URL'

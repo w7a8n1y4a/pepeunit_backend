@@ -31,5 +31,3 @@ class Settings(BaseSettings):
     redis_url: str
 
     available_topic_symbols: str = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-'
-
-
