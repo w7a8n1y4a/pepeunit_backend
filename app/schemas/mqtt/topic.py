@@ -24,6 +24,7 @@ mqtt = FastMQTT(config=mqtt_config)
 
 # todo refactor оценить вынос функционала в отдельный сервис unit_node_service
 
+
 @mqtt.subscribe('output/+/#')
 async def message_to_topic(client, topic, payload, qos, properties):
     start_time = time.perf_counter()
@@ -34,9 +35,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
     redis_topic_value = await redis.get(str(topic))
 
-
     if redis_topic_value != str(payload.decode()):
-
         # todo разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
 
         await redis.set(str(topic), str(payload.decode()))
@@ -47,7 +46,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
         unit_node_repository = UnitNodeRepository(db)
-        unit_node = unit_node_repository.get_by_topic(unit_uuid, UnitNode(topic_name=topic_name))
+        unit_node = unit_node_repository.get_output_topic(unit_uuid, UnitNode(topic_name=topic_name))
         unit_node.state = str(payload.decode())
         unit_node_repository.update(unit_node.uuid, unit_node)
 
@@ -58,7 +57,6 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
 @mqtt.subscribe('output_base/+/#')
 async def message_to_topic(client, topic, payload, qos, properties):
-
     destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
 
     if topic_name == ReservedOutputBaseTopic.STATE:

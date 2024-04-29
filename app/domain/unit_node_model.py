@@ -23,7 +23,7 @@ class UnitNode(SQLModel, table=True):
     # переменная перезаписываемая? если False, то никакой другой Unit перезаписать её не сможет, даже с доступом
     is_rewritable_input: bool = Field(nullable=False, default=False)
 
-    # название топика Input переменной
+    # название топика
     topic_name: str = Field(nullable=False)
     # время создания Input
     create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)

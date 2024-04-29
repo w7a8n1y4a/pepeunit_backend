@@ -19,11 +19,11 @@ def is_valid_password(password: str, user: User) -> None:
 
 
 def is_valid_json(json_str: str) -> dict:
-
     try:
         env_dict = json.loads(json_str)
     except JSONDecodeError:
-        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                            detail=f'This env_example.json file is not a json serialise')
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This env_example.json file is not a json serialise'
+        )
 
     return env_dict

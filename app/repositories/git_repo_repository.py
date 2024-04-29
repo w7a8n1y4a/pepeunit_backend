@@ -43,7 +43,6 @@ class GitRepoRepository:
 
     @staticmethod
     def get_tmp_repo(repo: Repo) -> GitRepo:
-
         tmp_path = f'tmp/{uuid.uuid4()}'
         current_path = f'{settings.save_repo_path}/{repo.uuid}'
 
@@ -76,7 +75,6 @@ class GitRepoRepository:
         return [(item.name, (item.commit.name_rev.split()[0], item.commit.summary)) for item in repo.tags]
 
     def get_file(self, repo: Repo, commit: str, path: str) -> io.BytesIO:
-
         repo = self.get_repo(repo)
 
         try:
@@ -91,25 +89,24 @@ class GitRepoRepository:
         return buffer
 
     def get_schema_dict(self, repo: Repo, commit: str) -> dict:
-
         schema_buffer = self.get_file(repo, commit, 'schema.json')
 
         return json.loads(schema_buffer.getvalue().decode())
 
     def get_env_dict(self, repo: Repo, commit: str) -> dict:
-
         schema_buffer = self.get_file(repo, commit, 'env_example.json')
 
         try:
             env_dict = json.loads(schema_buffer.getvalue().decode())
         except JSONDecodeError:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'This env_example.json file is not a json serialise')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f'This env_example.json file is not a json serialise',
+            )
 
         return env_dict
 
     def get_env_example(self, repo: Repo, commit: str) -> dict:
-
         env_dict = self.get_env_dict(repo, commit)
 
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
@@ -117,45 +114,52 @@ class GitRepoRepository:
         return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
 
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
-
         file_buffer = self.get_file(repo, commit, 'schema.json')
 
         try:
             schema_dict = json.loads(file_buffer.getvalue().decode())
         except JSONDecodeError:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'This schema file is not a json file')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This schema file is not a json file'
+            )
 
         binding_schema_keys = [i.value for i in SchemaStructName]
 
         if len(binding_schema_keys) != len(set(schema_dict.keys()) & set(binding_schema_keys)):
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'This schema file has unresolved IO and base IO keys')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f'This schema file has unresolved IO and base IO keys',
+            )
 
         schema_dict_values_type = [type(value) for value in schema_dict.values()]
 
         if Counter(schema_dict_values_type)[list] != len(schema_dict):
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'This schema file has not available value types, only list is available')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f'This schema file has not available value types, only list is available',
+            )
 
         all_unique_chars_topic = Counter(''.join([item for value in schema_dict.values() for item in value])).keys()
 
         if (set(all_unique_chars_topic) - set(settings.available_topic_symbols)) != set():
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'Topics in the schema use characters that are not allowed')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f'Topics in the schema use characters that are not allowed',
+            )
 
         # 100 chars is stock for system track parts
         if max([len(item) for value in schema_dict.values() for item in value]) >= 65535 - 100:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'The length of the topic title is too long')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'The length of the topic title is too long'
+            )
 
     def is_valid_env_file(self, repo: Repo, commit: str, env: dict) -> None:
-
         env_example_dict = self.get_env_dict(repo, commit)
 
         if env_example_dict.keys() - env.keys() != set():
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
-                                detail=f'This env file has unresolved variable')
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This env file has unresolved variable'
+            )
 
     def is_valid_branch(self, repo: Repo, branch: str):
         if branch not in self.get_branches(repo):

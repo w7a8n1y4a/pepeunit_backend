@@ -22,7 +22,12 @@ class AccessService:
     jwt_token: Optional[str] = None
     current_agent: Optional[User] = None
 
-    def __init__(self, user_repository: UserRepository = Depends(), unit_repository: UnitRepository = Depends(), jwt_token: str = Depends(get_jwt_token)) -> None:
+    def __init__(
+        self,
+        user_repository: UserRepository = Depends(),
+        unit_repository: UnitRepository = Depends(),
+        jwt_token: str = Depends(get_jwt_token),
+    ) -> None:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
         self.jwt_token = jwt_token
