@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import zlib
+import uuid as uuid_pkg
 from typing import Union
 
 from fastapi import Depends
@@ -211,24 +212,11 @@ class UnitService:
 
         self.git_repo_repository.is_valid_env_file(repo, unit.repo_commit, env_dict)
 
-        # todo refactor мб упаковать в git_repo_repository
-        tmp_git_repo = self.git_repo_repository.get_tmp_repo(repo)
-        tmp_git_repo.git.checkout(unit.repo_commit)
-
-        tmp_git_repo_path = tmp_git_repo.working_tree_dir
+        gen_uuid = uuid_pkg.uuid4()
+        tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, unit.repo_commit, gen_uuid)
 
         with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))
-
-        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md']
-
-        for path in del_path_list:
-            merge_path = f'{tmp_git_repo_path}/{path}'
-
-            if os.path.isfile(merge_path):
-                os.remove(merge_path)
-            else:
-                shutil.rmtree(merge_path, ignore_errors=True)
 
         return tmp_git_repo_path
 

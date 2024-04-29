@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import shutil
 from collections import Counter
 from json import JSONDecodeError
@@ -42,13 +43,31 @@ class GitRepoRepository:
         git_repo = self.get_repo(repo)
         git_repo.remotes.origin.pull()
 
+    def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: str) -> str:
+        tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
+        tmp_git_repo.git.checkout(commit)
+
+        tmp_git_repo_path = tmp_git_repo.working_tree_dir
+
+        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md']
+
+        for path in del_path_list:
+            merge_path = f'{tmp_git_repo_path}/{path}'
+
+            if os.path.isfile(merge_path):
+                os.remove(merge_path)
+            else:
+                shutil.rmtree(merge_path, ignore_errors=True)
+
+        return tmp_git_repo_path
+
     @staticmethod
     def get_repo(repo: Repo) -> GitRepo:
         return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')
 
     @staticmethod
-    def get_tmp_repo(repo: Repo) -> GitRepo:
-        tmp_path = f'tmp/{uuid.uuid4()}'
+    def get_tmp_repo(repo: Repo, gen_uuid: str) -> GitRepo:
+        tmp_path = f'tmp/{gen_uuid}'
         current_path = f'{settings.save_repo_path}/{repo.uuid}'
 
         shutil.copytree(current_path, tmp_path)
