@@ -71,7 +71,7 @@ class RepoService:
 
         commits_with_tag = self.git_repo_repository.get_commits_with_tag(repo, filters.repo_branch)
 
-        return [CommitRead(**item) for item in commits_with_tag][filters.offset:filters.offset + filters.limit]
+        return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
     def update(self, uuid: str, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -111,6 +111,18 @@ class RepoService:
         repo = self.repo_repository.update(uuid, repo)
 
         return self.mapper_repo_to_repo_read(repo)
+
+    def update_local_repo(self, uuid: str) -> None:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+
+        is_valid_object(repo)
+        creator_check(self.access_service.current_agent, repo)
+
+        self.git_repo_repository.update_local_repo(repo)
+
+        return None
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

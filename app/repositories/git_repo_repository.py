@@ -37,6 +37,11 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
+    def update_local_repo(self, repo: Repo) -> None:
+        # todo доработать для закрытых репозиториев
+        git_repo = self.get_repo(repo)
+        git_repo.remotes.origin.pull()
+
     @staticmethod
     def get_repo(repo: Repo) -> GitRepo:
         return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')

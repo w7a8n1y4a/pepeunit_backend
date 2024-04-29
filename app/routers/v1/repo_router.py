@@ -44,6 +44,11 @@ def update_default_branch(uuid: str, default_branch: str, repo_service: RepoServ
     return repo_service.update_default_branch(uuid, default_branch)
 
 
+@router.patch("/update_local_repo/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def update_local_repo(uuid: str, repo_service: RepoService = Depends()):
+    return repo_service.update_local_repo(uuid)
+
+
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(uuid: str, repo_service: RepoService = Depends()):
     return repo_service.delete(uuid)
