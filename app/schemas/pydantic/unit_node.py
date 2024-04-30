@@ -4,13 +4,13 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi_filter.contrib.sqlalchemy import Filter
 
-from app.repositories.enum import OrderByDate, VisibilityLevel, UnitNodeType
+from app.repositories.enum import OrderByDate, VisibilityLevel, UnitNodeTypeEnum
 
 
 class UnitNodeRead(BaseModel):
     uuid: uuid_pkg.UUID
 
-    type: UnitNodeType
+    type: UnitNodeTypeEnum
     visibility_level: VisibilityLevel
 
     is_rewritable_input: bool
@@ -33,7 +33,7 @@ class UnitNodeSetState(BaseModel):
 class UnitNodeFilter(Filter):
     search_string: Optional[str] = None
 
-    type: Optional[UnitNodeType] = None
+    type: Optional[UnitNodeTypeEnum] = None
     visibility_level: Optional[VisibilityLevel] = None
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc

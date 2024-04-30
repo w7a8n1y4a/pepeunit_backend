@@ -83,6 +83,7 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
     db.close()
 
+    # todo здесь должна быть проверка доступа до топиков по политикам доступа
     print(data.topic)
 
     return True

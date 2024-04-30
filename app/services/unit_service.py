@@ -16,7 +16,7 @@ from app import settings
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeType, SchemaStructName
+from app.repositories.enum import UserRole, UnitNodeTypeEnum, SchemaStructName
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -75,9 +75,9 @@ class UnitService:
                 if assignment in [SchemaStructName.INPUT_TOPIC, SchemaStructName.OUTPUT_TOPIC]:
                     unit_nodes_list.append(
                         UnitNode(
-                            type=UnitNodeType.INPUT
+                            type=UnitNodeTypeEnum.INPUT
                             if assignment == SchemaStructName.INPUT_TOPIC
-                            else UnitNodeType.OUTPUT,
+                            else UnitNodeTypeEnum.OUTPUT,
                             visibility_level=unit.visibility_level,
                             topic_name=topic,
                             unit_uuid=unit.uuid,
@@ -122,13 +122,13 @@ class UnitService:
         input_node_dict = {
             unit_node.topic_name: unit_node.uuid
             for unit_node in all_exist_unit_nodes
-            if unit_node.type == UnitNodeType.INPUT
+            if unit_node.type == UnitNodeTypeEnum.INPUT
         }
 
         output_node_dict = {
             unit_node.topic_name: unit_node.uuid
             for unit_node in all_exist_unit_nodes
-            if unit_node.type == UnitNodeType.OUTPUT
+            if unit_node.type == UnitNodeTypeEnum.OUTPUT
         }
 
         schema_dict = self.git_repo_repository.get_schema_dict(repo, data.repo_commit)
@@ -142,9 +142,9 @@ class UnitService:
                 ):
                     unit_nodes_list.append(
                         UnitNode(
-                            type=UnitNodeType.INPUT
+                            type=UnitNodeTypeEnum.INPUT
                             if assignment == SchemaStructName.INPUT_TOPIC
-                            else UnitNodeType.OUTPUT,
+                            else UnitNodeTypeEnum.OUTPUT,
                             visibility_level=unit.visibility_level,
                             topic_name=topic,
                             unit_uuid=unit.uuid,

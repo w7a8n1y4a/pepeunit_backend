@@ -3,6 +3,7 @@ from strawberry.tools import create_type
 from app.schemas.gql.mutations.user import *
 from app.schemas.gql.mutations.repo import *
 from app.schemas.gql.mutations.unit import *
+from app.schemas.gql.mutations.unit_node import *
 
 Mutation = create_type(
     "Mutation",
@@ -20,5 +21,7 @@ Mutation = create_type(
         update_unit,
         update_unit_env,
         delete_unit,
+        update_unit_node,
+        set_state_unit_node_input,
     ],
 )
