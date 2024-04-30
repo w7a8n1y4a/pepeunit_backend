@@ -170,7 +170,7 @@ class UnitService:
         if 'update' in schema_dict['input_base_topic']:
             mqtt.publish(f"input_base/{unit.uuid}/update", "You need to upgrade")
 
-        return self.unit_repository.update(uuid, unit)
+        return self.unit_repository.update(uuid, Unit(**data.dict()))
 
     def get_env(self, uuid: str) -> dict:
         self.access_service.access_check([UserRole.USER], is_unit_available=True)
