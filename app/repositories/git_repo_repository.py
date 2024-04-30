@@ -210,5 +210,5 @@ class GitRepoRepository:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid branch")
 
     def is_valid_commit(self, repo: Repo, branch: str, commit: str):
-        if commit not in [hash_commit for hash_commit, name in self.get_commits(repo, branch)]:
+        if commit not in [commit_dict['commit'] for commit_dict in self.get_commits(repo, branch)]:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid commit")
