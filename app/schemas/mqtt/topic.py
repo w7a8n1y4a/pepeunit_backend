@@ -10,7 +10,10 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import ReservedOutputBaseTopic
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.mqtt.utils import get_topic_split
+from app.services.access_service import AccessService
+from app.services.unit_node_service import UnitNodeService
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -22,7 +25,8 @@ mqtt_config = MQTTConfig(
 
 mqtt = FastMQTT(config=mqtt_config)
 
-# todo refactor оценить вынос функционала в отдельный сервис unit_node_service
+
+# todo input/+/# роут который позволил бы записывать в бд переговоры юнитов
 
 
 @mqtt.subscribe('output/+/#')
@@ -40,15 +44,17 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         await redis.set(str(topic), str(payload.decode()))
 
+        # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
         destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
 
         db = next(get_session())
 
-        # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
-        unit_node_repository = UnitNodeRepository(db)
-        unit_node = unit_node_repository.get_output_topic(unit_uuid, UnitNode(topic_name=topic_name))
-        unit_node.state = str(payload.decode())
-        unit_node_repository.update(unit_node.uuid, unit_node)
+        access_service = AccessService(
+            user_repository=UserRepository(db=db), unit_repository=UnitRepository(db=db), jwt_token=None
+        )
+        unit_node_service = UnitNodeService(unit_node_repository=UnitNodeRepository(db), access_service=access_service)
+
+        unit_node_service.set_state_output(unit_uuid, topic_name, str(payload.decode()))
 
         db.close()
 

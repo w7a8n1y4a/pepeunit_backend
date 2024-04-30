@@ -4,7 +4,7 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UnitNodeType
+from app.repositories.enum import UnitNodeTypeEnum
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 
@@ -28,7 +28,7 @@ class UnitNodeRepository:
             .filter(
                 UnitNode.unit_uuid == unit_uuid,
                 UnitNode.topic_name == unit_node.topic_name,
-                UnitNode.type == UnitNodeType.OUTPUT,
+                UnitNode.type == UnitNodeTypeEnum.OUTPUT,
             )
             .first()
         )

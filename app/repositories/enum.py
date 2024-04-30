@@ -40,22 +40,26 @@ class UserStatus(str, enum.Enum):
     BLOCKED = 'Blocked'
 
 
+@strawberry.enum
 class AgentType(str, enum.Enum):
     USER = 'User'
     UNIT = 'Unit'
 
 
-class UnitNodeType(str, enum.Enum):
+@strawberry.enum
+class UnitNodeTypeEnum(str, enum.Enum):
     OUTPUT = 'Output'
     INPUT = 'Input'
 
 
+@strawberry.enum
 class ReservedOutputBaseTopic(str, enum.Enum):
     """Забронированные топики вывода у Unit"""
 
     STATE = 'state'
 
 
+@strawberry.enum
 class SchemaStructName(str, enum.Enum):
     """Разрешённые назначения топиков схемы у Unit"""
 
@@ -65,6 +69,7 @@ class SchemaStructName(str, enum.Enum):
     OUTPUT_TOPIC = 'output_topic'
 
 
+@strawberry.enum
 class ReservedEnvVariableName(str, enum.Enum):
     """Разрешённые топиков схемы у Unit"""
 
