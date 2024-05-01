@@ -49,7 +49,7 @@ class GitRepoRepository:
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
 
-        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md']
+        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md', 'LICENSE']
 
         for path in del_path_list:
             merge_path = f'{tmp_git_repo_path}/{path}'
