@@ -1,11 +1,12 @@
 from datetime import timedelta, datetime
 from http.client import HTTPException
-from typing import Optional
+from typing import Optional, Annotated
 
 import jwt
 from fastapi import Depends, params
 from fastapi import HTTPException
 from fastapi import status as http_status
+from fastapi.security import APIKeyHeader
 
 from app import settings
 from app.domain.unit_model import Unit
@@ -13,7 +14,6 @@ from app.domain.user_model import User
 from app.repositories.enum import UserRole, AgentType
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
-from app.services.utils import get_jwt_token
 
 
 class AccessService:
@@ -26,7 +26,7 @@ class AccessService:
         self,
         user_repository: UserRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
-        jwt_token: str = Depends(get_jwt_token),
+        jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None,
     ) -> None:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
