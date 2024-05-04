@@ -2,7 +2,6 @@ import json
 import os
 
 from fastapi import APIRouter, Depends, status
-from fastapi_filter import FilterDepends
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
@@ -105,5 +104,5 @@ def delete(uuid: str, unit_service: UnitService = Depends()):
 
 
 @router.get("", response_model=list[UnitRead])
-def get_units(filters: UnitFilter = FilterDepends(UnitFilter), unit_service: UnitService = Depends()):
+def get_units(filters: UnitFilter = Depends(UnitFilter), unit_service: UnitService = Depends()):
     return [UnitRead(**unit.dict()) for unit in unit_service.list(filters)]

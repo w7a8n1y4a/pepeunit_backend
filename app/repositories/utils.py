@@ -15,7 +15,7 @@ def apply_ilike_search_string(query, filters, fields: list):
 def apply_enums(query, filters, fields: dict):
     for filter_name, field in fields.items():
         if filter_name in filters.dict() and filters.dict()[filter_name]:
-            query = query.where(field == filters.dict()[filter_name].value)
+            query = query.where(field.in_(filters.dict()[filter_name]))
     return query
 
 

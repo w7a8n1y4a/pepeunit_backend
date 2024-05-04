@@ -1,5 +1,6 @@
 import json
 from json import JSONDecodeError
+from typing import Sequence
 
 from fastapi import HTTPException
 from fastapi import status as http_status
@@ -11,6 +12,11 @@ from app.utils.utils import check_password
 def is_valid_object(obj: any) -> None:
     if not obj:
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid request")
+
+
+def is_emtpy_sequence(obj: Sequence):
+    if len(obj) != 0:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"There are related objects")
 
 
 def is_valid_password(password: str, user: User) -> None:

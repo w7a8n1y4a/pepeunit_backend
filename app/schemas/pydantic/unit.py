@@ -2,10 +2,11 @@ import uuid as uuid_pkg
 from datetime import datetime
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel
-from fastapi_filter.contrib.sqlalchemy import Filter
 
 from app.repositories.enum import OrderByDate, VisibilityLevel
+from pydantic.dataclasses import dataclass
 
 
 class UnitRead(BaseModel):
@@ -50,18 +51,25 @@ class UnitUpdate(BaseModel):
     repo_commit: Optional[str] = None
 
 
-class UnitFilter(Filter):
+@dataclass
+class UnitFilter:
+    creator_uuid: Optional[str] = None
+    repo_uuid: Optional[str] = None
+
     search_string: Optional[str] = None
 
     is_auto_update_from_repo_unit: Optional[bool] = None
 
-    visibility_level: Optional[VisibilityLevel] = None
+    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__
 
 
 class UnitMqttTokenAuth(BaseModel):

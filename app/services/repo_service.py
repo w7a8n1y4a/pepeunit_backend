@@ -7,6 +7,7 @@ from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.repo import (
     RepoUpdateInput,
     RepoFilterInput,
@@ -23,19 +24,22 @@ from app.schemas.pydantic.repo import (
     CommitRead,
     CommitFilter,
 )
+from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
-from app.services.validators import is_valid_object
+from app.services.validators import is_valid_object, is_emtpy_sequence
 from app.utils.utils import aes_encode
 
 
 class RepoService:
     repo_repository = RepoRepository()
     git_repo_repository = GitRepoRepository()
+    unit_repository = UnitRepository()
     access_service = AccessService()
 
-    def __init__(self, repo_repository: RepoRepository = Depends(), access_service: AccessService = Depends()) -> None:
+    def __init__(self, repo_repository: RepoRepository = Depends(), unit_repository: UnitRepository = Depends(), access_service: AccessService = Depends()) -> None:
         self.repo_repository = repo_repository
+        self.unit_repository = unit_repository
         self.access_service = access_service
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
@@ -129,7 +133,9 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
 
-        # todo проверка на пристыкованные unit
+        is_valid_object(repo)
+        unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
+        is_emtpy_sequence(unit_list)
         creator_check(self.access_service.current_agent, repo)
 
         return self.repo_repository.delete(repo)
