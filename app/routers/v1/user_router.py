@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, status
-from fastapi_filter import FilterDepends
 
 from app.repositories.user_repository import UserFilter
 from app.schemas.pydantic.user import UserRead, UserCreate, UserUpdate, AccessToken, UserAuth
@@ -38,5 +37,5 @@ def delete(uuid: str, user_service: UserService = Depends()):
 
 
 @router.get("", response_model=list[UserRead])
-def get_users(filters: UserFilter = FilterDepends(UserFilter), user_service: UserService = Depends()):
+def get_users(filters: UserFilter = Depends(UserFilter), user_service: UserService = Depends()):
     return [UserRead(**user.dict()) for user in user_service.list(filters)]
