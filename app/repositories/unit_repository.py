@@ -38,6 +38,11 @@ class UnitRepository:
     def list(self, filters: UnitFilter) -> list[Unit]:
         query = self.db.query(Unit)
 
+        if filters.creator_uuid:
+            query = query.filter(Unit.creator_uuid == filters.creator_uuid)
+        if filters.repo_uuid:
+            query = query.filter(Unit.repo_uuid == filters.repo_uuid)
+
         fields = [Unit.name]
         query = apply_ilike_search_string(query, filters, fields)
 

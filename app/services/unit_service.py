@@ -275,7 +275,7 @@ class UnitService:
         return self.unit_repository.delete(unit)
 
     def list(self, filters: Union[UnitFilter, UnitFilterInput]) -> list[Unit]:
-        self.access_service.access_check([UserRole.ADMIN])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
         return self.unit_repository.list(filters)
 
     def gen_env_dict(self, uuid: str) -> dict:
