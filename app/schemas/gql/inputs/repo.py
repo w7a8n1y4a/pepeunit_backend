@@ -41,12 +41,13 @@ class RepoUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoFilterInput(TypeInputMixin):
+    creator_uuid: Optional[str] = None
     search_string: Optional[str] = None
 
     is_public_repository: Optional[bool] = None
     is_auto_update_repo: Optional[bool] = None
 
-    visibility_level: Optional[VisibilityLevel] = None
+    visibility_level: list[VisibilityLevel] = tuple([item for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     order_by_last_update: Optional[OrderByDate] = OrderByDate.desc

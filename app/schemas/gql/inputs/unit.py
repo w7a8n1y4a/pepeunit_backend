@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from dataclasses import dataclass
 from typing import Optional
 
 import strawberry
@@ -33,7 +32,6 @@ class UnitUpdateInput(TypeInputMixin):
 
 
 @strawberry.input()
-@dataclass
 class UnitFilterInput(TypeInputMixin):
     creator_uuid: Optional[str] = None
     repo_uuid: Optional[str] = None

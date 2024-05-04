@@ -71,5 +71,5 @@ class UserService:
         return self.user_repository.delete(User(uuid=uuid))
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
-        self.access_service.access_check([UserRole.ADMIN])
+        self.access_service.access_check([UserRole.ADMIN, UserRole.USER])
         return self.user_repository.list(filters)

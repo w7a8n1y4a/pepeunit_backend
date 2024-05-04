@@ -30,8 +30,8 @@ class UserUpdateInput(TypeInputMixin):
 class UserFilterInput(TypeInputMixin):
     search_string: Optional[str] = None
 
-    role: Optional[UserRole] = None
-    status: Optional[UserStatus] = None
+    role: list[UserRole] = tuple([item for item in UserRole])
+    status: list[UserStatus] = tuple([item for item in UserStatus])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 

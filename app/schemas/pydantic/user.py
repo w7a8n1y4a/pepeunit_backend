@@ -1,9 +1,10 @@
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel
-from fastapi_filter.contrib.sqlalchemy import Filter
 
 from app.repositories.enum import OrderByDate, UserRole, UserStatus
 
@@ -38,13 +39,17 @@ class AccessToken(BaseModel):
     token: str
 
 
-class UserFilter(Filter):
+@dataclass
+class UserFilter:
     search_string: Optional[str] = None
 
-    role: Optional[UserRole] = None
-    status: Optional[UserStatus] = None
+    role: Optional[list[str]] = Query([item.value for item in UserRole])
+    status: Optional[list[str]] = Query([item.value for item in UserStatus])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__
