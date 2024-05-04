@@ -242,7 +242,10 @@ class UnitService:
 
         return f'{firmware_tar_path}.tar'
 
-    def get_unit_firmware_tgz(self, uuid: str) -> str:
+    def get_unit_firmware_tgz(self, uuid: str, wbits: int, level: int) -> str:
+        self.is_valid_wbits(wbits)
+        self.is_valid_level(level)
+
         self.access_service.access_check([UserRole.USER], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
@@ -252,7 +255,8 @@ class UnitService:
         shutil.rmtree(firmware_path, ignore_errors=True)
 
         with open(firmware_tar_path + '.tar', 'rb') as tar_file:
-            producer = zlib.compressobj(wbits=9, level=9)
+            producer = zlib.compressobj(wbits=wbits, level=level)
+
             tar_data = producer.compress(tar_file.read()) + producer.flush()
 
             with open(f'{firmware_tar_path}.tgz', 'wb') as tgz:
@@ -293,3 +297,15 @@ class UnitService:
         if not data.is_auto_update_from_repo_unit:
             self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
             self.git_repo_repository.is_valid_commit(repo, data.repo_branch, data.repo_commit)
+
+    @staticmethod
+    def is_valid_wbits(wbits: int):
+        available_values_list = list(itertools.chain(range(-15, -8), range(9, 16), range(25, 32)))
+        if wbits not in available_values_list:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Wbits is not valid")
+
+    @staticmethod
+    def is_valid_level(level: int):
+        available_values_list = list(range(-1, 10))
+        if level not in available_values_list:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Level is not valid")

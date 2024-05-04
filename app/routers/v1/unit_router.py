@@ -58,8 +58,8 @@ def get_firmware(uuid: str, unit_service: UnitService = Depends()):
 
 
 @router.get("/firmware/tgz/{uuid}", response_model=bytes)
-def get_firmware(uuid: str, unit_service: UnitService = Depends()):
-    tgz_filepath = unit_service.get_unit_firmware_tgz(uuid)
+def get_firmware(uuid: str, wbits: int = 9, level: int = 9, unit_service: UnitService = Depends()):
+    tgz_filepath = unit_service.get_unit_firmware_tgz(uuid, wbits, level)
 
     def cleanup():
         os.remove(tgz_filepath)
