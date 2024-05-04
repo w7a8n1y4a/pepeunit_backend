@@ -167,8 +167,8 @@ class UnitService:
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
-        if 'update' in schema_dict['input_base_topic']:
-            mqtt.publish(f"input_base/{unit.uuid}/update", "You need to upgrade")
+        if 'update' in schema_dict['input_base_topic'] and data.repo_commit and data.repo_commit != unit.repo_commit:
+            mqtt.publish(f"input_base/{unit.uuid}/update", json.dumps({"NEW_COMMIT_VERSION": data.repo_commit}))
 
         return self.unit_repository.update(uuid, Unit(**data.dict()))
 
@@ -214,6 +214,8 @@ class UnitService:
 
         gen_uuid = uuid_pkg.uuid4()
         tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, unit.repo_commit, gen_uuid)
+
+        env_dict['COMMIT_VERSION'] = unit.repo_commit
 
         with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))
