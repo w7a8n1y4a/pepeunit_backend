@@ -38,6 +38,9 @@ class RepoRepository:
     def list(self, filters: RepoFilter) -> list[Repo]:
         query = self.db.query(Repo)
 
+        if filters.creator_uuid:
+            query = query.filter(Repo.creator_uuid == filters.creator_uuid)
+
         fields = [Repo.name, Repo.repo_url, Repo.default_branch]
         query = apply_ilike_search_string(query, filters, fields)
 

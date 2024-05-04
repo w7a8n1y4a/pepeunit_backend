@@ -1,7 +1,9 @@
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel, Field
 from fastapi_filter.contrib.sqlalchemy import Filter
 
@@ -73,21 +75,25 @@ class RepoUpdate(BaseModel):
     update_frequency_in_seconds: int
 
 
-class RepoFilter(Filter):
+@dataclass
+class RepoFilter:
     """Фильтр выборки репозиториев"""
-
-    search_string: Optional[str] = Field(description="descr text")
+    creator_uuid: Optional[str] = None
+    search_string: Optional[str] = None
 
     is_public_repository: Optional[bool] = None
     is_auto_update_repo: Optional[bool] = None
 
-    visibility_level: Optional[VisibilityLevel] = None
+    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__
 
 
 class CommitFilter(Filter):

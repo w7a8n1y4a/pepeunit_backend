@@ -141,7 +141,7 @@ class RepoService:
         return self.repo_repository.delete(repo)
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> list[RepoRead]:
-        self.access_service.access_check([UserRole.ADMIN])
+        self.access_service.access_check([UserRole.ADMIN, UserRole.USER])
         return [self.mapper_repo_to_repo_read(repo) for repo in self.repo_repository.list(filters)]
 
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:

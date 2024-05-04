@@ -4,7 +4,6 @@ from typing import Optional
 
 from fastapi import Query
 from pydantic import BaseModel
-from fastapi_filter.contrib.sqlalchemy import Filter
 
 from app.repositories.enum import OrderByDate, VisibilityLevel, UnitNodeTypeEnum
 
