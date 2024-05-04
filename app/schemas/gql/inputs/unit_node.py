@@ -19,10 +19,11 @@ class UnitNodeSetStateInput(TypeInputMixin):
 
 @strawberry.input()
 class UnitNodeFilterInput(TypeInputMixin):
+    unit_uuid: Optional[str] = None
     search_string: Optional[str] = None
 
     type: Optional[UnitNodeTypeEnum] = None
-    visibility_level: Optional[VisibilityLevel] = None
+    visibility_level: list[VisibilityLevel] = tuple([item for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 

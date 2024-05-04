@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends
-from fastapi_filter import FilterDepends
 
 from app.schemas.pydantic.unit_node import UnitNodeRead, UnitNodeFilter, UnitNodeUpdate, UnitNodeSetState
 from app.services.unit_node_service import UnitNodeService
@@ -24,6 +23,6 @@ def set_state_input(uuid: str, data: UnitNodeSetState, unit_node_service: UnitNo
 
 @router.get("", response_model=list[UnitNodeRead])
 def get_unit_nodes(
-    filters: UnitNodeFilter = FilterDepends(UnitNodeFilter), unit_node_service: UnitNodeService = Depends()
+    filters: UnitNodeFilter = Depends(UnitNodeFilter), unit_node_service: UnitNodeService = Depends()
 ):
     return [UnitNodeRead(**user.dict()) for user in unit_node_service.list(filters)]

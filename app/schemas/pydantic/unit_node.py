@@ -1,6 +1,8 @@
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel
 from fastapi_filter.contrib.sqlalchemy import Filter
 
@@ -30,13 +32,18 @@ class UnitNodeSetState(BaseModel):
     state: Optional[str] = None
 
 
-class UnitNodeFilter(Filter):
+@dataclass
+class UnitNodeFilter:
+    unit_uuid: Optional[str] = None
     search_string: Optional[str] = None
 
-    type: Optional[UnitNodeTypeEnum] = None
-    visibility_level: Optional[VisibilityLevel] = None
+    type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])
+    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__

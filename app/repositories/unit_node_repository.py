@@ -50,6 +50,9 @@ class UnitNodeRepository:
     def list(self, filters: UnitNodeFilter) -> list[UnitNode]:
         query = self.db.query(UnitNode)
 
+        if filters.unit_uuid:
+            query = query.filter(UnitNode.unit_uuid == filters.unit_uuid)
+
         fields = [UnitNode.topic_name]
         query = apply_ilike_search_string(query, filters, fields)
 
