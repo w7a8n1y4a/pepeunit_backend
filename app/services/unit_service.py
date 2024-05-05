@@ -24,6 +24,7 @@ from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
+from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.utils import creator_check, merge_two_dict_first_priority
 from app.services.validators import is_valid_object, is_valid_json
@@ -117,7 +118,7 @@ class UnitService:
 
         self.unit_repository.is_valid_name(data.name, uuid)
 
-        all_exist_unit_nodes = self.unit_node_repository.get_unit_nodes(unit)
+        all_exist_unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
 
         input_node_dict = {
             unit_node.topic_name: unit_node.uuid
@@ -168,7 +169,7 @@ class UnitService:
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
         if 'update' in schema_dict['input_base_topic'] and data.repo_commit and data.repo_commit != unit.repo_commit:
-            mqtt.publish(f"input_base/{unit.uuid}/update", json.dumps({"NEW_COMMIT_VERSION": data.repo_commit}))
+            mqtt.publish(f"{settings.backend_domain}/input_base/{unit.uuid}/update", json.dumps({"NEW_COMMIT_VERSION": data.repo_commit}))
 
         return self.unit_repository.update(uuid, Unit(**data.dict()))
 

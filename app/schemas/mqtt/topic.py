@@ -26,53 +26,41 @@ mqtt_config = MQTTConfig(
 mqtt = FastMQTT(config=mqtt_config)
 
 
-# todo input/+/# роут который позволил бы записывать в бд переговоры юнитов
-
-
-@mqtt.subscribe('output/+/#')
+@mqtt.subscribe(f'{settings.backend_domain}/+/+/#')
 async def message_to_topic(client, topic, payload, qos, properties):
     start_time = time.perf_counter()
 
     print(f'{str(topic)}, {str(payload.decode())}')
 
-    redis = await anext(get_redis_session())
+    backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
+    if destination in ['input', 'output']:
+        redis = await anext(get_redis_session())
+        redis_topic_value = await redis.get(str(topic))
 
-    redis_topic_value = await redis.get(str(topic))
+        if redis_topic_value != str(payload.decode()):
+            # todo refactor разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
 
-    if redis_topic_value != str(payload.decode()):
-        # todo refactor разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
+            await redis.set(str(topic), str(payload.decode()))
 
-        await redis.set(str(topic), str(payload.decode()))
+            # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
+            db = next(get_session())
+            access_service = AccessService(
+                user_repository=UserRepository(db=db), unit_repository=UnitRepository(db=db), jwt_token=None
+            )
+            unit_node_service = UnitNodeService(unit_node_repository=UnitNodeRepository(db), access_service=access_service)
 
-        # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
-        destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
+            unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
 
-        db = next(get_session())
+            db.close()
+    elif destination == ['output_base']:
+        if topic_name == ReservedOutputBaseTopic.STATE:
+            db = next(get_session())
+            unit_repository = UnitRepository(db)
+            unit_repository.update(unit_uuid, Unit(unit_state_dict=str(payload.decode())))
 
-        access_service = AccessService(
-            user_repository=UserRepository(db=db), unit_repository=UnitRepository(db=db), jwt_token=None
-        )
-        unit_node_service = UnitNodeService(unit_node_repository=UnitNodeRepository(db), access_service=access_service)
-
-        unit_node_service.set_state_output(unit_uuid, topic_name, str(payload.decode()))
-
-        db.close()
+            db.close()
 
     print(f'{time.perf_counter() - start_time}')
-
-
-@mqtt.subscribe('output_base/+/#')
-async def message_to_topic(client, topic, payload, qos, properties):
-    destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
-
-    if topic_name == ReservedOutputBaseTopic.STATE:
-        db = next(get_session())
-        unit_repository = UnitRepository(db)
-        unit_repository.update(unit_uuid, Unit(unit_state_dict=str(payload.decode())))
-
-        db.close()
-
-    print(f'{str(topic)}, {str(payload.decode())}')
 
 
 @mqtt.on_disconnect()

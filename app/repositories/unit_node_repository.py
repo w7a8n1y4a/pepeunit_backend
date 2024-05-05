@@ -22,20 +22,16 @@ class UnitNodeRepository:
     def get(self, unit_node: UnitNode) -> UnitNode:
         return self.db.get(UnitNode, unit_node.uuid)
 
-    def get_output_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
+    def get_by_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
         return (
             self.db.query(UnitNode)
             .filter(
                 UnitNode.unit_uuid == unit_uuid,
                 UnitNode.topic_name == unit_node.topic_name,
-                UnitNode.type == UnitNodeTypeEnum.OUTPUT,
+                UnitNode.type == unit_node.type,
             )
             .first()
         )
-
-    def get_unit_nodes(self, unit: Unit) -> list[UnitNode]:
-        query = self.db.query(UnitNode).filter(UnitNode.unit_uuid == unit.uuid)
-        return query.all()
 
     def update(self, uuid, unit_node: UnitNode) -> UnitNode:
         unit_node.uuid = uuid
