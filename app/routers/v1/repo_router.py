@@ -48,6 +48,11 @@ def update_local_repo(uuid: str, repo_service: RepoService = Depends()):
     return repo_service.update_local_repo(uuid)
 
 
+@router.patch("/update_units_firmware/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def update_units_firmware(uuid: str, repo_service: RepoService = Depends()):
+    return repo_service.update_units_firmware(uuid)
+
+
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(uuid: str, repo_service: RepoService = Depends()):
     return repo_service.delete(uuid)
