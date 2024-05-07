@@ -1,3 +1,4 @@
+import json
 import time
 
 from fastapi_mqtt import FastMQTT, MQTTConfig
@@ -52,11 +53,20 @@ async def message_to_topic(client, topic, payload, qos, properties):
             unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
 
             db.close()
-    elif destination == ['output_base']:
+    elif destination == 'output_base':
         if topic_name == ReservedOutputBaseTopic.STATE:
             db = next(get_session())
             unit_repository = UnitRepository(db)
-            unit_repository.update(unit_uuid, Unit(unit_state_dict=str(payload.decode())))
+
+            unit_state_dict = json.loads(payload.decode())
+
+            unit_repository.update(
+                unit_uuid,
+                Unit(
+                    unit_state_dict=str(payload.decode()),
+                    current_commit_version=unit_state_dict['commit_version']
+                )
+            )
 
             db.close()
 

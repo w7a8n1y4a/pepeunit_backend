@@ -1,5 +1,6 @@
 import base64
 import copy
+import datetime
 import itertools
 import json
 import os
@@ -110,13 +111,22 @@ class UnitService:
         is_valid_object(unit)
         creator_check(self.access_service.current_agent, unit)
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        self.is_valid_no_updated_unit(repo, data)
-
-        self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
-        self.git_repo_repository.get_env_dict(repo, data.repo_commit)
-
         self.unit_repository.is_valid_name(data.name, uuid)
+
+        if not data.is_auto_update_from_repo_unit and unit.current_commit_version != data.repo_commit:
+            repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+            self.is_valid_no_updated_unit(repo, data)
+
+            self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
+            self.git_repo_repository.get_env_dict(repo, data.repo_commit)
+
+            self.update_firmware(unit, data.repo_commit)
+
+        return self.unit_repository.update(uuid, Unit(**data.dict()))
+
+    def update_firmware(self, unit: Unit, target_version: str) -> Unit:
+
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
         all_exist_unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
 
@@ -132,14 +142,14 @@ class UnitService:
             if unit_node.type == UnitNodeTypeEnum.OUTPUT
         }
 
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, data.repo_commit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
 
         # создаёт ноды отсутствующие у юнита
         unit_nodes_list = []
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
                 if (assignment == SchemaStructName.INPUT_TOPIC and topic not in input_node_dict.keys()) or (
-                    assignment == SchemaStructName.OUTPUT_TOPIC and topic not in output_node_dict.keys()
+                        assignment == SchemaStructName.OUTPUT_TOPIC and topic not in output_node_dict.keys()
                 ):
                     unit_nodes_list.append(
                         UnitNode(
@@ -168,10 +178,10 @@ class UnitService:
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
-        if 'update' in schema_dict['input_base_topic'] and data.repo_commit and data.repo_commit != unit.repo_commit:
-            mqtt.publish(f"{settings.backend_domain}/input_base/{unit.uuid}/update", json.dumps({"NEW_COMMIT_VERSION": data.repo_commit}))
+        if 'update' in schema_dict['input_base_topic']:
+            mqtt.publish(f"{settings.backend_domain}/input_base/{unit.uuid}/update", json.dumps({"NEW_COMMIT_VERSION": target_version}))
 
-        return self.unit_repository.update(uuid, Unit(**data.dict()))
+        return self.unit_repository.update(unit.uuid, Unit(last_update_datetime=datetime.datetime.utcnow()))
 
     def get_env(self, uuid: str) -> dict:
         self.access_service.access_check([UserRole.USER], is_unit_available=True)
@@ -214,9 +224,10 @@ class UnitService:
         self.git_repo_repository.is_valid_env_file(repo, unit.repo_commit, env_dict)
 
         gen_uuid = uuid_pkg.uuid4()
-        tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, unit.repo_commit, gen_uuid)
+        target_version = self.git_repo_repository.get_target_version(repo) if unit.is_auto_update_from_repo_unit else unit.unit.repo_commit
+        tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, target_version, gen_uuid)
 
-        env_dict['COMMIT_VERSION'] = unit.repo_commit
+        env_dict['COMMIT_VERSION'] = target_version
 
         with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))

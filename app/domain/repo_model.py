@@ -34,7 +34,9 @@ class Repo(SQLModel, table=True):
     default_branch: str = Field(nullable=True)
     # репозиторий автоматически обновляем?
     is_auto_update_repo: bool = Field(nullable=False, default=True)
-    # частота обновлений в секундах, cron делает этот таск 1 раз в 10 минут
+    # обновление только по тегам или обновление по последней доступной версии
+    is_only_tag_update: bool = Field(nullable=False, default=True)
+    # частота обновлений в секундах, cron делает этот таск 1 раз в 10 минут т.е минимум 600 секунд
     update_frequency_in_seconds: int = Field(nullable=False, default=86400)
     # время последнего обновления, от которого отсчитывается следующий запрос
     last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)

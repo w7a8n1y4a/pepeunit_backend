@@ -26,6 +26,7 @@ from app.schemas.pydantic.repo import (
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
+from app.services.unit_service import UnitService
 from app.services.utils import creator_check
 from app.services.validators import is_valid_object, is_emtpy_sequence
 from app.utils.utils import aes_encode
@@ -35,11 +36,13 @@ class RepoService:
     repo_repository = RepoRepository()
     git_repo_repository = GitRepoRepository()
     unit_repository = UnitRepository()
+    unit_service = UnitService()
     access_service = AccessService()
 
-    def __init__(self, repo_repository: RepoRepository = Depends(), unit_repository: UnitRepository = Depends(), access_service: AccessService = Depends()) -> None:
+    def __init__(self, repo_repository: RepoRepository = Depends(), unit_repository: UnitRepository = Depends(), unit_service: UnitService = Depends(), access_service: AccessService = Depends()) -> None:
         self.repo_repository = repo_repository
         self.unit_repository = unit_repository
+        self.unit_service = unit_service
         self.access_service = access_service
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
@@ -127,6 +130,25 @@ class RepoService:
         self.git_repo_repository.update_local_repo(repo)
 
         return None
+
+    def update_units_firmware(self, uuid: str) -> None:
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+
+        is_valid_object(repo)
+        creator_check(self.access_service.current_agent, repo)
+
+        units = self.unit_repository.list(UnitFilter(repo_uuid=str(repo.uuid)))
+
+        target_version = self.git_repo_repository.get_target_version(repo)
+
+        self.git_repo_repository.is_valid_schema_file(repo, target_version)
+        self.git_repo_repository.get_env_dict(repo, target_version)
+
+        for unit in units:
+            if unit.is_auto_update_from_repo_unit and unit.current_commit_version != target_version:
+                # todo здесь должна быть очередь
+                print('kek')
+                self.unit_service.update_firmware(unit, target_version)
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

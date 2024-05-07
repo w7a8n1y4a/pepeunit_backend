@@ -104,12 +104,14 @@ class GitRepoRepository:
 
     def get_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
         commits_dict = self.get_commits(repo, branch)
+
         tags_dict = self.get_tags(repo)
 
         commits_with_tag = []
         for commit in commits_dict:
             commit_dict = commit
 
+            # todo тэг присваивается любой ветке по имени коммита.
             for tag in tags_dict:
                 if commit['commit'] == tag['commit']:
                     commit_dict['tag'] = tag['tag']
@@ -117,6 +119,19 @@ class GitRepoRepository:
             commits_with_tag.append(commit_dict)
 
         return commits_with_tag
+
+    def get_target_version(self, repo: Repo) -> str:
+
+        all_versions = self.get_commits_with_tag(repo, repo.default_branch)
+        versions_tag_only = [version for version in all_versions if 'tag' in version and version['tag']]
+
+        if len(versions_tag_only) == 0:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f'Tags are missing',
+            )
+
+        return versions_tag_only[0]['commit'] if repo.is_only_tag_update else all_versions[0]['commit']
 
     def get_file(self, repo: Repo, commit: str, path: str) -> io.BytesIO:
         repo = self.get_repo(repo)

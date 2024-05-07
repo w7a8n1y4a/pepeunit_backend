@@ -22,6 +22,7 @@ class UnitType(TypeInputMixin):
     repo_commit: Optional[str] = None
 
     unit_state_dict: Optional[str] = None
+    current_commit_version: Optional[str] = None
 
     last_update_datetime: datetime
 

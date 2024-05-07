@@ -38,6 +38,8 @@ class Unit(SQLModel, table=True):
 
     # последнее состояние Unit
     unit_state_dict: str = Field(nullable=True)
+    # текущая версия микропрограммы
+    current_commit_version: str = Field(nullable=True)
     # зашифрованный env устройства
     cipher_env_dict: str = Field(nullable=True)
 
