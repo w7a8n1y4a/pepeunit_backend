@@ -76,9 +76,7 @@ def get_token(uuid: str, unit_service: UnitService = Depends()):
 def get_mqtt_auth(data: UnitMqttTokenAuth):
     db = next(get_session())
 
-    access_service = AccessService(
-        user_repository=UserRepository(db=db), unit_repository=UnitRepository(db=db), jwt_token=data.token
-    )
+    access_service = AccessService(db, jwt_token=data.token)
 
     db.close()
 

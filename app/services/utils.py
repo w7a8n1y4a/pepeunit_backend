@@ -1,9 +1,14 @@
 from typing import Annotated
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from fastapi import status as http_status
+from fastapi.security import APIKeyHeader
 
 from app.domain.user_model import User
+
+
+def token_depends(jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None):
+    return jwt_token
 
 
 def creator_check(user: User, obj: any):

@@ -12,8 +12,10 @@ from typing import Union
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
+from sqlmodel import Session
 
 from app import settings
+from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -27,29 +29,22 @@ from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority
+from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends
 from app.services.validators import is_valid_object, is_valid_json
 from app.utils.utils import aes_decode, aes_encode
 
 
 class UnitService:
-    unit_repository = UnitRepository()
-    repo_repository = RepoRepository()
-    git_repo_repository = GitRepoRepository()
-    unit_node_repository = UnitNodeRepository()
-    access_service = AccessService()
-
     def __init__(
         self,
-        unit_repository: UnitRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
-        access_service: AccessService = Depends(),
+        db: Session = Depends(get_session),
+        jwt_token: str = Depends(token_depends)
     ) -> None:
-        self.unit_repository = unit_repository
-        self.repo_repository = repo_repository
-        self.unit_node_repository = unit_node_repository
-        self.access_service = access_service
+        self.unit_repository = UnitRepository(db)
+        self.repo_repository = RepoRepository(db)
+        self.git_repo_repository = GitRepoRepository()
+        self.unit_node_repository = UnitNodeRepository(db)
+        self.access_service = AccessService(db, jwt_token)
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

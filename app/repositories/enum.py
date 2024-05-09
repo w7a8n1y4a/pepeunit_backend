@@ -71,7 +71,7 @@ class SchemaStructName(str, enum.Enum):
 
 @strawberry.enum
 class ReservedEnvVariableName(str, enum.Enum):
-    """Разрешённые топиков схемы у Unit"""
+    """Зарезервированные имена переменных окружения у Unit"""
 
     PEPEUNIT_URL = 'PEPEUNIT_URL'
     MQTT_URL = 'MQTT_URL'
