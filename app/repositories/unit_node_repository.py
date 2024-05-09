@@ -43,11 +43,14 @@ class UnitNodeRepository:
         self.db.query(UnitNode).filter(UnitNode.uuid.in_(del_uuid_list)).delete()
         self.db.commit()
 
-    def list(self, filters: UnitNodeFilter) -> list[UnitNode]:
+    def list(self, filters: UnitNodeFilter, restriction: list[str] = None) -> list[UnitNode]:
         query = self.db.query(UnitNode)
 
         if filters.unit_uuid:
             query = query.filter(UnitNode.unit_uuid == filters.unit_uuid)
+
+        if restriction:
+            query = query.filter(UnitNode.uuid.in_(restriction))
 
         fields = [UnitNode.topic_name]
         query = apply_ilike_search_string(query, filters, fields)

@@ -36,6 +36,7 @@ from app.domain.user_model import User
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
+from app.domain.permission_model import Permission
 
 target_metadata = SQLModel.metadata
 

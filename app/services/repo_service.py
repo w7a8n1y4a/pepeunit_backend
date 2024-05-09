@@ -161,8 +161,20 @@ class RepoService:
         return self.repo_repository.delete(repo)
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> list[RepoRead]:
-        self.access_service.access_check([UserRole.ADMIN, UserRole.USER])
-        return [self.mapper_repo_to_repo_read(repo) for repo in self.repo_repository.list(filters)]
+        self.access_service.access_check([UserRole.BOT, UserRole.ADMIN, UserRole.USER])
+        restriction = self.access_service.access_restriction()
+
+        filters.visibility_level = self.access_service.get_available_visibility_levels(
+            filters.visibility_level,
+            restriction
+        )
+        return [
+            self.mapper_repo_to_repo_read(repo)
+            for repo in self.repo_repository.list(
+                filters,
+                restriction=restriction
+            )
+        ]
 
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
         repo = self.repo_repository.get(repo)

@@ -35,13 +35,15 @@ class UnitRepository:
         self.db.commit()
         self.db.flush()
 
-    def list(self, filters: UnitFilter) -> list[Unit]:
+    def list(self, filters: UnitFilter, restriction: list[str] = None) -> list[Unit]:
         query = self.db.query(Unit)
 
         if filters.creator_uuid:
             query = query.filter(Unit.creator_uuid == filters.creator_uuid)
         if filters.repo_uuid:
             query = query.filter(Unit.repo_uuid == filters.repo_uuid)
+        if restriction:
+            query = query.filter(Unit.uuid.in_(restriction))
 
         fields = [Unit.name]
         query = apply_ilike_search_string(query, filters, fields)
