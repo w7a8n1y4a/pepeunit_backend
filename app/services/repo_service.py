@@ -2,7 +2,9 @@ import json
 from typing import Union
 
 from fastapi import Depends
+from sqlmodel import Session
 
+from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -27,23 +29,19 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
-from app.services.utils import creator_check
+from app.services.utils import creator_check, token_depends
 from app.services.validators import is_valid_object, is_emtpy_sequence
 from app.utils.utils import aes_encode
 
 
 class RepoService:
-    repo_repository = RepoRepository()
-    git_repo_repository = GitRepoRepository()
-    unit_repository = UnitRepository()
-    unit_service = UnitService()
-    access_service = AccessService()
-
-    def __init__(self, repo_repository: RepoRepository = Depends(), unit_repository: UnitRepository = Depends(), unit_service: UnitService = Depends(), access_service: AccessService = Depends()) -> None:
-        self.repo_repository = repo_repository
-        self.unit_repository = unit_repository
-        self.unit_service = unit_service
-        self.access_service = access_service
+    def __init__(self, db: Session = Depends(get_session),
+        jwt_token: str = Depends(token_depends)) -> None:
+        self.repo_repository = RepoRepository(db)
+        self.git_repo_repository = GitRepoRepository()
+        self.unit_repository = UnitRepository(db)
+        self.unit_service = UnitService(db)
+        self.access_service = AccessService(db, jwt_token)
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

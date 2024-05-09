@@ -43,16 +43,13 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
             await redis.set(str(topic), str(payload.decode()))
 
-            # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
             db = next(get_session())
-            access_service = AccessService(
-                user_repository=UserRepository(db=db), unit_repository=UnitRepository(db=db), jwt_token=None
-            )
-            unit_node_service = UnitNodeService(unit_node_repository=UnitNodeRepository(db), access_service=access_service)
+            # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
+            unit_node_service = UnitNodeService(db)
 
             unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
-
             db.close()
+
     elif destination == 'output_base':
         if topic_name == ReservedOutputBaseTopic.STATE:
             db = next(get_session())
@@ -67,7 +64,6 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     current_commit_version=unit_state_dict['commit_version']
                 )
             )
-
             db.close()
 
     print(f'{time.perf_counter() - start_time}')

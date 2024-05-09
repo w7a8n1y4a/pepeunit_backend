@@ -1,24 +1,24 @@
 from typing import Union
 
 from fastapi import Depends
+from sqlmodel import Session
 
+from app.configs.db import get_session
 from app.domain.user_model import User
 from app.repositories.enum import UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserCreateInput, UserAuthInput, UserUpdateInput, UserFilterInput
 from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAuth
 from app.services.access_service import AccessService
+from app.services.utils import token_depends
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import password_to_hash
 
 
 class UserService:
-    user_repository = UserRepository()
-    access_service = AccessService()
-
-    def __init__(self, user_repository: UserRepository = Depends(), access_service: AccessService = Depends()) -> None:
-        self.user_repository = user_repository
-        self.access_service = access_service
+    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends)) -> None:
+        self.user_repository = UserRepository(db)
+        self.access_service = AccessService(db, jwt_token)
 
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
         self.access_service.access_check([UserRole.BOT])

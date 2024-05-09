@@ -1,35 +1,34 @@
 from datetime import timedelta, datetime
 from http.client import HTTPException
-from typing import Optional, Annotated
+from typing import Optional, Annotated, Union
 
 import jwt
 from fastapi import Depends, params
 from fastapi import HTTPException
 from fastapi import status as http_status
-from fastapi.security import APIKeyHeader
+from sqlmodel import Session
 
 from app import settings
+from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.repositories.enum import UserRole, AgentType
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
+from app.services.utils import token_depends
 
 
 class AccessService:
-    user_repository = UserRepository()
-    unit_repository = UnitRepository()
     jwt_token: Optional[str] = None
-    current_agent: Optional[User] = None
+    current_agent: Optional[Union[User, Unit]] = None
 
     def __init__(
         self,
-        user_repository: UserRepository = Depends(),
-        unit_repository: UnitRepository = Depends(),
-        jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None,
+        db: Session = Depends(get_session),
+        jwt_token: str = Depends(token_depends),
     ) -> None:
-        self.user_repository = user_repository
-        self.unit_repository = unit_repository
+        self.user_repository = UserRepository(db)
+        self.unit_repository = UnitRepository(db)
         self.jwt_token = jwt_token
         self.token_required()
 
