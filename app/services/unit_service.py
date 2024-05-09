@@ -285,7 +285,13 @@ class UnitService:
 
     def list(self, filters: Union[UnitFilter, UnitFilterInput]) -> list[Unit]:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-        return self.unit_repository.list(filters)
+        restriction = self.access_service.access_restriction()
+
+        filters.visibility_level = self.access_service.get_available_visibility_levels(
+            filters.visibility_level,
+            restriction
+        )
+        return self.unit_repository.list(filters, restriction=restriction)
 
     def gen_env_dict(self, uuid: str) -> dict:
         return {

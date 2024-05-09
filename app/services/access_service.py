@@ -10,11 +10,13 @@ from sqlmodel import Session
 
 from app import settings
 from app.configs.db import get_session
+from app.domain.permission_model import Permission
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.repositories.enum import UserRole, AgentType
+from app.repositories.enum import UserRole, AgentType, VisibilityLevel
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.permission_repository import PermissionRepository
 from app.services.utils import token_depends
 
 
@@ -29,6 +31,7 @@ class AccessService:
     ) -> None:
         self.user_repository = UserRepository(db)
         self.unit_repository = UnitRepository(db)
+        self.permission_repository = PermissionRepository(db)
         self.jwt_token = jwt_token
         self.token_required()
 
@@ -62,6 +65,44 @@ class AccessService:
         elif isinstance(self.current_agent, Unit):
             if not is_unit_available:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+
+    def visibility_check(self, check_entity):
+        if check_entity.visibility_level == VisibilityLevel.PUBLIC.value:
+            pass
+        elif check_entity.visibility_level == VisibilityLevel.INTERNAL.value:
+            if not (self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value] or isinstance(self.current_agent, Unit)):
+                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+        elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:
+            permission_check = Permission(
+                agent_uuid=self.current_agent.uuid,
+                resource_uuid=check_entity.uuid
+            )
+            if not self.permission_repository.check(permission_check):
+                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+
+    def get_available_visibility_levels(self, levels: list[str], restriction: list[str] = None) -> list[str]:
+        """
+        Запрещает всем внешним пользователям получать информацию о внутренних сущностях и отсекает
+        Приватные сущности, если у агента нет ни одной записи о них
+        """
+
+        if self.current_agent.role == UserRole.BOT.value:
+            return [VisibilityLevel.PUBLIC.value]
+        else:
+            if restriction:
+                return levels
+            else:
+                return [VisibilityLevel.PUBLIC.value, VisibilityLevel.INTERNAL]
+
+    def access_restriction(self) -> list[str]:
+        """
+        Позволяет получить uuid всех сущностей для которых есть доступ у агента
+        """
+        return self.permission_repository.get_agent_permissions(
+            Permission(
+                agent_uuid=self.current_agent.uuid
+            )
+        )
 
     @staticmethod
     def generate_user_token(user: User) -> str:

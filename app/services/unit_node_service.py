@@ -65,7 +65,12 @@ class UnitNodeService:
 
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> list[UnitNode]:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-        return self.unit_node_repository.list(filters)
+        restriction = self.access_service.access_restriction()
+        filters.visibility_level = self.access_service.get_available_visibility_levels(
+            filters.visibility_level,
+            restriction
+        )
+        return self.unit_node_repository.list(filters, restriction=restriction)
 
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
