@@ -147,9 +147,16 @@ class RepoService:
 
         for unit in units:
             if unit.is_auto_update_from_repo_unit and unit.current_commit_version != target_version:
-                # todo здесь должна быть очередь
-                print('kek')
-                self.unit_service.update_firmware(unit, target_version)
+                try:
+                    # todo здесь должна быть очередь
+                    self.git_repo_repository.is_valid_env_file(
+                        repo,
+                        target_version,
+                        json.loads(aes_decode(unit.cipher_env_dict))
+                    )
+                    self.unit_service.update_firmware(unit, target_version)
+                except:
+                    pass
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
