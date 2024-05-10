@@ -308,7 +308,7 @@ class UnitService:
             'SYNC_ENCRYPT_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),
             'SECRET_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),
             'PING_INTERVAL': 30,
-            'STATE_SEND_INTERVAL': 30,  # todo на 300
+            'STATE_SEND_INTERVAL': settings.state_send_interval,
         }
 
     def is_valid_no_updated_unit(self, repo: Repo, data: UnitCreate):
