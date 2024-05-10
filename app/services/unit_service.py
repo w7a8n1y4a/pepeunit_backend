@@ -49,6 +49,8 @@ class UnitService:
 
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
 
+        # todo проверка ветки по умолчанию
+
         is_valid_object(repo)
 
         self.is_valid_no_updated_unit(repo, data)
