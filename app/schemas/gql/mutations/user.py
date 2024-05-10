@@ -21,7 +21,14 @@ def update_user(info: Info, uuid: str, user: UserUpdateInput) -> UserType:
 
 
 @strawberry.mutation
-def delete_user(info: Info, uuid: str) -> NoneType:
+def block_user(info: Info, uuid: str) -> NoneType:
     user_service = get_user_service(info)
-    user_service.delete(uuid)
+    user_service.block(uuid)
+    return NoneType()
+
+
+@strawberry.mutation
+def unblock_user(info: Info, uuid: str) -> NoneType:
+    user_service = get_user_service(info)
+    user_service.unblock(uuid)
     return NoneType()

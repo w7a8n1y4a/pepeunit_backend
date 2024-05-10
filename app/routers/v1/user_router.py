@@ -31,9 +31,14 @@ def update(uuid: str, data: UserUpdate, user_service: UserService = Depends()):
     return UserRead(**user_service.update(uuid, data).dict())
 
 
-@router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(uuid: str, user_service: UserService = Depends()):
-    return user_service.delete(uuid)
+@router.patch("/block/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def block(uuid: str, user_service: UserService = Depends()):
+    return user_service.block(uuid)
+
+
+@router.patch("/unblock/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def unblock(uuid: str, user_service: UserService = Depends()):
+    return user_service.unblock(uuid)
 
 
 @router.get("", response_model=list[UserRead])

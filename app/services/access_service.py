@@ -13,7 +13,7 @@ from app.configs.db import get_session
 from app.domain.permission_model import Permission
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.repositories.enum import UserRole, AgentType, VisibilityLevel
+from app.repositories.enum import UserRole, AgentType, VisibilityLevel, UserStatus
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.permission_repository import PermissionRepository
@@ -48,6 +48,8 @@ class AccessService:
 
             if data['type'] == AgentType.USER.value:
                 agent = self.user_repository.get(User(uuid=data['uuid']))
+                if agent.status == UserStatus.BLOCKED.value:
+                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
             else:
                 agent = self.unit_repository.get(Unit(uuid=data['uuid']))
 

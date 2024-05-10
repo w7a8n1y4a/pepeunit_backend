@@ -10,7 +10,8 @@ Mutation = create_type(
     [
         create_user,
         update_user,
-        delete_user,
+        block_user,
+        unblock_user,
         create_repo,
         update_repo,
         delete_repo,
