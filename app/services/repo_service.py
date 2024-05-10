@@ -65,12 +65,14 @@ class RepoService:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
+        self.access_service.visibility_check(repo)
         return self.mapper_repo_to_repo_read(repo)
 
     def get_branch_commits(self, uuid: str, filters: Union[CommitFilter, CommitFilterInput]) -> list[CommitRead]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
+        self.access_service.visibility_check(repo)
 
         self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
 
@@ -92,7 +94,7 @@ class RepoService:
         return self.mapper_repo_to_repo_read(repo)
 
     def update_credentials(self, uuid: str, data: Union[Credentials, CredentialsInput]) -> RepoRead:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -105,7 +107,7 @@ class RepoService:
         return self.mapper_repo_to_repo_read(repo)
 
     def update_default_branch(self, uuid: str, default_branch: str) -> RepoRead:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -130,6 +132,8 @@ class RepoService:
         return None
 
     def update_units_firmware(self, uuid: str) -> None:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
         repo = self.repo_repository.get(Repo(uuid=uuid))
 
         is_valid_object(repo)
@@ -154,9 +158,10 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
 
         is_valid_object(repo)
+        creator_check(self.access_service.current_agent, repo)
+
         unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)
-        creator_check(self.access_service.current_agent, repo)
 
         return self.repo_repository.delete(repo)
 

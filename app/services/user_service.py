@@ -26,8 +26,6 @@ class UserService:
         self.user_repository.is_valid_email(data.email)
 
         user = User(**data.dict())
-
-        # todo refactor first async - 100 мс можно сэкономить для массовых авторизаций
         user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
 
         return self.user_repository.create(user)
@@ -49,7 +47,7 @@ class UserService:
         return self.access_service.generate_user_token(user)
 
     def update(self, uuid: str, data: Union[UserUpdate, UserUpdateInput]) -> User:
-        self.access_service.access_check([UserRole.USER])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         self.user_repository.is_valid_login(data.login, uuid)
         self.user_repository.is_valid_email(data.email, uuid)
@@ -57,7 +55,6 @@ class UserService:
         update_user = User(**data.dict())
 
         if data.password:
-            # todo refactor first async - 100 мс можно сэкономить для массовых авторизаций
             update_user.cipher_dynamic_salt, update_user.hashed_password = password_to_hash(data.password)
 
         return self.user_repository.update(uuid, update_user)
@@ -67,6 +64,7 @@ class UserService:
     # todo система блокировки пользователей, unit должны заблокироваться, зависимые юниты надо думать
 
     def delete(self, uuid: str) -> None:
+        # todo refactor подлежит удалению из-за замены на систему блокировки
         self.access_service.access_check([UserRole.ADMIN])
         return self.user_repository.delete(User(uuid=uuid))
 

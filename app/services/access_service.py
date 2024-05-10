@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 from http.client import HTTPException
-from typing import Optional, Annotated, Union
+from typing import Optional, Union
 
 import jwt
 from fastapi import Depends, params
@@ -67,6 +67,10 @@ class AccessService:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
     def visibility_check(self, check_entity):
+        """
+        Для одиночных сущностей определяет доступ по видимости
+        """
+
         if check_entity.visibility_level == VisibilityLevel.PUBLIC.value:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL.value:
@@ -96,7 +100,7 @@ class AccessService:
 
     def access_restriction(self) -> list[str]:
         """
-        Позволяет получить uuid всех сущностей для которых есть доступ у агента
+        Позволяет получить uuid всех сущностей до которых есть доступ у агента
         """
         return self.permission_repository.get_agent_permissions(
             Permission(

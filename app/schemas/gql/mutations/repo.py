@@ -39,6 +39,13 @@ def update_local_repo(info: Info, uuid: str) -> NoneType:
 
 
 @strawberry.mutation
+def update_units_firmware(info: Info, uuid: str) -> NoneType:
+    repo_service = get_repo_service(info)
+    repo_service.update_units_firmware(uuid)
+    return NoneType()
+
+
+@strawberry.mutation
 def delete_repo(info: Info, uuid: str) -> NoneType:
     repo_service = get_repo_service(info)
     repo_service.delete(uuid)
