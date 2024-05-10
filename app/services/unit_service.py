@@ -86,17 +86,11 @@ class UnitService:
         return unit_deepcopy
 
     def get(self, uuid: str) -> Unit:
-        # todo refactor unit доступ
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
+        self.access_service.visibility_check(unit)
         return unit
-
-    def generate_token(self, uuid: str) -> str:
-        unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
-
-        return self.access_service.generate_unit_token(unit)
 
     def update(self, uuid: str, data: Union[UnitUpdate, UnitUpdateInput]) -> Unit:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -179,9 +173,10 @@ class UnitService:
         return self.unit_repository.update(unit.uuid, Unit(last_update_datetime=datetime.datetime.utcnow()))
 
     def get_env(self, uuid: str) -> dict:
-        self.access_service.access_check([UserRole.USER], is_unit_available=True)
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
+        self.access_service.visibility_check(unit)
 
         if not unit.cipher_env_dict:
             repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
@@ -192,10 +187,13 @@ class UnitService:
         return env_dict
 
     def set_env(self, uuid: str, env_json_str: str) -> None:
-        self.access_service.access_check([UserRole.USER])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         env_dict = is_valid_json(env_json_str)
         unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        creator_check(self.access_service.current_agent, unit)
+
         gen_env_dict = self.gen_env_dict(unit.uuid)
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
 
@@ -212,6 +210,8 @@ class UnitService:
 
     def get_unit_firmware(self, uuid: str) -> str:
         unit = self.unit_repository.get(Unit(uuid=uuid))
+        self.access_service.visibility_check(unit)
+
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
         env_dict = self.get_env(unit.uuid)
@@ -230,7 +230,7 @@ class UnitService:
         return tmp_git_repo_path
 
     def get_unit_firmware_zip(self, uuid: str) -> str:
-        self.access_service.access_check([UserRole.USER], is_unit_available=True)
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
         firmware_zip_path = f"tmp/{uuid}"
@@ -241,7 +241,7 @@ class UnitService:
         return f'{firmware_zip_path}.zip'
 
     def get_unit_firmware_tar(self, uuid: str) -> str:
-        self.access_service.access_check([UserRole.USER], is_unit_available=True)
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
         firmware_tar_path = f"tmp/{uuid}"
@@ -252,10 +252,10 @@ class UnitService:
         return f'{firmware_tar_path}.tar'
 
     def get_unit_firmware_tgz(self, uuid: str, wbits: int, level: int) -> str:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+
         self.is_valid_wbits(wbits)
         self.is_valid_level(level)
-
-        self.access_service.access_check([UserRole.USER], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
         firmware_tar_path = f"tmp/{uuid}"
@@ -292,6 +292,12 @@ class UnitService:
             restriction
         )
         return self.unit_repository.list(filters, restriction=restriction)
+
+    def generate_token(self, uuid: str) -> str:
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        is_valid_object(unit)
+
+        return self.access_service.generate_unit_token(unit)
 
     def gen_env_dict(self, uuid: str) -> dict:
         return {

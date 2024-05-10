@@ -27,22 +27,23 @@ class UnitNodeService:
         self.access_service = AccessService(db, jwt_token)
 
     def get(self, uuid: str) -> UnitNode:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.visibility_check(UnitNode(uuid=uuid))
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
 
         is_valid_object(unit_node)
-
-        print(unit_node)
-
         return unit_node
 
     def update(self, uuid: str, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
-        self.access_service.access_check([UserRole.USER])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.visibility_check(UnitNode(uuid=uuid))
+
         update_unit_node = UnitNode(**data.dict())
         return self.unit_node_repository.update(uuid, update_unit_node)
 
     def set_state_input(self, uuid: str, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
-        self.access_service.access_check([UserRole.USER])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.visibility_check(UnitNode(uuid=uuid))
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         self.is_valid_input_unit_node(unit_node)
@@ -57,20 +58,20 @@ class UnitNodeService:
 
         return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
 
-    def set_state(self, unit_uuid: str, topic_name: str, topic_type: str, state: str) -> UnitNode:
-        unit_node = self.unit_node_repository.get_by_topic(unit_uuid, UnitNode(topic_name=topic_name, type=topic_type))
-        unit_node.state = state
-
-        return self.unit_node_repository.update(unit_node.uuid, unit_node)
-
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> list[UnitNode]:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         restriction = self.access_service.access_restriction()
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level,
             restriction
         )
         return self.unit_node_repository.list(filters, restriction=restriction)
+
+    def set_state(self, unit_uuid: str, topic_name: str, topic_type: str, state: str) -> UnitNode:
+        unit_node = self.unit_node_repository.get_by_topic(unit_uuid, UnitNode(topic_name=topic_name, type=topic_type))
+        unit_node.state = state
+
+        return self.unit_node_repository.update(unit_node.uuid, unit_node)
 
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:

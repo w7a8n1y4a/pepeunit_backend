@@ -7,13 +7,9 @@ from app import settings
 from app.configs.db import get_session
 from app.configs.redis import get_redis_session
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import ReservedOutputBaseTopic
-from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
 from app.schemas.mqtt.utils import get_topic_split
-from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
 
 mqtt_config = MQTTConfig(
