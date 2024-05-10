@@ -7,7 +7,9 @@ from fastapi.security import APIKeyHeader
 from app.domain.user_model import User
 
 
-def token_depends(jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None):
+def token_depends(
+    jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None
+):
     return jwt_token
 
 

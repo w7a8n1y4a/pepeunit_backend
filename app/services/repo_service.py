@@ -35,8 +35,7 @@ from app.utils.utils import aes_encode
 
 
 class RepoService:
-    def __init__(self, db: Session = Depends(get_session),
-        jwt_token: str = Depends(token_depends)) -> None:
+    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends)) -> None:
         self.repo_repository = RepoRepository(db)
         self.git_repo_repository = GitRepoRepository()
         self.unit_repository = UnitRepository(db)
@@ -170,15 +169,10 @@ class RepoService:
         restriction = self.access_service.access_restriction()
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
-            filters.visibility_level,
-            restriction
+            filters.visibility_level, restriction
         )
         return [
-            self.mapper_repo_to_repo_read(repo)
-            for repo in self.repo_repository.list(
-                filters,
-                restriction=restriction
-            )
+            self.mapper_repo_to_repo_read(repo) for repo in self.repo_repository.list(filters, restriction=restriction)
         ]
 
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:

@@ -55,10 +55,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
             unit_repository.update(
                 unit_uuid,
-                Unit(
-                    unit_state_dict=str(payload.decode()),
-                    current_commit_version=unit_state_dict['commit_version']
-                )
+                Unit(unit_state_dict=str(payload.decode()), current_commit_version=unit_state_dict['commit_version']),
             )
             db.close()
 

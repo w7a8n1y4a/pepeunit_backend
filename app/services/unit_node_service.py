@@ -19,10 +19,7 @@ from app.services.validators import is_valid_object
 
 
 class UnitNodeService:
-    def __init__(
-        self, db: Session = Depends(get_session),
-        jwt_token: str = Depends(token_depends)
-    ) -> None:
+    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends)) -> None:
         self.unit_node_repository = UnitNodeRepository(db)
         self.access_service = AccessService(db, jwt_token)
 
@@ -62,8 +59,7 @@ class UnitNodeService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         restriction = self.access_service.access_restriction()
         filters.visibility_level = self.access_service.get_available_visibility_levels(
-            filters.visibility_level,
-            restriction
+            filters.visibility_level, restriction
         )
         return self.unit_node_repository.list(filters, restriction=restriction)
 

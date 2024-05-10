@@ -78,6 +78,7 @@ class RepoUpdate(BaseModel):
 @dataclass
 class RepoFilter:
     """Фильтр выборки репозиториев"""
+
     creator_uuid: Optional[str] = None
     search_string: Optional[str] = None
 

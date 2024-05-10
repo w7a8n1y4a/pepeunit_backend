@@ -22,7 +22,5 @@ def set_state_input(uuid: str, data: UnitNodeSetState, unit_node_service: UnitNo
 
 
 @router.get("", response_model=list[UnitNodeRead])
-def get_unit_nodes(
-    filters: UnitNodeFilter = Depends(UnitNodeFilter), unit_node_service: UnitNodeService = Depends()
-):
+def get_unit_nodes(filters: UnitNodeFilter = Depends(UnitNodeFilter), unit_node_service: UnitNodeService = Depends()):
     return [UnitNodeRead(**user.dict()) for user in unit_node_service.list(filters)]
