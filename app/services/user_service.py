@@ -1,3 +1,4 @@
+import datetime
 from typing import Union
 
 from fastapi import Depends
@@ -5,7 +6,7 @@ from sqlmodel import Session
 
 from app.configs.db import get_session
 from app.domain.user_model import User
-from app.repositories.enum import UserRole
+from app.repositories.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserCreateInput, UserAuthInput, UserUpdateInput, UserFilterInput
 from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAuth
@@ -26,6 +27,11 @@ class UserService:
         self.user_repository.is_valid_email(data.email)
 
         user = User(**data.dict())
+
+        user.role = UserRole.USER.value
+        user.status = UserStatus.UNVERIFIED.value
+        user.create_datetime = datetime.datetime.utcnow()
+
         user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
 
         return self.user_repository.create(user)
@@ -63,10 +69,13 @@ class UserService:
 
     # todo система блокировки пользователей, unit должны заблокироваться, зависимые юниты надо думать
 
-    def delete(self, uuid: str) -> None:
-        # todo refactor подлежит удалению из-за замены на систему блокировки
+    def block(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])
-        return self.user_repository.delete(User(uuid=uuid))
+        self.user_repository.update(uuid, User(status=UserStatus.BLOCKED.value))
+
+    def unblock(self, uuid: str) -> None:
+        self.access_service.access_check([UserRole.ADMIN])
+        self.user_repository.update(uuid, User(status=UserStatus.UNVERIFIED.value))
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         self.access_service.access_check([UserRole.ADMIN, UserRole.USER])

@@ -3,8 +3,6 @@ from datetime import datetime
 
 from sqlmodel import SQLModel, Field
 
-from app.repositories.enum import UserRole, UserStatus
-
 
 class User(SQLModel, table=True):
     """Пользователь узла"""
@@ -14,9 +12,9 @@ class User(SQLModel, table=True):
     uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # роль на узле
-    role: str = Field(nullable=False, default=UserRole.USER.value)
+    role: str = Field(nullable=False)
     # статус пользователя на узле
-    status: str = Field(nullable=False, default=UserStatus.UNVERIFIED.value)
+    status: str = Field(nullable=False)
 
     # логин
     login: str = Field(nullable=False, unique=True)
@@ -28,4 +26,4 @@ class User(SQLModel, table=True):
     cipher_dynamic_salt: str = Field(nullable=False)
 
     # время создания User
-    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    create_datetime: datetime = Field(nullable=False)
