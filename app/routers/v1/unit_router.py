@@ -84,7 +84,9 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)
     unit_node_repository = UnitNodeRepository(db)
-    unit_node = unit_node_repository.get_by_topic(unit_uuid, UnitNode(topic_name=topic_name, type=destination.capitalize()))
+    unit_node = unit_node_repository.get_by_topic(
+        unit_uuid, UnitNode(topic_name=topic_name, type=destination.capitalize())
+    )
 
     if not unit_node:
         return False

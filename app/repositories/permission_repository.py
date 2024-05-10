@@ -25,10 +25,12 @@ class PermissionRepository:
         return [item.resource_uuid for item in permissions]
 
     def check(self, permission: Permission) -> bool:
-
-        check = self.db.query(Permission).filter(
-            Permission.agent_uuid == permission.agent_uuid,
-            Permission.resource_uuid == permission.resource_uuid
-        ).first()
+        check = (
+            self.db.query(Permission)
+            .filter(
+                Permission.agent_uuid == permission.agent_uuid, Permission.resource_uuid == permission.resource_uuid
+            )
+            .first()
+        )
 
         return bool(check)

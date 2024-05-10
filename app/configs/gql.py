@@ -14,10 +14,7 @@ async def get_graphql_context(
     db: Session = Depends(get_session),
     jwt_token: str = Depends(token_depends),
 ):
-    return {
-        'db': db,
-        'jwt_token': jwt_token
-    }
+    return {'db': db, 'jwt_token': jwt_token}
 
 
 def get_user_service(info: Info) -> UserService:

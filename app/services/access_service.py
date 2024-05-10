@@ -74,13 +74,13 @@ class AccessService:
         if check_entity.visibility_level == VisibilityLevel.PUBLIC.value:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL.value:
-            if not (self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value] or isinstance(self.current_agent, Unit)):
+            if not (
+                self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value]
+                or isinstance(self.current_agent, Unit)
+            ):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:
-            permission_check = Permission(
-                agent_uuid=self.current_agent.uuid,
-                resource_uuid=check_entity.uuid
-            )
+            permission_check = Permission(agent_uuid=self.current_agent.uuid, resource_uuid=check_entity.uuid)
             if not self.permission_repository.check(permission_check):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
@@ -102,11 +102,7 @@ class AccessService:
         """
         Позволяет получить uuid всех сущностей до которых есть доступ у агента
         """
-        return self.permission_repository.get_agent_permissions(
-            Permission(
-                agent_uuid=self.current_agent.uuid
-            )
-        )
+        return self.permission_repository.get_agent_permissions(Permission(agent_uuid=self.current_agent.uuid))
 
     @staticmethod
     def generate_user_token(user: User) -> str:

@@ -35,11 +35,7 @@ from app.utils.utils import aes_decode, aes_encode
 
 
 class UnitService:
-    def __init__(
-        self,
-        db: Session = Depends(get_session),
-        jwt_token: str = Depends(token_depends)
-    ) -> None:
+    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends)) -> None:
         self.unit_repository = UnitRepository(db)
         self.repo_repository = RepoRepository(db)
         self.git_repo_repository = GitRepoRepository()
@@ -114,7 +110,6 @@ class UnitService:
         return self.unit_repository.update(uuid, Unit(**data.dict()))
 
     def update_firmware(self, unit: Unit, target_version: str) -> Unit:
-
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
         all_exist_unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
@@ -138,7 +133,7 @@ class UnitService:
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
                 if (assignment == SchemaStructName.INPUT_TOPIC and topic not in input_node_dict.keys()) or (
-                        assignment == SchemaStructName.OUTPUT_TOPIC and topic not in output_node_dict.keys()
+                    assignment == SchemaStructName.OUTPUT_TOPIC and topic not in output_node_dict.keys()
                 ):
                     unit_nodes_list.append(
                         UnitNode(
@@ -168,7 +163,10 @@ class UnitService:
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
         if 'update' in schema_dict['input_base_topic']:
-            mqtt.publish(f"{settings.backend_domain}/input_base/{unit.uuid}/update", json.dumps({"NEW_COMMIT_VERSION": target_version}))
+            mqtt.publish(
+                f"{settings.backend_domain}/input_base/{unit.uuid}/update",
+                json.dumps({"NEW_COMMIT_VERSION": target_version}),
+            )
 
         return self.unit_repository.update(unit.uuid, Unit(last_update_datetime=datetime.datetime.utcnow()))
 
@@ -219,7 +217,11 @@ class UnitService:
         self.git_repo_repository.is_valid_env_file(repo, unit.repo_commit, env_dict)
 
         gen_uuid = uuid_pkg.uuid4()
-        target_version = self.git_repo_repository.get_target_version(repo) if unit.is_auto_update_from_repo_unit else unit.unit.repo_commit
+        target_version = (
+            self.git_repo_repository.get_target_version(repo)
+            if unit.is_auto_update_from_repo_unit
+            else unit.unit.repo_commit
+        )
         tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, target_version, gen_uuid)
 
         env_dict['COMMIT_VERSION'] = target_version
@@ -288,8 +290,7 @@ class UnitService:
         restriction = self.access_service.access_restriction()
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
-            filters.visibility_level,
-            restriction
+            filters.visibility_level, restriction
         )
         return self.unit_repository.list(filters, restriction=restriction)
 

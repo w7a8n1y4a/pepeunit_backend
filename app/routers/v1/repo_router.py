@@ -64,7 +64,5 @@ def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoServi
 
 
 @router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
-def get_branch_commits(
-    uuid: str, filters: CommitFilter = Depends(CommitFilter), repo_service: RepoService = Depends()
-):
+def get_branch_commits(uuid: str, filters: CommitFilter = Depends(CommitFilter), repo_service: RepoService = Depends()):
     return repo_service.get_branch_commits(uuid, filters)
