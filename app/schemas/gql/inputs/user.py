@@ -15,14 +15,12 @@ class UserAuthInput(TypeInputMixin):
 @strawberry.input()
 class UserCreateInput(TypeInputMixin):
     login: str
-    email: str
     password: str
 
 
 @strawberry.input()
 class UserUpdateInput(TypeInputMixin):
     login: Optional[str] = None
-    email: Optional[str] = None
     password: Optional[str] = None
 
 

@@ -29,7 +29,7 @@ class UserRepository:
         return self.db.get(User, user.uuid)
 
     def get_user_by_credentials(self, credentials: str) -> User:
-        return self.db.exec(select(User).where(or_(User.login == credentials, User.email == credentials))).first()
+        return self.db.exec(select(User).where(or_(User.login == credentials))).first()
 
     def update(self, uuid, user: User) -> User:
         user.uuid = uuid
@@ -45,7 +45,7 @@ class UserRepository:
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         query = self.db.query(User)
 
-        fields = [User.login, User.email]
+        fields = [User.login]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {'role': User.role, 'status': User.status}
@@ -64,9 +64,9 @@ class UserRepository:
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Login is not unique")
 
-    def is_valid_email(self, email: str, uuid: str = None):
-        user_uuid = self.db.exec(select(User.uuid).where(User.email == email)).first()
+    def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: str = None):
+        user_uuid = self.db.exec(select(User.uuid).where(User.telegram_chat_id == telegram_chat_id)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Email is not unique")
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"This Telegram user is already verified")

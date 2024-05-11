@@ -1,4 +1,5 @@
 import uvicorn
+from aiogram import Dispatcher, Bot
 
 from fastapi import FastAPI
 from strawberry import Schema
@@ -10,6 +11,7 @@ from app.configs.gql import get_graphql_context
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.pydantic.shared import Root
+from app.schemas.bot import *
 from app.schemas.mqtt.topic import mqtt
 
 app = FastAPI(
@@ -36,8 +38,22 @@ app.include_router(
 )
 
 
+@app.on_event("startup")
+async def on_startup():
+
+    if settings.debug:
+
+        webhook_info = await bot.get_webhook_info()
+        webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
+
+        if webhook_info.url != webhook_url:
+            await bot.set_webhook(
+                url=webhook_url
+            )
+
+
 @app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])
-def root():
+async def root():
     return {
         'name': settings.project_name,
         'version': settings.version,
@@ -45,6 +61,12 @@ def root():
         'swagger': f'{settings.app_prefix}/docs',
         'graphql': f'{settings.app_prefix}/graphql',
     }
+
+
+@app.post(f"{settings.app_prefix}{settings.api_v1_prefix}/bot")
+async def bot_webhook(update: dict):
+    telegram_update = types.Update(**update)
+    await dp.feed_update(bot=bot, update=telegram_update)
 
 
 app.include_router(api_router, prefix=f'{settings.app_prefix}{settings.api_v1_prefix}')

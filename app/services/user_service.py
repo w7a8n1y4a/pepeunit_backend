@@ -5,6 +5,7 @@ from fastapi import Depends
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.repositories.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
@@ -13,7 +14,7 @@ from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAu
 from app.services.access_service import AccessService
 from app.services.utils import token_depends
 from app.services.validators import is_valid_object, is_valid_password
-from app.utils.utils import password_to_hash
+from app.utils.utils import password_to_hash, generate_random_string
 
 
 class UserService:
@@ -24,7 +25,6 @@ class UserService:
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
         self.access_service.access_check([UserRole.BOT])
         self.user_repository.is_valid_login(data.login)
-        self.user_repository.is_valid_email(data.email)
 
         user = User(**data.dict())
 
@@ -56,7 +56,6 @@ class UserService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         self.user_repository.is_valid_login(data.login, uuid)
-        self.user_repository.is_valid_email(data.email, uuid)
 
         update_user = User(**data.dict())
 
@@ -65,9 +64,32 @@ class UserService:
 
         return self.user_repository.update(uuid, update_user)
 
-    # todo система верификации пользователей
+    async def generate_verification_code(self) -> str:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        redis = await anext(get_redis_session())
 
-    # todo система блокировки пользователей, unit должны заблокироваться, зависимые юниты надо думать
+        code = generate_random_string(6)
+        await redis.set(code, str(self.access_service.current_agent.uuid), ex=60)
+
+        return code
+
+    async def verification(self, telegram_chat_id: str, verification_code: str):
+
+        redis = await anext(get_redis_session())
+        uuid = await redis.get(verification_code)
+        await redis.delete(verification_code)
+
+        print(uuid)
+
+        user = self.user_repository.get(User(uuid=uuid))
+
+        is_valid_object(user)
+        self.user_repository.is_valid_telegram_chat_id(telegram_chat_id, user.uuid)
+
+        return self.user_repository.update(user.uuid, User(
+            status=UserStatus.VERIFIED.value,
+            telegram_chat_id=telegram_chat_id
+        ))
 
     def block(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])
@@ -75,7 +97,12 @@ class UserService:
 
     def unblock(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])
-        self.user_repository.update(uuid, User(status=UserStatus.UNVERIFIED.value))
+
+        user = self.user_repository.get(User(uuid=uuid))
+
+        status = UserStatus.VERIFIED.value if user.telegram_chat_id else UserStatus.UNVERIFIED.value
+
+        self.user_repository.update(uuid, User(status=status))
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         self.access_service.access_check([UserRole.ADMIN, UserRole.USER])

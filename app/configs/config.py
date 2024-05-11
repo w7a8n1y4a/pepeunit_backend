@@ -1,4 +1,6 @@
-from pydantic import BaseSettings
+import string
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -19,6 +21,7 @@ class Settings(BaseSettings):
     secret_key: str
     encrypt_key: str
     static_salt: str
+    telegram_token: str
 
     save_repo_path: str
 
@@ -30,5 +33,5 @@ class Settings(BaseSettings):
 
     redis_url: str
 
-    available_topic_symbols: str = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-'
+    available_topic_symbols: str = string.ascii_lowercase + string.ascii_uppercase + '0123456789/_-'
     state_send_interval: int = 300
