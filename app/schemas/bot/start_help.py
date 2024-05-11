@@ -1,28 +1,35 @@
 from aiogram import types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app import settings
 from app.configs.bot import dp, bot
 from app.repositories.enum import CommandNames
+from app.schemas.pydantic.shared import Root
 
 
 @dp.message(Command(CommandNames.START.value, CommandNames.HELP.value))
 async def start_help_resolver(message: types.Message):
 
     documentation = (
-        '*Предсказание*\n'
+        '*Верификация*\n'
         '/verification - верификация пользователя узла\n'
         '\n'
         '*Управление*\n'
         '/start - запуск бота\n'
+        '\n'
+        '*Информация*\n'
+        '/info - информация о узле\n'
     )
 
+    root_data = Root()
+
     buttons = [
-        InlineKeyboardButton(text="Репозиторий разработки", url="https://git.pepemoss.com/universitat/ml/sam_train_backend"),
-        InlineKeyboardButton(text="Репозиторий моделей", url="https://git.pepemoss.com/universitat/ml/sam_train"),
-        InlineKeyboardButton(text="Open Api", url="https://pepemoss.com/sam_lora_backend/docs"),
-        InlineKeyboardButton(text="Graphiql", url="https://pepemoss.com/sam_lora_backend/graphql"),
+        InlineKeyboardButton(text='Текущий Узел', url=f'https://{settings.backend_domain}'),
+        InlineKeyboardButton(text='Документация', url='https://docs.pepeunit.com'),
+        InlineKeyboardButton(text='Swagger', url=root_data.swagger),
+        InlineKeyboardButton(text='Graphql', url=root_data.graphql),
     ]
     builder = InlineKeyboardBuilder()
     for button in buttons:

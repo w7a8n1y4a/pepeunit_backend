@@ -3,8 +3,6 @@ from datetime import datetime
 
 from sqlmodel import SQLModel, Field
 
-from app.utils.utils import generate_random_string
-
 
 class User(SQLModel, table=True):
     """Пользователь узла"""

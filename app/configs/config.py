@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     encrypt_key: str
     static_salt: str
     telegram_token: str
+    telegram_bot_link: str
 
     save_repo_path: str
 

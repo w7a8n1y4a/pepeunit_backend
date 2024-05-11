@@ -41,26 +41,18 @@ app.include_router(
 @app.on_event("startup")
 async def on_startup():
 
-    if settings.debug:
+    webhook_info = await bot.get_webhook_info()
+    webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
 
-        webhook_info = await bot.get_webhook_info()
-        webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
-
-        if webhook_info.url != webhook_url:
-            await bot.set_webhook(
-                url=webhook_url
-            )
+    if webhook_info.url != webhook_url:
+        await bot.set_webhook(
+            url=webhook_url
+        )
 
 
 @app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])
 async def root():
-    return {
-        'name': settings.project_name,
-        'version': settings.version,
-        'description': settings.description,
-        'swagger': f'{settings.app_prefix}/docs',
-        'graphql': f'{settings.app_prefix}/graphql',
-    }
+    return Root()
 
 
 @app.post(f"{settings.app_prefix}{settings.api_v1_prefix}/bot")
