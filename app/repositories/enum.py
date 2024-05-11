@@ -87,4 +87,5 @@ class CommandNames(enum.Enum):
 
     START = 'start'
     HELP = 'help'
+    INFO = 'info'
     VERIFICATION = 'verification'

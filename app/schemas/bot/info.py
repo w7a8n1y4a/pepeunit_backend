@@ -9,23 +9,26 @@ from app.repositories.enum import CommandNames
 from app.schemas.pydantic.shared import Root
 
 
-@dp.message(Command(CommandNames.START.value, CommandNames.HELP.value))
+@dp.message(Command(CommandNames.INFO.value))
 async def start_help_resolver(message: types.Message):
+    root_data = Root()
 
     documentation = (
-        '*Верификация*\n'
-        '/verification - верификация пользователя\n'
+        f'Текущая версия - {root_data.version}\n'
         '\n'
-        '*Управление*\n'
-        '/start - запуск бота\n'
+        '*Метрики*\n'
+        f'Число пользователей'
         '\n'
-        '*Информация о узле*\n'
-        '/info - базовая информация\n'
+        f'Число Repo - '
+        '\n'
+        f'Число Unit - '
+        '\n'
+        f'Число UnitNode - '
     )
 
     buttons = [
-        InlineKeyboardButton(text='Узел', url=f'https://{settings.backend_domain}'),
-        InlineKeyboardButton(text='Документация', url='https://docs.pepeunit.com'),
+        InlineKeyboardButton(text='Swagger', url=root_data.swagger),
+        InlineKeyboardButton(text='Graphql', url=root_data.graphql),
     ]
     builder = InlineKeyboardBuilder()
     for button in buttons:
