@@ -14,19 +14,16 @@ class UserRead(BaseModel):
     role: UserRole
     status: UserStatus
     login: str
-    email: str
     create_datetime: datetime
 
 
 class UserCreate(BaseModel):
     login: str
-    email: str
     password: str
 
 
 class UserUpdate(BaseModel):
     login: Optional[str] = None
-    email: Optional[str] = None
     password: Optional[str] = None
 
 

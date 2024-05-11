@@ -3,6 +3,8 @@ from datetime import datetime
 
 from sqlmodel import SQLModel, Field
 
+from app.utils.utils import generate_random_string
+
 
 class User(SQLModel, table=True):
     """Пользователь узла"""
@@ -18,8 +20,8 @@ class User(SQLModel, table=True):
 
     # логин
     login: str = Field(nullable=False, unique=True)
-    # электропочта
-    email: str = Field(nullable=False, unique=True)
+    # сhat id в телеграм
+    telegram_chat_id: str = Field(nullable=True, unique=True)
     # хэшированный пароль пользователя
     hashed_password: str = Field(nullable=False)
     # зашифрованная динамическая соль

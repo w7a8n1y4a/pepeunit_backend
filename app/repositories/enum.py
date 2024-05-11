@@ -80,3 +80,11 @@ class ReservedEnvVariableName(str, enum.Enum):
     SECRET_KEY = 'SECRET_KEY'
     PING_INTERVAL = 'PING_INTERVAL'
     STATE_SEND_INTERVAL = 'STATE_SEND_INTERVAL'
+
+
+class CommandNames(enum.Enum):
+    """Команды поддерживаемые ботом"""
+
+    START = 'start'
+    HELP = 'help'
+    VERIFICATION = 'verification'

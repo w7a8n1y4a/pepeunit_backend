@@ -2,12 +2,9 @@ import os
 import pyaes
 import base64
 import hashlib
-
-from sqlalchemy import desc, asc
-from sqlmodel import or_
+import string
 
 from app import settings
-from app.repositories.enum import OrderByDate
 
 
 def aes_encode(data: str, key: str = settings.encrypt_key) -> str:
@@ -62,3 +59,8 @@ def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: 
     )
 
     return hashed_password_db == base64.b64encode(hashed_password).decode('utf-8')
+
+
+def generate_random_string(length=6):
+    chars = string.ascii_lowercase + string.ascii_uppercase + '0123456789'
+    return ''.join(chars[c % len(chars)] for c in os.urandom(length))
