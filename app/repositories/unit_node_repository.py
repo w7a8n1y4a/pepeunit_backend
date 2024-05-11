@@ -20,6 +20,9 @@ class UnitNodeRepository:
     def get(self, unit_node: UnitNode) -> UnitNode:
         return self.db.get(UnitNode, unit_node.uuid)
 
+    def get_all_count(self) -> int:
+        return self.db.query(UnitNode.uuid).count()
+
     def get_by_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
         return (
             self.db.query(UnitNode)

@@ -3,6 +3,7 @@ from sqlmodel import Session
 from strawberry.types import Info
 
 from app.configs.db import get_session
+from app.services.metrics_service import MetricsService
 from app.services.repo_service import RepoService
 from app.services.unit_node_service import UnitNodeService
 from app.services.unit_service import UnitService
@@ -31,3 +32,7 @@ def get_unit_service(info: Info) -> UnitService:
 
 def get_unit_node_service(info: Info) -> UnitNodeService:
     return UnitNodeService(info.context['db'], info.context['jwt_token'])
+
+
+def get_metrics_service(info: Info) -> MetricsService:
+    return MetricsService(info.context['db'], info.context['jwt_token'])

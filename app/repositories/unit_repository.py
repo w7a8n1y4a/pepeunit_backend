@@ -24,6 +24,9 @@ class UnitRepository:
     def get(self, unit: Unit) -> Unit:
         return self.db.get(Unit, unit.uuid)
 
+    def get_all_count(self) -> int:
+        return self.db.query(Unit.uuid).count()
+
     def update(self, uuid, unit: Unit) -> Unit:
         unit.uuid = uuid
         self.db.merge(unit)

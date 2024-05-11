@@ -28,6 +28,9 @@ class UserRepository:
     def get(self, user: User) -> User:
         return self.db.get(User, user.uuid)
 
+    def get_all_count(self) -> int:
+        return self.db.query(User.uuid).count()
+
     def get_user_by_credentials(self, credentials: str) -> User:
         return self.db.exec(select(User).where(or_(User.login == credentials, User.telegram_chat_id == credentials))).first()
 

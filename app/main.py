@@ -1,5 +1,5 @@
 import uvicorn
-from aiogram import Dispatcher, Bot
+from aiogram import Dispatcher
 
 from fastapi import FastAPI
 from strawberry import Schema
