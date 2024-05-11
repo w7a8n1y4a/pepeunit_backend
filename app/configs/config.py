@@ -1,6 +1,11 @@
 import string
+import toml
 
 from pydantic_settings import BaseSettings
+
+
+with open("pyproject.toml", "r") as f:
+    data = toml.loads(f.read())
 
 
 class Settings(BaseSettings):
@@ -9,9 +14,11 @@ class Settings(BaseSettings):
     debug: bool
     app_prefix: str
     api_v1_prefix: str
-    project_name: str
-    version: str
-    description: str
+    project_name: str = data['tool']['poetry']['name']
+    version: str = data['tool']['poetry']['version']
+    description: str = data['tool']['poetry']['description']
+    authors: list = data['tool']['poetry']['authors']
+    license: str = data['tool']['poetry']['license']
 
     backend_domain: str
 

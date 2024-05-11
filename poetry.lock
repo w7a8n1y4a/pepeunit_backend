@@ -1996,6 +1996,17 @@ sanic = ["sanic (>=20.12.2)"]
 starlite = ["starlite (>=1.48.0)"]
 
 [[package]]
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+files = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -2479,4 +2490,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.10.9"
-content-hash = "6be9a6bccb483d81583c6732aeef547c74703849724184233b768844bc87f3d8"
+content-hash = "55da2655903e3030c47486dad09a8e1939c2d4003b78c22258bca1cf4fcd8d35"

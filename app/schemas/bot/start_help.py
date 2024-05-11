@@ -4,9 +4,8 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.bot import dp, bot
+from app.configs.bot import dp
 from app.repositories.enum import CommandNames
-from app.schemas.pydantic.shared import Root
 
 
 @dp.message(Command(CommandNames.START.value, CommandNames.HELP.value))

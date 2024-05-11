@@ -4,7 +4,7 @@ from app.schemas.gql.queries.repo import *
 from app.schemas.gql.queries.user import *
 from app.schemas.gql.queries.unit import *
 from app.schemas.gql.queries.unit_node import *
-
+from app.schemas.gql.queries.metrics import *
 
 Query = create_type(
     "Query",
@@ -20,5 +20,6 @@ Query = create_type(
         get_units,
         get_unit_node,
         get_unit_nodes,
+        get_base_metrics
     ],
 )

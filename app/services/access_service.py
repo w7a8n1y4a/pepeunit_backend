@@ -71,6 +71,8 @@ class AccessService:
 
                 if agent.status == UserStatus.BLOCKED.value:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+
+                self.current_agent = agent
             else:
                 self.current_agent = User(role=UserRole.BOT.value)
 

@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "pepeunit-backend"
 version = "0.0.0"
-description = "Federative IoT Platform - backend"
+description = "Pepeunit - Federative IoT Platform"
 authors = ["Ivan Serebrennikov <admin@silberworks.com>"]
-license = "MIT License"
+license = "AGPL License"
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -32,6 +32,7 @@ aioredis = ">=2.0.1"
 gunicorn = ">=21.2.0"
 aiogram = "^3.6.0"
 pydantic-settings = "^2.2.1"
+toml = "^0.10.2"
 
 
 [build-system]

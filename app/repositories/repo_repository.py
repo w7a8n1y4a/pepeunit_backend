@@ -1,6 +1,7 @@
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
@@ -23,6 +24,9 @@ class RepoRepository:
 
     def get(self, repo: Repo) -> Repo:
         return self.db.get(Repo, repo.uuid)
+
+    def get_all_count(self) -> int:
+        return self.db.query(Repo).count()
 
     def update(self, uuid, repo: Repo) -> Repo:
         repo.uuid = uuid
