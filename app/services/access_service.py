@@ -18,6 +18,7 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.services.utils import token_depends
+from app.services.validators import is_valid_object
 
 
 class AccessService:
@@ -28,37 +29,50 @@ class AccessService:
         self,
         db: Session = Depends(get_session),
         jwt_token: str = Depends(token_depends),
+        is_bot_auth: bool = False
     ) -> None:
         self.user_repository = UserRepository(db)
         self.unit_repository = UnitRepository(db)
         self.permission_repository = PermissionRepository(db)
         self.jwt_token = jwt_token
-        self.token_required()
+        self.token_required(is_bot_auth)
 
-    def token_required(self):
-        if isinstance(self.jwt_token, params.Depends):
-            pass
-        elif self.jwt_token is not None:
-            try:
-                data = jwt.decode(self.jwt_token, settings.secret_key, algorithms=['HS256'])
-            except jwt.exceptions.ExpiredSignatureError:
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
-            except jwt.exceptions.InvalidTokenError:
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+    def token_required(self, is_bot_auth: bool = False):
 
-            if data['type'] == AgentType.USER.value:
-                agent = self.user_repository.get(User(uuid=data['uuid']))
+        if not is_bot_auth:
+            if isinstance(self.jwt_token, params.Depends):
+                pass
+            elif self.jwt_token is not None:
+                try:
+                    data = jwt.decode(self.jwt_token, settings.secret_key, algorithms=['HS256'])
+                except jwt.exceptions.ExpiredSignatureError:
+                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                except jwt.exceptions.InvalidTokenError:
+                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+
+                if data['type'] == AgentType.USER.value:
+                    agent = self.user_repository.get(User(uuid=data['uuid']))
+                    if agent.status == UserStatus.BLOCKED.value:
+                        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                else:
+                    agent = self.unit_repository.get(Unit(uuid=data['uuid']))
+
+                if not agent:
+                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+
+                self.current_agent = agent
+            else:
+                self.current_agent = User(role=UserRole.BOT.value)
+
+        else:
+            if self.jwt_token:
+                agent = self.user_repository.get_user_by_credentials(self.jwt_token)
+                is_valid_object(agent)
+
                 if agent.status == UserStatus.BLOCKED.value:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
             else:
-                agent = self.unit_repository.get(Unit(uuid=data['uuid']))
-
-            if not agent:
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
-
-            self.current_agent = agent
-        else:
-            self.current_agent = User(role=UserRole.BOT.value)
+                self.current_agent = User(role=UserRole.BOT.value)
 
     def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
         if isinstance(self.current_agent, User):
