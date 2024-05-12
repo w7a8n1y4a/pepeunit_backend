@@ -15,11 +15,12 @@ Query = create_type(
         get_repo,
         get_repos,
         get_branch_commits,
+        get_versions,
         get_unit,
         get_unit_env,
         get_units,
         get_unit_node,
         get_unit_nodes,
-        get_base_metrics
+        get_base_metrics,
     ],
 )

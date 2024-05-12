@@ -1,13 +1,15 @@
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
 from app.domain.repo_model import Repo
+from app.domain.unit_model import Unit
+from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate
+from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate, RepoVersionRead, RepoVersionsRead
 
 
 class RepoRepository:
@@ -15,6 +17,7 @@ class RepoRepository:
 
     def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
+        self.git_repo_repository = GitRepoRepository()
 
     def create(self, repo: Repo) -> Repo:
         self.db.add(repo)
@@ -27,6 +30,28 @@ class RepoRepository:
 
     def get_all_count(self) -> int:
         return self.db.query(Repo).count()
+
+    def get_versions(self, repo: Repo) -> RepoVersionsRead:
+        versions = (
+            self.db.query(Unit.current_commit_version, func.count(Unit.uuid))
+            .filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid)
+            .group_by(Unit.current_commit_version)
+            .order_by(desc(func.count(Unit.uuid)))
+        )
+        count_with_version = (
+            self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
+        )
+
+        tags = self.git_repo_repository.get_tags(repo)
+
+        versions_list = []
+        for commit, count in versions:
+
+            tag = list(filter(lambda item: item['commit'] == commit, tags))
+
+            versions_list.append(RepoVersionRead(commit=commit, unit_count=count, tag=tag[0]['tag'] if tag else None))
+
+        return RepoVersionsRead(unit_count=count_with_version, versions=versions_list)
 
     def update(self, uuid, repo: Repo) -> Repo:
         repo.uuid = uuid

@@ -70,9 +70,11 @@ class UnitService:
                 if assignment in [SchemaStructName.INPUT_TOPIC, SchemaStructName.OUTPUT_TOPIC]:
                     unit_nodes_list.append(
                         UnitNode(
-                            type=UnitNodeTypeEnum.INPUT
-                            if assignment == SchemaStructName.INPUT_TOPIC
-                            else UnitNodeTypeEnum.OUTPUT,
+                            type=(
+                                UnitNodeTypeEnum.INPUT
+                                if assignment == SchemaStructName.INPUT_TOPIC
+                                else UnitNodeTypeEnum.OUTPUT
+                            ),
                             visibility_level=unit.visibility_level,
                             topic_name=topic,
                             unit_uuid=unit.uuid,
@@ -139,9 +141,11 @@ class UnitService:
                 ):
                     unit_nodes_list.append(
                         UnitNode(
-                            type=UnitNodeTypeEnum.INPUT
-                            if assignment == SchemaStructName.INPUT_TOPIC
-                            else UnitNodeTypeEnum.OUTPUT,
+                            type=(
+                                UnitNodeTypeEnum.INPUT
+                                if assignment == SchemaStructName.INPUT_TOPIC
+                                else UnitNodeTypeEnum.OUTPUT
+                            ),
                             visibility_level=unit.visibility_level,
                             topic_name=topic,
                             unit_uuid=unit.uuid,

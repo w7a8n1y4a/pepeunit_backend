@@ -104,3 +104,14 @@ class CommitFilter(Filter):
 
     offset: Optional[int] = 0
     limit: Optional[int] = 10
+
+
+class RepoVersionRead(BaseModel):
+    commit: str
+    unit_count: int
+    tag: Optional[str] = None
+
+
+class RepoVersionsRead(BaseModel):
+    unit_count: int
+    versions: list[RepoVersionRead]

@@ -37,3 +37,16 @@ class CommitType(TypeInputMixin):
     commit: str
     summary: str
     tag: Optional[str] = None
+
+
+@strawberry.type()
+class RepoVersionType(TypeInputMixin):
+    commit: str
+    unit_count: int
+    tag: Optional[str] = None
+
+
+@strawberry.type()
+class RepoVersionsType(TypeInputMixin):
+    unit_count: int
+    versions: list[RepoVersionType]

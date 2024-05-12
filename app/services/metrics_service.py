@@ -1,4 +1,3 @@
-
 from fastapi import Depends
 from sqlmodel import Session
 
@@ -14,7 +13,9 @@ from app.services.utils import token_depends
 
 
 class MetricsService:
-    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends), is_bot_auth: bool = False) -> None:
+    def __init__(
+        self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends), is_bot_auth: bool = False
+    ) -> None:
         self.unit_repository = UnitRepository(db)
         self.repo_repository = RepoRepository(db)
         self.unit_node_repository = UnitNodeRepository(db)
@@ -28,5 +29,5 @@ class MetricsService:
             user_count=self.user_repository.get_all_count(),
             unit_count=self.unit_repository.get_all_count(),
             repo_count=self.repo_repository.get_all_count(),
-            unit_node_count=self.unit_node_repository.get_all_count()
+            unit_node_count=self.unit_node_repository.get_all_count(),
         )

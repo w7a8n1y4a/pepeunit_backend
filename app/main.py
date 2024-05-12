@@ -45,9 +45,7 @@ async def on_startup():
     webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
 
     if webhook_info.url != webhook_url:
-        await bot.set_webhook(
-            url=webhook_url
-        )
+        await bot.set_webhook(url=webhook_url)
 
 
 @app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])
