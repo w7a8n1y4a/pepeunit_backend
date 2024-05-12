@@ -25,6 +25,7 @@ from app.schemas.pydantic.repo import (
     Credentials,
     CommitRead,
     CommitFilter,
+    RepoVersionsRead,
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
@@ -78,6 +79,11 @@ class RepoService:
         commits_with_tag = self.git_repo_repository.get_commits_with_tag(repo, filters.repo_branch)
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
+
+    def get_versions(self, uuid: str) -> RepoVersionsRead:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
+        return self.repo_repository.get_versions(Repo(uuid=uuid))
 
     def update(self, uuid: str, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -150,9 +156,7 @@ class RepoService:
                 try:
                     # todo здесь должна быть очередь
                     self.git_repo_repository.is_valid_env_file(
-                        repo,
-                        target_version,
-                        json.loads(aes_decode(unit.cipher_env_dict))
+                        repo, target_version, json.loads(aes_decode(unit.cipher_env_dict))
                     )
                     self.unit_service.update_firmware(unit, target_version)
                 except:

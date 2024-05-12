@@ -86,10 +86,9 @@ class UserService:
         is_valid_object(user)
         self.user_repository.is_valid_telegram_chat_id(telegram_chat_id, user.uuid)
 
-        return self.user_repository.update(user.uuid, User(
-            status=UserStatus.VERIFIED.value,
-            telegram_chat_id=telegram_chat_id
-        ))
+        return self.user_repository.update(
+            user.uuid, User(status=UserStatus.VERIFIED.value, telegram_chat_id=telegram_chat_id)
+        )
 
     def block(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])

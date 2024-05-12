@@ -8,6 +8,7 @@ from app.schemas.pydantic.repo import (
     Credentials,
     CommitRead,
     CommitFilter,
+    RepoVersionsRead,
 )
 from app.services.repo_service import RepoService
 
@@ -26,6 +27,21 @@ def create(data: RepoCreate, repo_service: RepoService = Depends()):
 @router.get("/{uuid}", response_model=RepoRead)
 def get(uuid: str, repo_service: RepoService = Depends()):
     return repo_service.get(uuid)
+
+
+@router.get("", response_model=list[RepoRead])
+def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoService = Depends()):
+    return repo_service.list(filters)
+
+
+@router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
+def get_branch_commits(uuid: str, filters: CommitFilter = Depends(CommitFilter), repo_service: RepoService = Depends()):
+    return repo_service.get_branch_commits(uuid, filters)
+
+
+@router.get("/versions/{uuid}", response_model=RepoVersionsRead)
+def get_versions(uuid: str, repo_service: RepoService = Depends()):
+    return repo_service.get_versions(uuid)
 
 
 @router.patch("/{uuid}", response_model=RepoRead)
@@ -56,13 +72,3 @@ def update_units_firmware(uuid: str, repo_service: RepoService = Depends()):
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(uuid: str, repo_service: RepoService = Depends()):
     return repo_service.delete(uuid)
-
-
-@router.get("", response_model=list[RepoRead])
-def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoService = Depends()):
-    return repo_service.list(filters)
-
-
-@router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
-def get_branch_commits(uuid: str, filters: CommitFilter = Depends(CommitFilter), repo_service: RepoService = Depends()):
-    return repo_service.get_branch_commits(uuid, filters)

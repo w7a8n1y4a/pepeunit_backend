@@ -32,7 +32,9 @@ class UserRepository:
         return self.db.query(User.uuid).count()
 
     def get_user_by_credentials(self, credentials: str) -> User:
-        return self.db.exec(select(User).where(or_(User.login == credentials, User.telegram_chat_id == credentials))).first()
+        return self.db.exec(
+            select(User).where(or_(User.login == credentials, User.telegram_chat_id == credentials))
+        ).first()
 
     def update(self, uuid, user: User) -> User:
         user.uuid = uuid
@@ -72,4 +74,6 @@ class UserRepository:
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"This Telegram user is already verified")
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"This Telegram user is already verified"
+            )

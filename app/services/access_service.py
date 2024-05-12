@@ -26,10 +26,7 @@ class AccessService:
     current_agent: Optional[Union[User, Unit]] = None
 
     def __init__(
-        self,
-        db: Session = Depends(get_session),
-        jwt_token: str = Depends(token_depends),
-        is_bot_auth: bool = False
+        self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends), is_bot_auth: bool = False
     ) -> None:
         self.user_repository = UserRepository(db)
         self.unit_repository = UnitRepository(db)
