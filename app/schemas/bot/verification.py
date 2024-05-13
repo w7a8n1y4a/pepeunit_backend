@@ -30,12 +30,15 @@ async def verification_user(message, state: FSMContext):
 async def verification_user_check_code(message, state: FSMContext):
 
     db = next(get_session())
+
+    user_repository = UserRepository(db)
+
     user_service = UserService(
-        user_repository=UserRepository(db),
+        user_repository=user_repository,
         access_service=AccessService(
             permission_repository=PermissionRepository(db),
             unit_repository=UnitRepository(db),
-            user_repository=UserRepository(db),
+            user_repository=user_repository,
         ),
     )
 
