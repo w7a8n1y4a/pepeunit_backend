@@ -3,10 +3,8 @@ from typing import Union
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlmodel import Session
 
 from app import settings
-from app.configs.db import get_session
 from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UserRole, UnitNodeTypeEnum
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -14,14 +12,15 @@ from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput, UnitNodeUpdate
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate
 from app.services.access_service import AccessService
-from app.services.utils import token_depends
 from app.services.validators import is_valid_object
 
 
 class UnitNodeService:
-    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends)) -> None:
-        self.unit_node_repository = UnitNodeRepository(db)
-        self.access_service = AccessService(db, jwt_token)
+    def __init__(
+        self, unit_node_repository: UnitNodeRepository = Depends(), access_service: AccessService = Depends()
+    ) -> None:
+        self.unit_node_repository = unit_node_repository
+        self.access_service = access_service
 
     def get(self, uuid: str) -> UnitNode:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)

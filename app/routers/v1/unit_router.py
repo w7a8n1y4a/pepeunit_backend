@@ -7,6 +7,7 @@ from starlette.responses import FileResponse
 
 from app.configs.db import get_session
 from app.domain.unit_node_model import UnitNode
+from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
@@ -79,7 +80,12 @@ def get_token(uuid: str, unit_service: UnitService = Depends()):
 def get_mqtt_auth(data: UnitMqttTokenAuth):
     db = next(get_session())
 
-    access_service = AccessService(db, jwt_token=data.token)
+    access_service = AccessService(
+        permission_repository=PermissionRepository(db),
+        unit_repository=UnitRepository(db),
+        user_repository=UserRepository(db),
+        jwt_token=data.token,
+    )
     access_service.access_check([], is_unit_available=True)
 
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)

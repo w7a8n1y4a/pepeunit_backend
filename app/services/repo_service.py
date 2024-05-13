@@ -2,9 +2,7 @@ import json
 from typing import Union
 
 from fastapi import Depends
-from sqlmodel import Session
 
-from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -36,12 +34,20 @@ from app.utils.utils import aes_encode, aes_decode
 
 
 class RepoService:
-    def __init__(self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends)) -> None:
-        self.repo_repository = RepoRepository(db)
-        self.git_repo_repository = GitRepoRepository()
-        self.unit_repository = UnitRepository(db)
-        self.unit_service = UnitService(db)
-        self.access_service = AccessService(db, jwt_token)
+
+    def __init__(
+        self,
+        repo_repository: RepoRepository = Depends(),
+        git_repo_repository: GitRepoRepository = Depends(),
+        unit_repository: UnitRepository = Depends(),
+        unit_service: UnitService = Depends(),
+        access_service: AccessService = Depends(),
+    ) -> None:
+        self.repo_repository = repo_repository
+        self.git_repo_repository = git_repo_repository
+        self.unit_repository = unit_repository
+        self.unit_service = unit_service
+        self.access_service = access_service
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
