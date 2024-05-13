@@ -168,9 +168,9 @@ class UnitService:
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
-        if 'update' in schema_dict['input_base_topic']:
+        if 'update/pepeunit' in schema_dict['input_base_topic']:
             mqtt.publish(
-                f"{settings.backend_domain}/input_base/{unit.uuid}/update",
+                f"{settings.backend_domain}/input_base/{unit.uuid}/update/pepeunit",
                 json.dumps({"NEW_COMMIT_VERSION": target_version}),
             )
 
