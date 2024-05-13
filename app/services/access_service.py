@@ -6,10 +6,8 @@ import jwt
 from fastapi import Depends, params
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlmodel import Session
 
 from app import settings
-from app.configs.db import get_session
 from app.domain.permission_model import Permission
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
@@ -26,16 +24,22 @@ class AccessService:
     current_agent: Optional[Union[User, Unit]] = None
 
     def __init__(
-        self, db: Session = Depends(get_session), jwt_token: str = Depends(token_depends), is_bot_auth: bool = False
+        self,
+        permission_repository: PermissionRepository = Depends(),
+        unit_repository: UnitRepository = Depends(),
+        user_repository: UserRepository = Depends(),
+        jwt_token: str = Depends(token_depends),
+        is_bot_auth: bool = False,
     ) -> None:
-        self.user_repository = UserRepository(db)
-        self.unit_repository = UnitRepository(db)
-        self.permission_repository = PermissionRepository(db)
+        self.user_repository = user_repository
+        self.unit_repository = unit_repository
+        self.permission_repository = permission_repository
         self.jwt_token = jwt_token
         self.token_required(is_bot_auth)
 
     def token_required(self, is_bot_auth: bool = False):
 
+        print(self.jwt_token)
         if not is_bot_auth:
             if isinstance(self.jwt_token, params.Depends):
                 pass
