@@ -22,15 +22,19 @@ async def start_help_resolver(message: types.Message):
     root_data = Root()
 
     db = next(get_session())
+
+    unit_repository = UnitRepository(db)
+    user_repository = UserRepository(db)
+
     metrics_service = MetricsService(
-        unit_repository=UnitRepository(db),
+        unit_repository=unit_repository,
         repo_repository=RepoRepository(db),
         unit_node_repository=UnitNodeRepository(db),
-        user_repository=UserRepository(db),
+        user_repository=user_repository,
         access_service=AccessService(
             permission_repository=PermissionRepository(db),
-            unit_repository=UnitRepository(db),
-            user_repository=UserRepository(db),
+            unit_repository=unit_repository,
+            user_repository=user_repository,
             jwt_token=str(message.chat.id),
             is_bot_auth=True,
         ),
