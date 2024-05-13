@@ -5,7 +5,6 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.redis import get_redis_session
 from app.domain.unit_model import Unit
 from app.repositories.enum import ReservedOutputBaseTopic
 from app.repositories.unit_repository import UnitRepository
@@ -23,31 +22,37 @@ mqtt_config = MQTTConfig(
 mqtt = FastMQTT(config=mqtt_config)
 
 
-@mqtt.subscribe(f'{settings.backend_domain}/+/+/#')
+@mqtt.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
 async def message_to_topic(client, topic, payload, qos, properties):
     start_time = time.perf_counter()
 
-    print(f'{str(topic)}, {str(payload.decode())}')
+    print(f'{str(payload.decode())}')
 
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
+
+    topic_name += '/pepeunit'
+
     if destination in ['input', 'output']:
-        redis = await anext(get_redis_session())
-        redis_topic_value = await redis.get(str(topic))
 
-        if redis_topic_value != str(payload.decode()):
-            # todo refactor разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
+        # redis = await from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+        # redis_topic_value = await redis.get(str(topic))
+        #
+        # if redis_topic_value != str(payload.decode()):
+        #     # todo refactor разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
+        #
+        #     await redis.set(str(topic), str(payload.decode()))
 
-            await redis.set(str(topic), str(payload.decode()))
+        db = next(get_session())
+        unit_node_service = UnitNodeService(db)
 
-            db = next(get_session())
-            # todo refactor, uuid в схему на стороне физического unit, может решить проблему поиска в базе
-            unit_node_service = UnitNodeService(db)
+        unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
+        db.close()
 
-            unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
-            db.close()
+        # await redis.close()
+        # await redis.connection_pool.disconnect()
 
     elif destination == 'output_base':
-        if topic_name == ReservedOutputBaseTopic.STATE:
+        if topic_name == ReservedOutputBaseTopic.STATE+'/pepeunit':
             db = next(get_session())
             unit_repository = UnitRepository(db)
 

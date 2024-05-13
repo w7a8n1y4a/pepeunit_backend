@@ -32,7 +32,7 @@ from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
 from app.services.utils import creator_check, token_depends
 from app.services.validators import is_valid_object, is_emtpy_sequence
-from app.utils.utils import aes_encode
+from app.utils.utils import aes_encode, aes_decode
 
 
 class RepoService:
