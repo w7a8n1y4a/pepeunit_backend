@@ -39,7 +39,6 @@ class AccessService:
 
     def token_required(self, is_bot_auth: bool = False):
 
-        print(self.jwt_token)
         if not is_bot_auth:
             if isinstance(self.jwt_token, params.Depends):
                 pass

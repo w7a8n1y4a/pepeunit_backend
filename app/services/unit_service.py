@@ -37,13 +37,12 @@ class UnitService:
         self,
         unit_repository: UnitRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
-        git_repo_repository: GitRepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
         self.repo_repository = repo_repository
-        self.git_repo_repository = git_repo_repository
+        self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
         self.access_service = access_service
 
