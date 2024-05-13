@@ -38,13 +38,12 @@ class RepoService:
     def __init__(
         self,
         repo_repository: RepoRepository = Depends(),
-        git_repo_repository: GitRepoRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
         unit_service: UnitService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.repo_repository = repo_repository
-        self.git_repo_repository = git_repo_repository
+        self.git_repo_repository = GitRepoRepository()
         self.unit_repository = unit_repository
         self.unit_service = unit_service
         self.access_service = access_service
