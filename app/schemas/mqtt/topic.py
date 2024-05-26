@@ -40,6 +40,7 @@ KeyDBClient.init_session(uri=settings.redis_url)
 
 @mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
+    start = time.perf_counter()
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
 
     topic_name += '/pepeunit'
@@ -53,10 +54,11 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         await KeyDBClient.async_wait_for_ready()
 
-        redis_topic_value = await KeyDBClient.async_get(str(count_dec))
+        redis_topic_value = await KeyDBClient.async_get(topic_name)
 
         if redis_topic_value != str(count_dec):
-            await KeyDBClient.async_set(str(count_dec), str(count_dec))
+            await KeyDBClient.async_set(topic_name, str(count_dec))
+
             db = next(get_session())
             unit_node_service = UnitNodeService(
                 unit_node_repository=UnitNodeRepository(db),
@@ -66,13 +68,12 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     user_repository=UserRepository(db),
                 ),
             )
-
             unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
             db.close()
 
         if count % 100 == 0:
             print(f'{str(payload.decode())}')
-            print(time.perf_counter())
+            print(time.perf_counter() - start)
 
         await KeyDBClient.aclose()
 
