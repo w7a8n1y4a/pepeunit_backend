@@ -33,6 +33,9 @@ gunicorn = ">=21.2.0"
 aiogram = "^3.6.0"
 pydantic-settings = "^2.2.1"
 toml = "^0.10.2"
+aiokeydb = "^0.2.1"
+setuptools = "^70.0.0"
+dill = "^0.3.8"
 
 
 [build-system]

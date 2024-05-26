@@ -1,6 +1,9 @@
+import asyncio
 import json
 import time
 
+from aioredis import from_url
+from aiokeydb import KeyDBClient
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
@@ -26,41 +29,53 @@ mqtt_config = MQTTConfig(
 mqtt = FastMQTT(config=mqtt_config)
 
 
-@mqtt.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+@mqtt.on_connect()
+def connect(client, flags, rc, properties):
+    # Subscribe to a pattern
+    print('connect')
+
+    mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+
+KeyDBClient.init_session(uri=settings.redis_url)
+
+@mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
-    start_time = time.perf_counter()
-
-    print(f'{str(payload.decode())}')
-
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
 
     topic_name += '/pepeunit'
 
     if destination in ['input', 'output']:
 
-        # redis = await from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
-        # redis_topic_value = await redis.get(str(topic))
-        #
-        # if redis_topic_value != str(payload.decode()):
-        #     # todo refactor разобраться как правильно построить сессию для кэширования, в данной конфигурации успевает обрабатываться только 100 запросов в секунду на весь бекенд
-        #
-        #     await redis.set(str(topic), str(payload.decode()))
+        _, count_dec, count = payload.decode().split(' ')
 
-        db = next(get_session())
-        unit_node_service = UnitNodeService(
-            unit_node_repository=UnitNodeRepository(db),
-            access_service=AccessService(
-                permission_repository=PermissionRepository(db),
-                unit_repository=UnitRepository(db),
-                user_repository=UserRepository(db),
-            ),
-        )
+        count_dec = int(count_dec)
+        count = int(count)
 
-        unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
-        db.close()
+        await KeyDBClient.async_wait_for_ready()
 
-        # await redis.close()
-        # await redis.connection_pool.disconnect()
+        redis_topic_value = await KeyDBClient.async_get(str(count_dec))
+
+        if redis_topic_value != str(count_dec):
+            await KeyDBClient.async_set(str(count_dec), str(count_dec))
+            db = next(get_session())
+            unit_node_service = UnitNodeService(
+                unit_node_repository=UnitNodeRepository(db),
+                access_service=AccessService(
+                    permission_repository=PermissionRepository(db),
+                    unit_repository=UnitRepository(db),
+                    user_repository=UserRepository(db),
+                ),
+            )
+
+            unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
+            db.close()
+
+        if count % 100 == 0:
+            print(f'{str(payload.decode())}')
+            print(time.perf_counter())
+
+        await KeyDBClient.aclose()
+
 
     elif destination == 'output_base':
         if topic_name == ReservedOutputBaseTopic.STATE + '/pepeunit':
@@ -75,14 +90,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
             )
             db.close()
 
-    print(f'{time.perf_counter() - start_time}')
-
 
 @mqtt.on_disconnect()
 def disconnect(client, packet, exc=None):
-    print('Disconnected')
-
-
-@mqtt.on_subscribe()
-def subscribe(client, mid, qos, properties):
-    print('subscribed', client, mid, qos, properties)
+    print("Disconnect", client._username)
