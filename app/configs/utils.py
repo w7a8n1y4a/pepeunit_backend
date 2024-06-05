@@ -63,3 +63,35 @@ def set_emqx_auth_hook() -> None:
         result = 'Authorization source created successfully'
 
     logging.info(result)
+
+
+def set_emqx_auth_cache_ttl() -> None:
+
+    basic_auth = base64.b64encode((settings.mqtt_api_key + ':' + settings.mqtt_secret_key).encode('utf-8')).decode(
+        'ascii'
+    )
+
+    headers = {
+        'accept': 'application/json',
+        'Authorization': f"Basic {basic_auth}",
+        'Content-Type': 'application/json'
+    }
+
+    data = {
+        "no_match": "allow",
+        "deny_action": "ignore",
+        "cache": {
+            "enable": True,
+            "max_size": 32,
+            "ttl": "12m",
+            "excludes": []
+        }
+    }
+
+    response = httpx.put(
+        f'https://{settings.mqtt_host}/api/v5/authorization/settings',
+        json=data,
+        headers=headers
+    )
+
+    logging.info(response.json())

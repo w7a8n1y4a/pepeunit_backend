@@ -6,7 +6,7 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.utils import set_emqx_auth_hook
+from app.configs.utils import set_emqx_auth_hook, set_emqx_auth_cache_ttl
 from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
 from app.schemas.gql.mutation import Mutation
@@ -42,6 +42,7 @@ app.include_router(
 @app.on_event("startup")
 async def on_startup():
     set_emqx_auth_hook()
+    set_emqx_auth_cache_ttl()
 
     webhook_info = await bot.get_webhook_info()
     webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
