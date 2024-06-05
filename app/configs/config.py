@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     mqtt_keepalive: int
     mqtt_username: str
     mqtt_password: str
+    mqtt_api_key: str
+    mqtt_secret_key: str
 
     redis_url: str
 

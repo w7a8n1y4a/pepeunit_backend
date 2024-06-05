@@ -1,8 +1,6 @@
-import asyncio
 import json
 import time
 
-from aioredis import from_url
 from aiokeydb import KeyDBClient
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
@@ -59,17 +57,17 @@ async def message_to_topic(client, topic, payload, qos, properties):
         if redis_topic_value != str(count_dec):
             await KeyDBClient.async_set(topic_name, str(count_dec))
 
-            db = next(get_session())
-            unit_node_service = UnitNodeService(
-                unit_node_repository=UnitNodeRepository(db),
-                access_service=AccessService(
-                    permission_repository=PermissionRepository(db),
-                    unit_repository=UnitRepository(db),
-                    user_repository=UserRepository(db),
-                ),
-            )
-            unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
-            db.close()
+            # db = next(get_session())
+            # unit_node_service = UnitNodeService(
+            #     unit_node_repository=UnitNodeRepository(db),
+            #     access_service=AccessService(
+            #         permission_repository=PermissionRepository(db),
+            #         unit_repository=UnitRepository(db),
+            #         user_repository=UserRepository(db),
+            #     ),
+            # )
+            # unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
+            # db.close()
 
         if count % 100 == 0:
             print(f'{str(payload.decode())}')
