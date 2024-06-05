@@ -36,19 +36,19 @@ def set_emqx_auth_hook() -> None:
         "ssl": {
             "ciphers": [],
             "depth": 10,
-            "enable": False,
+            "enable": True,
             "hibernate_after": "5s",
             "log_level": "notice",
             "reuse_sessions": True,
             "secure_renegotiate": True,
-            "verify": "verify_peer",
+            "verify": "verify_none",
             "versions": [
                 "tlsv1.3",
                 "tlsv1.2"
             ]
         },
         "type": "http",
-        "url": f"http://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/auth"
+        "url": f"https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/auth"
     }
 
     response = httpx.post(
