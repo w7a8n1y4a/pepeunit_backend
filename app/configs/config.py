@@ -36,8 +36,6 @@ class Settings(BaseSettings):
     mqtt_host: str
     mqtt_port: int
     mqtt_keepalive: int
-    mqtt_username: str
-    mqtt_password: str
     mqtt_api_key: str
     mqtt_secret_key: str
 

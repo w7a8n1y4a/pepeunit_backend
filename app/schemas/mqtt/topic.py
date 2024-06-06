@@ -20,8 +20,8 @@ mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
     port=settings.mqtt_port,
     keepalive=settings.mqtt_keepalive,
-    username=settings.mqtt_username,
-    password=settings.mqtt_password,
+    username=AccessService.generate_current_instance_token(),
+    password='',
 )
 
 mqtt = FastMQTT(config=mqtt_config)
