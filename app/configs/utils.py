@@ -78,12 +78,12 @@ def set_emqx_auth_cache_ttl() -> None:
     }
 
     data = {
-        "no_match": "allow",
-        "deny_action": "ignore",
+        "no_match": "deny",
+        "deny_action": "ignore",  # ignore = not send other sub; disconnect = del connection over mqtt
         "cache": {
             "enable": True,
-            "max_size": 32,
-            "ttl": "12m",
+            "max_size": 64,
+            "ttl": "10m",
             "excludes": []
         }
     }

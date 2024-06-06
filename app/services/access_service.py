@@ -54,8 +54,10 @@ class AccessService:
                     agent = self.user_repository.get(User(uuid=data['uuid']))
                     if agent.status == UserStatus.BLOCKED.value:
                         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
-                else:
+                elif data['type'] == AgentType.UNIT.value:
                     agent = self.unit_repository.get(Unit(uuid=data['uuid']))
+                elif data['type'] == AgentType.PEPEUNIT.value:
+                    agent = User(role=UserRole.PEPEUNIT.value)
 
                 if not agent:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
@@ -77,6 +79,7 @@ class AccessService:
                 self.current_agent = User(role=UserRole.BOT.value)
 
     def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
+
         if isinstance(self.current_agent, User):
             if self.current_agent.role not in [role.value for role in available_user_role]:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
@@ -138,6 +141,17 @@ class AccessService:
     def generate_unit_token(unit: Unit) -> str:
         token = jwt.encode(
             {'uuid': str(unit.uuid), 'type': AgentType.UNIT.value},
+            settings.secret_key,
+            'HS256',
+        )
+
+        return token
+
+    @staticmethod
+    def generate_current_instance_token() -> str:
+
+        token = jwt.encode(
+            {'uuid': settings.backend_domain, 'type': AgentType.PEPEUNIT.value},
             settings.secret_key,
             'HS256',
         )

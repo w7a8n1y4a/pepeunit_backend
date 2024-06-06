@@ -15,3 +15,7 @@ class Root(BaseModel):
     swagger: str = f'{link_to_backend}/docs'
     graphql: str = f'{link_to_backend}/graphql'
     telegram_bot: str = settings.telegram_bot_link
+
+
+class MqttRead(BaseModel):
+    result: str

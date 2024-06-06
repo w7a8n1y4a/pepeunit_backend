@@ -6,12 +6,15 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from app.configs.db import get_session
+from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
+from app.repositories.enum import UserRole
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.mqtt.utils import get_topic_split
+from app.schemas.pydantic.shared import MqttRead
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter, UnitRead, UnitMqttTokenAuth
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
@@ -76,7 +79,7 @@ def get_token(uuid: str, unit_service: UnitService = Depends()):
     return unit_service.generate_token(uuid)
 
 
-@router.post("/auth", response_model=bool, status_code=status.HTTP_200_OK)
+@router.post("/auth", response_model=MqttRead, status_code=status.HTTP_200_OK)
 def get_mqtt_auth(data: UnitMqttTokenAuth):
     db = next(get_session())
 
@@ -86,22 +89,27 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
         user_repository=UserRepository(db),
         jwt_token=data.token,
     )
-    access_service.access_check([], is_unit_available=True)
+    access_service.access_check([UserRole.PEPEUNIT], is_unit_available=True)
 
-    backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)
-    unit_node_repository = UnitNodeRepository(db)
-    unit_node = unit_node_repository.get_by_topic(
-        unit_uuid, UnitNode(topic_name=topic_name, type=destination.capitalize())
-    )
+    if isinstance(access_service.current_agent, Unit):
+        backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)
+        unit_node_repository = UnitNodeRepository(db)
+        unit_node = unit_node_repository.get_by_topic(
+            unit_uuid, UnitNode(topic_name=topic_name + '/pepeunit', type=destination.capitalize())
+        )
 
-    if not unit_node:
-        return False
+        # todo на основании конфига есть два варианта поведения.
+        # 1 грузим бекенд, запросами авторизации, но при этом всё ок нагрузкой на emqx
+        # 2 грузим emqx любым лоадом, но разгружаем бекенд
+        # сейчас используется 2й вариант
+        if not unit_node:
+            return MqttRead(result='deny')
 
-    access_service.visibility_check(unit_node)
+        access_service.visibility_check(unit_node)
 
     db.close()
 
-    return True
+    return MqttRead(result='allow')
 
 
 @router.patch("/{uuid}", response_model=UnitRead)

@@ -29,6 +29,7 @@ class UserRole(str, enum.Enum):
     BOT = 'Bot'
     USER = 'User'
     ADMIN = 'Admin'
+    PEPEUNIT = 'Pepeunit'
 
 
 @strawberry.enum
@@ -44,6 +45,7 @@ class UserStatus(str, enum.Enum):
 class AgentType(str, enum.Enum):
     USER = 'User'
     UNIT = 'Unit'
+    PEPEUNIT = 'Pepeunit'
 
 
 @strawberry.enum
