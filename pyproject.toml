@@ -36,6 +36,7 @@ toml = "^0.10.2"
 aiokeydb = "^0.2.1"
 setuptools = "^70.0.0"
 dill = "^0.3.8"
+fastapi-utilities = "^0.2.0"
 
 
 [build-system]
