@@ -1,0 +1,41 @@
+variables:
+  DOCKER_IMAGE_TAG: $CI_PIPELINE_IID
+  DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+
+stages:
+  - build
+  - deploy
+
+build:image:dev:
+  stage: build
+  tags:
+    - shell-build-runer
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "dev" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
+  script:
+    - docker build -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG .
+    - docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+
+deploy:image:dev:
+  stage: deploy
+  tags:
+    - shell-runer
+  variables:
+    PROJ: pepeunit-backend-dev
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "dev" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - echo $USER
+    - echo $PROJ
+  script:
+    - docker pull $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker stop $PROJ || echo $?
+    - docker rm $PROJ || echo $?
+    - docker run -d --name=$PROJ -p 5401:5000 --restart=always -v /root/pepeunit/repo_cache:/app/repo_cache --env-file $ENV_FILE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker system prune -a -f
