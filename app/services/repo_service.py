@@ -171,7 +171,6 @@ class RepoService:
                 logging.info(f'run update unit {unit.uuid}')
 
                 try:
-                    # todo здесь должна быть очередь
                     self.git_repo_repository.is_valid_env_file(
                         repo, target_version, json.loads(aes_decode(unit.cipher_env_dict))
                     )
