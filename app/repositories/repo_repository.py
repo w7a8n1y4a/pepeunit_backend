@@ -70,6 +70,9 @@ class RepoRepository:
         if filters.creator_uuid:
             query = query.filter(Repo.creator_uuid == filters.creator_uuid)
 
+        if filters.is_auto_update_repo is not None:
+            query = query.filter(Repo.is_auto_update_repo == filters.is_auto_update_repo)
+
         if restriction:
             query = query.filter(Repo.uuid.in_(restriction))
 
