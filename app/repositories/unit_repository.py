@@ -45,6 +45,8 @@ class UnitRepository:
             query = query.filter(Unit.creator_uuid == filters.creator_uuid)
         if filters.repo_uuid:
             query = query.filter(Unit.repo_uuid == filters.repo_uuid)
+        if filters.is_auto_update_from_repo_unit is not None:
+            query = query.filter(Unit.is_auto_update_from_repo_unit == filters.is_auto_update_from_repo_unit)
         if restriction:
             query = query.filter(Unit.uuid.in_(restriction))
 
