@@ -42,11 +42,6 @@ class UserRepository:
         self.db.commit()
         return self.get(user)
 
-    def delete(self, user: User) -> None:
-        self.db.delete(self.get(user))
-        self.db.commit()
-        self.db.flush()
-
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
         query = self.db.query(User)
 

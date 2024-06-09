@@ -194,7 +194,6 @@ class RepoService:
 
         logging.info(result)
 
-
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
