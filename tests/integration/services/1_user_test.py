@@ -19,8 +19,8 @@ def test_create_user(test_users, database, clear_database) -> None:
     # create test users
     new_users = []
     for test_user in test_users:
-        test = user_service.create(UserCreate(**test_user))
-        new_users.append(test)
+        user = user_service.create(UserCreate(**test_user))
+        new_users.append(user)
 
     assert len(new_users) >= len(test_user)
 
@@ -158,10 +158,3 @@ def test_get_many_user(database) -> None:
         UserFilter(search_string=pytest.test_hash, role=[UserRole.USER], offset=0, limit=1_000_000)
     )
     assert len(users) == len(pytest.users) - 1
-
-
-if settings.clear_test:
-
-    @pytest.mark.last
-    def test_end(clear_database):
-        assert True
