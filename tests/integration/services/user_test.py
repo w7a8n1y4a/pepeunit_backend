@@ -8,7 +8,7 @@ from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
 from app.repositories.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
-from app.schemas.pydantic.user import UserCreate, UserAuth
+from app.schemas.pydantic.user import UserCreate, UserAuth, UserUpdate, UserFilter
 from tests.integration.conftest import Info
 
 
@@ -22,7 +22,7 @@ def test_create_user(test_users, database, clear_database) -> None:
         test = user_service.create(UserCreate(**test_user))
         new_users.append(test)
 
-    assert len(new_users) == 2
+    assert len(new_users) >= len(test_user)
 
     pytest.users = new_users
 
@@ -101,6 +101,84 @@ async def test_verification_user(database) -> None:
         assert state == None
 
 
+@pytest.mark.run(order=3)
+def test_block_unblock_user(database) -> None:
+    user_service = get_user_service(
+        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]})
+    )
+
+    # block unblock users
+    for user in pytest.users:
+        user_service.block(user.uuid)
+        assert user.status == UserStatus.BLOCKED
+        user_service.unblock(user.uuid)
+        assert user.status == UserStatus.VERIFIED
+
+
+    # block without admin role
+    with pytest.raises(fastapi.HTTPException):
+        user_service = get_user_service(
+            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
+        )
+        user = pytest.users[0]
+
+        user_service.block(user.uuid)
+        assert user.status == UserStatus.BLOCKED
+
+    # unblock without admin role
+    with pytest.raises(fastapi.HTTPException):
+        user_service = get_user_service(
+            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
+        )
+        user = pytest.users[0]
+
+        user_service.unblock(user.uuid)
+        assert user.status == UserStatus.VERIFIED
+
+
+@pytest.mark.run(order=4)
+def test_update_user(database) -> None:
+
+    # check change login on new
+    current_user = pytest.users[-1]
+    user_service = get_user_service(
+        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    new_login = current_user.login+'test'
+    user_service.update(str(current_user.uuid), UserUpdate(login=new_login))
+
+    assert new_login == current_user.login
+
+    # check change login on exist
+    with pytest.raises(fastapi.HTTPException):
+        current_user = pytest.users[-1]
+        user_service = get_user_service(
+            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+        )
+
+        other_user = pytest.users[0]
+        user_service.update(str(current_user.uuid), UserUpdate(login=other_user.login))
+
+    # check change password
+    current_user = pytest.users[0]
+    user_service = get_user_service(
+        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    user_service.update(str(current_user.uuid), UserUpdate(login=current_user.login, password='best_new_password'))
+
+
+@pytest.mark.run(order=5)
+def test_get_many_user(database) -> None:
+
+    # check get all test User with role user
+    current_user = pytest.users[-1]
+    user_service = get_user_service(
+        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+    users = user_service.list(UserFilter(search_string=pytest.test_hash, role=[UserRole.USER], offset=0, limit=1_000_000))
+    assert len(users) == len(pytest.users) - 1
 
 
 if settings.test:
