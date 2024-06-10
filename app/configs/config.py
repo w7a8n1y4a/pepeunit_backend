@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     """.env variables"""
 
     debug: bool
-    clear_test: bool = True
     app_prefix: str
     api_v1_prefix: str
     project_name: str = data['tool']['poetry']['name']
@@ -44,3 +43,6 @@ class Settings(BaseSettings):
 
     available_topic_symbols: str = string.ascii_lowercase + string.ascii_uppercase + '0123456789/_-'
     state_send_interval: int = 300
+
+    test_clear_data: bool = True
+    test_private_repo_json: str = ''
