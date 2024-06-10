@@ -160,7 +160,7 @@ def test_get_many_user(database) -> None:
     assert len(users) == len(pytest.users) - 1
 
 
-if settings.test:
+if settings.clear_test:
 
     @pytest.mark.last
     def test_end(clear_database):
