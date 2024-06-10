@@ -34,7 +34,9 @@ def connect(client, flags, rc, properties):
 
     mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
 
+
 KeyDBClient.init_session(uri=settings.redis_url)
+
 
 @mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
@@ -74,7 +76,6 @@ async def message_to_topic(client, topic, payload, qos, properties):
             print(time.perf_counter() - start)
 
         await KeyDBClient.aclose()
-
 
     elif destination == 'output_base':
         if topic_name == ReservedOutputBaseTopic.STATE + '/pepeunit':

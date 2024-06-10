@@ -49,9 +49,7 @@ def test_get_auth_token_user(test_users, database) -> None:
     # get token with invalid password
     with pytest.raises(fastapi.HTTPException):
         # get token with invalid password
-        user_service.get_token(
-            UserAuth(credentials=pytest.users[0].login, password='invalid password')
-        )
+        user_service.get_token(UserAuth(credentials=pytest.users[0].login, password='invalid password'))
 
     # get token with invalid login
     with pytest.raises(fastapi.HTTPException):
@@ -66,11 +64,7 @@ async def test_verification_user(database) -> None:
     # check invalid code
     with pytest.raises(fastapi.HTTPException):
         user_service = get_user_service(
-            Info({
-                'db': database,
-                'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]
-            }
-            )
+            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
 
         code = await user_service.generate_verification_code()
@@ -79,18 +73,12 @@ async def test_verification_user(database) -> None:
     # set verified status all test users
     codes_list = []
     for inc, user in enumerate(pytest.users, start=1):
-        user_service = get_user_service(
-            Info({
-                    'db': database,
-                    'jwt_token': pytest.user_tokens_dict[user.uuid]
-                }
-            )
-        )
+        user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]}))
 
         code = await user_service.generate_verification_code()
         codes_list.append(code)
 
-        await user_service.verification(str(inc*1_000_000), code)
+        await user_service.verification(str(inc * 1_000_000), code)
         assert user.status == UserStatus.VERIFIED.value
 
     # check del all verification codes in redis
@@ -103,9 +91,7 @@ async def test_verification_user(database) -> None:
 
 @pytest.mark.run(order=3)
 def test_block_unblock_user(database) -> None:
-    user_service = get_user_service(
-        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]})
-    )
+    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]}))
 
     # block unblock users
     for user in pytest.users:
@@ -113,7 +99,6 @@ def test_block_unblock_user(database) -> None:
         assert user.status == UserStatus.BLOCKED
         user_service.unblock(user.uuid)
         assert user.status == UserStatus.VERIFIED
-
 
     # block without admin role
     with pytest.raises(fastapi.HTTPException):
@@ -141,11 +126,9 @@ def test_update_user(database) -> None:
 
     # check change login on new
     current_user = pytest.users[-1]
-    user_service = get_user_service(
-        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
-    new_login = current_user.login+'test'
+    new_login = current_user.login + 'test'
     user_service.update(str(current_user.uuid), UserUpdate(login=new_login))
 
     assert new_login == current_user.login
@@ -153,18 +136,14 @@ def test_update_user(database) -> None:
     # check change login on exist
     with pytest.raises(fastapi.HTTPException):
         current_user = pytest.users[-1]
-        user_service = get_user_service(
-            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-        )
+        user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
         other_user = pytest.users[0]
         user_service.update(str(current_user.uuid), UserUpdate(login=other_user.login))
 
     # check change password
     current_user = pytest.users[0]
-    user_service = get_user_service(
-        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     user_service.update(str(current_user.uuid), UserUpdate(login=current_user.login, password='best_new_password'))
 
@@ -174,14 +153,15 @@ def test_get_many_user(database) -> None:
 
     # check get all test User with role user
     current_user = pytest.users[-1]
-    user_service = get_user_service(
-        Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    users = user_service.list(
+        UserFilter(search_string=pytest.test_hash, role=[UserRole.USER], offset=0, limit=1_000_000)
     )
-    users = user_service.list(UserFilter(search_string=pytest.test_hash, role=[UserRole.USER], offset=0, limit=1_000_000))
     assert len(users) == len(pytest.users) - 1
 
 
 if settings.test:
+
     @pytest.mark.last
     def test_end(clear_database):
         assert True
