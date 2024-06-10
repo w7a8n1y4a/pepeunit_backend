@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """.env variables"""
 
     debug: bool
-    test: bool = False
+    clear_test: bool = True
     app_prefix: str
     api_v1_prefix: str
     project_name: str = data['tool']['poetry']['name']
