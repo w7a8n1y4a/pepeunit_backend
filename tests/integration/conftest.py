@@ -87,7 +87,9 @@ def test_repos() -> list[dict]:
     # add public repository
     test_repos.extend([
         {'type': 'Public', 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git'},
-        {'type': 'Public', 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git'}
+        {'type': 'Public', 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git'},
+        {'type': 'Public', 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'},
+        {'type': 'Public', 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'}
     ])
 
     return [
