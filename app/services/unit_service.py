@@ -230,7 +230,7 @@ class UnitService:
         target_version = (
             self.git_repo_repository.get_target_version(repo)
             if unit.is_auto_update_from_repo_unit
-            else unit.unit.repo_commit
+            else unit.repo_commit
         )
         tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, target_version, gen_uuid)
 
