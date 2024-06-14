@@ -93,6 +93,11 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
     if isinstance(access_service.current_agent, Unit):
         backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)
+
+        # todo проработать также остальные input_base подписки и output_base
+        if destination == 'input_base' and topic_name == 'update':
+            return MqttRead(result='allow')
+
         unit_node_repository = UnitNodeRepository(db)
         unit_node = unit_node_repository.get_by_topic(
             unit_uuid, UnitNode(topic_name=topic_name + '/pepeunit', type=destination.capitalize())
