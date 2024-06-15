@@ -102,7 +102,7 @@ class AccessService:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:
             permission_check = Permission(agent_uuid=self.current_agent.uuid, resource_uuid=check_entity.uuid)
-            if check_entity.creator_uuid != self.current_agent.uuid and not self.permission_repository.check(permission_check):
+            if not self.permission_repository.check(permission_check):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
     def get_available_visibility_levels(self, levels: list[str], restriction: list[str] = None) -> list[str]:

@@ -4,6 +4,7 @@ from typing import Union
 
 from fastapi import Depends
 
+from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -64,6 +65,8 @@ class RepoService:
         repo = self.repo_repository.create(repo)
 
         self.git_repo_repository.clone_remote_repo(repo, data.credentials)
+
+        self.access_service.permission_repository.create(Permission(agent_uuid=self.access_service.current_agent.uuid, resource_uuid=repo.uuid))
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -211,7 +214,11 @@ class RepoService:
         unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)
 
-        return self.repo_repository.delete(repo)
+        self.git_repo_repository.delete_repo(repo)
+        self.access_service.permission_repository.delete(repo.uuid)
+        self.repo_repository.delete(repo)
+
+        return None
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> list[RepoRead]:
         self.access_service.access_check([UserRole.BOT, UserRole.ADMIN, UserRole.USER])

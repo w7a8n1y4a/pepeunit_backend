@@ -42,8 +42,6 @@ class GitRepoRepository:
             remote.fetch()
 
     def update_local_repo(self, repo: Repo, data: Optional[Credentials] = None) -> None:
-        # todo доработать для закрытых репозиториев
-
         if not os.path.exists(f'{settings.save_repo_path}/{repo.uuid}'):
             self.clone_remote_repo(repo, data)
 
@@ -188,6 +186,11 @@ class GitRepoRepository:
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
         return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
+
+    @staticmethod
+    def delete_repo(repo: Repo) -> None:
+        shutil.rmtree(f'{settings.save_repo_path}/{str(repo.uuid)}', ignore_errors=True)
+        return None
 
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
         file_buffer = self.get_file(repo, commit, 'schema.json')

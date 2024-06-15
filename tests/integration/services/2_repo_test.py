@@ -6,7 +6,8 @@ import pytest
 
 from app import settings
 from app.configs.gql import get_repo_service
-from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, CommitFilter, Credentials
+from app.domain.repo_model import Repo
+from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, CommitFilter, Credentials, RepoFilter
 from tests.integration.conftest import Info
 
 
@@ -145,8 +146,45 @@ def test_update_local_repo(database) -> None:
     repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     # del local repo
-    shutil.rmtree(f'{settings.save_repo_path}/{str(pytest.repos[0].uuid)}', ignore_errors=True)
+    repo_service.git_repo_repository.delete_repo(Repo(uuid=pytest.repos[0].uuid))
 
     # check update local repos
     for repo in pytest.repos:
         repo_service.update_local_repo(repo.uuid)
+
+
+@pytest.mark.run(order=6)
+def test_delete_repo(database) -> None:
+
+    current_user = pytest.users[0]
+    repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    # del repo
+    repo_service.delete(str(pytest.repos[3].uuid))
+
+    # todo del repo with units
+
+
+@pytest.mark.run(order=7)
+def test_get_many_repo(database) -> None:
+    current_user = pytest.users[0]
+    repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    # check for users is updated
+    repos = repo_service.list(
+        RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True)
+    )
+
+    assert len(repos) == 5
+
+    # check many get with all filters
+    repos = repo_service.list(
+        RepoFilter(
+            creator_uuid=current_user.uuid,
+            search_string='test',
+            is_auto_update_repo=True,
+            offset=0,
+            limit=1_000_000
+        )
+    )
+    assert len(repos) == 5
