@@ -20,3 +20,7 @@ def creator_check(user: User, obj: any):
 
 def merge_two_dict_first_priority(first: dict, two: dict) -> dict:
     return {**two, **first}
+
+
+def remove_none_value_dict(data: dict) -> dict:
+    return {k: v for k, v in data.items() if v is not None}

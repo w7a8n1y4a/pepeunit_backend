@@ -10,6 +10,7 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserCreateInput, UserAuthInput, UserUpdateInput, UserFilterInput
 from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAuth
 from app.services.access_service import AccessService
+from app.services.utils import remove_none_value_dict
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import password_to_hash, generate_random_string
 
@@ -52,9 +53,10 @@ class UserService:
     def update(self, uuid: str, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        self.user_repository.is_valid_login(data.login, uuid)
+        if data.login:
+            self.user_repository.is_valid_login(data.login, uuid)
 
-        update_user = User(**data.dict())
+        update_user = User(**remove_none_value_dict(data.dict()))
 
         if data.password:
             update_user.cipher_dynamic_salt, update_user.hashed_password = password_to_hash(data.password)
