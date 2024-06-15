@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import fastapi
 import pytest
@@ -144,11 +145,8 @@ def test_update_local_repo(database) -> None:
     repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     # del local repo
-    os.rmdir(f'{settings.save_repo_path}/{str(pytest.repos[0])}')
+    shutil.rmtree(f'{settings.save_repo_path}/{str(pytest.repos[0].uuid)}', ignore_errors=True)
 
     # check update local repos
     for repo in pytest.repos:
-        full_repo = repo_service.get(repo.uuid)
         repo_service.update_local_repo(repo.uuid)
-
-

@@ -63,7 +63,7 @@ class RepoService:
 
         repo = self.repo_repository.create(repo)
 
-        self.git_repo_repository.clone_remote_repo(repo, data)
+        self.git_repo_repository.clone_remote_repo(repo, data.credentials)
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -143,7 +143,8 @@ class RepoService:
         is_valid_object(repo)
         creator_check(self.access_service.current_agent, repo)
 
-        self.git_repo_repository.update_local_repo(repo)
+        data = self.repo_repository.get_credentials(repo)
+        self.git_repo_repository.update_local_repo(repo, data)
 
         return None
 
