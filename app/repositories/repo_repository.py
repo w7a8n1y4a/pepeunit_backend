@@ -98,7 +98,7 @@ class RepoRepository:
     @staticmethod
     def is_valid_repo_url(repo: Repo):
         url = repo.repo_url
-        if url[-4:] != '.git' and not (url.find('https://') == 0 or url.find('http://') == 0):
+        if url[-4:] != '.git' or not (url.find('https://') == 0 or url.find('http://') == 0):
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url")
 
     @staticmethod

@@ -6,6 +6,8 @@ from collections import Counter
 from json import JSONDecodeError
 
 import uuid
+
+import git
 from fastapi import HTTPException
 from fastapi import status as http_status
 
@@ -15,7 +17,7 @@ from git.exc import GitCommandError
 from app import settings
 from app.domain.repo_model import Repo
 from app.repositories.enum import SchemaStructName, ReservedEnvVariableName
-from app.schemas.pydantic.repo import RepoCreate
+from app.schemas.pydantic.repo import RepoCreate, Credentials
 
 
 class GitRepoRepository:
@@ -28,7 +30,7 @@ class GitRepoRepository:
 
         try:
             # клонирование
-            git_repo = GitRepo.clone_from(self.get_url(data), repo_save_path)
+            git_repo = GitRepo.clone_from(self.get_url(repo, data.credentials), repo_save_path)
         except GitCommandError:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
@@ -41,7 +43,13 @@ class GitRepoRepository:
     def update_local_repo(self, repo: Repo) -> None:
         # todo доработать для закрытых репозиториев
         git_repo = self.get_repo(repo)
-        git_repo.remotes.origin.pull()
+
+        try:
+            git_repo.remotes.origin.pull()
+        except git.CommandError:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Error update Repo'
+            )
 
     def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: str) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
@@ -75,14 +83,19 @@ class GitRepoRepository:
         return GitRepo(tmp_path)
 
     @staticmethod
-    def get_url(data: RepoCreate):
-        repo_url = data.repo_url
-        if not data.is_public_repository:
+    def get_url(repo: Repo, data: Credentials):
+        repo_url = repo.repo_url
+        if not repo.is_public_repository:
             repo_url = repo_url.replace(
-                'https://', f"https://{data.credentials.username}:{data.credentials.pat_token}@"
-            ).replace('http://', f"http://{data.credentials.username}:{data.credentials.pat_token}@")
+                'https://', f"https://{data.username}:{data.pat_token}@"
+            ).replace('http://', f"http://{data.username}:{data.pat_token}@")
 
         return repo_url
+
+    def update_credentials(self, repo: Repo, data: Credentials):
+        git_repo = self.get_repo(repo)
+        for remote in git_repo.remotes:
+            remote.set_url(self.get_url(repo, data))
 
     def get_branches(self, repo: Repo) -> list[str]:
         repo = self.get_repo(repo)

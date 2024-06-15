@@ -53,15 +53,16 @@ class UserService:
     def update(self, uuid: str, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
+        user = self.user_repository.get(User(uuid=uuid))
+
         if data.login:
             self.user_repository.is_valid_login(data.login, uuid)
-
-        update_user = User(**remove_none_value_dict(data.dict()))
+            user.login = data.login
 
         if data.password:
-            update_user.cipher_dynamic_salt, update_user.hashed_password = password_to_hash(data.password)
+            user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
 
-        return self.user_repository.update(uuid, update_user)
+        return self.user_repository.update(uuid, user)
 
     async def generate_verification_code(self) -> str:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
