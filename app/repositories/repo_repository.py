@@ -1,3 +1,6 @@
+import json
+from typing import Optional
+
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
@@ -9,7 +12,8 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
-from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate, RepoVersionRead, RepoVersionsRead
+from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate, RepoVersionRead, RepoVersionsRead, Credentials
+from app.utils.utils import aes_decode
 
 
 class RepoRepository:
@@ -27,6 +31,12 @@ class RepoRepository:
 
     def get(self, repo: Repo) -> Repo:
         return self.db.get(Repo, repo.uuid)
+
+    def get_credentials(self, repo: Repo) -> Optional[Credentials]:
+        full_repo = self.db.get(Repo, repo.uuid)
+        if not full_repo.cipher_credentials_private_repository:
+            return None
+        return Credentials(**json.loads(aes_decode(full_repo.cipher_credentials_private_repository)))
 
     def get_all_count(self) -> int:
         return self.db.query(Repo).count()

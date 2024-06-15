@@ -6,6 +6,7 @@ from collections import Counter
 from json import JSONDecodeError
 
 import uuid
+from typing import Optional
 
 import git
 from fastapi import HTTPException
@@ -21,7 +22,7 @@ from app.schemas.pydantic.repo import RepoCreate, Credentials
 
 
 class GitRepoRepository:
-    def clone_remote_repo(self, repo: Repo, data: RepoCreate) -> None:
+    def clone_remote_repo(self, repo: Repo, data: Credentials) -> None:
         repo_save_path = f'{settings.save_repo_path}/{repo.uuid}'
         try:
             shutil.rmtree(repo_save_path)
@@ -30,7 +31,7 @@ class GitRepoRepository:
 
         try:
             # клонирование
-            git_repo = GitRepo.clone_from(self.get_url(repo, data.credentials), repo_save_path)
+            git_repo = GitRepo.clone_from(self.get_url(repo, data), repo_save_path)
         except GitCommandError:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
@@ -40,8 +41,12 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
-    def update_local_repo(self, repo: Repo) -> None:
+    def update_local_repo(self, repo: Repo, data: Optional[Credentials] = None) -> None:
         # todo доработать для закрытых репозиториев
+
+        if not os.path.exists(f'{settings.save_repo_path}/{repo.uuid}'):
+            self.clone_remote_repo(repo, data)
+
         git_repo = self.get_repo(repo)
 
         try:
@@ -83,7 +88,7 @@ class GitRepoRepository:
         return GitRepo(tmp_path)
 
     @staticmethod
-    def get_url(repo: Repo, data: Credentials):
+    def get_url(repo: Repo, data: Optional[Credentials]):
         repo_url = repo.repo_url
         if not repo.is_public_repository:
             repo_url = repo_url.replace(
