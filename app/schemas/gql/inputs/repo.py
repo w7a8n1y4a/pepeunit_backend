@@ -30,13 +30,11 @@ class RepoCreateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoUpdateInput(TypeInputMixin):
-    visibility_level: VisibilityLevel
-    name: str
+    visibility_level: Optional[VisibilityLevel] = None
+    name: Optional[str] = None
 
-    is_public_repository: bool
-
-    is_auto_update_repo: bool
-    update_frequency_in_seconds: int
+    is_auto_update_repo: Optional[bool] = None
+    update_frequency_in_seconds: Optional[int] = None
 
 
 @strawberry.input()

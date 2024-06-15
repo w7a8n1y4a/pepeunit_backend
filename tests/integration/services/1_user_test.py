@@ -145,7 +145,7 @@ def test_update_user(database) -> None:
     current_user = pytest.users[0]
     user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
-    user_service.update(str(current_user.uuid), UserUpdate(login=current_user.login, password='best_new_password'))
+    user_service.update(str(current_user.uuid), UserUpdate(password='best_new_password'))
 
 
 @pytest.mark.run(order=5)

@@ -15,6 +15,7 @@ from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from sqlmodel import Session
 
+from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()
@@ -86,19 +87,20 @@ def test_repos() -> list[dict]:
 
     # add public repository
     test_repos.extend([
-        {'type': 'Public', 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git'},
-        {'type': 'Public', 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git'},
-        {'type': 'Public', 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'},
-        {'type': 'Public', 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'}
+        {'type': VisibilityLevel.PUBLIC, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git'},
+        {'type': VisibilityLevel.PUBLIC, 'is_public': True, 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git'},
+        {'type': VisibilityLevel.PUBLIC, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'},
+        {'type': VisibilityLevel.INTERNAL, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'},
+        {'type': VisibilityLevel.PRIVATE, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'}
     ])
 
     return [
         {
-            'visibility_level': 'Public'  if repo['type'] == 'Public' else 'Private',
+            'visibility_level': repo['type'],
             'name': f'test_{inc}_{test_hash}',
             'repo_url': repo['link'],
-            'is_public_repository': True if repo['type'] == 'Public' else False,
-            'credentials': None if repo['type'] == 'Public' else Credentials(username=repo['username'], pat_token=repo['pat_token']),
+            'is_public_repository': repo['is_public'],
+            'credentials': None if repo['is_public'] == True else Credentials(username=repo['username'], pat_token=repo['pat_token']),
             'is_auto_update_repo': True,
             'update_frequency_in_seconds':  86400
         }

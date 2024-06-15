@@ -29,7 +29,7 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
-from app.services.utils import creator_check, token_depends
+from app.services.utils import creator_check, token_depends, remove_none_value_dict
 from app.services.validators import is_valid_object, is_emtpy_sequence
 from app.utils.utils import aes_encode, aes_decode
 
@@ -98,9 +98,11 @@ class RepoService:
 
         is_valid_object(repo)
         creator_check(self.access_service.current_agent, repo)
-        self.repo_repository.is_valid_name(data.name, uuid)
 
-        repo = self.repo_repository.update(uuid, repo)
+        if data.name:
+            self.repo_repository.is_valid_name(data.name, uuid)
+
+        repo = self.repo_repository.update(uuid, Repo(**remove_none_value_dict(data.dict())))
 
         return self.mapper_repo_to_repo_read(repo)
 
