@@ -150,10 +150,10 @@ def test_update_user(database) -> None:
 
 @pytest.mark.run(order=5)
 def test_get_many_user(database) -> None:
-
-    # check get all test User with role user
     current_user = pytest.users[-1]
     user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    # check many get with all filters
     users = user_service.list(
         UserFilter(search_string=pytest.test_hash, role=[UserRole.USER], offset=0, limit=1_000_000)
     )
