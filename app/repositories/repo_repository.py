@@ -122,3 +122,11 @@ class RepoRepository:
     def is_private_repository(repo: Repo):
         if repo.is_public_repository:
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Is public repo")
+
+    def is_valid_auto_updated_repo(self, repo: Repo):
+        if repo.is_auto_update_repo and not repo.default_branch:
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail=f"Invalid auto updated Repo")
+        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_version(repo):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail=f"Invalid auto updated target version")

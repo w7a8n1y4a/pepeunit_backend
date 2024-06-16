@@ -1,10 +1,6 @@
-import os
-import shutil
-
 import fastapi
 import pytest
 
-from app import settings
 from app.configs.gql import get_repo_service
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import RepoCreate, RepoUpdate, CommitFilter, Credentials, RepoFilter
@@ -181,7 +177,7 @@ def test_get_many_repo(database) -> None:
     repos = repo_service.list(
         RepoFilter(
             creator_uuid=current_user.uuid,
-            search_string='test',
+            search_string=pytest.test_hash,
             is_auto_update_repo=True,
             offset=0,
             limit=1_000_000

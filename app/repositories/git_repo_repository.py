@@ -140,7 +140,13 @@ class GitRepoRepository:
         all_versions = self.get_commits_with_tag(repo, repo.default_branch)
         versions_tag_only = [version for version in all_versions if 'tag' in version and version['tag']]
 
-        if len(versions_tag_only) == 0:
+        if len(all_versions) == 0:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f'Commits are missing',
+            )
+
+        if repo.is_only_tag_update and len(versions_tag_only) == 0:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f'Tags are missing',

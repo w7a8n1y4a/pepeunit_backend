@@ -48,16 +48,14 @@ class UnitService:
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-
         self.unit_repository.is_valid_name(data.name)
 
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
-
-        # todo проверка ветки по умолчанию
-
         is_valid_object(repo)
+        self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
+        self.repo_repository.is_valid_auto_updated_repo(repo)
 
-        self.is_valid_no_updated_unit(repo, data)
+        self.is_valid_no_auto_updated_unit(repo, data)
 
         self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
         self.git_repo_repository.get_env_dict(repo, data.repo_commit)
@@ -108,7 +106,7 @@ class UnitService:
 
         if not data.is_auto_update_from_repo_unit and unit.current_commit_version != data.repo_commit:
             repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-            self.is_valid_no_updated_unit(repo, data)
+            self.is_valid_no_auto_updated_unit(repo, data)
 
             self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
             self.git_repo_repository.get_env_dict(repo, data.repo_commit)
@@ -321,11 +319,11 @@ class UnitService:
             'STATE_SEND_INTERVAL': settings.state_send_interval,
         }
 
-    def is_valid_no_updated_unit(self, repo: Repo, data: UnitCreate):
+    def is_valid_no_auto_updated_unit(self, repo: Repo, data: UnitCreate):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid no auto updated unit")
 
-        # проверка чтобы ветка и коммит существовали у репозитория
+        # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
             self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
             self.git_repo_repository.is_valid_commit(repo, data.repo_branch, data.repo_commit)

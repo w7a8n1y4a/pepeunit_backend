@@ -24,7 +24,7 @@ class Unit(SQLModel, table=True):
     create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # автоматически обновляться при обновлении родительского Repo?
-    # автоматически берётся последний тег в default ветке Repo
+    # автоматически берётся последний тег или коммит в default ветке Repo
     is_auto_update_from_repo_unit: bool = Field(nullable=False, default=True)
 
     # если выключено автоматическое обновление:
@@ -33,7 +33,7 @@ class Unit(SQLModel, table=True):
     # название коммита, если выбран тег, присвоится коммит, которому присвоен тег
     repo_commit: str = Field(nullable=True)
 
-    # время последнего обновления, нажал ли его пользователь или оно сработало через cronjob
+    # время последнего обновления
     last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # последнее состояние Unit
