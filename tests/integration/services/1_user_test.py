@@ -1,9 +1,6 @@
-import asyncio
-
 import fastapi
 import pytest
 
-from app import settings
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
 from app.repositories.enum import UserRole, UserStatus

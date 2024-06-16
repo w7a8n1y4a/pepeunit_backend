@@ -33,8 +33,11 @@ def pytest_configure():
     # {uuid_user: jwt-token}: minimal 2 items
     pytest.user_tokens_dict = {}
 
-    # ['Private', 'Private', 'Public', 'Public'] : minimal 4 repo
+    # ['Private', 'Private', 'Public', 'Public', 'Public', 'Internal', 'Private'] : minimal 7 repo
     pytest.repos = []
+
+    pytest.units = []
+
 
 @pytest.fixture(scope="session")
 def database() -> Session:
