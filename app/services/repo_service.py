@@ -106,7 +106,13 @@ class RepoService:
             self.repo_repository.is_valid_name(data.name, uuid)
 
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
-        repo = self.repo_repository.update(uuid, Repo(**repo_update_dict))
+
+        update_repo = Repo(**repo_update_dict)
+
+        self.repo_repository.is_valid_auto_updated_repo(update_repo)
+        self.repo_repository.is_valid_no_auto_updated_repo(update_repo)
+
+        repo = self.repo_repository.update(uuid, update_repo)
 
         return self.mapper_repo_to_repo_read(repo)
 

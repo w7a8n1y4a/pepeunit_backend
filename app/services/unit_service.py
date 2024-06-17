@@ -321,7 +321,7 @@ class UnitService:
 
     def is_valid_no_auto_updated_unit(self, repo: Repo, data: UnitCreate):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid no auto updated unit")
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid hand updated unit")
 
         # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
