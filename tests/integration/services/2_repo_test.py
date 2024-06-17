@@ -51,6 +51,13 @@ def test_update_repo(database) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
+    # set default branch for all repos
+    for update_repo in pytest.repos:
+        new_repo_state = RepoUpdate(
+            default_branch=update_repo.branches[0]
+        )
+        repo_service.update(update_repo.uuid, new_repo_state)
+
     # check change name to new
     test_repo = pytest.repos[3]
     new_repo_name = test_repo.name + 'test'
@@ -64,8 +71,15 @@ def test_update_repo(database) -> None:
     with pytest.raises(fastapi.HTTPException):
         repo_service.update(str(pytest.repos[0].uuid), RepoUpdate(name=pytest.repos[1].name))
 
-    # check change repo auto update
-    new_repo_state = RepoUpdate(is_auto_update_repo=False, update_frequency_in_seconds=600)
+    # check change repo auto update to hand update
+    repo = pytest.repos[0]
+    commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+    new_repo_state = RepoUpdate(
+        is_auto_update_repo=False,
+        default_branch=repo.branches[0],
+        default_commit=commits[0].commit,
+        update_frequency_in_seconds=600
+    )
     update_repo = repo_service.update(str(pytest.repos[0].uuid), new_repo_state)
 
     assert update_repo.is_auto_update_repo == new_repo_state.is_auto_update_repo

@@ -137,6 +137,9 @@ class GitRepoRepository:
         return commits_with_tag
 
     def get_target_version(self, repo: Repo) -> str:
+
+        self.is_valid_branch(repo, repo.default_branch)
+
         all_versions = self.get_commits_with_tag(repo, repo.default_branch)
         versions_tag_only = [version for version in all_versions if 'tag' in version and version['tag']]
 

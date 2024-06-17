@@ -59,9 +59,6 @@ class RepoCreate(BaseModel):
     is_public_repository: bool
     credentials: Optional[Credentials] = None
 
-    is_auto_update_repo: bool
-    update_frequency_in_seconds: Optional[int] = 86400
-
 
 class RepoUpdate(BaseModel):
     """Обновление данных репозитория"""
@@ -70,6 +67,11 @@ class RepoUpdate(BaseModel):
     name: Optional[str] = None
 
     is_auto_update_repo: Optional[bool] = None
+
+    default_branch: Optional[str] = None
+    default_commit: Optional[str] = None
+
+    is_only_tag_update: Optional[bool] = None
     update_frequency_in_seconds: Optional[int] = None
 
 

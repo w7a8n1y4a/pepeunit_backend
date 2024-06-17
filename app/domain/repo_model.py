@@ -30,18 +30,19 @@ class Repo(SQLModel, table=True):
     # зашифрованные данные доступа до приватного репозитория
     cipher_credentials_private_repository: str = Field(nullable=True)
 
+    # ветка по умолчанию - нужна и при автоматическом обновлении и при ручном
+    default_branch: str = Field(nullable=True)
+
     # репозиторий автоматически обновляем?
     is_auto_update_repo: bool = Field(nullable=False, default=True)
 
     # если выключено автоматическое обновление:
-    # ветка по умолчанию для обновляющихся Unit, Unit нельзя ответвить пока не установлена ветка по умолчанию
-    default_branch: str = Field(nullable=True)
     # коммит по умолчанию для обновляющихся Unit, Unit нельзя ответвить пока не установлен коммит по умолчанию
     default_commit: str = Field(nullable=True)
 
     # если включено автоматическое обновление:
     # обновление только по тегам или обновление по последней доступной версии
-    is_only_tag_update: bool = Field(nullable=False, default=True)
+    is_only_tag_update: bool = Field(nullable=False, default=False)
     # частота обновлений в секундах, cron делает этот таск 1 раз в 10 минут т.е минимум 600 секунд
     update_frequency_in_seconds: int = Field(nullable=False, default=86400)
 
