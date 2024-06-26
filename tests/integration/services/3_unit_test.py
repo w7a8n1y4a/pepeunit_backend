@@ -12,6 +12,8 @@ def test_create_unit(database) -> None:
     current_user = pytest.users[0]
     unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
+    # todo перенести в conftest, основные виды unit, добавить некоторым нужные версии и ветки
+
     # create test units
     new_units = []
     for inc, test_repo in enumerate(pytest.repos[-3:]):
