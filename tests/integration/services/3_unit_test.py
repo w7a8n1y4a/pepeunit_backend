@@ -14,7 +14,7 @@ def test_create_unit(database) -> None:
 
     # todo перенести в conftest, основные виды unit, добавить некоторым нужные версии и ветки
 
-    # create test units
+    # create auto updated units, with all visibility levels
     new_units = []
     for inc, test_repo in enumerate(pytest.repos[-3:]):
         unit = unit_service.create(
@@ -22,9 +22,22 @@ def test_create_unit(database) -> None:
                 repo_uuid=test_repo.uuid,
                 visibility_level=test_repo.visibility_level,
                 name=f'test_{inc}_{pytest.test_hash}',
-                is_auto_update_from_repo_unit=False
+                is_auto_update_from_repo_unit=True
             )
         )
         new_units.append(unit)
+
+    # todo все варианты обновления вместе со всеми вариантами обновления repo
+
+    # check create unit with exist name
+    with pytest.raises(fastapi.HTTPException):
+        unit_service.create(
+            UnitCreate(
+                repo_uuid=test_repo.uuid,
+                visibility_level=test_repo.visibility_level,
+                name=f'test_0_{pytest.test_hash}',
+                is_auto_update_from_repo_unit=True
+            )
+        )
 
     assert False

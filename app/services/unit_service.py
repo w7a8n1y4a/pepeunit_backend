@@ -57,14 +57,16 @@ class UnitService:
 
         self.is_valid_no_auto_updated_unit(repo, data)
 
-        self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
-        self.git_repo_repository.get_env_dict(repo, data.repo_commit)
+        if not data.is_auto_update_from_repo_unit:
+            self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
+            self.git_repo_repository.get_env_dict(repo, data.repo_commit)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, data.repo_commit)
+        target_commit = self.git_repo_repository.get_target_version(repo) if unit.is_auto_update_from_repo_unit else unit.repo_commit
+        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
 
         unit_nodes_list = []
         for assignment, topic_list in schema_dict.items():

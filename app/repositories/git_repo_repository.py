@@ -160,6 +160,9 @@ class GitRepoRepository:
     def get_file(self, repo: Repo, commit: str, path: str) -> io.BytesIO:
         repo = self.get_repo(repo)
 
+        if commit is None:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Commit not found')
+
         try:
             target_file = repo.commit(commit).tree / path
         except KeyError:
