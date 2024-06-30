@@ -53,9 +53,7 @@ def test_update_repo(database) -> None:
 
     # set default branch for all repos
     for update_repo in pytest.repos:
-        new_repo_state = RepoUpdate(
-            default_branch=update_repo.branches[0]
-        )
+        new_repo_state = RepoUpdate(default_branch=update_repo.branches[0])
         repo_service.update(update_repo.uuid, new_repo_state)
 
     # check change name to new
@@ -78,7 +76,7 @@ def test_update_repo(database) -> None:
         is_auto_update_repo=False,
         default_branch=repo.branches[0],
         default_commit=commits[0].commit,
-        update_frequency_in_seconds=600
+        update_frequency_in_seconds=600,
     )
     update_repo = repo_service.update(str(pytest.repos[0].uuid), new_repo_state)
 
@@ -99,7 +97,9 @@ def test_get_commits_repo(database) -> None:
 
     # check get repo commits - first 10
     target_repo = repo_service.get(pytest.repos[5].uuid)
-    branch_commits = repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0]))
+    branch_commits = repo_service.get_branch_commits(
+        target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0])
+    )
 
     # check first commit repo
     assert '7b5804d4e945f87d0925c0480706a2c88320fce2' == branch_commits[-1].commit
@@ -181,9 +181,7 @@ def test_get_many_repo(database) -> None:
     repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     # check for users is updated
-    repos = repo_service.list(
-        RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True)
-    )
+    repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
 
     assert len(repos) == 5
 
@@ -194,7 +192,7 @@ def test_get_many_repo(database) -> None:
             search_string=pytest.test_hash,
             is_auto_update_repo=True,
             offset=0,
-            limit=1_000_000
+            limit=1_000_000,
         )
     )
     assert len(repos) == 5

@@ -3,6 +3,7 @@ import copy
 import datetime
 import itertools
 import json
+import logging
 import os
 import shutil
 import zlib
@@ -23,11 +24,10 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
-from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends
+from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends, remove_none_value_dict
 from app.services.validators import is_valid_object, is_valid_json
 from app.utils.utils import aes_decode, aes_encode
 
@@ -108,18 +108,21 @@ class UnitService:
         is_valid_object(unit)
         creator_check(self.access_service.current_agent, unit)
 
-        self.unit_repository.is_valid_name(data.name, uuid)
+        unit_update = Unit(**merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit.dict()))
 
-        if not data.is_auto_update_from_repo_unit and unit.current_commit_version != data.repo_commit:
-            repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-            self.is_valid_no_auto_updated_unit(repo, data)
+        self.unit_repository.is_valid_name(unit_update.name, uuid)
 
-            self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
-            self.git_repo_repository.get_env_dict(repo, data.repo_commit)
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        self.is_valid_no_auto_updated_unit(repo, unit_update)
 
-            self.update_firmware(unit, data.repo_commit)
+        if not unit_update.is_auto_update_from_repo_unit and unit.current_commit_version != unit_update.repo_commit:
 
-        return self.unit_repository.update(uuid, Unit(**data.dict()))
+            self.git_repo_repository.is_valid_schema_file(repo, unit_update.repo_commit)
+            self.git_repo_repository.get_env_dict(repo, unit_update.repo_commit)
+
+            self.update_firmware(unit, unit_update.repo_commit)
+
+        return self.unit_repository.update(uuid, unit_update)
 
     def update_firmware(self, unit: Unit, target_version: str) -> Unit:
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
@@ -177,10 +180,20 @@ class UnitService:
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
         if 'update/pepeunit' in schema_dict['input_base_topic']:
-            mqtt.publish(
-                f"{settings.backend_domain}/input_base/{unit.uuid}/update/pepeunit",
-                json.dumps({"NEW_COMMIT_VERSION": target_version}),
-            )
+
+            try:
+                from app.schemas.mqtt.topic import mqtt
+            except ImportError:
+                # this UnitNodeService entity imported in mqtt schema layer
+                pass
+
+            try:
+                mqtt.publish(
+                    f"{settings.backend_domain}/input_base/{unit.uuid}/update/pepeunit",
+                    json.dumps({"NEW_COMMIT_VERSION": target_version}),
+                )
+            except AttributeError:
+                logging.info('MQTT session is invalid')
 
         return self.unit_repository.update(unit.uuid, Unit(last_update_datetime=datetime.datetime.utcnow()))
 
@@ -325,7 +338,7 @@ class UnitService:
             'STATE_SEND_INTERVAL': settings.state_send_interval,
         }
 
-    def is_valid_no_auto_updated_unit(self, repo: Repo, data: UnitCreate):
+    def is_valid_no_auto_updated_unit(self, repo: Repo, data: Union[Unit, UnitCreate]):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid hand updated unit")
 
