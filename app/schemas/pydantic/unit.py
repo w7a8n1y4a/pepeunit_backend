@@ -43,10 +43,10 @@ class UnitCreate(BaseModel):
 
 
 class UnitUpdate(BaseModel):
-    visibility_level: VisibilityLevel
-    name: str
+    visibility_level: Optional[VisibilityLevel] = None
+    name: Optional[str] = None
 
-    is_auto_update_from_repo_unit: bool
+    is_auto_update_from_repo_unit: Optional[bool] = None
 
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None

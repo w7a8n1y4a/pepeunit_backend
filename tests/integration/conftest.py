@@ -89,13 +89,35 @@ def test_repos() -> list[dict]:
         pass
 
     # add public repository
-    test_repos.extend([
-        {'type': VisibilityLevel.PUBLIC, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git'},
-        {'type': VisibilityLevel.PUBLIC, 'is_public': True, 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git'},
-        {'type': VisibilityLevel.PUBLIC, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'},
-        {'type': VisibilityLevel.INTERNAL, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'},
-        {'type': VisibilityLevel.PRIVATE, 'is_public': True, 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git'}
-    ])
+    test_repos.extend(
+        [
+            {
+                'type': VisibilityLevel.PUBLIC,
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
+            },
+            {
+                'type': VisibilityLevel.PUBLIC,
+                'is_public': True,
+                'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
+            },
+            {
+                'type': VisibilityLevel.PUBLIC,
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+            },
+            {
+                'type': VisibilityLevel.INTERNAL,
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+            },
+            {
+                'type': VisibilityLevel.PRIVATE,
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+            },
+        ]
+    )
 
     return [
         {
@@ -103,9 +125,13 @@ def test_repos() -> list[dict]:
             'name': f'test_{inc}_{test_hash}',
             'repo_url': repo['link'],
             'is_public_repository': repo['is_public'],
-            'credentials': None if repo['is_public'] == True else Credentials(username=repo['username'], pat_token=repo['pat_token']),
+            'credentials': (
+                None
+                if repo['is_public'] == True
+                else Credentials(username=repo['username'], pat_token=repo['pat_token'])
+            ),
             'is_auto_update_repo': True,
-            'update_frequency_in_seconds':  86400
+            'update_frequency_in_seconds': 86400,
         }
         for inc, repo in enumerate(test_repos)
     ]

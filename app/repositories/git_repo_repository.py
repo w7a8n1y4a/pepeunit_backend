@@ -251,7 +251,7 @@ class GitRepoRepository:
             )
 
     def is_valid_branch(self, repo: Repo, branch: str):
-        if branch not in self.get_branches(repo):
+        if not branch or branch not in self.get_branches(repo):
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid branch")
 
     def is_valid_commit(self, repo: Repo, branch: str, commit: str):
