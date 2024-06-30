@@ -126,13 +126,15 @@ class RepoRepository:
     def is_valid_auto_updated_repo(self, repo: Repo):
         # not commit for last commit or not tags for last tags auto update
         if repo.is_auto_update_repo and not self.git_repo_repository.get_target_version(repo):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                detail=f"Invalid auto updated target version")
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid auto updated target version"
+            )
 
     def is_valid_no_auto_updated_repo(self, repo: Repo):
         if not repo.is_auto_update_repo and (not repo.default_branch or not repo.default_commit):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                detail=f"Invalid hand update commit or branch")
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid hand update commit or branch"
+            )
 
         # check commit and branch for not auto updated repo
         if not repo.is_auto_update_repo:
