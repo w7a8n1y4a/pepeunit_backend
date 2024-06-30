@@ -65,7 +65,11 @@ class UnitService:
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
-        target_commit = self.git_repo_repository.get_target_version(repo) if unit.is_auto_update_from_repo_unit else unit.repo_commit
+        target_commit = (
+            self.git_repo_repository.get_target_version(repo)
+            if unit.is_auto_update_from_repo_unit
+            else unit.repo_commit
+        )
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
 
         unit_nodes_list = []

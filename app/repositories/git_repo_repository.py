@@ -50,9 +50,7 @@ class GitRepoRepository:
         try:
             git_repo.remotes.origin.pull()
         except git.CommandError:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Error update Repo'
-            )
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Error update Repo')
 
     def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: str) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
@@ -89,9 +87,9 @@ class GitRepoRepository:
     def get_url(repo: Repo, data: Optional[Credentials]):
         repo_url = repo.repo_url
         if not repo.is_public_repository:
-            repo_url = repo_url.replace(
-                'https://', f"https://{data.username}:{data.pat_token}@"
-            ).replace('http://', f"http://{data.username}:{data.pat_token}@")
+            repo_url = repo_url.replace('https://', f"https://{data.username}:{data.pat_token}@").replace(
+                'http://', f"http://{data.username}:{data.pat_token}@"
+            )
 
         return repo_url
 
