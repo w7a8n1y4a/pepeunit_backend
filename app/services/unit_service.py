@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
+from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -62,8 +63,6 @@ class UnitService:
             self.git_repo_repository.get_env_dict(repo, data.repo_commit)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
-        unit = self.unit_repository.create(unit)
-        unit_deepcopy = copy.deepcopy(unit)
 
         target_commit = (
             self.git_repo_repository.get_target_version(repo)
@@ -71,6 +70,14 @@ class UnitService:
             else unit.repo_commit
         )
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
+
+        unit = self.unit_repository.create(unit)
+
+        unit_deepcopy = copy.deepcopy(unit)
+
+        self.access_service.permission_repository.create(
+            Permission(agent_uuid=self.access_service.current_agent.uuid, resource_uuid=unit.uuid)
+        )
 
         unit_nodes_list = []
         for assignment, topic_list in schema_dict.items():
@@ -205,7 +212,14 @@ class UnitService:
 
         if not unit.cipher_env_dict:
             repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-            env_dict = self.git_repo_repository.get_env_example(repo, unit.repo_commit)
+
+            target_version = (
+                self.git_repo_repository.get_target_version(repo)
+                if unit.is_auto_update_from_repo_unit
+                else unit.repo_commit
+            )
+
+            env_dict = self.git_repo_repository.get_env_example(repo, target_version)
         else:
             env_dict = json.loads(aes_decode(unit.cipher_env_dict))
 
@@ -223,9 +237,14 @@ class UnitService:
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        self.git_repo_repository.is_valid_env_file(repo, unit.repo_commit, merged_env_dict)
 
-        print(merged_env_dict)
+        target_version = (
+            self.git_repo_repository.get_target_version(repo)
+            if unit.is_auto_update_from_repo_unit
+            else unit.repo_commit
+        )
+
+        self.git_repo_repository.is_valid_env_file(repo, target_version, merged_env_dict)
 
         unit.cipher_env_dict = aes_encode(json.dumps(merged_env_dict))
 

@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import fastapi
 import pytest
@@ -76,7 +77,7 @@ def test_create_unit(database) -> None:
             UnitCreate(
                 repo_uuid=test_repo.uuid,
                 visibility_level=test_repo.visibility_level,
-                name=f'test_a_{pytest.test_hash}',
+                name=f'test_b_{pytest.test_hash}',
                 is_auto_update_from_repo_unit=True,
             )
         )
@@ -96,8 +97,6 @@ def test_update_unit(database) -> None:
     update_unit = unit_service.get(test_unit.uuid)
 
     assert test_unit_name == update_unit.name
-
-    # todo поробовать не создателем
 
     # check change name when name is exist
     with pytest.raises(fastapi.HTTPException):
@@ -134,3 +133,36 @@ def test_update_unit(database) -> None:
 
     # check set auto update
     unit_service.update(str(pytest.units[0].uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
+
+    # check update not creator
+    current_user = pytest.users[1]
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    with pytest.raises(fastapi.HTTPException):
+        unit_service.update(str(pytest.units[0].uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
+
+
+@pytest.mark.run(order=2)
+def test_env_unit(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    target_unit = pytest.units[0]
+
+    # check count unique variables
+    assert len(unit_service.get_env(target_unit.uuid).keys()) > 0
+
+    # check set invalid variable
+    with pytest.raises(fastapi.HTTPException):
+        unit_service.set_env(target_unit.uuid, json.dumps({'test': ''}))
+
+    # set valid env variable for Units
+    for unit in pytest.units:
+        current_env = unit_service.get_env(unit.uuid)
+
+        count_before = len(current_env.keys())
+        unit_service.set_env(unit.uuid, json.dumps(current_env))
+        count_after = len(unit_service.get_env(unit.uuid).keys())
+
+        assert count_before < count_after
