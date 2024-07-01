@@ -191,6 +191,10 @@ class GitRepoRepository:
         return env_dict
 
     def get_env_example(self, repo: Repo, commit: str) -> dict:
+
+        if commit is None:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Commit not found')
+
         env_dict = self.get_env_dict(repo, commit)
 
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
