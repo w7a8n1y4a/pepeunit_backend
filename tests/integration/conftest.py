@@ -50,6 +50,8 @@ def clear_database(database) -> None:
     clear all entity in database with test_hash in field
     """
 
+    shutil.rmtree('tmp/test_units', ignore_errors=True)
+    shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
     database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).delete()
 
     # clear physical repos

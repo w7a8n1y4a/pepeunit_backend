@@ -1,5 +1,8 @@
 import asyncio
 import json
+import os
+import shutil
+import zlib
 
 import fastapi
 import pytest
@@ -166,3 +169,65 @@ def test_env_unit(database) -> None:
         count_after = len(unit_service.get_env(unit.uuid).keys())
 
         assert count_before < count_after
+
+
+@pytest.mark.run(order=3)
+def test_get_firmware(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    test_unit_path = 'tmp/test_units'
+
+    try:
+        os.mkdir(test_unit_path)
+    except:
+        pass
+
+    methods_list = [
+        unit_service.get_unit_firmware_zip,
+        unit_service.get_unit_firmware_tar,
+        unit_service.get_unit_firmware_tgz,
+    ]
+
+    # check create physical unit for all pytest unit - zip, tar, tgz
+    del_file_list = []
+    for inc, unit in enumerate(pytest.units[:3]):
+
+        if inc == 2:
+            # tgz
+            tgz_path = methods_list[inc](unit.uuid, 9, 9)
+            del_file_list.append(tgz_path)
+
+            # make tar
+            with open(tgz_path, 'rb') as f:
+                producer = zlib.decompressobj(wbits=9)
+                tar_data = producer.decompress(f.read()) + producer.flush()
+
+                archive_path = f'tmp/{unit.uuid}.tar'
+                with open(archive_path, 'wb') as tar_file:
+                    tar_file.write(tar_data)
+        else:
+            # zip, tar
+            archive_path = methods_list[inc](unit.uuid)
+
+        del_file_list.append(archive_path)
+
+        unpack_path = f'{test_unit_path}/{unit.uuid}'
+        shutil.unpack_archive(archive_path, unpack_path, 'zip' if inc == 0 else 'tar')
+
+        # check env.json file
+        with open(f'{unpack_path}/env.json', 'r') as f:
+            env_dict = json.loads(f.read())
+            assert len(env_dict['PEPEUNIT_TOKEN']) > 100
+
+    for item in del_file_list:
+        os.remove(item)
+
+    # check gen firmware with bad wbits
+    with pytest.raises(fastapi.HTTPException):
+        unit_service.get_unit_firmware_tgz(unit.uuid, 35, 9)
+
+    # check gen firmware with bad level
+    with pytest.raises(fastapi.HTTPException):
+        unit_service.get_unit_firmware_tgz(unit.uuid, 9, 13)
