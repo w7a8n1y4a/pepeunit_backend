@@ -2,9 +2,11 @@ import asyncio
 import json
 import os
 import shutil
+import time
 import zlib
 
 import fastapi
+import httpx
 import pytest
 from aiohttp.test_utils import TestClient
 
@@ -15,6 +17,7 @@ from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import RepoUpdate, CommitFilter
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate
 from tests.integration.conftest import Info
+from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
 
 
 @pytest.mark.run(order=0)
@@ -100,6 +103,9 @@ def test_update_unit(database) -> None:
     update_unit = unit_service.get(test_unit.uuid)
 
     assert test_unit_name == update_unit.name
+
+    # change name to normal
+    unit_service.update(str(test_unit.uuid), UnitUpdate(name=test_unit.name))
 
     # check change name when name is exist
     with pytest.raises(fastapi.HTTPException):
@@ -231,3 +237,31 @@ def test_get_firmware(database) -> None:
     # check gen firmware with bad level
     with pytest.raises(fastapi.HTTPException):
         unit_service.get_unit_firmware_tgz(unit.uuid, 9, 13)
+
+
+@pytest.mark.run(order=4)
+def test_run_infrastructure_contour() -> None:
+
+    backend_screen_name = 'pepeunit_backend'
+    backend_run_script = 'bash tests/entrypoint.sh'
+
+    # run backend
+    if not check_screen_session_by_name(backend_screen_name):
+        assert run_bash_script_on_screen_session(backend_screen_name, backend_run_script) == True
+
+    # waiting condition backend
+    code = 502
+    while code >= 500:
+        r = httpx.get('https://pepeunit.pepemoss.com/pepeunit')
+        code = r.status_code
+
+        time.sleep(2)
+
+    # run units in screen
+    for inc, unit in enumerate(pytest.units[:3]):
+
+        unit_screen_name = unit.name
+        unit_script = f'cd tmp/test_units/{str(unit.uuid)} && bash entrypoint.sh'
+
+        if not check_screen_session_by_name(unit_screen_name):
+            assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True

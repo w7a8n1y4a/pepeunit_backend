@@ -17,6 +17,8 @@ from sqlmodel import Session
 
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
+from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session, \
+    kill_screen_session
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()
 
@@ -50,8 +52,22 @@ def clear_database(database) -> None:
     clear all entity in database with test_hash in field
     """
 
+    # stop backend in screen
+    backend_screen_name = 'pepeunit_backend'
+    if check_screen_session_by_name(backend_screen_name):
+        kill_screen_session(backend_screen_name)
+
+    # del units
     shutil.rmtree('tmp/test_units', ignore_errors=True)
     shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
+
+    # clear screen with units
+    units = database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).all()
+    for unit in units:
+        print(unit.name)
+        if check_screen_session_by_name(unit.name):
+            kill_screen_session(unit.name)
+
     database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).delete()
 
     # clear physical repos
