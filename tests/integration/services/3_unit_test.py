@@ -10,6 +10,7 @@ import httpx
 import pytest
 from aiohttp.test_utils import TestClient
 
+from app import settings
 from app.configs.gql import get_unit_service, get_repo_service
 from app.domain.repo_model import Repo
 from app.main import app
@@ -252,7 +253,7 @@ def test_run_infrastructure_contour() -> None:
     # waiting condition backend
     code = 502
     while code >= 500:
-        r = httpx.get('https://pepeunit.pepemoss.com/pepeunit')
+        r = httpx.get(f'http://{settings.backend_domain}/{settings.app_prefix}')
         code = r.status_code
 
         time.sleep(2)
