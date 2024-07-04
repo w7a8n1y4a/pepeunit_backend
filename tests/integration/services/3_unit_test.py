@@ -253,7 +253,7 @@ def test_run_infrastructure_contour() -> None:
     # waiting condition backend
     code = 502
     while code >= 500:
-        r = httpx.get(f'http://{settings.backend_domain}/{settings.app_prefix}')
+        r = httpx.get(f'https://{settings.backend_domain}/{settings.app_prefix}')
         code = r.status_code
 
         time.sleep(2)
