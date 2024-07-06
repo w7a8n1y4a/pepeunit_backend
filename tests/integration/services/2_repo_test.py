@@ -83,6 +83,27 @@ def test_update_repo(database) -> None:
     assert update_repo.is_auto_update_repo == new_repo_state.is_auto_update_repo
     assert update_repo.update_frequency_in_seconds == new_repo_state.update_frequency_in_seconds
 
+    # set three type repos update
+    for inc, repo in enumerate(pytest.repos[4:6]):
+        if inc == 0:
+            new_repo_state = RepoUpdate(
+                is_auto_update_repo=False,
+                default_branch=repo.branches[0],
+                default_commit=commits[0].commit,
+                update_frequency_in_seconds=86400,
+            )
+        elif inc == 1:
+            new_repo_state = RepoUpdate(
+                is_auto_update_repo=True,
+                is_only_tag_update=False
+            )
+        elif inc == 2:
+            new_repo_state = RepoUpdate(
+                is_auto_update_repo=True,
+                is_only_tag_update=True
+            )
+        repo_service.update(str(pytest.repos[0].uuid), new_repo_state)
+
 
 @pytest.mark.run(order=2)
 def test_get_commits_repo(database) -> None:
@@ -183,7 +204,7 @@ def test_get_many_repo(database) -> None:
     # check for users is updated
     repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
 
-    assert len(repos) == 5
+    assert len(repos) == 6
 
     # check many get with all filters
     repos = repo_service.list(
@@ -195,4 +216,4 @@ def test_get_many_repo(database) -> None:
             limit=1_000_000,
         )
     )
-    assert len(repos) == 5
+    assert len(repos) == 6
