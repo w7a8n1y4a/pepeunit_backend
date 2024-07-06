@@ -42,9 +42,23 @@ def test_create_unit(database) -> None:
         )
         new_units.append(unit)
 
-    pytest.units = new_units
+    for inc, test_repo in enumerate(pytest.repos[-3:]):
+        repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+        commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
 
-    # todo все варианты обновления вместе со всеми вариантами обновления repo
+        unit = unit_service.create(
+            UnitCreate(
+                repo_uuid=test_repo.uuid,
+                visibility_level=test_repo.visibility_level,
+                name=f'test_{inc+3}_{pytest.test_hash}',
+                is_auto_update_from_repo_unit=False,
+                repo_branch=test_repo.branches[0],
+                repo_commit=commits[0].commit,
+            )
+        )
+        new_units.append(unit)
+
+    pytest.units = new_units
 
     # check create unit with exist name
     with pytest.raises(fastapi.HTTPException):
@@ -199,7 +213,9 @@ def test_get_firmware(database) -> None:
 
     # check create physical unit for all pytest unit - zip, tar, tgz
     del_file_list = []
-    for inc, unit in enumerate(pytest.units[:3]):
+    for inc, unit in enumerate(pytest.units[:6]):
+
+        inc = int(inc/2)
 
         if inc == 2:
             # tgz
@@ -259,7 +275,7 @@ def test_run_infrastructure_contour() -> None:
         time.sleep(2)
 
     # run units in screen
-    for inc, unit in enumerate(pytest.units[:3]):
+    for inc, unit in enumerate(pytest.units[:6]):
 
         unit_screen_name = unit.name
         unit_script = f'cd tmp/test_units/{str(unit.uuid)} && bash entrypoint.sh'

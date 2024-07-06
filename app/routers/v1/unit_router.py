@@ -42,7 +42,7 @@ def get_env(uuid: str, unit_service: UnitService = Depends()):
 
 
 @router.get("/firmware/zip/{uuid}", response_model=bytes)
-def get_firmware(uuid: str, unit_service: UnitService = Depends()):
+def get_firmware_zip(uuid: str, unit_service: UnitService = Depends()):
     zip_filepath = unit_service.get_unit_firmware_zip(uuid)
 
     def cleanup():
@@ -54,7 +54,7 @@ def get_firmware(uuid: str, unit_service: UnitService = Depends()):
 
 
 @router.get("/firmware/tar/{uuid}", response_model=bytes)
-def get_firmware(uuid: str, unit_service: UnitService = Depends()):
+def get_firmware_tar(uuid: str, unit_service: UnitService = Depends()):
     tar_filepath = unit_service.get_unit_firmware_tar(uuid)
 
     def cleanup():
@@ -64,7 +64,7 @@ def get_firmware(uuid: str, unit_service: UnitService = Depends()):
 
 
 @router.get("/firmware/tgz/{uuid}", response_model=bytes)
-def get_firmware(uuid: str, wbits: int = 9, level: int = 9, unit_service: UnitService = Depends()):
+def get_firmware_tgz(uuid: str, wbits: int = 9, level: int = 9, unit_service: UnitService = Depends()):
     tgz_filepath = unit_service.get_unit_firmware_tgz(uuid, wbits, level)
 
     def cleanup():
