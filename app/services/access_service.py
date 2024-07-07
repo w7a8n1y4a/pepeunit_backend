@@ -22,6 +22,7 @@ from app.services.validators import is_valid_object
 class AccessService:
     jwt_token: Optional[str] = None
     current_agent: Optional[Union[User, Unit]] = None
+    _is_bot_auth = False
 
     def __init__(
         self,
@@ -29,17 +30,16 @@ class AccessService:
         unit_repository: UnitRepository = Depends(),
         user_repository: UserRepository = Depends(),
         jwt_token: str = Depends(token_depends),
-        is_bot_auth: bool = False,
     ) -> None:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
         self.permission_repository = permission_repository
         self.jwt_token = jwt_token
-        self.token_required(is_bot_auth)
+        self.token_required()
 
-    def token_required(self, is_bot_auth: bool = False):
+    def token_required(self):
 
-        if not is_bot_auth:
+        if not self._is_bot_auth:
             if isinstance(self.jwt_token, params.Depends):
                 pass
             elif self.jwt_token is not None:

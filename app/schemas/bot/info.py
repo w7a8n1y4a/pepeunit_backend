@@ -26,17 +26,20 @@ async def start_help_resolver(message: types.Message):
     unit_repository = UnitRepository(db)
     user_repository = UserRepository(db)
 
+    # todo refactor
+    CustomAccessService = AccessService
+    CustomAccessService._is_bot_auth = True
+
     metrics_service = MetricsService(
         unit_repository=unit_repository,
         repo_repository=RepoRepository(db),
         unit_node_repository=UnitNodeRepository(db),
         user_repository=user_repository,
-        access_service=AccessService(
+        access_service=CustomAccessService(
             permission_repository=PermissionRepository(db),
             unit_repository=unit_repository,
             user_repository=user_repository,
-            jwt_token=str(message.chat.id),
-            is_bot_auth=True,
+            jwt_token=str(message.chat.id)
         ),
     )
     metrics = metrics_service.get_instance_metrics()
