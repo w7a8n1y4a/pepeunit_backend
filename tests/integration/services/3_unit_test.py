@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import shutil
 import time
@@ -282,3 +283,60 @@ def test_run_infrastructure_contour() -> None:
 
         if not check_screen_session_by_name(unit_screen_name):
             assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
+
+
+@pytest.mark.run(order=5)
+def test_hand_update_firmware_unit(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    target_units = pytest.units[3:6]
+
+    # wait condition external Unit
+    while True:
+
+        if None not in [unit_service.get(unit.uuid).current_commit_version for unit in target_units]:
+            break
+
+        time.sleep(2)
+
+    def set_unit_new_commit(token: str, unit, target_version: str) -> int:
+        headers = {
+            'accept': 'application/json',
+            'x-auth-token': token
+        }
+
+        url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/{str(unit.uuid)}?is_bot_auth=false'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.patch(url=url, json=UnitUpdate(repo_commit=target_version).dict(), headers=headers)
+
+        return r.status_code
+
+
+    # set all hand updated unit, old version
+    target_versions = []
+    for unit in target_units:
+        token = pytest.user_tokens_dict[current_user.uuid]
+
+        logging.info(f'User token: {token}')
+
+        repo = repo_service.get(unit.repo_uuid)
+        commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+        target_version = commits[1].commit
+        target_versions.append(target_version)
+
+        logging.info(unit.name, unit.uuid, target_version)
+        assert set_unit_new_commit(token, unit, target_version) < 400
+
+    # wait condition external Unit
+    target_unit_uuid = pytest.units[5].uuid
+    while True:
+        if [unit_service.get(unit.uuid).current_commit_version for unit in target_units].count(target_versions[0]) == 3:
+            break
+
+        time.sleep(1)
+
+    assert False

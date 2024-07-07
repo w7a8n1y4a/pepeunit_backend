@@ -75,6 +75,10 @@ class UnitService:
             Permission(agent_uuid=self.access_service.current_agent.uuid, resource_uuid=unit.uuid)
         )
 
+        self.access_service.permission_repository.create(
+            Permission(agent_uuid=unit.uuid, resource_uuid=unit.uuid)
+        )
+
         unit_nodes_list = []
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
