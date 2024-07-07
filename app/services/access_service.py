@@ -96,8 +96,8 @@ class AccessService:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL.value:
             if not (
+                isinstance(self.current_agent, Unit) or
                 self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value]
-                or isinstance(self.current_agent, Unit)
             ):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:

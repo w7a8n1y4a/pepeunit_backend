@@ -22,6 +22,7 @@ class UnitRepository:
         return unit
 
     def get(self, unit: Unit) -> Unit:
+        self.db.commit()
         return self.db.get(Unit, unit.uuid)
 
     def get_all_count(self) -> int:
