@@ -15,6 +15,7 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.mqtt.utils import get_topic_split
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
+from app.services.utils import merge_two_dict_first_priority
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -84,9 +85,21 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
             unit_state_dict = json.loads(payload.decode())
 
+            current_unit = unit_repository.get(Unit(uuid=unit_uuid))
+
+            new_unit_state = Unit(
+                **merge_two_dict_first_priority(
+                    {
+                        'unit_state_dict': str(payload.decode()),
+                        'current_commit_version': unit_state_dict['commit_version']
+                    },
+                    current_unit.dict()
+                )
+            )
+
             unit_repository.update(
                 unit_uuid,
-                Unit(unit_state_dict=str(payload.decode()), current_commit_version=unit_state_dict['commit_version']),
+                new_unit_state,
             )
             db.close()
 

@@ -63,8 +63,8 @@ class UnitRepository:
         return query.all()
 
     def is_valid_name(self, name: str, uuid: str = None):
-        repo_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
-        repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
+        unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
+        unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
 
-        if (uuid is None and repo_uuid) or (uuid and repo_uuid != uuid and repo_uuid is not None):
+        if (uuid is None and unit_uuid) or (uuid and unit_uuid != uuid and unit_uuid is not None):
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not unique")
