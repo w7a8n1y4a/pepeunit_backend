@@ -176,7 +176,9 @@ def test_env_unit(database) -> None:
     target_unit = pytest.units[0]
 
     # check count unique variables
-    assert len(unit_service.get_env(target_unit.uuid).keys()) > 0
+    count = len(unit_service.get_env(target_unit.uuid).keys())
+    logging.info(f'{count}')
+    assert count > 0
 
     # check set invalid variable
     with pytest.raises(fastapi.HTTPException):
@@ -270,7 +272,7 @@ def test_run_infrastructure_contour() -> None:
     # waiting condition backend
     code = 502
     while code >= 500:
-        r = httpx.get(f'https://{settings.backend_domain}/{settings.app_prefix}')
+        r = httpx.get(f'https://{settings.backend_domain}{settings.app_prefix}')
         code = r.status_code
 
         time.sleep(2)
@@ -289,18 +291,21 @@ def test_run_infrastructure_contour() -> None:
 def test_hand_update_firmware_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
-    repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    token = pytest.user_tokens_dict[current_user.uuid]
+    logging.info(f'User token: {token}')
+
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': token}))
+    repo_service = get_repo_service(Info({'db': database, 'jwt_token': token}))
 
     target_units = pytest.units[3:6]
 
-    # wait condition external Unit
+    # wait run external Unit
     while True:
 
         if None not in [unit_service.get(unit.uuid).current_commit_version for unit in target_units]:
             break
 
-        time.sleep(2)
+        time.sleep(5)
 
     def set_unit_new_commit(token: str, unit, target_version: str) -> int:
         headers = {
@@ -308,35 +313,38 @@ def test_hand_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/{str(unit.uuid)}?is_bot_auth=false'
+        url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/{str(unit.uuid)}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=UnitUpdate(repo_commit=target_version).dict(), headers=headers)
 
         return r.status_code
 
-
     # set all hand updated unit, old version
     target_versions = []
     for unit in target_units:
-        token = pytest.user_tokens_dict[current_user.uuid]
-
-        logging.info(f'User token: {token}')
-
         repo = repo_service.get(unit.repo_uuid)
         commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
         target_version = commits[1].commit
         target_versions.append(target_version)
 
-        logging.info(unit.name, unit.uuid, target_version)
+        logging.info(f'{unit.name}, {unit.uuid},{target_version}')
         assert set_unit_new_commit(token, unit, target_version) < 400
 
-    # wait condition external Unit
-    target_unit_uuid = pytest.units[5].uuid
+    # wait update to old version external Unit
     while True:
         if [unit_service.get(unit.uuid).current_commit_version for unit in target_units].count(target_versions[0]) == 3:
             break
 
-        time.sleep(1)
+        time.sleep(5)
 
-    assert False
+    # check update to bad commit
+    target_unit = pytest.units[5]
+    assert set_unit_new_commit(token, target_unit, 'test') >= 400
+
+    # todo refactor проверить комиты с плохими shema.json после добавления новых схем связей
+    # check update to old commit with env.json !== env_example.json
+    # repo = repo_service.get(target_unit.repo_uuid)
+    # commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+    # target_version = commits[-1].commit
+    # assert set_unit_new_commit(token, target_unit, target_version) >= 400

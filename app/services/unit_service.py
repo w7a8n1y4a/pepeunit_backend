@@ -127,7 +127,13 @@ class UnitService:
             self.git_repo_repository.is_valid_schema_file(repo, unit_update.repo_commit)
             self.git_repo_repository.get_env_dict(repo, unit_update.repo_commit)
 
-            self.update_firmware(unit, unit_update.repo_commit)
+            if unit.cipher_env_dict:
+                self.git_repo_repository.is_valid_env_file(
+                    repo,
+                    unit_update.repo_commit,
+                    json.loads(aes_decode(unit.cipher_env_dict))
+                )
+                self.update_firmware(unit, unit_update.repo_commit)
 
         return self.unit_repository.update(uuid, unit_update)
 
