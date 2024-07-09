@@ -1,4 +1,6 @@
 import asyncio
+import copy
+import itertools
 import json
 import logging
 import os
@@ -14,10 +16,12 @@ from aiohttp.test_utils import TestClient
 from app import settings
 from app.configs.gql import get_unit_service, get_repo_service
 from app.domain.repo_model import Repo
+from app.domain.unit_model import Unit
 from app.main import app
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import RepoUpdate, CommitFilter
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate
+from app.utils.utils import aes_encode
 from tests.integration.conftest import Info
 from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
 
@@ -30,9 +34,9 @@ def test_create_unit(database) -> None:
 
     # todo refactor перенести в conftest, основные виды unit, добавить некоторым нужные версии и ветки
 
-    # create auto updated units, with all visibility levels
+    # create auto updated unit
     new_units = []
-    for inc, test_repo in enumerate(pytest.repos[-3:]):
+    for inc, test_repo in enumerate(pytest.repos[-2:-1]):
         unit = unit_service.create(
             UnitCreate(
                 repo_uuid=test_repo.uuid,
@@ -43,7 +47,8 @@ def test_create_unit(database) -> None:
         )
         new_units.append(unit)
 
-    for inc, test_repo in enumerate(pytest.repos[-3:]):
+    # create no auto updated units, with all visibility levels
+    for inc, test_repo in enumerate([pytest.repos[-3]] + pytest.repos[-3:]*2):
         repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
         commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
 
@@ -51,7 +56,7 @@ def test_create_unit(database) -> None:
             UnitCreate(
                 repo_uuid=test_repo.uuid,
                 visibility_level=test_repo.visibility_level,
-                name=f'test_{inc+3}_{pytest.test_hash}',
+                name=f'test_{inc+1}_{pytest.test_hash}',
                 is_auto_update_from_repo_unit=False,
                 repo_branch=test_repo.branches[0],
                 repo_commit=commits[0].commit,
@@ -216,9 +221,9 @@ def test_get_firmware(database) -> None:
 
     # check create physical unit for all pytest unit - zip, tar, tgz
     del_file_list = []
-    for inc, unit in enumerate(pytest.units[:6]):
+    for inc, unit in enumerate(pytest.units):
 
-        inc = int(inc/2)
+        inc = inc%3
 
         if inc == 2:
             # tgz
@@ -278,7 +283,7 @@ def test_run_infrastructure_contour() -> None:
         time.sleep(2)
 
     # run units in screen
-    for inc, unit in enumerate(pytest.units[:6]):
+    for inc, unit in enumerate(pytest.units):
 
         unit_screen_name = unit.name
         unit_script = f'cd tmp/test_units/{str(unit.uuid)} && bash entrypoint.sh'
@@ -297,15 +302,24 @@ def test_hand_update_firmware_unit(database) -> None:
     unit_service = get_unit_service(Info({'db': database, 'jwt_token': token}))
     repo_service = get_repo_service(Info({'db': database, 'jwt_token': token}))
 
-    target_units = pytest.units[3:6]
+    target_units = pytest.units[1:]
 
     # wait run external Unit
+    inc = 0
     while True:
 
-        if None not in [unit_service.get(unit.uuid).current_commit_version for unit in target_units]:
+        data = [unit_service.get(unit.uuid).current_commit_version for unit in target_units]
+        logging.info(data)
+
+        if None not in data:
             break
 
         time.sleep(5)
+
+        if inc > 10:
+            assert False
+
+        inc += 1
 
     def set_unit_new_commit(token: str, unit, target_version: str) -> int:
         headers = {
@@ -332,19 +346,48 @@ def test_hand_update_firmware_unit(database) -> None:
         assert set_unit_new_commit(token, unit, target_version) < 400
 
     # wait update to old version external Unit
+    inc = 0
     while True:
-        if [unit_service.get(unit.uuid).current_commit_version for unit in target_units].count(target_versions[0]) == 3:
+        data = [unit_service.get(unit.uuid).current_commit_version for unit in target_units]
+        logging.info(data)
+
+        if data.count(target_versions[0]) == len(target_units):
             break
 
         time.sleep(5)
+
+        if inc > 10:
+            assert False
+
+        inc += 1
 
     # check update to bad commit
     target_unit = pytest.units[5]
     assert set_unit_new_commit(token, target_unit, 'test') >= 400
 
-    # todo refactor проверить комиты с плохими shema.json после добавления новых схем связей
-    # check update to old commit with env.json !== env_example.json
-    # repo = repo_service.get(target_unit.repo_uuid)
-    # commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
-    # target_version = commits[-1].commit
-    # assert set_unit_new_commit(token, target_unit, target_version) >= 400
+    # check update to commit with bad env_example.json
+    assert set_unit_new_commit(token, target_unit, '6506d44fd80a895a57f2b34055521405d0f22860') >= 400
+
+    # set bad env
+    target_unit = pytest.units[1]
+    env_dict = unit_service.get_env(target_unit.uuid)
+    del env_dict['SYNC_ENCRYPT_KEY']
+
+    logging.info(str(env_dict))
+
+    update_unit = unit_service.get(target_unit.uuid)
+    update_unit.cipher_env_dict = aes_encode(json.dumps(env_dict))
+
+    unit_service.unit_repository.update(target_unit.uuid, update_unit)
+
+    # check update with bad env
+    repo = repo_service.get(target_unit.repo_uuid)
+    commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+    target_version = commits[0].commit
+
+    assert set_unit_new_commit(token, target_unit, target_version) >= 400
+
+
+@pytest.mark.run(order=6)
+def test_repo_update_firmware_unit(database) -> None:
+    pass

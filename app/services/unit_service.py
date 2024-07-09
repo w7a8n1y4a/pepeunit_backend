@@ -122,10 +122,13 @@ class UnitService:
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         self.is_valid_no_auto_updated_unit(repo, unit_update)
 
+        print(unit_update.uuid)
+        print(unit_update.is_auto_update_from_repo_unit)
+
         if not unit_update.is_auto_update_from_repo_unit and unit.current_commit_version != unit_update.repo_commit:
 
             self.git_repo_repository.is_valid_schema_file(repo, unit_update.repo_commit)
-            self.git_repo_repository.get_env_dict(repo, unit_update.repo_commit)
+            env_dict = self.git_repo_repository.get_env_dict(repo, unit_update.repo_commit)
 
             if unit.cipher_env_dict:
                 self.git_repo_repository.is_valid_env_file(
@@ -133,6 +136,9 @@ class UnitService:
                     unit_update.repo_commit,
                     json.loads(aes_decode(unit.cipher_env_dict))
                 )
+
+                self.is_valid_cipher_env(unit_update, env_dict)
+
                 self.update_firmware(unit, unit_update.repo_commit)
 
         return self.unit_repository.update(uuid, unit_update)
@@ -366,6 +372,16 @@ class UnitService:
         if not data.is_auto_update_from_repo_unit:
             self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
             self.git_repo_repository.is_valid_commit(repo, data.repo_branch, data.repo_commit)
+
+    @staticmethod
+    def is_valid_cipher_env(unit: Unit, env_dict: dict):
+        current_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+
+        print(env_dict.keys() - current_env_dict.keys())
+        print(current_env_dict.keys(), env_dict.keys())
+
+        if env_dict.keys() - current_env_dict.keys() != set():
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Dict in env.json is bad")
 
     @staticmethod
     def is_valid_wbits(wbits: int):
