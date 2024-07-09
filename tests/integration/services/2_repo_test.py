@@ -124,7 +124,7 @@ def test_get_commits_repo(database) -> None:
     # check get repo commits - first 10
     target_repo = repo_service.get(pytest.repos[5].uuid)
     branch_commits = repo_service.get_branch_commits(
-        target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0])
+        target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0], limit=1000)
     )
 
     # check first commit repo
