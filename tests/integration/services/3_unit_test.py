@@ -327,7 +327,7 @@ def test_hand_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/{str(unit.uuid)}'
+        url = f'{pytest.base_link}/units/{str(unit.uuid)}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=UnitUpdate(repo_commit=target_version).dict(), headers=headers)
@@ -390,4 +390,89 @@ def test_hand_update_firmware_unit(database) -> None:
 
 @pytest.mark.run(order=6)
 def test_repo_update_firmware_unit(database) -> None:
-    pass
+
+    def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
+        headers = {
+            'accept': 'application/json',
+            'x-auth-token': token
+        }
+
+        url = f'{pytest.base_link}/repos/{str(repo.uuid)}'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.patch(url=url, json=repo_update.dict(), headers=headers)
+
+        return r.status_code
+
+    def bulk_update_repo(token: str) -> int:
+        headers = {
+            'accept': 'application/json',
+            'x-auth-token': token
+        }
+
+        url = f'{pytest.base_link}/repos/bulk_update'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.post(url=url, headers=headers)
+
+        return r.status_code
+
+    current_user = pytest.users[0]
+    token = pytest.user_tokens_dict[current_user.uuid]
+    logging.info(f'User token: {token}')
+
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': token}))
+    repo_service = get_repo_service(Info({'db': database, 'jwt_token': token}))
+
+    target_units = pytest.units[-3:]
+
+    # set auto update
+    for unit in target_units:
+        unit_service.update(str(unit.uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
+
+    # hand update repo
+    target_repo = repo_service.get(target_units[0].repo_uuid)
+    commits = repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0]))
+    target_version = commits[0].commit
+    assert set_repo_new_commit(token, target_repo, RepoUpdate(default_commit=target_version)) < 400
+
+    # wait hand update unit
+    inc = 0
+    while True:
+        data = unit_service.get(target_units[-3].uuid).current_commit_version
+        logging.info(data)
+
+        if data == target_version:
+            break
+
+        time.sleep(5)
+
+        if inc > 10:
+            assert False
+
+        inc += 1
+
+    # auto update repo
+    current_user = pytest.users[1]
+    assert bulk_update_repo(pytest.user_tokens_dict[current_user.uuid]) < 400
+
+    # wait bulk update unit
+    target_repo = repo_service.get(target_units[0].repo_uuid)
+    tags = repo_service.git_repo_repository.get_tags(target_repo)
+    inc = 0
+    while True:
+        data = [unit_service.get(unit.uuid).current_commit_version for unit in target_units[-2:]]
+
+        logging.info(data)
+        logging.info(tags[0]['commit'])
+        logging.info(target_version)
+
+        if data[0] == target_version and data[1] == tags[0]['commit']:
+            break
+
+        time.sleep(5)
+
+        if inc > 10:
+            assert False
+
+        inc += 1

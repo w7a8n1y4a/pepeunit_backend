@@ -51,23 +51,9 @@ def automatic_update_repositories():
         access_service=access_service,
     )
 
-    auto_update_repositories = repo_repository.list(RepoFilter(is_auto_update_repo=True))
-
-    logging.info(f'{len(auto_update_repositories)} repos update launched')
-
-    for repo in auto_update_repositories:
-
-        logging.info(f'run update repo {repo.uuid}')
-
-        try:
-            repo_service.update_units_firmware(repo.uuid, is_auto_update=True)
-        except:
-            logging.info(f'failed update repo {repo.uuid}')
+    repo_service.bulk_update_repositories(is_auto_update=True)
 
     db.close()
-
-    logging.info('task auto update repo successfully completed')
-
 
 @router.post(
     "",
@@ -121,6 +107,11 @@ def update_local_repo(uuid: str, repo_service: RepoService = Depends()):
 @router.patch("/update_units_firmware/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def update_units_firmware(uuid: str, repo_service: RepoService = Depends()):
     return repo_service.update_units_firmware(uuid)
+
+
+@router.post("/bulk_update", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_update(repo_service: RepoService = Depends()):
+    return repo_service.bulk_update_repositories()
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

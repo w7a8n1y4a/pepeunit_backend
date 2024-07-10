@@ -70,7 +70,7 @@ def test_update_repo(database) -> None:
         repo_service.update(str(pytest.repos[0].uuid), RepoUpdate(name=pytest.repos[1].name))
 
     # check change repo auto update to hand update
-    repo = pytest.repos[0]
+    repo = pytest.repos[4]
     commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
     new_repo_state = RepoUpdate(
         is_auto_update_repo=False,
@@ -78,7 +78,7 @@ def test_update_repo(database) -> None:
         default_commit=commits[0].commit,
         update_frequency_in_seconds=600,
     )
-    update_repo = repo_service.update(str(pytest.repos[0].uuid), new_repo_state)
+    update_repo = repo_service.update(repo.uuid, new_repo_state)
 
     assert update_repo.is_auto_update_repo == new_repo_state.is_auto_update_repo
     assert update_repo.update_frequency_in_seconds == new_repo_state.update_frequency_in_seconds
@@ -209,7 +209,7 @@ def test_get_many_repo(database) -> None:
     # check for users is updated
     repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
 
-    assert len(repos) == 4
+    assert len(repos) == 5
 
     # check many get with all filters
     repos = repo_service.list(
@@ -221,4 +221,4 @@ def test_get_many_repo(database) -> None:
             limit=1_000_000,
         )
     )
-    assert len(repos) == 4
+    assert len(repos) == 5
