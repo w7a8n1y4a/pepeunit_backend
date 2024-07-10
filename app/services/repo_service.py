@@ -116,6 +116,9 @@ class RepoService:
 
         repo = self.repo_repository.update(uuid, update_repo)
 
+        if not repo.is_auto_update_repo and repo.default_commit is not None and repo.default_branch is not None:
+            self.update_units_firmware(repo.uuid, is_auto_update=True)
+
         return self.mapper_repo_to_repo_read(repo)
 
     def update_credentials(self, uuid: str, data: Union[Credentials, CredentialsInput]) -> RepoRead:
@@ -210,6 +213,23 @@ class RepoService:
         }
 
         logging.info(result)
+
+    def bulk_update_repositories(self, is_auto_update: bool = False) -> None:
+        if not is_auto_update:
+            self.access_service.access_check([UserRole.ADMIN])
+
+        auto_update_repositories = self.repo_repository.list(RepoFilter(is_auto_update_repo=True))
+        logging.info(f'{len(auto_update_repositories)} repos update launched')
+
+        for repo in auto_update_repositories:
+            logging.info(f'run update repo {repo.uuid}')
+
+            try:
+                self.update_units_firmware(repo.uuid, is_auto_update=True)
+            except:
+                logging.info(f'failed update repo {repo.uuid}')
+
+        logging.info('task auto update repo successfully completed')
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

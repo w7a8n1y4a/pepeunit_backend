@@ -29,6 +29,8 @@ def pytest_configure():
     # search hash for db
     pytest.test_hash = test_hash
 
+    pytest.base_link = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}'
+
     # last - Admin, first - User: minimal 2 users
     pytest.users = []
 
@@ -38,6 +40,7 @@ def pytest_configure():
     # ['Private', 'Private', 'Public', 'Public', 'Public', 'Internal', 'Private'] : minimal 7 repo
     pytest.repos = []
 
+    # ['update check', ' bad env.json', 'hand public', 'hand internal', 'hand private', 'auto ', 'auto', 'auto']
     pytest.units = []
 
 
