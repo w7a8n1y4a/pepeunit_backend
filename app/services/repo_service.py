@@ -10,6 +10,7 @@ from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
+from app.repositories.utils import make_permission
 from app.schemas.gql.inputs.repo import (
     RepoUpdateInput,
     RepoFilterInput,
@@ -67,7 +68,10 @@ class RepoService:
         self.git_repo_repository.clone_remote_repo(repo, data.credentials)
 
         self.access_service.permission_repository.create(
-            Permission(agent_uuid=self.access_service.current_agent.uuid, resource_uuid=repo.uuid)
+            make_permission(
+                self.access_service.current_agent,
+                repo
+            )
         )
 
         return self.mapper_repo_to_repo_read(repo)
