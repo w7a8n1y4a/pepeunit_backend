@@ -9,9 +9,11 @@ from fastapi import status as http_status
 
 from app import settings
 from app.domain.permission_model import Permission
+from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
+from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import UserRole, AgentType, VisibilityLevel, UserStatus
+from app.repositories.enum import UserRole, AgentType, VisibilityLevel, UserStatus, PermissionEntities
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.permission_repository import PermissionRepository
@@ -157,3 +159,20 @@ class AccessService:
         )
 
         return token
+
+    @staticmethod
+    def make_permission(
+            agent: Union[User, Unit, UnitNode],
+            resource: Union[Repo, Unit, UnitNode]
+    ) -> Permission:
+
+        if agent not in [item.value for item in PermissionEntities] or resource not in [item.value for item in
+                                                                                        PermissionEntities]:
+            raise
+
+        return Permission(
+            agent_uuid=agent.uuid,
+            agent_type=agent.__class__.__name__,
+            resource_uuid=resource.uuid,
+            resource_type=resource.__class__.__name__
+        )

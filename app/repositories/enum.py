@@ -84,7 +84,7 @@ class ReservedEnvVariableName(str, enum.Enum):
     STATE_SEND_INTERVAL = 'STATE_SEND_INTERVAL'
 
 
-class CommandNames(enum.Enum):
+class CommandNames(str, enum.Enum):
     """Команды поддерживаемые ботом"""
 
     START = 'start'
@@ -93,7 +93,7 @@ class CommandNames(enum.Enum):
     VERIFICATION = 'verification'
 
 
-class PermissionEntities(enum.Enum):
+class PermissionEntities(str, enum.Enum):
 
     USER = 'User'
     UNIT = 'Unit'
