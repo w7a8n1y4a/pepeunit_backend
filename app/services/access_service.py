@@ -160,19 +160,23 @@ class AccessService:
 
         return token
 
-    @staticmethod
-    def make_permission(
-            agent: Union[User, Unit, UnitNode],
-            resource: Union[Repo, Unit, UnitNode]
+    def create_permission(
+        self,
+        agent: Union[User, Unit, UnitNode],
+        resource: Union[Repo, Unit, UnitNode]
     ) -> Permission:
 
-        if agent not in [item.value for item in PermissionEntities] or resource not in [item.value for item in
-                                                                                        PermissionEntities]:
-            raise
+        if agent not in [item.value for item in PermissionEntities] or resource not in [item.value for item in PermissionEntities]:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Permission entity is invalid"
+            )
 
-        return Permission(
-            agent_uuid=agent.uuid,
-            agent_type=agent.__class__.__name__,
-            resource_uuid=resource.uuid,
-            resource_type=resource.__class__.__name__
+        return self.permission_repository.create(
+            Permission(
+                agent_uuid=agent.uuid,
+                agent_type=agent.__class__.__name__,
+                resource_uuid=resource.uuid,
+                resource_type=resource.__class__.__name__
+            )
         )
