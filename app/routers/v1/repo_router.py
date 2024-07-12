@@ -55,6 +55,7 @@ def automatic_update_repositories():
 
     db.close()
 
+
 @router.post(
     "",
     response_model=RepoRead,

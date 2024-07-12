@@ -65,10 +65,7 @@ class RepoService:
 
         self.git_repo_repository.clone_remote_repo(repo, data.credentials)
 
-        self.access_service.create_permission(
-            self.access_service.current_agent,
-            repo
-        )
+        self.access_service.create_permission(self.access_service.current_agent, repo)
 
         return self.mapper_repo_to_repo_read(repo)
 

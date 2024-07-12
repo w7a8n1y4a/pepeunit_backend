@@ -39,7 +39,7 @@ async def start_help_resolver(message: types.Message):
             permission_repository=PermissionRepository(db),
             unit_repository=unit_repository,
             user_repository=user_repository,
-            jwt_token=str(message.chat.id)
+            jwt_token=str(message.chat.id),
         ),
     )
     metrics = metrics_service.get_instance_metrics()

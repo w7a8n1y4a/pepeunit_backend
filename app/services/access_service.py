@@ -98,8 +98,8 @@ class AccessService:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL.value:
             if not (
-                isinstance(self.current_agent, Unit) or
-                self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value]
+                isinstance(self.current_agent, Unit)
+                or self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value]
             ):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:
@@ -161,15 +161,14 @@ class AccessService:
         return token
 
     def create_permission(
-        self,
-        agent: Union[User, Unit, UnitNode],
-        resource: Union[Repo, Unit, UnitNode]
+        self, agent: Union[User, Unit, UnitNode], resource: Union[Repo, Unit, UnitNode]
     ) -> Permission:
 
-        if agent not in [item.value for item in PermissionEntities] or resource not in [item.value for item in PermissionEntities]:
+        if agent not in [item.value for item in PermissionEntities] or resource not in [
+            item.value for item in PermissionEntities
+        ]:
             raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Permission entity is invalid"
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Permission entity is invalid"
             )
 
         return self.permission_repository.create(
@@ -177,6 +176,6 @@ class AccessService:
                 agent_uuid=agent.uuid,
                 agent_type=agent.__class__.__name__,
                 resource_uuid=resource.uuid,
-                resource_type=resource.__class__.__name__
+                resource_type=resource.__class__.__name__,
             )
         )

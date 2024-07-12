@@ -91,9 +91,9 @@ async def message_to_topic(client, topic, payload, qos, properties):
                 **merge_two_dict_first_priority(
                     {
                         'unit_state_dict': str(payload.decode()),
-                        'current_commit_version': unit_state_dict['commit_version']
+                        'current_commit_version': unit_state_dict['commit_version'],
                     },
-                    current_unit.dict()
+                    current_unit.dict(),
                 )
             )
 
