@@ -22,6 +22,9 @@ class PermissionRepository:
             Permission.agent_uuid == permission.agent_uuid,
         )
 
+        if permission.resource_type:
+            permissions = permissions.filter(Permission.resource_type == permission.resource_type)
+
         return [item.resource_uuid for item in permissions]
 
     def check(self, permission: Permission) -> bool:

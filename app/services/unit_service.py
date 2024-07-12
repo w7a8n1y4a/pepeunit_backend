@@ -18,7 +18,7 @@ from app import settings
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeTypeEnum, SchemaStructName
+from app.repositories.enum import UserRole, UnitNodeTypeEnum, SchemaStructName, PermissionEntities
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -320,7 +320,7 @@ class UnitService:
 
     def list(self, filters: Union[UnitFilter, UnitFilterInput]) -> list[Unit]:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-        restriction = self.access_service.access_restriction()
+        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction
