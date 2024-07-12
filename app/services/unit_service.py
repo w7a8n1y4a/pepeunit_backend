@@ -15,7 +15,6 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
-from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -24,7 +23,6 @@ from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.repositories.utils import make_permission
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter

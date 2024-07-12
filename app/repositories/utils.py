@@ -1,14 +1,7 @@
-from typing import Union
-
 from fastapi import params
 from sqlalchemy import desc, asc
 from sqlmodel import or_
 
-from app.domain.permission_model import Permission
-from app.domain.repo_model import Repo
-from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
-from app.domain.user_model import User
 from app.repositories.enum import OrderByDate
 
 
@@ -45,15 +38,3 @@ def apply_orders_by(query, filters, fields: dict):
                 else desc(fields[filter_name])
             )
     return query
-
-
-def make_permission(
-    agent: Union[User, Unit, UnitNode],
-    resource: Union[Repo, Unit, UnitNode]
-) -> Permission:
-    return Permission(
-        agent_uuid=agent.uuid,
-        agent_type=agent.__class__.__name__,
-        resource_uuid=resource.uuid,
-        resource_type=resource.__class__.__name__
-    )

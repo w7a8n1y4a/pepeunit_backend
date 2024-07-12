@@ -4,13 +4,11 @@ from typing import Union
 
 from fastapi import Depends
 
-from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
-from app.repositories.utils import make_permission
 from app.schemas.gql.inputs.repo import (
     RepoUpdateInput,
     RepoFilterInput,
