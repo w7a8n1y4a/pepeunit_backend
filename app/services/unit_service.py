@@ -70,18 +70,14 @@ class UnitService:
 
         unit_deepcopy = copy.deepcopy(unit)
 
-        self.access_service.permission_repository.create(
-            make_permission(
-                self.access_service.current_agent,
-                unit
-            )
+        self.access_service.create_permission(
+            self.access_service.current_agent,
+            unit
         )
 
-        self.access_service.permission_repository.create(
-            make_permission(
-                unit,
-                unit
-            )
+        self.access_service.create_permission(
+            unit,
+            unit
         )
 
         unit_nodes_list = []
