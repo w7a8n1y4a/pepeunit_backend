@@ -91,3 +91,11 @@ class CommandNames(enum.Enum):
     HELP = 'help'
     INFO = 'info'
     VERIFICATION = 'verification'
+
+
+class PermissionEntities(enum.Enum):
+
+    USER = 'User'
+    UNIT = 'Unit'
+    REPO = 'Repo'
+    UNIT_NODE = 'UnitNode'

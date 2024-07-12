@@ -12,5 +12,10 @@ class Permission(SQLModel, table=True):
 
     # uuid агента Unit или User
     agent_uuid: pkg_uuid.UUID = Field(nullable=False, index=True)
-    # uuid ресурса Repo, Unit, User
+    # тип агента
+    agent_type: str = Field(nullable=False)
+
+    # uuid ресурса Repo, Unit, UnitNode
     resource_uuid: pkg_uuid.UUID = Field(nullable=False, index=True)
+    # тип ресурса
+    resource_type: str = Field(nullable=False)
