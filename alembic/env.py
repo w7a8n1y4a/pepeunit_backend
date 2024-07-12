@@ -37,6 +37,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.permission_model import Permission
+from app.domain.unit_node_edge_model import UnitNodeEdge
 
 target_metadata = SQLModel.metadata
 

@@ -1,11 +1,8 @@
 import uuid as pkg_uuid
-from datetime import datetime
 
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import SQLModel, Field
-
-from app.repositories.enum import VisibilityLevel
 
 
 class UnitNodeEdge(SQLModel, table=True):

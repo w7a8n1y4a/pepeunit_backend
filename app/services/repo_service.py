@@ -5,7 +5,7 @@ from typing import Union
 from fastapi import Depends
 
 from app.domain.repo_model import Repo
-from app.repositories.enum import UserRole
+from app.repositories.enum import UserRole, PermissionEntities
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
@@ -247,7 +247,7 @@ class RepoService:
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> list[RepoRead]:
         self.access_service.access_check([UserRole.BOT, UserRole.ADMIN, UserRole.USER])
-        restriction = self.access_service.access_restriction()
+        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.REPO)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction

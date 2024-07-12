@@ -121,11 +121,16 @@ class AccessService:
             else:
                 return [VisibilityLevel.PUBLIC.value, VisibilityLevel.INTERNAL]
 
-    def access_restriction(self) -> list[str]:
+    def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[str]:
         """
         Позволяет получить uuid всех сущностей до которых есть доступ у агента
         """
-        return self.permission_repository.get_agent_permissions(Permission(agent_uuid=self.current_agent.uuid))
+        return self.permission_repository.get_agent_permissions(
+            Permission(
+                agent_uuid=self.current_agent.uuid,
+                resource_type=resource_type
+            )
+        )
 
     @staticmethod
     def generate_user_token(user: User) -> str:
@@ -164,9 +169,13 @@ class AccessService:
         self, agent: Union[User, Unit, UnitNode], resource: Union[Repo, Unit, UnitNode]
     ) -> Permission:
 
-        if agent not in [item.value for item in PermissionEntities] or resource not in [
-            item.value for item in PermissionEntities
-        ]:
+        agent_type = agent.__class__.__name__
+        resource_type = resource.__class__.__name__
+
+        if (
+            agent_type not in [item.value for item in PermissionEntities]
+            or resource_type not in [item.value for item in PermissionEntities]
+        ):
             raise HTTPException(
                 status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Permission entity is invalid"
             )
@@ -174,8 +183,8 @@ class AccessService:
         return self.permission_repository.create(
             Permission(
                 agent_uuid=agent.uuid,
-                agent_type=agent.__class__.__name__,
+                agent_type=agent_type,
                 resource_uuid=resource.uuid,
-                resource_type=resource.__class__.__name__,
+                resource_type=resource_type,
             )
         )

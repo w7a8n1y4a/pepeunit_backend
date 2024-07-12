@@ -6,7 +6,7 @@ from fastapi import status as http_status
 
 from app import settings
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeTypeEnum
+from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput, UnitNodeUpdateInput, UnitNodeSetStateInput
 
@@ -56,7 +56,7 @@ class UnitNodeService:
 
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> list[UnitNode]:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-        restriction = self.access_service.access_restriction()
+        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
