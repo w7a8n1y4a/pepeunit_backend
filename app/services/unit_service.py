@@ -122,9 +122,6 @@ class UnitService:
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         self.is_valid_no_auto_updated_unit(repo, unit_update)
 
-        print(unit_update.uuid)
-        print(unit_update.is_auto_update_from_repo_unit)
-
         if not unit_update.is_auto_update_from_repo_unit and unit.current_commit_version != unit_update.repo_commit:
 
             self.git_repo_repository.is_valid_schema_file(repo, unit_update.repo_commit)
@@ -376,10 +373,6 @@ class UnitService:
     @staticmethod
     def is_valid_cipher_env(unit: Unit, env_dict: dict):
         current_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
-
-        print(env_dict.keys() - current_env_dict.keys())
-        print(current_env_dict.keys(), env_dict.keys())
-
         if env_dict.keys() - current_env_dict.keys() != set():
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Dict in env.json is bad")
 
