@@ -70,15 +70,9 @@ class UnitService:
 
         unit_deepcopy = copy.deepcopy(unit)
 
-        self.access_service.create_permission(
-            self.access_service.current_agent,
-            unit
-        )
+        self.access_service.create_permission(self.access_service.current_agent, unit)
 
-        self.access_service.create_permission(
-            unit,
-            unit
-        )
+        self.access_service.create_permission(unit, unit)
 
         unit_nodes_list = []
         for assignment, topic_list in schema_dict.items():
@@ -130,9 +124,7 @@ class UnitService:
 
             if unit.cipher_env_dict:
                 self.git_repo_repository.is_valid_env_file(
-                    repo,
-                    unit_update.repo_commit,
-                    json.loads(aes_decode(unit.cipher_env_dict))
+                    repo, unit_update.repo_commit, json.loads(aes_decode(unit.cipher_env_dict))
                 )
 
                 self.is_valid_cipher_env(unit_update, env_dict)
