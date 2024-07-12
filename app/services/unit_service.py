@@ -24,6 +24,7 @@ from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
+from app.repositories.utils import make_permission
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
@@ -72,11 +73,17 @@ class UnitService:
         unit_deepcopy = copy.deepcopy(unit)
 
         self.access_service.permission_repository.create(
-            Permission(agent_uuid=self.access_service.current_agent.uuid, resource_uuid=unit.uuid)
+            make_permission(
+                self.access_service.current_agent,
+                unit
+            )
         )
 
         self.access_service.permission_repository.create(
-            Permission(agent_uuid=unit.uuid, resource_uuid=unit.uuid)
+            make_permission(
+                unit,
+                unit
+            )
         )
 
         unit_nodes_list = []
