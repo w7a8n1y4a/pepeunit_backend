@@ -12,6 +12,7 @@ from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput, UnitNodeUpdate
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate
 from app.services.access_service import AccessService
+from app.services.utils import creator_check
 from app.services.validators import is_valid_object
 
 
@@ -33,6 +34,9 @@ class UnitNodeService:
     def update(self, uuid: str, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
         self.access_service.visibility_check(UnitNode(uuid=uuid))
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        creator_check(self.access_service.current_agent, unit_node)
 
         update_unit_node = UnitNode(**data.dict())
         return self.unit_node_repository.update(uuid, update_unit_node)

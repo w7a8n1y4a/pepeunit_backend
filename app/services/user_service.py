@@ -79,8 +79,6 @@ class UserService:
         uuid = await redis.get(verification_code)
         await redis.delete(verification_code)
 
-        print(uuid)
-
         user = self.user_repository.get(User(uuid=uuid))
 
         is_valid_object(user)

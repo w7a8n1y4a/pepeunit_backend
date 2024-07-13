@@ -38,6 +38,8 @@ class PermissionRepository:
 
         return bool(check)
 
+    # todo много видов delete
+    
     def delete(self, resource_uuid: str) -> None:
         self.db.query(Permission).filter(Permission.resource_uuid == resource_uuid).delete()
         self.db.commit()
