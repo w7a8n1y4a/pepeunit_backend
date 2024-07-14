@@ -84,6 +84,7 @@ class ReservedEnvVariableName(str, enum.Enum):
     STATE_SEND_INTERVAL = 'STATE_SEND_INTERVAL'
 
 
+@strawberry.enum
 class CommandNames(str, enum.Enum):
     """Команды поддерживаемые ботом"""
 
@@ -93,6 +94,7 @@ class CommandNames(str, enum.Enum):
     VERIFICATION = 'verification'
 
 
+@strawberry.enum
 class PermissionEntities(str, enum.Enum):
 
     USER = 'User'

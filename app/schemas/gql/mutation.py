@@ -4,6 +4,7 @@ from app.schemas.gql.mutations.user import *
 from app.schemas.gql.mutations.repo import *
 from app.schemas.gql.mutations.unit import *
 from app.schemas.gql.mutations.unit_node import *
+from app.schemas.gql.mutations.permission import *
 
 Mutation = create_type(
     "Mutation",
@@ -25,5 +26,7 @@ Mutation = create_type(
         delete_unit,
         update_unit_node,
         set_state_unit_node_input,
+        create_permission,
+        delete_permission,
     ],
 )
