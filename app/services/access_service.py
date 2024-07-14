@@ -1,5 +1,4 @@
 from datetime import timedelta, datetime
-from http.client import HTTPException
 from typing import Optional, Union
 
 import jwt
@@ -125,12 +124,14 @@ class AccessService:
         """
         Позволяет получить uuid всех сущностей до которых есть доступ у агента
         """
-        return self.permission_repository.get_agent_permissions(
-            Permission(
-                agent_uuid=self.current_agent.uuid,
-                resource_type=resource_type
+        return [
+            item.resource_uuid for item in self.permission_repository.get_agent_resources(
+                Permission(
+                    agent_uuid=self.current_agent.uuid,
+                    resource_type=resource_type
+                )
             )
-        )
+        ]
 
     @staticmethod
     def generate_user_token(user: User) -> str:
@@ -172,13 +173,8 @@ class AccessService:
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
 
-        if (
-            agent_type not in [item.value for item in PermissionEntities]
-            or resource_type not in [item.value for item in PermissionEntities]
-        ):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Permission entity is invalid"
-            )
+        self.permission_repository.is_valid_agent_type(Permission(agent_type=agent_type))
+        self.permission_repository.is_valid_resource_type(Permission(resource_type=resource_type))
 
         return self.permission_repository.create(
             Permission(

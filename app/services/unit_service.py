@@ -87,6 +87,7 @@ class UnitService:
                             ),
                             visibility_level=unit.visibility_level,
                             topic_name=topic,
+                            creator_uuid=unit.creator_uuid,
                             unit_uuid=unit.uuid,
                         )
                     )
@@ -168,6 +169,7 @@ class UnitService:
                             ),
                             visibility_level=unit.visibility_level,
                             topic_name=topic,
+                            creator_uuid=unit.creator_uuid,
                             unit_uuid=unit.uuid,
                         )
                     )

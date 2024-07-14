@@ -10,6 +10,7 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
 from app.services.metrics_service import MetricsService
+from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
 from app.services.unit_node_service import UnitNodeService
 from app.services.unit_service import UnitService
@@ -119,6 +120,20 @@ def get_metrics_service(info: Info) -> MetricsService:
             permission_repository=PermissionRepository(db),
             unit_repository=unit_repository,
             user_repository=user_repository,
+            jwt_token=jwt_token,
+        ),
+    )
+
+
+def get_permission_service(info: Info) -> PermissionService:
+    db = info.context['db']
+    jwt_token = info.context['jwt_token']
+
+    return PermissionService(
+        access_service=AccessService(
+            permission_repository=PermissionRepository(db),
+            unit_repository=UnitRepository(db),
+            user_repository=UserRepository(db),
             jwt_token=jwt_token,
         ),
     )

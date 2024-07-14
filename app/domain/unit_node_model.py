@@ -31,5 +31,9 @@ class UnitNode(SQLModel, table=True):
     # последнее состояние топика
     state: str = Field(nullable=True)
 
+    # создатель
+    creator_uuid: pkg_uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+    )
     # родительский Unit
     unit_uuid: pkg_uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))
