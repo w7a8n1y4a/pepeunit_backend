@@ -1,3 +1,4 @@
+import uuid as uuid_pkg
 from typing import Optional
 
 import strawberry
@@ -29,3 +30,9 @@ class UnitNodeFilterInput(TypeInputMixin):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+
+@strawberry.input()
+class UnitNodeEdgeCreateInput(TypeInputMixin):
+    node_output_uuid: uuid_pkg.UUID
+    node_input_uuid: uuid_pkg.UUID

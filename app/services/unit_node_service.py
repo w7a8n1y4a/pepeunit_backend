@@ -10,7 +10,8 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
-from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput, UnitNodeUpdateInput, UnitNodeSetStateInput
+from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput, UnitNodeUpdateInput, UnitNodeSetStateInput, \
+    UnitNodeEdgeCreateInput
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
 from app.services.access_service import AccessService
@@ -65,7 +66,7 @@ class UnitNodeService:
 
         return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
 
-    def create_node_edge(self, data: Union[UnitNodeEdgeCreate]) -> UnitNodeEdge:
+    def create_node_edge(self, data: Union[UnitNodeEdgeCreate, UnitNodeEdgeCreateInput]) -> UnitNodeEdge:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))
