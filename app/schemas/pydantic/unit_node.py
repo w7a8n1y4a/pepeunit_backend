@@ -46,3 +46,14 @@ class UnitNodeFilter:
 
     def dict(self):
         return self.__dict__
+
+
+class UnitNodeEdgeRead(BaseModel):
+    uuid: uuid_pkg.UUID
+    node_output_uuid: uuid_pkg.UUID
+    node_input_uuid: uuid_pkg.UUID
+
+
+class UnitNodeEdgeCreate(BaseModel):
+    node_output_uuid: uuid_pkg.UUID
+    node_input_uuid: uuid_pkg.UUID

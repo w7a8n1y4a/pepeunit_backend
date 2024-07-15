@@ -15,10 +15,11 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
+from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeTypeEnum, SchemaStructName, PermissionEntities
+from app.repositories.enum import UserRole, UnitNodeTypeEnum, SchemaStructName, PermissionEntities, VisibilityLevel
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -71,28 +72,40 @@ class UnitService:
         unit_deepcopy = copy.deepcopy(unit)
 
         self.access_service.create_permission(self.access_service.current_agent, unit)
-
         self.access_service.create_permission(unit, unit)
 
         unit_nodes_list = []
+        agents_default_permission_list = []
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
                 if assignment in [SchemaStructName.INPUT_TOPIC, SchemaStructName.OUTPUT_TOPIC]:
-                    unit_nodes_list.append(
-                        UnitNode(
-                            type=(
-                                UnitNodeTypeEnum.INPUT
-                                if assignment == SchemaStructName.INPUT_TOPIC
-                                else UnitNodeTypeEnum.OUTPUT
-                            ),
-                            visibility_level=unit.visibility_level,
-                            topic_name=topic,
-                            creator_uuid=unit.creator_uuid,
-                            unit_uuid=unit.uuid,
-                        )
+
+                    unit_node = UnitNode(
+                        type=(
+                            UnitNodeTypeEnum.INPUT
+                            if assignment == SchemaStructName.INPUT_TOPIC
+                            else UnitNodeTypeEnum.OUTPUT
+                        ),
+                        visibility_level=unit.visibility_level,
+                        topic_name=topic,
+                        creator_uuid=unit.creator_uuid,
+                        unit_uuid=unit.uuid,
                     )
 
+                    unit_nodes_list.append(unit_node)
+
+                    for agent in [unit, self.access_service.current_agent]:
+                        agents_default_permission_list.append(
+                            Permission(
+                                agent_uuid=agent.uuid,
+                                agent_type=agent.__class__.__name__,
+                                resource_uuid=unit_node.uuid,
+                                resource_type=unit_node.__class__.__name__
+                            )
+                        )
+
         self.unit_node_repository.bulk_save(unit_nodes_list)
+        self.access_service.permission_repository.bulk_create(agents_default_permission_list)
 
         return unit_deepcopy
 
@@ -155,26 +168,38 @@ class UnitService:
 
         # создаёт ноды отсутствующие у юнита
         unit_nodes_list = []
+        agents_default_permission_list = []
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
                 if (assignment == SchemaStructName.INPUT_TOPIC and topic not in input_node_dict.keys()) or (
                     assignment == SchemaStructName.OUTPUT_TOPIC and topic not in output_node_dict.keys()
                 ):
-                    unit_nodes_list.append(
-                        UnitNode(
-                            type=(
-                                UnitNodeTypeEnum.INPUT
-                                if assignment == SchemaStructName.INPUT_TOPIC
-                                else UnitNodeTypeEnum.OUTPUT
-                            ),
-                            visibility_level=unit.visibility_level,
-                            topic_name=topic,
-                            creator_uuid=unit.creator_uuid,
-                            unit_uuid=unit.uuid,
-                        )
+                    unit_node = UnitNode(
+                        type=(
+                            UnitNodeTypeEnum.INPUT
+                            if assignment == SchemaStructName.INPUT_TOPIC
+                            else UnitNodeTypeEnum.OUTPUT
+                        ),
+                        visibility_level=unit.visibility_level,
+                        topic_name=topic,
+                        creator_uuid=unit.creator_uuid,
+                        unit_uuid=unit.uuid,
                     )
 
+                    unit_nodes_list.append(unit_node)
+
+                    for agent in [unit, self.access_service.current_agent]:
+                        agents_default_permission_list.append(
+                            Permission(
+                                agent_uuid=agent.uuid,
+                                agent_type=agent.__class__.__name__,
+                                resource_uuid=unit_node.uuid,
+                                resource_type=unit_node.__class__.__name__
+                            )
+                        )
+
         self.unit_node_repository.bulk_save(unit_nodes_list)
+        self.access_service.permission_repository.bulk_create(agents_default_permission_list)
 
         # удаляет ноды которых нет у юнита на данной версии
         unit_node_uuid_delete = []
