@@ -34,6 +34,10 @@ class PermissionRepository:
         self.db.refresh(permission)
         return permission
 
+    def bulk_create(self, permissions: list[Permission]) -> None:
+        self.db.bulk_save_objects(permissions)
+        self.db.commit()
+
     def get_agent_resources(self, permission: Permission) -> list[str]:
         permissions = self.db.query(Permission).filter(
             Permission.agent_uuid == permission.agent_uuid,
