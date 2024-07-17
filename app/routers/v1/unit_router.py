@@ -8,7 +8,7 @@ from starlette.responses import FileResponse
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole
+from app.repositories.enum import UserRole, GlobalPrefixTopic
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -99,8 +99,10 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
             return MqttRead(result='allow')
 
         unit_node_repository = UnitNodeRepository(db)
+        # todo на подумать зачем тут GlobalPrefixTopic.BACKEND_SUB_PREFIX
         unit_node = unit_node_repository.get_by_topic(
-            unit_uuid, UnitNode(topic_name=topic_name + '/pepeunit', type=destination.capitalize())
+            unit_uuid,
+            UnitNode(topic_name=topic_name + GlobalPrefixTopic.BACKEND_SUB_PREFIX, type=destination.capitalize()),
         )
 
         # todo на основании конфига есть два варианта поведения.

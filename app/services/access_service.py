@@ -125,11 +125,9 @@ class AccessService:
         Позволяет получить uuid всех сущностей до которых есть доступ у агента
         """
         return [
-            item.resource_uuid for item in self.permission_repository.get_agent_resources(
-                Permission(
-                    agent_uuid=self.current_agent.uuid,
-                    resource_type=resource_type
-                )
+            item.resource_uuid
+            for item in self.permission_repository.get_agent_resources(
+                Permission(agent_uuid=self.current_agent.uuid, resource_type=resource_type)
             )
         ]
 

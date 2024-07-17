@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, status
 
-from app.schemas.pydantic.unit_node import UnitNodeRead, UnitNodeFilter, UnitNodeUpdate, UnitNodeSetState, \
-    UnitNodeEdgeRead, UnitNodeEdgeCreate
+from app.schemas.pydantic.unit_node import (
+    UnitNodeRead,
+    UnitNodeFilter,
+    UnitNodeUpdate,
+    UnitNodeSetState,
+    UnitNodeEdgeRead,
+    UnitNodeEdgeCreate,
+)
 from app.services.unit_node_service import UnitNodeService
 
 router = APIRouter()

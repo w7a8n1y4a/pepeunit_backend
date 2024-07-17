@@ -17,7 +17,7 @@ routers = (
     (unit_router, "units", "units"),
     (unit_node_router, 'unit_nodes', 'unit_nodes'),
     (metrics_router, 'metrics', 'metrics'),
-    (permission_router, 'permission', 'permission')
+    (permission_router, 'permission', 'permission'),
 )
 
 for router, prefix, tag in routers:

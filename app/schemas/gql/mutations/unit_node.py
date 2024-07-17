@@ -30,4 +30,3 @@ def delete_unit_node_edge(info: Info, uuid: str) -> NoneType:
     unit_node_service = get_unit_node_service(info)
     unit_node_service.delete_node_edge(uuid)
     return NoneType()
-

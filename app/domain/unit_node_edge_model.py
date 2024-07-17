@@ -21,4 +21,6 @@ class UnitNodeEdge(SQLModel, table=True):
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'))
     )
     # целевой input Узел
-    node_input_uuid: pkg_uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE')))
+    node_input_uuid: pkg_uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'))
+    )

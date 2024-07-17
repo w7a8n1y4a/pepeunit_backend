@@ -35,9 +35,7 @@ class PermissionService:
         is_valid_object(agent)
 
         if self.access_service.permission_repository.check(new_permission):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Permission is exist"
-            )
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Permission is exist")
 
         self.access_service.permission_repository.is_valid_agent_type(new_permission)
         self.access_service.permission_repository.is_valid_resource_type(new_permission)
@@ -48,10 +46,7 @@ class PermissionService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         resource_entity = self.access_service.permission_repository.get_resource(
-            Permission(
-                resource_uuid=resource.resource_uuid,
-                resource_type=resource.resource_type
-            )
+            Permission(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
         )
 
         is_valid_object(resource_entity)

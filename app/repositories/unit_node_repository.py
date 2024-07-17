@@ -1,7 +1,10 @@
 from fastapi import Depends
+from sqlalchemy import func, text
+from sqlalchemy.orm import aliased
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit_node import UnitNodeFilter
@@ -32,6 +35,31 @@ class UnitNodeRepository:
                 UnitNode.type == unit_node.type,
             )
             .first()
+        )
+
+    def get_nodes_with_edges(self, unit_uuid) -> list[tuple]:
+
+        unit_node_edge_alias = aliased(UnitNodeEdge)
+        unit_node_alias = aliased(UnitNode)
+
+        edge_subquery = (
+            self.db.query(
+                func.json_agg(func.json_build_array(unit_node_edge_alias.uuid, unit_node_alias.topic_name)).label(
+                    'test'
+                )
+            )
+            .select_from(unit_node_edge_alias)
+            .join(unit_node_alias, unit_node_edge_alias.node_output_uuid == unit_node_alias.uuid)
+            .filter(unit_node_edge_alias.node_input_uuid == UnitNode.uuid)
+        )
+
+        return (
+            self.db.query(UnitNode.uuid, UnitNode.topic_name, UnitNode.type, edge_subquery.label('edges'))
+            .select_from(UnitNodeEdge)
+            .outerjoin(UnitNode, UnitNodeEdge.node_input_uuid == UnitNode.uuid, full=True)
+            .filter(UnitNode.unit_uuid == unit_uuid)
+            .group_by(UnitNode.uuid, UnitNode.topic_name, UnitNode.type)
+            .all()
         )
 
     def update(self, uuid, unit_node: UnitNode) -> UnitNode:

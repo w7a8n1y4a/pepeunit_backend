@@ -29,6 +29,6 @@ Mutation = create_type(
         create_permission,
         delete_permission,
         create_unit_node_edge,
-        delete_unit_node_edge
+        delete_unit_node_edge,
     ],
 )
