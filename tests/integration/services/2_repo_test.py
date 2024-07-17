@@ -198,8 +198,6 @@ def test_delete_repo(database) -> None:
     # del repo
     repo_service.delete(str(pytest.repos[3].uuid))
 
-    # todo del repo with units
-
 
 @pytest.mark.run(order=7)
 def test_get_many_repo(database) -> None:

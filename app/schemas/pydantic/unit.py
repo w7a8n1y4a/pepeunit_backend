@@ -1,4 +1,5 @@
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
@@ -6,7 +7,6 @@ from fastapi import Query
 from pydantic import BaseModel
 
 from app.repositories.enum import OrderByDate, VisibilityLevel
-from pydantic.dataclasses import dataclass
 
 
 class UnitRead(BaseModel):
