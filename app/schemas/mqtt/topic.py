@@ -7,7 +7,7 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 from app import settings
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
-from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic
+from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic, SchemaStructName
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -33,52 +33,43 @@ def connect(client, flags, rc, properties):
     # Subscribe to a pattern
     print('connect')
 
-    mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
-
 
 KeyDBClient.init_session(uri=settings.redis_url)
 
 
-@mqtt.on_message()
+@mqtt.subscribe(f'{settings.backend_domain}/+/pepeunit')
 async def message_to_topic(client, topic, payload, qos, properties):
-    start = time.perf_counter()
+    backend_domain, unit_node_uuid, *_ = get_topic_split(topic)
+
+    new_value = str(payload.decode())
+
+    await KeyDBClient.async_wait_for_ready()
+    redis_topic_value = await KeyDBClient.async_get(unit_node_uuid)
+
+    if redis_topic_value != new_value:
+        print(unit_node_uuid, new_value)
+        await KeyDBClient.async_set(unit_node_uuid, new_value)
+
+        db = next(get_session())
+        unit_node_service = UnitNodeService(
+            unit_node_repository=UnitNodeRepository(db),
+            access_service=AccessService(
+                permission_repository=PermissionRepository(db),
+                unit_repository=UnitRepository(db),
+                user_repository=UserRepository(db),
+            ),
+        )
+        unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
+        db.close()
+
+
+@mqtt.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+async def message_to_topic(client, topic, payload, qos, properties):
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
 
     topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
 
-    if destination in ['input', 'output']:
-
-        _, count_dec, count = payload.decode().split(' ')
-
-        count_dec = int(count_dec)
-        count = int(count)
-
-        await KeyDBClient.async_wait_for_ready()
-
-        redis_topic_value = await KeyDBClient.async_get(topic_name)
-
-        if redis_topic_value != str(count_dec):
-            await KeyDBClient.async_set(topic_name, str(count_dec))
-
-            db = next(get_session())
-            unit_node_service = UnitNodeService(
-                unit_node_repository=UnitNodeRepository(db),
-                access_service=AccessService(
-                    permission_repository=PermissionRepository(db),
-                    unit_repository=UnitRepository(db),
-                    user_repository=UserRepository(db),
-                ),
-            )
-            unit_node_service.set_state(unit_uuid, topic_name, destination.capitalize(), str(payload.decode()))
-            db.close()
-
-        if count % 100 == 0:
-            print(f'{str(payload.decode())}')
-            print(time.perf_counter() - start)
-
-        await KeyDBClient.aclose()
-
-    elif destination == 'output_base':
+    if destination == SchemaStructName.OUTPUT_BASE_TOPIC:
         if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
             db = next(get_session())
             unit_repository = UnitRepository(db)

@@ -110,8 +110,8 @@ class UnitNodeService:
         )
         return self.unit_node_repository.list(filters, restriction=restriction)
 
-    def set_state(self, unit_uuid: str, topic_name: str, topic_type: str, state: str) -> UnitNode:
-        unit_node = self.unit_node_repository.get_by_topic(unit_uuid, UnitNode(topic_name=topic_name, type=topic_type))
+    def set_state(self, unit_node_uuid: str, state: str) -> UnitNode:
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
         unit_node.state = state
 
         return self.unit_node_repository.update(unit_node.uuid, unit_node)
