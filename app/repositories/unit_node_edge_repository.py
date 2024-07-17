@@ -20,6 +20,18 @@ class UnitNodeEdgeRepository:
     def get(self, unit_node_edge: UnitNodeEdge) -> UnitNodeEdge:
         return self.db.get(UnitNodeEdge, unit_node_edge.uuid)
 
+    def check(self, unit_node_edge: UnitNodeEdge) -> bool:
+        check = (
+            self.db.query(UnitNodeEdge)
+            .filter(
+                UnitNodeEdge.node_input_uuid == unit_node_edge.node_input_uuid,
+                UnitNodeEdge.node_output_uuid == unit_node_edge.node_output_uuid,
+            )
+            .first()
+        )
+
+        return bool(check)
+
     def delete(self, uuid: str) -> None:
         self.db.query(UnitNodeEdge).filter(UnitNodeEdge.uuid == uuid).delete()
         self.db.commit()

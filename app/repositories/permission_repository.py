@@ -62,8 +62,7 @@ class PermissionRepository:
         check = (
             self.db.query(Permission)
             .filter(
-                Permission.agent_uuid == permission.agent_uuid,
-                Permission.resource_uuid == permission.resource_uuid
+                Permission.agent_uuid == permission.agent_uuid, Permission.resource_uuid == permission.resource_uuid
             )
             .first()
         )
@@ -72,8 +71,7 @@ class PermissionRepository:
 
     def delete(self, permission: Permission) -> None:
         self.db.query(Permission).filter(
-            Permission.agent_uuid == permission.agent_uuid,
-            Permission.resource_uuid == permission.resource_uuid
+            Permission.agent_uuid == permission.agent_uuid, Permission.resource_uuid == permission.resource_uuid
         ).delete()
         self.db.commit()
 
@@ -92,9 +90,7 @@ class PermissionRepository:
         entities.remove(PermissionEntities.REPO)
 
         if permission.agent_type not in entities:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Agent type is invalid"
-            )
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Agent type is invalid")
 
     @staticmethod
     def is_valid_resource_type(permission: Permission) -> None:

@@ -19,7 +19,16 @@ from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeTypeEnum, SchemaStructName, PermissionEntities, VisibilityLevel
+from app.repositories.enum import (
+    UserRole,
+    UnitNodeTypeEnum,
+    SchemaStructName,
+    PermissionEntities,
+    VisibilityLevel,
+    GlobalPrefixTopic,
+    ReservedInputBaseTopic,
+    ReservedOutputBaseTopic,
+)
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -100,7 +109,7 @@ class UnitService:
                                 agent_uuid=agent.uuid,
                                 agent_type=agent.__class__.__name__,
                                 resource_uuid=unit_node.uuid,
-                                resource_type=unit_node.__class__.__name__
+                                resource_type=unit_node.__class__.__name__,
                             )
                         )
 
@@ -194,7 +203,7 @@ class UnitService:
                                 agent_uuid=agent.uuid,
                                 agent_type=agent.__class__.__name__,
                                 resource_uuid=unit_node.uuid,
-                                resource_type=unit_node.__class__.__name__
+                                resource_type=unit_node.__class__.__name__,
                             )
                         )
 
@@ -215,7 +224,7 @@ class UnitService:
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
-        if 'update/pepeunit' in schema_dict['input_base_topic']:
+        if 'update' + GlobalPrefixTopic.BACKEND_SUB_PREFIX in schema_dict['input_base_topic']:
 
             try:
                 from app.schemas.mqtt.topic import mqtt
@@ -225,7 +234,7 @@ class UnitService:
 
             try:
                 mqtt.publish(
-                    f"{settings.backend_domain}/input_base/{unit.uuid}/update/pepeunit",
+                    f"{settings.backend_domain}/input_base/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
                     json.dumps({"NEW_COMMIT_VERSION": target_version}),
                 )
             except AttributeError:
@@ -288,6 +297,58 @@ class UnitService:
 
         with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))
+
+        nodes_with_edges = self.unit_node_repository.get_nodes_with_edges(unit.uuid)
+
+        output_dict = {}
+        input_dict = {}
+        for node_uuid, topic_name, topic_type, edges in nodes_with_edges:
+
+            main_topic = f'{settings.backend_domain}/{node_uuid}'
+            main_topic += (
+                GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                else ''
+            )
+
+            edge_topic_list = []
+            if edges is not None:
+                for output_uuid, putput_topic in edges:
+                    edge_topic = f'{settings.backend_domain}/{output_uuid}'
+                    edge_topic += (
+                        GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                        if putput_topic[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :]
+                        == GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                        else ''
+                    )
+                    edge_topic_list.append(edge_topic)
+
+            topics = [main_topic] + edge_topic_list
+
+            if topic_type == UnitNodeTypeEnum.INPUT:
+                input_dict[topic_name] = topics
+            else:
+                output_dict[topic_name] = topics
+
+        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
+
+        new_schema_dict = {}
+        for destination, topics in schema_dict.items():
+
+            new_schema_dict[destination] = {}
+
+            for topic in topics:
+                if destination in [SchemaStructName.INPUT_BASE_TOPIC, SchemaStructName.OUTPUT_BASE_TOPIC]:
+                    new_schema_dict[destination][topic] = [
+                        f'{settings.backend_domain}/{destination}/{unit.uuid}/{topic}'
+                    ]
+                elif destination == SchemaStructName.INPUT_TOPIC:
+                    new_schema_dict[destination][topic] = input_dict[topic]
+                elif destination == SchemaStructName.OUTPUT_TOPIC:
+                    new_schema_dict[destination][topic] = output_dict[topic]
+
+        with open(f'{tmp_git_repo_path}/schema.json', 'w') as f:
+            f.write(json.dumps(new_schema_dict, indent=4))
 
         return tmp_git_repo_path
 

@@ -62,6 +62,13 @@ class ReservedOutputBaseTopic(str, enum.Enum):
 
 
 @strawberry.enum
+class ReservedInputBaseTopic(str, enum.Enum):
+    """Забронированные топики вввода у Unit"""
+
+    UPDATE = 'update'
+
+
+@strawberry.enum
 class SchemaStructName(str, enum.Enum):
     """Разрешённые назначения топиков схемы у Unit"""
 
@@ -69,6 +76,15 @@ class SchemaStructName(str, enum.Enum):
     OUTPUT_BASE_TOPIC = 'output_base_topic'
     INPUT_TOPIC = 'input_topic'
     OUTPUT_TOPIC = 'output_topic'
+
+
+@strawberry.enum
+class GlobalPrefixTopic(str, enum.Enum):
+    """
+    Глобальные префиксы топиков
+    """
+
+    BACKEND_SUB_PREFIX = '/pepeunit'
 
 
 @strawberry.enum

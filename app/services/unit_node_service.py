@@ -1,7 +1,6 @@
 from typing import Union
 
-from fastapi import Depends
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 
 from app import settings
@@ -10,8 +9,12 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
-from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput, UnitNodeUpdateInput, UnitNodeSetStateInput, \
-    UnitNodeEdgeCreateInput
+from app.schemas.gql.inputs.unit_node import (
+    UnitNodeFilterInput,
+    UnitNodeUpdateInput,
+    UnitNodeSetStateInput,
+    UnitNodeEdgeCreateInput,
+)
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
 from app.services.access_service import AccessService
@@ -24,7 +27,7 @@ class UnitNodeService:
         self,
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
-        access_service: AccessService = Depends()
+        access_service: AccessService = Depends(),
     ) -> None:
         self.unit_node_repository = unit_node_repository
         self.unit_node_edge_repository = unit_node_edge_repository
@@ -79,7 +82,12 @@ class UnitNodeService:
         self.is_valid_input_unit_node(input_node)
         self.access_service.visibility_check(input_node)
 
-        return self.unit_node_edge_repository.create(UnitNodeEdge(**data.dict()))
+        new_edge = UnitNodeEdge(**data.dict())
+
+        if self.unit_node_edge_repository.check(new_edge):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Edge exist")
+
+        return self.unit_node_edge_repository.create(new_edge)
 
     def delete_node_edge(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
@@ -111,13 +119,9 @@ class UnitNodeService:
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.INPUT:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"This Node is not Input"
-            )
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"This Node is not Input")
 
     @staticmethod
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"This Node is not Output"
-            )
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"This Node is not Output")

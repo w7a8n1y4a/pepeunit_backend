@@ -241,11 +241,7 @@ class RepoService:
         is_emtpy_sequence(unit_list)
 
         self.git_repo_repository.delete_repo(repo)
-        self.access_service.permission_repository.delete_by_resource(
-            Permission(
-                resource_uuid=repo.uuid
-            )
-        )
+        self.access_service.permission_repository.delete_by_resource(Permission(resource_uuid=repo.uuid))
         self.repo_repository.delete(repo)
 
         return None

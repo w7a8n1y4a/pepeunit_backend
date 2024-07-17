@@ -7,7 +7,7 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 from app import settings
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
-from app.repositories.enum import ReservedOutputBaseTopic
+from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -33,7 +33,7 @@ def connect(client, flags, rc, properties):
     # Subscribe to a pattern
     print('connect')
 
-    mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+    mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
 
 
 KeyDBClient.init_session(uri=settings.redis_url)
@@ -44,7 +44,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
     start = time.perf_counter()
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
 
-    topic_name += '/pepeunit'
+    topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
 
     if destination in ['input', 'output']:
 
@@ -79,7 +79,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
         await KeyDBClient.aclose()
 
     elif destination == 'output_base':
-        if topic_name == ReservedOutputBaseTopic.STATE + '/pepeunit':
+        if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
             db = next(get_session())
             unit_repository = UnitRepository(db)
 
