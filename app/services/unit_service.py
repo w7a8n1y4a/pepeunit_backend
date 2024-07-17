@@ -234,7 +234,7 @@ class UnitService:
 
             try:
                 mqtt.publish(
-                    f"{settings.backend_domain}/input_base/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+                    f"{settings.backend_domain}/{SchemaStructName.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
                     json.dumps({"NEW_COMMIT_VERSION": target_version}),
                 )
             except AttributeError:
