@@ -224,7 +224,7 @@ class UnitService:
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
-        if 'update' + GlobalPrefixTopic.BACKEND_SUB_PREFIX in schema_dict['input_base_topic']:
+        if ReservedInputBaseTopic.UPDATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX in schema_dict['input_base_topic']:
 
             try:
                 from app.schemas.mqtt.topic import mqtt

@@ -20,7 +20,7 @@ from app.domain.unit_model import Unit
 from app.main import app
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import RepoUpdate, CommitFilter
-from app.schemas.pydantic.unit import UnitCreate, UnitUpdate
+from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.utils.utils import aes_encode
 from tests.integration.conftest import Info
 from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
@@ -111,6 +111,16 @@ def test_create_unit(database) -> None:
 
 
 @pytest.mark.run(order=1)
+def test_delete_repo_with_unit(database) -> None:
+
+    current_user = pytest.users[0]
+    repo_service = get_repo_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    # test del repo with Unit
+    with pytest.raises(fastapi.HTTPException):
+        repo_service.delete(str(pytest.repos[-1].uuid))
+
+
+@pytest.mark.run(order=2)
 def test_update_unit(database) -> None:
 
     current_user = pytest.users[0]
@@ -172,7 +182,7 @@ def test_update_unit(database) -> None:
         unit_service.update(str(pytest.units[0].uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
 
 
-@pytest.mark.run(order=2)
+@pytest.mark.run(order=3)
 def test_env_unit(database) -> None:
 
     current_user = pytest.users[0]
@@ -200,7 +210,7 @@ def test_env_unit(database) -> None:
         assert count_before < count_after
 
 
-@pytest.mark.run(order=3)
+@pytest.mark.run(order=4)
 def test_get_firmware(database) -> None:
 
     current_user = pytest.users[0]
@@ -264,7 +274,7 @@ def test_get_firmware(database) -> None:
         unit_service.get_unit_firmware_tgz(unit.uuid, 9, 13)
 
 
-@pytest.mark.run(order=4)
+@pytest.mark.run(order=5)
 def test_run_infrastructure_contour() -> None:
 
     backend_screen_name = 'pepeunit_backend'
@@ -292,7 +302,7 @@ def test_run_infrastructure_contour() -> None:
             assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
 
 
-@pytest.mark.run(order=5)
+@pytest.mark.run(order=6)
 def test_hand_update_firmware_unit(database) -> None:
 
     current_user = pytest.users[0]
@@ -388,7 +398,7 @@ def test_hand_update_firmware_unit(database) -> None:
     assert set_unit_new_commit(token, target_unit, target_version) >= 400
 
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=7)
 def test_repo_update_firmware_unit(database) -> None:
 
     def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
@@ -476,3 +486,23 @@ def test_repo_update_firmware_unit(database) -> None:
             assert False
 
         inc += 1
+
+
+@pytest.mark.run(order=8)
+def test_get_many_unit(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    # check many get with all filters
+    units = unit_service.list(
+        UnitFilter(
+            creator_uuid=current_user.uuid,
+            repo_uuid=pytest.repos[-1].uuid,
+            search_string=pytest.test_hash,
+            is_auto_update_from_repo_unit=True,
+            offset=0,
+            limit=1_000_000
+        )
+    )
+    assert len(units) == 1
