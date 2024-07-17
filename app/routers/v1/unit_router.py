@@ -8,7 +8,7 @@ from starlette.responses import FileResponse
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, GlobalPrefixTopic
+from app.repositories.enum import UserRole, GlobalPrefixTopic, SchemaStructName
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -95,7 +95,7 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
         backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)
 
         # todo проработать также остальные input_base подписки и output_base
-        if destination == 'input_base' and topic_name == 'update':
+        if destination == SchemaStructName.INPUT_BASE_TOPIC and topic_name == 'update':
             return MqttRead(result='allow')
 
         unit_node_repository = UnitNodeRepository(db)
