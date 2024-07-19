@@ -23,8 +23,8 @@ class UnitNodeRead(BaseModel):
 
 
 class UnitNodeUpdate(BaseModel):
-    visibility_level: VisibilityLevel
-    is_rewritable_input: bool
+    visibility_level: Optional[VisibilityLevel] = None
+    is_rewritable_input: Optional[bool] = None
 
 
 class UnitNodeSetState(BaseModel):

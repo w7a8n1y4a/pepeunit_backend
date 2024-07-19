@@ -18,7 +18,7 @@ from app.schemas.gql.inputs.unit_node import (
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
 from app.services.access_service import AccessService
-from app.services.utils import creator_check
+from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_valid_object
 
 
@@ -45,11 +45,17 @@ class UnitNodeService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
-        self.access_service.visibility_check(unit_node)
+        is_valid_object(unit_node)
 
+        self.access_service.visibility_check(unit_node)
         creator_check(self.access_service.current_agent, unit_node)
 
-        update_unit_node = UnitNode(**data.dict())
+        if data.is_rewritable_input is not None:
+            self.is_valid_input_unit_node(unit_node)
+
+        unit_node_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit_node.dict())
+
+        update_unit_node = UnitNode(**unit_node_update_dict)
         return self.unit_node_repository.update(uuid, update_unit_node)
 
     def set_state_input(self, uuid: str, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
@@ -108,6 +114,10 @@ class UnitNodeService:
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
+
+        for item in restriction:
+            print(str(item))
+
         return self.unit_node_repository.list(filters, restriction=restriction)
 
     def set_state(self, unit_node_uuid: str, state: str) -> UnitNode:

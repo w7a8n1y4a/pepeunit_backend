@@ -240,7 +240,8 @@ class UnitService:
             except AttributeError:
                 logging.info('MQTT session is invalid')
 
-        return self.unit_repository.update(unit.uuid, Unit(last_update_datetime=datetime.datetime.utcnow()))
+        unit.last_update_datetime = datetime.datetime.utcnow()
+        return self.unit_repository.update(unit.uuid, unit)
 
     def get_env(self, uuid: str) -> dict:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
