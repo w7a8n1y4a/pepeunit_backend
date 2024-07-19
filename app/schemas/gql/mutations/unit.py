@@ -29,6 +29,13 @@ def update_unit_env(info: Info, uuid: str, env_json_str: str) -> NoneType:
 
 
 @strawberry.mutation
+def update_unit_schema(info: Info, uuid: str) -> NoneType:
+    unit_service = get_unit_service(info)
+    unit_service.update_schema(uuid)
+    return NoneType()
+
+
+@strawberry.mutation
 def delete_unit(info: Info, uuid: str) -> NoneType:
     unit_service = get_unit_service(info)
     unit_service.delete(uuid)

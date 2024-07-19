@@ -21,6 +21,12 @@ def get_unit_env(uuid: str, info: Info) -> str:
 
 
 @strawberry.field()
+def get_unit_current_schema(uuid: str, info: Info) -> str:
+    unit_service = get_unit_service(info)
+    return json.dumps(unit_service.get_current_schema(uuid))
+
+
+@strawberry.field()
 def get_units(filters: UnitFilterInput, info: Info) -> list[UnitType]:
     unit_service = get_unit_service(info)
     return [UnitType(**unit.dict()) for unit in unit_service.list(filters)]

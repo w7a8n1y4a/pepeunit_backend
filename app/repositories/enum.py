@@ -66,6 +66,7 @@ class ReservedInputBaseTopic(str, enum.Enum):
     """Забронированные топики вввода у Unit"""
 
     UPDATE = 'update'
+    SCHEMA_UPDATE = 'schema_update'
 
 
 @strawberry.enum

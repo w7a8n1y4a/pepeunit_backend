@@ -75,8 +75,6 @@ def test_create_unit_node_edge(database) -> None:
             )
         )
 
-        # todo запросить пермишены в моменте
-
         # first input, two output - [Input, Output]
         if unit_nodes[0].type == UnitNodeTypeEnum.OUTPUT:
             unit_nodes = unit_nodes[::-1]

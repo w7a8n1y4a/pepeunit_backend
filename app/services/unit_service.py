@@ -281,6 +281,40 @@ class UnitService:
 
         return None
 
+    def update_schema(self, uuid: str) -> None:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        is_valid_object(unit)
+        self.access_service.visibility_check(unit)
+
+        try:
+            from app.schemas.mqtt.topic import mqtt
+        except ImportError:
+            # this UnitNodeService entity imported in mqtt schema layer
+            pass
+
+        try:
+            mqtt.publish(
+                f"{settings.backend_domain}/{SchemaStructName.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+                '{"": ""}',
+            )
+            print('valid')
+        except AttributeError:
+            logging.info('MQTT session is invalid')
+
+    def get_current_schema(self, uuid: str) -> dict:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        is_valid_object(unit)
+        self.access_service.visibility_check(unit)
+
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        target_version = self.get_unit_target_version(repo, unit)
+
+        return self.generate_current_schema(unit, repo, target_version)
+
     def get_unit_firmware(self, uuid: str) -> str:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         self.access_service.visibility_check(unit)
@@ -299,54 +333,7 @@ class UnitService:
         with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))
 
-        nodes_with_edges = self.unit_node_repository.get_nodes_with_edges(unit.uuid)
-
-        output_dict = {}
-        input_dict = {}
-        for node_uuid, topic_name, topic_type, edges in nodes_with_edges:
-
-            main_topic = f'{settings.backend_domain}/{node_uuid}'
-            main_topic += (
-                GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                else ''
-            )
-
-            edge_topic_list = []
-            if edges is not None:
-                for output_uuid, putput_topic in edges:
-                    edge_topic = f'{settings.backend_domain}/{output_uuid}'
-                    edge_topic += (
-                        GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                        if putput_topic[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :]
-                        == GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                        else ''
-                    )
-                    edge_topic_list.append(edge_topic)
-
-            topics = [main_topic] + edge_topic_list
-
-            if topic_type == UnitNodeTypeEnum.INPUT:
-                input_dict[topic_name] = topics
-            else:
-                output_dict[topic_name] = topics
-
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
-
-        new_schema_dict = {}
-        for destination, topics in schema_dict.items():
-
-            new_schema_dict[destination] = {}
-
-            for topic in topics:
-                if destination in [SchemaStructName.INPUT_BASE_TOPIC, SchemaStructName.OUTPUT_BASE_TOPIC]:
-                    new_schema_dict[destination][topic] = [
-                        f'{settings.backend_domain}/{destination}/{unit.uuid}/{topic}'
-                    ]
-                elif destination == SchemaStructName.INPUT_TOPIC:
-                    new_schema_dict[destination][topic] = input_dict[topic]
-                elif destination == SchemaStructName.OUTPUT_TOPIC:
-                    new_schema_dict[destination][topic] = output_dict[topic]
+        new_schema_dict = self.generate_current_schema(unit, repo, target_version)
 
         with open(f'{tmp_git_repo_path}/schema.json', 'w') as f:
             f.write(json.dumps(new_schema_dict, indent=4))
@@ -425,6 +412,59 @@ class UnitService:
             if unit.is_auto_update_from_repo_unit
             else unit.repo_commit
         )
+
+    def generate_current_schema(self, unit: Unit, repo: Repo, target_version: str) -> dict:
+
+        nodes_with_edges = self.unit_node_repository.get_nodes_with_edges(unit.uuid)
+
+        output_dict = {}
+        input_dict = {}
+        for node_uuid, topic_name, topic_type, edges in nodes_with_edges:
+
+            main_topic = f'{settings.backend_domain}/{node_uuid}'
+            main_topic += (
+                GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                else ''
+            )
+
+            edge_topic_list = []
+            if edges is not None:
+                for output_uuid, putput_topic in edges:
+                    edge_topic = f'{settings.backend_domain}/{output_uuid}'
+                    edge_topic += (
+                        GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                        if putput_topic[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX):]
+                        == GlobalPrefixTopic.BACKEND_SUB_PREFIX
+                        else ''
+                    )
+                    edge_topic_list.append(edge_topic)
+
+            topics = [main_topic] + edge_topic_list
+
+            if topic_type == UnitNodeTypeEnum.INPUT:
+                input_dict[topic_name] = topics
+            else:
+                output_dict[topic_name] = topics
+
+        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
+
+        new_schema_dict = {}
+        for destination, topics in schema_dict.items():
+
+            new_schema_dict[destination] = {}
+
+            for topic in topics:
+                if destination in [SchemaStructName.INPUT_BASE_TOPIC, SchemaStructName.OUTPUT_BASE_TOPIC]:
+                    new_schema_dict[destination][topic] = [
+                        f'{settings.backend_domain}/{destination}/{unit.uuid}/{topic}'
+                    ]
+                elif destination == SchemaStructName.INPUT_TOPIC:
+                    new_schema_dict[destination][topic] = input_dict[topic]
+                elif destination == SchemaStructName.OUTPUT_TOPIC:
+                    new_schema_dict[destination][topic] = output_dict[topic]
+
+        return new_schema_dict
 
     def generate_token(self, uuid: str) -> str:
         unit = self.unit_repository.get(Unit(uuid=uuid))
