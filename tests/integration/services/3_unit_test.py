@@ -301,6 +301,8 @@ def test_run_infrastructure_contour() -> None:
         if not check_screen_session_by_name(unit_screen_name):
             assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
 
+        time.sleep(1)
+
 
 @pytest.mark.run(order=6)
 def test_hand_update_firmware_unit(database) -> None:
