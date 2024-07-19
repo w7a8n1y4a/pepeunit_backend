@@ -115,9 +115,6 @@ class UnitNodeService:
             filters.visibility_level, restriction
         )
 
-        for item in restriction:
-            print(str(item))
-
         return self.unit_node_repository.list(filters, restriction=restriction)
 
     def set_state(self, unit_node_uuid: str, state: str) -> UnitNode:

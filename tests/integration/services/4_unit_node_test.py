@@ -15,7 +15,7 @@ def test_update_unit_node(database) -> None:
     current_user = pytest.users[0]
     unit_node_service = get_unit_node_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
-    target_unit = pytest.units[-1]
+    target_unit = pytest.units[-2]
 
     input_unit_node = unit_node_service.list(
         UnitNodeFilter(
@@ -67,8 +67,6 @@ def test_create_unit_node_edge(database) -> None:
 
     target_units = pytest.units[-3:]
 
-    time.sleep(10)
-
     io_units_list = []
     for unit in target_units:
         unit_nodes = unit_node_service.list(
@@ -76,10 +74,6 @@ def test_create_unit_node_edge(database) -> None:
                 unit_uuid=unit.uuid
             )
         )
-
-        print(unit.uuid)
-
-        print(len(unit_nodes))
 
         # todo запросить пермишены в моменте
 
@@ -90,16 +84,11 @@ def test_create_unit_node_edge(database) -> None:
         io_units_list.append(unit_nodes)
 
     for input_node, output_node in io_units_list:
-        print(input_node, output_node)
-
-
-
-
-    # unit_node_service.create_node_edge(
-    #     UnitNodeEdgeCreate(
-    #         node_output_uuid= ,
-    #         node_input_uuid=
-    #     )
-    # )
+        unit_node_service.create_node_edge(
+            UnitNodeEdgeCreate(
+                node_output_uuid=output_node.uuid,
+                node_input_uuid=input_node.uuid
+            )
+        )
 
     assert False
