@@ -19,10 +19,11 @@ Query = create_type(
         get_versions,
         get_unit,
         get_unit_env,
+        get_unit_current_schema,
         get_units,
         get_unit_node,
         get_unit_nodes,
         get_base_metrics,
-        get_resource_agents,
+        get_resource_agents
     ],
 )

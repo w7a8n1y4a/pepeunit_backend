@@ -41,6 +41,11 @@ def get_env(uuid: str, unit_service: UnitService = Depends()):
     return json.dumps(unit_service.get_env(uuid))
 
 
+@router.get("/get_current_schema/{uuid}", response_model=str)
+def get_current_schema(uuid: str, unit_service: UnitService = Depends()):
+    return json.dumps(unit_service.get_current_schema(uuid))
+
+
 @router.get("/firmware/zip/{uuid}", response_model=bytes)
 def get_firmware_zip(uuid: str, unit_service: UnitService = Depends()):
     zip_filepath = unit_service.get_unit_firmware_zip(uuid)
@@ -122,6 +127,11 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 @router.patch("/{uuid}", response_model=UnitRead)
 def update(uuid: str, data: UnitUpdate, unit_service: UnitService = Depends()):
     return UnitRead(**unit_service.update(uuid, data).dict())
+
+
+@router.post("/update_schema/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def update_schema(uuid: str, unit_service: UnitService = Depends()):
+    return unit_service.update_schema(uuid)
 
 
 @router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
