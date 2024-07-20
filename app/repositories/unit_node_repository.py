@@ -44,7 +44,7 @@ class UnitNodeRepository:
 
         edge_subquery = (
             self.db.query(
-                func.json_agg(func.json_build_array(unit_node_edge_alias.uuid, unit_node_alias.topic_name)).label(
+                func.json_agg(func.json_build_array(unit_node_edge_alias.node_output_uuid, unit_node_alias.topic_name)).label(
                     'test'
                 )
             )

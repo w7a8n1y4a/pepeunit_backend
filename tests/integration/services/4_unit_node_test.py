@@ -1,6 +1,7 @@
 import time
 
 import fastapi
+import httpx
 import pytest
 
 from app.configs.gql import get_unit_node_service
@@ -63,9 +64,23 @@ def test_update_unit_node(database) -> None:
 def test_create_unit_node_edge(database) -> None:
 
     current_user = pytest.users[0]
+    token = pytest.user_tokens_dict[current_user.uuid]
     unit_node_service = get_unit_node_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     target_units = pytest.units[-3:]
+
+    def update_schema(token: str, unit_uuid: str) -> int:
+        headers = {
+            'accept': 'application/json',
+            'x-auth-token': token
+        }
+
+        url = f'{pytest.base_link}/units/update_schema/{str(unit_uuid)}'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.post(url=url, headers=headers)
+
+        return r.status_code
 
     io_units_list = []
     for unit in target_units:
@@ -88,5 +103,8 @@ def test_create_unit_node_edge(database) -> None:
                 node_input_uuid=input_node.uuid
             )
         )
+
+    for unit in target_units:
+        assert update_schema(token, unit.uuid) == 204
 
     assert False
