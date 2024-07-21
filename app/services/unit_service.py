@@ -419,7 +419,6 @@ class UnitService:
                 unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
                 is_valid_object(unit_node)
 
-                # todo проверить дыру связанную с edge
                 self.access_service.visibility_check(unit_node)
             else:
                 raise HTTPException(
