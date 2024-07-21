@@ -4,11 +4,8 @@ from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
 
 from app.configs.db import get_session
-from app.repositories.permission_repository import PermissionRepository
-from app.repositories.repo_repository import RepoRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
-from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
+from app.configs.gql import get_repo_service
+from app.configs.sub_entities import InfoSubEntity
 from app.schemas.pydantic.repo import (
     RepoRead,
     RepoCreate,
@@ -19,9 +16,7 @@ from app.schemas.pydantic.repo import (
     CommitFilter,
     RepoVersionsRead,
 )
-from app.services.access_service import AccessService
 from app.services.repo_service import RepoService
-from app.services.unit_service import UnitService
 
 router = APIRouter()
 
@@ -30,27 +25,8 @@ router = APIRouter()
 @repeat_at(cron='0 * * * *')
 def automatic_update_repositories():
     db = next(get_session())
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
 
-    access_service = AccessService(
-        permission_repository=PermissionRepository(db),
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-    )
-
-    repo_service = RepoService(
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        unit_service=UnitService(
-            repo_repository=repo_repository,
-            unit_repository=unit_repository,
-            unit_node_repository=UnitNodeRepository(db),
-            access_service=access_service,
-        ),
-        access_service=access_service,
-    )
-
+    repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
     repo_service.bulk_update_repositories(is_auto_update=True)
 
     db.close()

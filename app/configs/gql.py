@@ -19,6 +19,8 @@ from app.services.user_service import UserService
 from app.services.utils import token_depends
 
 
+# todo придумать как прокидывать для телеграм бота
+
 async def get_graphql_context(
     db: Session = Depends(get_session),
     jwt_token: str = Depends(token_depends),
