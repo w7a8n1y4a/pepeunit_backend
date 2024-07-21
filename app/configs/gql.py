@@ -19,13 +19,21 @@ from app.services.user_service import UserService
 from app.services.utils import token_depends
 
 
-# todo придумать как прокидывать для телеграм бота
-
 async def get_graphql_context(
     db: Session = Depends(get_session),
     jwt_token: str = Depends(token_depends),
 ):
     return {'db': db, 'jwt_token': jwt_token}
+
+
+def get_access_service(info: Info) -> type[AccessService]:
+    if 'is_bot_auth' in info.context and info.context['is_bot_auth']:
+        access_service = AccessService
+        access_service._is_bot_auth = info.context['is_bot_auth']
+
+        return access_service
+    else:
+        return AccessService
 
 
 def get_user_service(info: Info) -> UserService:
@@ -36,7 +44,7 @@ def get_user_service(info: Info) -> UserService:
 
     return UserService(
         user_repository=user_repository,
-        access_service=AccessService(
+        access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),
             unit_repository=UnitRepository(db),
             user_repository=user_repository,
@@ -52,7 +60,7 @@ def get_repo_service(info: Info) -> RepoService:
     repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
 
-    access_service = AccessService(
+    access_service = get_access_service(info)(
         permission_repository=PermissionRepository(db),
         unit_repository=unit_repository,
         user_repository=UserRepository(db),
@@ -83,7 +91,7 @@ def get_unit_service(info: Info) -> UnitService:
         repo_repository=repo_repository,
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
-        access_service=AccessService(
+        access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),
             unit_repository=unit_repository,
             user_repository=UserRepository(db),
@@ -95,10 +103,11 @@ def get_unit_service(info: Info) -> UnitService:
 def get_unit_node_service(info: Info) -> UnitNodeService:
     db = info.context['db']
     jwt_token = info.context['jwt_token']
+
     return UnitNodeService(
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        access_service=AccessService(
+        access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),
             unit_repository=UnitRepository(db),
             user_repository=UserRepository(db),
@@ -120,7 +129,7 @@ def get_metrics_service(info: Info) -> MetricsService:
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
         user_repository=user_repository,
-        access_service=AccessService(
+        access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),
             unit_repository=unit_repository,
             user_repository=user_repository,
@@ -134,7 +143,7 @@ def get_permission_service(info: Info) -> PermissionService:
     jwt_token = info.context['jwt_token']
 
     return PermissionService(
-        access_service=AccessService(
+        access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),
             unit_repository=UnitRepository(db),
             user_repository=UserRepository(db),
