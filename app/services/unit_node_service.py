@@ -18,7 +18,7 @@ from app.schemas.gql.inputs.unit_node import (
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict
+from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
 from app.services.validators import is_valid_object
 
 
@@ -62,8 +62,10 @@ class UnitNodeService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
-        self.access_service.visibility_check(unit_node)
+        is_valid_object(unit_node)
         self.is_valid_input_unit_node(unit_node)
+        self.access_service.access_set_input_node(unit_node)
+        self.access_service.visibility_check(unit_node)
 
         try:
             from app.schemas.mqtt.topic import mqtt
@@ -71,7 +73,7 @@ class UnitNodeService:
             # this UnitNodeService entity imported in mqtt schema layer
             pass
 
-        mqtt.publish(f"{settings.backend_domain}/input/{unit_node.unit_uuid}/{unit_node.topic_name}", data.state)
+        mqtt.publish(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
 
         return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
 

@@ -37,7 +37,8 @@ from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFi
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends, remove_none_value_dict
+from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends, remove_none_value_dict, \
+    get_topic_name
 from app.services.validators import is_valid_object, is_valid_json
 from app.utils.utils import aes_decode, aes_encode
 
@@ -421,26 +422,12 @@ class UnitService:
         input_dict = {}
         for node_uuid, topic_name, topic_type, edges in nodes_with_edges:
 
-            main_topic = f'{settings.backend_domain}/{node_uuid}'
-            main_topic += (
-                GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                else ''
-            )
-
             edge_topic_list = []
             if edges is not None:
-                for output_uuid, putput_topic in edges:
-                    edge_topic = f'{settings.backend_domain}/{output_uuid}'
-                    edge_topic += (
-                        GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                        if putput_topic[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX):]
-                        == GlobalPrefixTopic.BACKEND_SUB_PREFIX
-                        else ''
-                    )
-                    edge_topic_list.append(edge_topic)
+                for output_node_uuid, output_topic_name in edges:
+                    edge_topic_list.append(get_topic_name(output_node_uuid, output_topic_name))
 
-            topics = [main_topic] + edge_topic_list
+            topics = [get_topic_name(node_uuid, topic_name)] + edge_topic_list
 
             if topic_type == UnitNodeTypeEnum.INPUT:
                 input_dict[topic_name] = topics

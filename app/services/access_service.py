@@ -131,6 +131,13 @@ class AccessService:
             )
         ]
 
+    def access_set_input_node(self, unit_node: UnitNode) -> None:
+        if isinstance(self.current_agent, Unit) and not unit_node.is_rewritable_input:
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail=f"This UnitNode topic can only be edited by a User, set is_rewritable_input=True for available"
+            )
+
     @staticmethod
     def generate_user_token(user: User) -> str:
         access_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))
