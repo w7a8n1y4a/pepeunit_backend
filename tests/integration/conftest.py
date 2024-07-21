@@ -22,8 +22,6 @@ from tests.integration.services.utils import check_screen_session_by_name, run_b
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()
 
-Info = namedtuple('Info', "context")
-
 
 def pytest_configure():
     # search hash for db

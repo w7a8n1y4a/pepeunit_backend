@@ -3,15 +3,15 @@ import pytest
 
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
+from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import UserCreate, UserAuth, UserUpdate, UserFilter
-from tests.integration.conftest import Info
 
 
 @pytest.mark.run(order=0)
 def test_create_user(test_users, database, clear_database) -> None:
-    user_service = get_user_service(Info({'db': database, 'jwt_token': None}))
+    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': None}))
 
     # create test users
     new_users = []
@@ -35,7 +35,7 @@ def test_create_user(test_users, database, clear_database) -> None:
 
 @pytest.mark.run(order=1)
 def test_get_auth_token_user(test_users, database) -> None:
-    user_service = get_user_service(Info({'db': database, 'jwt_token': None}))
+    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': None}))
 
     # get token for all test users
     for inc, user in enumerate(pytest.users):
@@ -61,7 +61,7 @@ async def test_verification_user(database) -> None:
     # check invalid code
     with pytest.raises(fastapi.HTTPException):
         user_service = get_user_service(
-            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
+            InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
 
         code = await user_service.generate_verification_code()
@@ -70,7 +70,7 @@ async def test_verification_user(database) -> None:
     # set verified status all test users
     codes_list = []
     for inc, user in enumerate(pytest.users, start=1):
-        user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]}))
+        user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]}))
 
         code = await user_service.generate_verification_code()
         codes_list.append(code)
@@ -88,7 +88,7 @@ async def test_verification_user(database) -> None:
 
 @pytest.mark.run(order=3)
 def test_block_unblock_user(database) -> None:
-    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]}))
+    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]}))
 
     # block unblock users
     for user in pytest.users:
@@ -100,7 +100,7 @@ def test_block_unblock_user(database) -> None:
     # block without admin role
     with pytest.raises(fastapi.HTTPException):
         user_service = get_user_service(
-            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
+            InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
         user = pytest.users[0]
 
@@ -110,7 +110,7 @@ def test_block_unblock_user(database) -> None:
     # unblock without admin role
     with pytest.raises(fastapi.HTTPException):
         user_service = get_user_service(
-            Info({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
+            InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
         user = pytest.users[0]
 
@@ -123,7 +123,7 @@ def test_update_user(database) -> None:
 
     # check change login on new
     current_user = pytest.users[-1]
-    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     new_login = current_user.login + 'test'
     user_service.update(str(current_user.uuid), UserUpdate(login=new_login))
@@ -133,14 +133,14 @@ def test_update_user(database) -> None:
     # check change login on exist
     with pytest.raises(fastapi.HTTPException):
         current_user = pytest.users[-1]
-        user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+        user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
         other_user = pytest.users[0]
         user_service.update(str(current_user.uuid), UserUpdate(login=other_user.login))
 
     # check change password
     current_user = pytest.users[0]
-    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     user_service.update(str(current_user.uuid), UserUpdate(password='password'))
 
@@ -148,7 +148,7 @@ def test_update_user(database) -> None:
 @pytest.mark.run(order=5)
 def test_get_many_user(database) -> None:
     current_user = pytest.users[-1]
-    user_service = get_user_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     # check many get with all filters
     users = user_service.list(

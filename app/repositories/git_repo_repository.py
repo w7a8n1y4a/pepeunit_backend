@@ -125,7 +125,7 @@ class GitRepoRepository:
         for commit in commits_dict:
             commit_dict = commit
 
-            # todo тэг присваивается любой ветке по имени коммита.
+            # tags set for any branch by commit hash.
             for tag in tags_dict:
                 if commit['commit'] == tag['commit']:
                     commit_dict['tag'] = tag['tag']

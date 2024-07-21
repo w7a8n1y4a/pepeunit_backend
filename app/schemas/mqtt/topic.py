@@ -16,6 +16,7 @@ from app.schemas.mqtt.utils import get_topic_split
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
 from app.services.utils import merge_two_dict_first_priority
+from app.services.validators import is_valid_uuid
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -40,6 +41,7 @@ KeyDBClient.init_session(uri=settings.redis_url)
 @mqtt.subscribe(f'{settings.backend_domain}/+/pepeunit')
 async def message_to_topic(client, topic, payload, qos, properties):
     backend_domain, unit_node_uuid, *_ = get_topic_split(topic)
+    is_valid_uuid(unit_node_uuid)
 
     new_value = str(payload.decode())
 
@@ -47,7 +49,6 @@ async def message_to_topic(client, topic, payload, qos, properties):
     redis_topic_value = await KeyDBClient.async_get(unit_node_uuid)
 
     if redis_topic_value != new_value:
-        print(unit_node_uuid, new_value)
         await KeyDBClient.async_set(unit_node_uuid, new_value)
 
         db = next(get_session())
@@ -66,6 +67,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 @mqtt.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
 async def message_to_topic(client, topic, payload, qos, properties):
     backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
+    is_valid_uuid(unit_uuid)
 
     topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
 

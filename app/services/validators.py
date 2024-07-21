@@ -1,4 +1,5 @@
 import json
+import uuid
 from json import JSONDecodeError
 from typing import Sequence
 
@@ -33,3 +34,13 @@ def is_valid_json(json_str: str) -> dict:
         )
 
     return env_dict
+
+
+def is_valid_uuid(uuid_str: str) -> None:
+    try:
+        uuid.UUID(uuid_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f'This string is not UUID'
+        )
