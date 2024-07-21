@@ -11,8 +11,6 @@ from app.repositories.enum import VisibilityLevel, OrderByDate
 
 
 class RepoRead(BaseModel):
-    """Экземпляр репозитория"""
-
     uuid: uuid_pkg.UUID
     visibility_level: VisibilityLevel
 
@@ -34,23 +32,17 @@ class RepoRead(BaseModel):
 
 
 class Credentials(BaseModel):
-    """Данные для доступа к удалённым репозиториям"""
-
     username: str
     pat_token: str
 
 
 class CommitRead(BaseModel):
-    """Данные о коммите"""
-
     commit: str
     summary: str
     tag: Optional[str] = None
 
 
 class RepoCreate(BaseModel):
-    """Создание репозитория"""
-
     visibility_level: VisibilityLevel
     name: str
 
@@ -61,8 +53,6 @@ class RepoCreate(BaseModel):
 
 
 class RepoUpdate(BaseModel):
-    """Обновление данных репозитория"""
-
     visibility_level: Optional[VisibilityLevel] = None
     name: Optional[str] = None
 
@@ -77,8 +67,6 @@ class RepoUpdate(BaseModel):
 
 @dataclass
 class RepoFilter:
-    """Фильтр выборки репозиториев"""
-
     creator_uuid: Optional[str] = None
     search_string: Optional[str] = None
 
@@ -98,8 +86,6 @@ class RepoFilter:
 
 
 class CommitFilter(Filter):
-    """Фильтр выборки коммитов"""
-
     repo_branch: str
 
     offset: Optional[int] = 0

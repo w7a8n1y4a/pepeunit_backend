@@ -32,8 +32,6 @@ class RepoType(TypeInputMixin):
 
 @strawberry.type()
 class CommitType(TypeInputMixin):
-    """Данные о коммите"""
-
     commit: str
     summary: str
     tag: Optional[str] = None
