@@ -219,3 +219,17 @@ def test_get_many_unit_node(database) -> None:
         )
     )
     assert len(units_nodes) == 8
+
+
+@pytest.mark.run(order=4)
+def test_delete_unit(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(Info({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    target_unit = pytest.units[0]
+
+    # check del Unit
+    unit_service.delete(target_unit.uuid)
+    with pytest.raises(fastapi.HTTPException):
+        unit_service.get(target_unit.uuid)
