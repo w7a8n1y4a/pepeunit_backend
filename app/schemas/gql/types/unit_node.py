@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -18,8 +17,6 @@ class UnitNodeType(TypeInputMixin):
     is_rewritable_input: bool
 
     topic_name: str
-
-    create_datetime: datetime
 
     state: Optional[str] = None
     unit_uuid: uuid_pkg.UUID

@@ -9,8 +9,8 @@ from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 @strawberry.input()
 class UnitNodeUpdateInput(TypeInputMixin):
-    visibility_level: VisibilityLevel
-    is_rewritable_input: bool
+    visibility_level: Optional[VisibilityLevel] = None
+    is_rewritable_input: Optional[bool] = None
 
 
 @strawberry.input()
@@ -23,7 +23,7 @@ class UnitNodeFilterInput(TypeInputMixin):
     unit_uuid: Optional[str] = None
     search_string: Optional[str] = None
 
-    type: Optional[UnitNodeTypeEnum] = None
+    type: Optional[list[str]] = tuple([item for item in UnitNodeTypeEnum])
     visibility_level: list[VisibilityLevel] = tuple([item for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
