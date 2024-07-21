@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import shutil
+import uuid
 import zlib
 import uuid as uuid_pkg
 from typing import Union
@@ -34,12 +35,13 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
+from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends, remove_none_value_dict, \
     get_topic_name
-from app.services.validators import is_valid_object, is_valid_json
+from app.services.validators import is_valid_object, is_valid_json, is_valid_uuid
 from app.utils.utils import aes_decode, aes_encode
 
 
@@ -300,7 +302,6 @@ class UnitService:
                 f"{settings.backend_domain}/{SchemaStructName.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
                 '{"": ""}',
             )
-            print('valid')
         except AttributeError:
             logging.info('MQTT session is invalid')
 
@@ -386,6 +387,45 @@ class UnitService:
         os.remove(firmware_tar_path + '.tar')
 
         return f'{firmware_tar_path}.tgz'
+
+    def get_mqtt_auth(self, topic: str) -> None:
+        self.access_service.access_check([UserRole.PEPEUNIT], is_unit_available=True)
+
+        if isinstance(self.access_service.current_agent, Unit):
+
+            struct_topic = get_topic_split(topic)
+
+            len_struct = len(struct_topic)
+            if len_struct == 5:
+                backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
+                is_valid_uuid(unit_uuid)
+
+                if destination in [SchemaStructName.INPUT_BASE_TOPIC, SchemaStructName.OUTPUT_BASE_TOPIC]:
+                    if str(self.access_service.current_agent.uuid) != unit_uuid:
+                        raise HTTPException(
+                            status_code=http_status.HTTP_403_FORBIDDEN,
+                            detail=f"Available only for a docked Unit"
+                        )
+                else:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_403_FORBIDDEN,
+                        detail=f"Topic destination is invalid"
+                    )
+
+            elif len_struct in [2, 3]:
+                backend_domain, unit_node_uuid, *_ = struct_topic
+                is_valid_uuid(unit_node_uuid)
+
+                unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
+                is_valid_object(unit_node)
+
+                # todo проверить дыру связанную с edge
+                self.access_service.visibility_check(unit_node)
+            else:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Topic struct is invalid"
+                )
 
     def delete(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

@@ -28,6 +28,5 @@ def get_branch_commits(uuid: str, filters: CommitFilterInput, info: Info) -> lis
 def get_versions(uuid: str, info: Info) -> RepoVersionsType:
     repo_service = get_repo_service(info)
     item_list = RepoVersionsType(**repo_service.get_versions(uuid).dict())
-    print(item_list)
     item_list.versions = [RepoVersionType(**item) for item in item_list.versions]
     return item_list

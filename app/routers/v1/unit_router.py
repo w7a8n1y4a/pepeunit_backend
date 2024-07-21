@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from fastapi import APIRouter, Depends, status
@@ -6,17 +7,10 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from app.configs.db import get_session
-from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, GlobalPrefixTopic, SchemaStructName
-from app.repositories.permission_repository import PermissionRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
-from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
-from app.schemas.mqtt.utils import get_topic_split
+from app.configs.gql import get_unit_service
+from app.configs.sub_entities import InfoSubEntity
 from app.schemas.pydantic.shared import MqttRead
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter, UnitRead, UnitMqttTokenAuth
-from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
 
 router = APIRouter()
@@ -53,8 +47,6 @@ def get_firmware_zip(uuid: str, unit_service: UnitService = Depends()):
     def cleanup():
         os.remove(zip_filepath)
 
-    print(zip_filepath)
-
     return FileResponse(zip_filepath, background=BackgroundTask(cleanup))
 
 
@@ -78,47 +70,16 @@ def get_firmware_tgz(uuid: str, wbits: int = 9, level: int = 9, unit_service: Un
     return FileResponse(tgz_filepath, background=BackgroundTask(cleanup))
 
 
-# todo подлежит удалению
-@router.post("/test/auth", response_model=str)
-def get_token(uuid: str, unit_service: UnitService = Depends()):
-    return unit_service.generate_token(uuid)
-
-
 @router.post("/auth", response_model=MqttRead, status_code=status.HTTP_200_OK)
 def get_mqtt_auth(data: UnitMqttTokenAuth):
+
     db = next(get_session())
-
-    access_service = AccessService(
-        permission_repository=PermissionRepository(db),
-        unit_repository=UnitRepository(db),
-        user_repository=UserRepository(db),
-        jwt_token=data.token,
-    )
-    access_service.access_check([UserRole.PEPEUNIT], is_unit_available=True)
-
-    if isinstance(access_service.current_agent, Unit):
-        backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(data.topic)
-
-        # todo проработать также остальные input_base подписки и output_base
-        if destination == SchemaStructName.INPUT_BASE_TOPIC and topic_name == 'update':
-            return MqttRead(result='allow')
-
-        unit_node_repository = UnitNodeRepository(db)
-        # todo на подумать зачем тут GlobalPrefixTopic.BACKEND_SUB_PREFIX
-        unit_node = unit_node_repository.get_by_topic(
-            unit_uuid,
-            UnitNode(topic_name=topic_name + GlobalPrefixTopic.BACKEND_SUB_PREFIX, type=destination.capitalize()),
-        )
-
-        # todo на основании конфига есть два варианта поведения.
-        # 1 грузим бекенд, запросами авторизации, но при этом всё ок нагрузкой на emqx
-        # 2 грузим emqx любым лоадом, но разгружаем бекенд
-        # сейчас используется 2й вариант
-        if not unit_node:
-            return MqttRead(result='deny')
-
-        access_service.visibility_check(unit_node)
-
+    try:
+        unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': data.token}))
+        unit_service.get_mqtt_auth(data.topic)
+    except Exception as e:
+        logging.info(repr(e))
+        return MqttRead(result='deny')
     db.close()
 
     return MqttRead(result='allow')
