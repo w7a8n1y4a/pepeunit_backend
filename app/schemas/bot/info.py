@@ -26,7 +26,7 @@ async def start_help_resolver(message: types.Message):
     unit_repository = UnitRepository(db)
     user_repository = UserRepository(db)
 
-    # todo refactor
+    # todo refactor очень хорошо подумать, как сделать ещё дополнительно перенос в gql
     CustomAccessService = AccessService
     CustomAccessService._is_bot_auth = True
 

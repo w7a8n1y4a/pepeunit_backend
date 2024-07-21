@@ -1,20 +1,17 @@
 import json
-import time
 
 from aiokeydb import KeyDBClient
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
 from app.configs.db import get_session
+from app.configs.gql import get_unit_node_service
+from app.configs.sub_entities import InfoSubEntity
 from app.domain.unit_model import Unit
 from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic, SchemaStructName
-from app.repositories.permission_repository import PermissionRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
 from app.schemas.mqtt.utils import get_topic_split
 from app.services.access_service import AccessService
-from app.services.unit_node_service import UnitNodeService
 from app.services.utils import merge_two_dict_first_priority
 from app.services.validators import is_valid_uuid
 
@@ -52,14 +49,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
         await KeyDBClient.async_set(unit_node_uuid, new_value)
 
         db = next(get_session())
-        unit_node_service = UnitNodeService(
-            unit_node_repository=UnitNodeRepository(db),
-            access_service=AccessService(
-                permission_repository=PermissionRepository(db),
-                unit_repository=UnitRepository(db),
-                user_repository=UserRepository(db),
-            ),
-        )
+        unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
         unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
         db.close()
 
