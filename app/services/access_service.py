@@ -80,6 +80,9 @@ class AccessService:
                 self.current_agent = User(role=UserRole.BOT.value)
 
     def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
+        """
+        Checks the available roles for each of the agent types
+        """
 
         if isinstance(self.current_agent, User):
             if self.current_agent.role not in [role.value for role in available_user_role]:
@@ -87,10 +90,12 @@ class AccessService:
         elif isinstance(self.current_agent, Unit):
             if not is_unit_available:
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+        else:
+            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
     def visibility_check(self, check_entity):
         """
-        Для одиночных сущностей определяет доступ по видимости
+        For single entities, defines access by visibility
         """
 
         if check_entity.visibility_level == VisibilityLevel.PUBLIC.value:
@@ -108,8 +113,8 @@ class AccessService:
 
     def get_available_visibility_levels(self, levels: list[str], restriction: list[str] = None) -> list[str]:
         """
-        Запрещает всем внешним пользователям получать информацию о внутренних сущностях и отсекает
-        Приватные сущности, если у агента нет ни одной записи о них
+        Prohibits all external users from getting information about internal entities and cuts off
+        Private entities if the agent does not have any records about them
         """
 
         if self.current_agent.role == UserRole.BOT.value:
@@ -122,7 +127,7 @@ class AccessService:
 
     def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[str]:
         """
-        Позволяет получить uuid всех сущностей до которых есть доступ у агента
+        Allows to get the uuid of all entities to which the agent has access
         """
         return [
             item.resource_uuid
@@ -131,7 +136,10 @@ class AccessService:
             )
         ]
 
-    def access_set_input_node(self, unit_node: UnitNode) -> None:
+    def check_access_unit_to_input_node(self, unit_node: UnitNode) -> None:
+        """
+        Checks that the Unit has access to set the value of the Input UnitNode
+        """
         if isinstance(self.current_agent, Unit) and not unit_node.is_rewritable_input:
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,

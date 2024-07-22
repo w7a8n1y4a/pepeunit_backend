@@ -1,3 +1,5 @@
+import logging
+
 import uvicorn
 from aiogram import Dispatcher
 
@@ -41,14 +43,20 @@ app.include_router(
 
 @app.on_event("startup")
 async def on_startup():
+    logging.info(f'Set auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
     set_emqx_auth_hook()
+
+    logging.info(f'Set auth settings auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
     set_emqx_auth_cache_ttl()
 
+    logging.info(f'Get current TG bot webhook info')
     webhook_info = await bot.get_webhook_info()
     webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
 
     if webhook_info.url != webhook_url:
+        logging.info(f'Set new TG bot webhook url: {webhook_url}')
         await bot.set_webhook(url=webhook_url)
+        logging.info(f'Success set TG bot webhook url')
 
 
 @app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])

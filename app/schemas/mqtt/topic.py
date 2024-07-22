@@ -1,4 +1,5 @@
 import json
+import logging
 
 from aiokeydb import KeyDBClient
 from fastapi_mqtt import FastMQTT, MQTTConfig
@@ -8,7 +9,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_unit_node_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.unit_model import Unit
-from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic, SchemaStructName
+from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic, DestinationTopicType
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_topic_split
 from app.services.access_service import AccessService
@@ -28,8 +29,7 @@ mqtt = FastMQTT(config=mqtt_config)
 
 @mqtt.on_connect()
 def connect(client, flags, rc, properties):
-    # Subscribe to a pattern
-    print('connect')
+    logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
 
 
 KeyDBClient.init_session(uri=settings.redis_url)
@@ -61,7 +61,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
     topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
 
-    if destination == SchemaStructName.OUTPUT_BASE_TOPIC:
+    if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
         if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
             db = next(get_session())
             unit_repository = UnitRepository(db)
@@ -89,4 +89,4 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
 @mqtt.on_disconnect()
 def disconnect(client, packet, exc=None):
-    print("Disconnect", client._username)
+    logging.info(f'Disconnect mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')

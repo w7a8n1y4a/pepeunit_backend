@@ -19,7 +19,6 @@ class PermissionRepository:
         self.db = db
 
     def get(self, permission: Permission) -> Permission:
-
         return self.db.get(Permission, permission.uuid)
 
     def get_agent(self, permission: Permission):
@@ -34,7 +33,7 @@ class PermissionRepository:
         self.db.refresh(permission)
         return permission
 
-    def bulk_create(self, permissions: list[Permission]) -> None:
+    def bulk_save(self, permissions: list[Permission]) -> None:
         self.db.bulk_save_objects(permissions)
         self.db.commit()
 

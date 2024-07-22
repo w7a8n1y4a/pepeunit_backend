@@ -9,43 +9,42 @@ from app.repositories.enum import VisibilityLevel
 
 
 class Unit(SQLModel, table=True):
-    """Представление физического устройства"""
+    """
+    Представление физического устройства
+    """
 
     __tablename__ = 'units'
 
     uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
-    # уровень видимости для пользователей
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
 
-    # уникальное название Unit на узле
+    # Unique Unit name on Instance
     name: str = Field(nullable=False, unique=True)
-    # время создания Unit
     create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
-    # автоматически обновляться при обновлении родительского Repo?
-    # автоматически берётся последний тег или коммит в default ветке Repo
+    # Automatically update when the parent Repo is updated?
+    # the last tag or commit in the default Repo branch is taken automatically
     is_auto_update_from_repo_unit: bool = Field(nullable=False, default=True)
 
-    # если выключено автоматическое обновление:
-    # название ветки
+    # if is_auto_update_from_repo_unit = False
+    # target branch name
     repo_branch: str = Field(nullable=True)
-    # название коммита, если выбран тег, присвоится коммит, которому присвоен тег
+    # target commit name - if target is Tag - will be assigned to the commit corresponding Tag
     repo_commit: str = Field(nullable=True)
 
-    # время последнего обновления
     last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
-    # последнее состояние Unit
+    # last state Unit
     unit_state_dict: str = Field(nullable=True)
-    # текущая версия микропрограммы
+    # this information directly from Unit
     current_commit_version: str = Field(nullable=True)
-    # зашифрованный env устройства
+    # cipher aes256 env Unit - only for creator
     cipher_env_dict: str = Field(nullable=True)
 
-    # создатель
+    # to User link
     creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
     )
-    # родительский репозиторий
+    # to Repo link
     repo_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE')))
