@@ -10,7 +10,6 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserCreateInput, UserAuthInput, UserUpdateInput, UserFilterInput
 from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAuth
 from app.services.access_service import AccessService
-from app.services.utils import remove_none_value_dict
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import password_to_hash, generate_random_string
 
@@ -44,7 +43,6 @@ class UserService:
         self.access_service.access_check([UserRole.BOT])
 
         user = self.user_repository.get_user_by_credentials(data.credentials)
-
         is_valid_object(user)
         is_valid_password(data.password, user)
 
@@ -54,6 +52,7 @@ class UserService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         user = self.user_repository.get(User(uuid=uuid))
+        is_valid_object(user)
 
         if data.login:
             self.user_repository.is_valid_login(data.login, uuid)
@@ -80,7 +79,6 @@ class UserService:
         await redis.delete(verification_code)
 
         user = self.user_repository.get(User(uuid=uuid))
-
         is_valid_object(user)
         self.user_repository.is_valid_telegram_chat_id(telegram_chat_id, user.uuid)
 
@@ -96,6 +94,7 @@ class UserService:
         self.access_service.access_check([UserRole.ADMIN])
 
         user = self.user_repository.get(User(uuid=uuid))
+        is_valid_object(user)
 
         status = UserStatus.VERIFIED.value if user.telegram_chat_id else UserStatus.UNVERIFIED.value
 

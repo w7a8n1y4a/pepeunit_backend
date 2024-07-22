@@ -30,7 +30,7 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
-from app.services.utils import creator_check, token_depends, remove_none_value_dict, merge_two_dict_first_priority
+from app.services.utils import creator_check, remove_none_value_dict, merge_two_dict_first_priority
 from app.services.validators import is_valid_object, is_emtpy_sequence
 from app.utils.utils import aes_encode, aes_decode
 
@@ -81,6 +81,7 @@ class RepoService:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
+        is_valid_object(repo)
         self.access_service.visibility_check(repo)
 
         self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
@@ -98,7 +99,6 @@ class RepoService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
-
         is_valid_object(repo)
         creator_check(self.access_service.current_agent, repo)
 
@@ -178,7 +178,7 @@ class RepoService:
 
         units = self.unit_repository.list(UnitFilter(repo_uuid=str(repo.uuid), is_auto_update_from_repo_unit=True))
 
-        logging.info(f'{len(units)} nodes candidates update launched')
+        logging.info(f'{len(units)} units candidates update launched')
 
         count_with_valid_version = 0
         count_error_update = 0
@@ -186,7 +186,7 @@ class RepoService:
         for unit in units:
             if unit.current_commit_version != target_version:
 
-                logging.info(f'run update unit {unit.uuid}')
+                logging.info(f'Run update unit {unit.uuid}')
 
                 try:
                     self.git_repo_repository.is_valid_env_file(
@@ -194,11 +194,11 @@ class RepoService:
                     )
                     self.unit_service.update_firmware(unit, target_version)
                 except:
-                    logging.info(f'failed update unit {unit.uuid}')
+                    logging.warning(f'Failed update unit {unit.uuid}')
                     count_error_update += 1
 
                 count_success_update += 1
-                logging.info(f'successfully update unit {unit.uuid}')
+                logging.info(f'Successfully update unit {unit.uuid}')
 
             else:
                 count_with_valid_version += 1

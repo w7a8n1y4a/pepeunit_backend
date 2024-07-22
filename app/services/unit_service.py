@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import shutil
-import uuid
 import zlib
 import uuid as uuid_pkg
 from typing import Union
@@ -23,12 +22,10 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import (
     UserRole,
     UnitNodeTypeEnum,
-    SchemaStructName,
+    DestinationTopicType,
     PermissionEntities,
-    VisibilityLevel,
     GlobalPrefixTopic,
     ReservedInputBaseTopic,
-    ReservedOutputBaseTopic,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
@@ -39,8 +36,7 @@ from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority, token_depends, remove_none_value_dict, \
-    get_topic_name
+from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
 from app.services.validators import is_valid_object, is_valid_json, is_valid_uuid
 from app.utils.utils import aes_decode, aes_encode
 
@@ -90,12 +86,12 @@ class UnitService:
         agents_default_permission_list = []
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
-                if assignment in [SchemaStructName.INPUT_TOPIC, SchemaStructName.OUTPUT_TOPIC]:
+                if assignment in [DestinationTopicType.INPUT_TOPIC, DestinationTopicType.OUTPUT_TOPIC]:
 
                     unit_node = UnitNode(
                         type=(
                             UnitNodeTypeEnum.INPUT
-                            if assignment == SchemaStructName.INPUT_TOPIC
+                            if assignment == DestinationTopicType.INPUT_TOPIC
                             else UnitNodeTypeEnum.OUTPUT
                         ),
                         visibility_level=unit.visibility_level,
@@ -117,7 +113,7 @@ class UnitService:
                         )
 
         self.unit_node_repository.bulk_save(unit_nodes_list)
-        self.access_service.permission_repository.bulk_create(agents_default_permission_list)
+        self.access_service.permission_repository.bulk_save(agents_default_permission_list)
 
         return unit_deepcopy
 
@@ -178,18 +174,18 @@ class UnitService:
 
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
 
-        # создаёт ноды отсутствующие у юнита
+        # create UnitNodes, that Unit doesn't have
         unit_nodes_list = []
         agents_default_permission_list = []
         for assignment, topic_list in schema_dict.items():
             for topic in topic_list:
-                if (assignment == SchemaStructName.INPUT_TOPIC and topic not in input_node_dict.keys()) or (
-                    assignment == SchemaStructName.OUTPUT_TOPIC and topic not in output_node_dict.keys()
+                if (assignment == DestinationTopicType.INPUT_TOPIC and topic not in input_node_dict.keys()) or (
+                    assignment == DestinationTopicType.OUTPUT_TOPIC and topic not in output_node_dict.keys()
                 ):
                     unit_node = UnitNode(
                         type=(
                             UnitNodeTypeEnum.INPUT
-                            if assignment == SchemaStructName.INPUT_TOPIC
+                            if assignment == DestinationTopicType.INPUT_TOPIC
                             else UnitNodeTypeEnum.OUTPUT
                         ),
                         visibility_level=unit.visibility_level,
@@ -211,16 +207,16 @@ class UnitService:
                         )
 
         self.unit_node_repository.bulk_save(unit_nodes_list)
-        self.access_service.permission_repository.bulk_create(agents_default_permission_list)
+        self.access_service.permission_repository.bulk_save(agents_default_permission_list)
 
-        # удаляет ноды которых нет у юнита на данной версии
+        # removes UnitNodes that Unit does not have on this version
         unit_node_uuid_delete = []
         for assignment, topic_list in schema_dict.items():
-            if assignment == SchemaStructName.INPUT_TOPIC:
+            if assignment == DestinationTopicType.INPUT_TOPIC:
                 unit_node_uuid_delete.extend(
                     [input_node_dict[topic] for topic in input_node_dict.keys() - set(topic_list)]
                 )
-            elif assignment == SchemaStructName.OUTPUT_TOPIC:
+            elif assignment == DestinationTopicType.OUTPUT_TOPIC:
                 unit_node_uuid_delete.extend(
                     [output_node_dict[topic] for topic in output_node_dict.keys() - set(topic_list)]
                 )
@@ -237,7 +233,7 @@ class UnitService:
 
             try:
                 mqtt.publish(
-                    f"{settings.backend_domain}/{SchemaStructName.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
                     json.dumps({"NEW_COMMIT_VERSION": target_version}),
                 )
             except AttributeError:
@@ -299,7 +295,7 @@ class UnitService:
 
         try:
             mqtt.publish(
-                f"{settings.backend_domain}/{SchemaStructName.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+                f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
                 '{"": ""}',
             )
         except AttributeError:
@@ -400,7 +396,7 @@ class UnitService:
                 backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
                 is_valid_uuid(unit_uuid)
 
-                if destination in [SchemaStructName.INPUT_BASE_TOPIC, SchemaStructName.OUTPUT_BASE_TOPIC]:
+                if destination in [DestinationTopicType.INPUT_BASE_TOPIC, DestinationTopicType.OUTPUT_BASE_TOPIC]:
                     if str(self.access_service.current_agent.uuid) != unit_uuid:
                         raise HTTPException(
                             status_code=http_status.HTTP_403_FORBIDDEN,
@@ -430,6 +426,8 @@ class UnitService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
+        is_valid_object(unit)
+
         creator_check(self.access_service.current_agent, unit)
 
         return self.unit_repository.delete(unit)
@@ -481,13 +479,13 @@ class UnitService:
             new_schema_dict[destination] = {}
 
             for topic in topics:
-                if destination in [SchemaStructName.INPUT_BASE_TOPIC, SchemaStructName.OUTPUT_BASE_TOPIC]:
+                if destination in [DestinationTopicType.INPUT_BASE_TOPIC, DestinationTopicType.OUTPUT_BASE_TOPIC]:
                     new_schema_dict[destination][topic] = [
                         f'{settings.backend_domain}/{destination}/{unit.uuid}/{topic}'
                     ]
-                elif destination == SchemaStructName.INPUT_TOPIC:
+                elif destination == DestinationTopicType.INPUT_TOPIC:
                     new_schema_dict[destination][topic] = input_dict[topic]
-                elif destination == SchemaStructName.OUTPUT_TOPIC:
+                elif destination == DestinationTopicType.OUTPUT_TOPIC:
                     new_schema_dict[destination][topic] = output_dict[topic]
 
         return new_schema_dict

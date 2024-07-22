@@ -64,7 +64,7 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
         self.is_valid_input_unit_node(unit_node)
-        self.access_service.access_set_input_node(unit_node)
+        self.access_service.check_access_unit_to_input_node(unit_node)
         self.access_service.visibility_check(unit_node)
 
         try:
@@ -121,6 +121,7 @@ class UnitNodeService:
 
     def set_state(self, unit_node_uuid: str, state: str) -> UnitNode:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
+        is_valid_object(unit_node)
         unit_node.state = state
 
         return self.unit_node_repository.update(unit_node.uuid, unit_node)

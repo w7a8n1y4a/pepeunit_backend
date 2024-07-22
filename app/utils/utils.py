@@ -62,5 +62,5 @@ def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: 
 
 
 def generate_random_string(length=6):
-    chars = string.ascii_lowercase + string.ascii_uppercase + '0123456789'
+    chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
     return ''.join(chars[c % len(chars)] for c in os.urandom(length))

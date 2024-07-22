@@ -11,19 +11,17 @@ class User(SQLModel, table=True):
 
     uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
-    # роль на узле
+    # User role on this Instance
     role: str = Field(nullable=False)
-    # статус пользователя на узле
+    # User status on this Instance
     status: str = Field(nullable=False)
 
-    # логин
+    # Unique User login on this Instance
     login: str = Field(nullable=False, unique=True)
-    # сhat id в телеграм
+    # chat_id in Telegram bot
     telegram_chat_id: str = Field(nullable=True, unique=True)
-    # хэшированный пароль пользователя
     hashed_password: str = Field(nullable=False)
-    # зашифрованная динамическая соль
+    # cipher dynamic salt for hashed password
     cipher_dynamic_salt: str = Field(nullable=False)
 
-    # время создания User
     create_datetime: datetime = Field(nullable=False)

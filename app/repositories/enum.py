@@ -11,30 +11,35 @@ class OrderByDate(str, enum.Enum):
 
 @strawberry.enum
 class VisibilityLevel(str, enum.Enum):
-    """Уровень видимости для сущностей"""
+    """
+    Visibility level for all entities
+    """
 
-    # всем кто зашёл на узел
+    # for all
     PUBLIC = 'Public'
-    # всем кто авторизовался
+    # for all with auth at current Instance
     INTERNAL = 'Internal'
-    # всем кому предоставлен доступ создателем
+    # for all with Permission at current Instance, by default - only for creator and created Unit
     PRIVATE = 'Private'
 
 
 @strawberry.enum
 class UserRole(str, enum.Enum):
-    """Роль пользователя"""
+    """
+    Role User in Pepeunit
+    """
 
-    # специальная роль для внешних пользователей
-    BOT = 'Bot'
+    BOT = 'Bot'  # special role for external users, not used in the database
     USER = 'User'
     ADMIN = 'Admin'
-    PEPEUNIT = 'Pepeunit'
+    PEPEUNIT = 'Pepeunit'  # Represents the Pepeunit instance, not used in the database
 
 
 @strawberry.enum
 class UserStatus(str, enum.Enum):
-    """Статус пользователя"""
+    """
+    Status User in Pepeunit
+    """
 
     UNVERIFIED = 'Unverified'
     VERIFIED = 'Verified'
@@ -43,35 +48,49 @@ class UserStatus(str, enum.Enum):
 
 @strawberry.enum
 class AgentType(str, enum.Enum):
+    """
+    Agent type in the Pepeunit system
+    """
+
     USER = 'User'
     UNIT = 'Unit'
-    PEPEUNIT = 'Pepeunit'
+    PEPEUNIT = 'Pepeunit'  # Represents the Pepeunit instance
 
 
 @strawberry.enum
 class UnitNodeTypeEnum(str, enum.Enum):
+    """
+    UnitNode types for database
+    """
+
     OUTPUT = 'Output'
     INPUT = 'Input'
 
 
 @strawberry.enum
 class ReservedOutputBaseTopic(str, enum.Enum):
-    """Забронированные топики вывода у Unit"""
+    """
+    Booked output topics at Unit
+    """
 
     STATE = 'state'
 
 
 @strawberry.enum
 class ReservedInputBaseTopic(str, enum.Enum):
-    """Забронированные топики вввода у Unit"""
+    """
+    Booked input topics at Unit
+    """
 
     UPDATE = 'update'
     SCHEMA_UPDATE = 'schema_update'
 
 
 @strawberry.enum
-class SchemaStructName(str, enum.Enum):
-    """Разрешённые назначения топиков схемы у Unit"""
+class DestinationTopicType(str, enum.Enum):
+    """
+    Allowed types of mqtt topic destinations
+    """
 
     INPUT_BASE_TOPIC = 'input_base_topic'
     OUTPUT_BASE_TOPIC = 'output_base_topic'
@@ -82,15 +101,17 @@ class SchemaStructName(str, enum.Enum):
 @strawberry.enum
 class GlobalPrefixTopic(str, enum.Enum):
     """
-    Глобальные префиксы топиков
+    Global topic prefixes
     """
 
-    BACKEND_SUB_PREFIX = '/pepeunit'
+    BACKEND_SUB_PREFIX = '/pepeunit'  # forwards the mqtt message to the Pepeunit instance
 
 
 @strawberry.enum
 class ReservedEnvVariableName(str, enum.Enum):
-    """Зарезервированные имена переменных окружения у Unit"""
+    """
+    Reserved environment variable names in Unit
+    """
 
     PEPEUNIT_URL = 'PEPEUNIT_URL'
     MQTT_URL = 'MQTT_URL'
@@ -103,7 +124,9 @@ class ReservedEnvVariableName(str, enum.Enum):
 
 @strawberry.enum
 class CommandNames(str, enum.Enum):
-    """Команды поддерживаемые ботом"""
+    """
+    Commands supported by the bot
+    """
 
     START = 'start'
     HELP = 'help'
@@ -113,6 +136,9 @@ class CommandNames(str, enum.Enum):
 
 @strawberry.enum
 class PermissionEntities(str, enum.Enum):
+    """
+    Types of entities to which accesses are assigned
+    """
 
     USER = 'User'
     UNIT = 'Unit'

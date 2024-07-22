@@ -5,7 +5,6 @@ import shutil
 from collections import Counter
 from json import JSONDecodeError
 
-import uuid
 from typing import Optional
 
 import git
@@ -17,8 +16,8 @@ from git.exc import GitCommandError
 
 from app import settings
 from app.domain.repo_model import Repo
-from app.repositories.enum import SchemaStructName, ReservedEnvVariableName
-from app.schemas.pydantic.repo import RepoCreate, Credentials
+from app.repositories.enum import DestinationTopicType, ReservedEnvVariableName
+from app.schemas.pydantic.repo import Credentials
 
 
 class GitRepoRepository:
@@ -30,14 +29,14 @@ class GitRepoRepository:
             pass
 
         try:
-            # клонирование
+            # cloning repo by url
             git_repo = GitRepo.clone_from(self.get_url(repo, data), repo_save_path)
         except GitCommandError:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
             )
 
-        # получает все удалённые ветки
+        # get all remotes branches to local repo
         for remote in git_repo.remotes:
             remote.fetch()
 
@@ -209,6 +208,7 @@ class GitRepoRepository:
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
         file_buffer = self.get_file(repo, commit, 'schema_example.json')
 
+        # check - json loads
         try:
             schema_dict = json.loads(file_buffer.getvalue().decode())
         except JSONDecodeError:
@@ -216,8 +216,9 @@ class GitRepoRepository:
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This schema file is not a json file'
             )
 
-        binding_schema_keys = [i.value for i in SchemaStructName]
+        binding_schema_keys = [i.value for i in DestinationTopicType]
 
+        # check - all 4 topic destination, is in schema
         if len(binding_schema_keys) != len(set(schema_dict.keys()) & set(binding_schema_keys)):
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
@@ -226,6 +227,7 @@ class GitRepoRepository:
 
         schema_dict_values_type = [type(value) for value in schema_dict.values()]
 
+        # check - all values first layer schema is list
         if Counter(schema_dict_values_type)[list] != len(schema_dict):
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
@@ -234,13 +236,14 @@ class GitRepoRepository:
 
         all_unique_chars_topic = Counter(''.join([item for value in schema_dict.values() for item in value])).keys()
 
+        # check - all chars in topics is valid
         if (set(all_unique_chars_topic) - set(settings.available_topic_symbols)) != set():
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f'Topics in the schema use characters that are not allowed',
             )
 
-        # 100 chars is stock for system track parts
+        # check - length topics. 100 chars is stock for system track parts
         if max([len(item) for value in schema_dict.values() for item in value]) >= 65535 - 100:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'The length of the topic title is too long'
