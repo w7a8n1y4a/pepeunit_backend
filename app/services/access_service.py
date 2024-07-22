@@ -143,7 +143,7 @@ class AccessService:
         if isinstance(self.current_agent, Unit) and not unit_node.is_rewritable_input:
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
-                detail=f"This UnitNode topic can only be edited by a User, set is_rewritable_input=True for available"
+                detail=f"This UnitNode topic can only be edited by a User, set is_rewritable_input=True for available",
             )
 
     @staticmethod

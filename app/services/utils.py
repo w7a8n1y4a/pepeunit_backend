@@ -32,7 +32,7 @@ def get_topic_name(node_uuid: str, topic_name: str):
     main_topic = f'{settings.backend_domain}/{str(node_uuid)}'
     main_topic += (
         GlobalPrefixTopic.BACKEND_SUB_PREFIX
-        if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX):] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
+        if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
         else ''
     )
 

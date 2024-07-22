@@ -40,7 +40,4 @@ def is_valid_uuid(uuid_str: str) -> None:
     try:
         uuid.UUID(uuid_str)
     except ValueError:
-        raise HTTPException(
-            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f'This string is not UUID'
-        )
+        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f'This string is not UUID')
