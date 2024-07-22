@@ -7,6 +7,24 @@ import httpx
 from app import settings
 
 
+def check_emqx_state() -> None:
+    logging.info(f'Check state EMQX Broker {settings.mqtt_host}:{settings.mqtt_port}')
+    response = httpx.get(f'https://{settings.mqtt_host}/api-docs/swagger.json')
+
+    assert response.status_code < 400, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
+
+
+def del_emqx_auth_hook() -> None:
+    basic_auth = base64.b64encode((settings.mqtt_api_key + ':' + settings.mqtt_secret_key).encode('utf-8')).decode(
+        'ascii'
+    )
+
+    headers = {'accept': '*/*', 'Authorization': f"Basic {basic_auth}", 'Content-Type': 'application/json'}
+
+    logging.info(f'Del auth hook mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
+    response = httpx.delete(f'https://{settings.mqtt_host}/api/v5/authorization/sources/http', headers=headers)
+    assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
+
 def set_emqx_auth_hook() -> None:
 
     basic_auth = base64.b64encode((settings.mqtt_api_key + ':' + settings.mqtt_secret_key).encode('utf-8')).decode(
@@ -39,12 +57,15 @@ def set_emqx_auth_hook() -> None:
         "url": f"https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/units/auth",
     }
 
+    logging.info(f'Set auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
     response = httpx.post(f'https://{settings.mqtt_host}/api/v5/authorization/sources', json=data, headers=headers)
+
+    assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
 
     try:
         result = response.json()
     except json.decoder.JSONDecodeError:
-        result = 'Authorization source created successfully'
+        result = 'Success auth hook create'
 
     logging.info(result)
 
@@ -63,6 +84,9 @@ def set_emqx_auth_cache_ttl() -> None:
         "cache": {"enable": True, "max_size": 64, "ttl": "10m", "excludes": []},
     }
 
+    logging.info(f'Set cache settings auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
     response = httpx.put(f'https://{settings.mqtt_host}/api/v5/authorization/settings', json=data, headers=headers)
+
+    assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
 
     logging.info(response.json())
