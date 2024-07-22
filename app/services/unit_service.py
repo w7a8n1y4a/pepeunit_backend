@@ -399,13 +399,11 @@ class UnitService:
                 if destination in [DestinationTopicType.INPUT_BASE_TOPIC, DestinationTopicType.OUTPUT_BASE_TOPIC]:
                     if str(self.access_service.current_agent.uuid) != unit_uuid:
                         raise HTTPException(
-                            status_code=http_status.HTTP_403_FORBIDDEN,
-                            detail=f"Available only for a docked Unit"
+                            status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Available only for a docked Unit"
                         )
                 else:
                     raise HTTPException(
-                        status_code=http_status.HTTP_403_FORBIDDEN,
-                        detail=f"Topic destination is invalid"
+                        status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Topic destination is invalid"
                     )
 
             elif len_struct in [2, 3]:
@@ -418,8 +416,7 @@ class UnitService:
                 self.access_service.visibility_check(unit_node)
             else:
                 raise HTTPException(
-                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Topic struct is invalid"
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Topic struct is invalid"
                 )
 
     def delete(self, uuid: str) -> None:
