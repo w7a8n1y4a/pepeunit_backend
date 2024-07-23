@@ -23,7 +23,7 @@ async def start_help_resolver(message: types.Message):
     )
 
     buttons = [
-        InlineKeyboardButton(text='Узел', url=f'https://{settings.backend_domain}'),
+        InlineKeyboardButton(text='Узел', url=settings.backend_link),
         InlineKeyboardButton(text='Документация', url='https://pepeunit.com'),
     ]
     builder = InlineKeyboardBuilder()

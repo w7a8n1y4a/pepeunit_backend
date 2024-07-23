@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     license: str = data['tool']['poetry']['license']
 
     backend_domain: str
+    secure: bool = True
+    http_type: str = 'https'
+
+    backend_link: str = ''
+    backend_link_prefix: str = ''
+    backend_link_prefix_and_v1: str = ''
 
     auth_token_expiration: str
     sqlalchemy_database_url: str
@@ -34,14 +40,17 @@ class Settings(BaseSettings):
     save_repo_path: str
 
     mqtt_host: str
+    mqtt_secure: bool = True
+    mqtt_http_type: str = 'https'
     mqtt_port: int
+    mqtt_api_port: int = 18083
     mqtt_keepalive: int
     mqtt_api_key: str
     mqtt_secret_key: str
 
     redis_url: str
 
-    available_topic_symbols: str = string.ascii_lowercase + string.ascii_uppercase + '0123456789/_-'
+    available_topic_symbols: str = string.ascii_lowercase + string.ascii_uppercase + string.digits + '/_-'
     state_send_interval: int = 300
 
     test_clear_data: bool = True
