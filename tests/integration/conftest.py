@@ -1,7 +1,5 @@
 import json
-import os.path
 import shutil
-from collections import namedtuple
 import hashlib
 from json import JSONDecodeError
 
@@ -17,8 +15,7 @@ from sqlmodel import Session
 
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
-from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session, \
-    kill_screen_session
+from tests.integration.services.utils import check_screen_session_by_name, kill_screen_session
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()
 
@@ -26,8 +23,6 @@ test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()
 def pytest_configure():
     # search hash for db
     pytest.test_hash = test_hash
-
-    pytest.base_link = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}'
 
     # last - Admin, first - User: minimal 2 users
     pytest.users = []

@@ -496,6 +496,7 @@ class UnitService:
     def gen_env_dict(self, uuid: str) -> dict:
         return {
             'PEPEUNIT_URL': settings.backend_domain,
+            'HTTP_TYPE': settings.http_type,
             'MQTT_URL': settings.mqtt_host,
             'PEPEUNIT_TOKEN': self.generate_token(uuid),
             'SYNC_ENCRYPT_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),

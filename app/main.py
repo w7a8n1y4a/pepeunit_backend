@@ -1,4 +1,6 @@
 import logging
+import asyncio
+import time
 
 import uvicorn
 from aiogram import Dispatcher
@@ -8,7 +10,8 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.utils import set_emqx_auth_hook, set_emqx_auth_cache_ttl, del_emqx_auth_hook, check_emqx_state
+from app.configs.utils import set_emqx_auth_hook, set_emqx_auth_cache_ttl, del_emqx_auth_hook, check_emqx_state, \
+    is_valid_ip_address
 from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
 from app.schemas.gql.mutation import Mutation
@@ -48,15 +51,28 @@ async def on_startup():
     set_emqx_auth_hook()
     set_emqx_auth_cache_ttl()
 
+    async def run_polling_bot(dp, bot):
+        logging.info(f'Delete webhook before run polling')
+        await bot.delete_webhook()
+
+        logging.info(f'Run polling')
+        await dp.start_polling(bot)
+
+    if is_valid_ip_address(settings.backend_domain):
+        asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
+
     logging.info(f'Get current TG bot webhook info')
-    webhook_info = await bot.get_webhook_info()
-    webhook_url = f'https://{settings.backend_domain}{settings.app_prefix}{settings.api_v1_prefix}/bot'
 
-    if webhook_info.url != webhook_url:
+    if not is_valid_ip_address(settings.backend_domain):
+        webhook_url = f'{settings.backend_link_prefix_and_v1}/bot'
+
+        logging.info(f'Delete webhook before set new webhook')
+        await bot.delete_webhook()
+
         logging.info(f'Set new TG bot webhook url: {webhook_url}')
-        await bot.set_webhook(url=webhook_url)
+        await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
 
-    logging.info(f'Success set TG bot webhook url')
+        logging.info(f'Success set TG bot webhook url')
 
 
 @app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])

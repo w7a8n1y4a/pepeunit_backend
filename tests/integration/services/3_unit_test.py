@@ -282,13 +282,24 @@ def test_run_infrastructure_contour() -> None:
     if not check_screen_session_by_name(backend_screen_name):
         assert run_bash_script_on_screen_session(backend_screen_name, backend_run_script) == True
 
+    time.sleep(10)
+
     # waiting condition backend
     code = 502
-    while code >= 500:
-        r = httpx.get(f'https://{settings.backend_domain}{settings.app_prefix}')
-        code = r.status_code
+    inc = 0
+    while code >= 500 and inc <= 10:
+        try:
+            r = httpx.get(settings.backend_link)
+            code = r.status_code
+        except httpx.ConnectError:
+            inc += 1
 
-        time.sleep(2)
+        if inc > 10:
+            assert False
+
+        time.sleep(5)
+
+    time.sleep(5)
 
     # run units in screen
     for inc, unit in enumerate(pytest.units):
@@ -337,7 +348,7 @@ def test_hand_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{pytest.base_link}/units/{str(unit.uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/units/{str(unit.uuid)}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=UnitUpdate(repo_commit=target_version).dict(), headers=headers)
@@ -409,7 +420,7 @@ def test_repo_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{pytest.base_link}/repos/{str(repo.uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/repos/{str(repo.uuid)}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=repo_update.dict(), headers=headers)
@@ -422,7 +433,7 @@ def test_repo_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{pytest.base_link}/repos/bulk_update'
+        url = f'{settings.backend_link_prefix_and_v1}/repos/bulk_update'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)

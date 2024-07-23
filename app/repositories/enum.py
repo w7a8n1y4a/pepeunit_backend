@@ -114,6 +114,7 @@ class ReservedEnvVariableName(str, enum.Enum):
     """
 
     PEPEUNIT_URL = 'PEPEUNIT_URL'
+    HTTP_TYPE = 'HTTP_TYPE'
     MQTT_URL = 'MQTT_URL'
     PEPEUNIT_TOKEN = 'PEPEUNIT_TOKEN'
     SYNC_ENCRYPT_KEY = 'SYNC_ENCRYPT_KEY'
