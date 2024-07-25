@@ -27,12 +27,13 @@ mqtt_config = MQTTConfig(
 mqtt = FastMQTT(config=mqtt_config)
 
 
-@mqtt.on_connect()
-def connect(client, flags, rc, properties):
-    logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
-
-    mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
-    mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
+# @mqtt.on_connect()
+# def connect(client, flags, rc, properties):
+#     logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
+#
+#
+#     mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+#     mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
 
 
 KeyDBClient.init_session(uri=settings.redis_url)
