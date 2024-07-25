@@ -38,9 +38,8 @@ async def _lifespan(_app: FastAPI):
         logging.info(f'Run polling')
         await dp.start_polling(bot)
 
-    task_run_polling = None
     if is_valid_ip_address(settings.backend_domain):
-        task_run_polling = asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
+        asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
 
     logging.info(f'Get current TG bot webhook info')
 
@@ -63,13 +62,9 @@ async def _lifespan(_app: FastAPI):
         mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
         mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
 
-    run_run_mqtt = asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
+    asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
     yield
     await mqtt.mqtt_shutdown()
-    run_run_mqtt.cancel()
-
-    if task_run_polling:
-        task_run_polling.cancel()
 
 
 app = FastAPI(
