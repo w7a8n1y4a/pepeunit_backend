@@ -1,11 +1,13 @@
 import logging
 import asyncio
 import time
+from contextlib import asynccontextmanager
 
 import uvicorn
 from aiogram import Dispatcher
 
 from fastapi import FastAPI
+from fastapi_mqtt import FastMQTT, MQTTConfig
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
@@ -19,33 +21,11 @@ from app.schemas.gql.query import Query
 from app.schemas.pydantic.shared import Root
 from app.schemas.bot import *
 from app.schemas.mqtt.topic import mqtt
-
-app = FastAPI(
-    title=settings.project_name,
-    version=settings.version,
-    openapi_url=f'{settings.app_prefix}{settings.api_v1_prefix}/openapi.json',
-    docs_url=f'{settings.app_prefix}/docs',
-    debug=settings.debug,
-)
+from app.services.access_service import AccessService
 
 
-schema = Schema(query=Query, mutation=Mutation)
-graphql = GraphQLRouter(
-    schema,
-    graphiql=True,
-    context_getter=get_graphql_context,
-)
-
-
-app.include_router(
-    graphql,
-    prefix=f'{settings.app_prefix}/graphql',
-    include_in_schema=False,
-)
-
-
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
     check_emqx_state()
     del_emqx_auth_hook()
     set_emqx_auth_hook()
@@ -73,6 +53,43 @@ async def on_startup():
         await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
 
         logging.info(f'Success set TG bot webhook url')
+
+    async def run_mqtt_client(mqtt):
+        logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
+
+        await asyncio.sleep(5)
+        await mqtt.mqtt_startup()
+        mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+        mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
+
+    asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
+    yield
+    await mqtt.mqtt_shutdown()
+
+
+app = FastAPI(
+    title=settings.project_name,
+    version=settings.version,
+    openapi_url=f'{settings.app_prefix}{settings.api_v1_prefix}/openapi.json',
+    docs_url=f'{settings.app_prefix}/docs',
+    debug=settings.debug,
+    lifespan=_lifespan
+)
+
+
+schema = Schema(query=Query, mutation=Mutation)
+graphql = GraphQLRouter(
+    schema,
+    graphiql=True,
+    context_getter=get_graphql_context,
+)
+
+
+app.include_router(
+    graphql,
+    prefix=f'{settings.app_prefix}/graphql',
+    include_in_schema=False,
+)
 
 
 @app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])
