@@ -282,8 +282,6 @@ def test_run_infrastructure_contour() -> None:
     if not check_screen_session_by_name(backend_screen_name):
         assert run_bash_script_on_screen_session(backend_screen_name, backend_run_script) == True
 
-    time.sleep(10)
-
     # waiting condition backend
     code = 502
     inc = 0
@@ -297,9 +295,7 @@ def test_run_infrastructure_contour() -> None:
         if inc > 10:
             assert False
 
-        time.sleep(5)
-
-    time.sleep(5)
+        time.sleep(3)
 
     # run units in screen
     for inc, unit in enumerate(pytest.units):

@@ -31,60 +31,67 @@ mqtt = FastMQTT(config=mqtt_config)
 def connect(client, flags, rc, properties):
     logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
 
+    mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
+    mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
+
 
 KeyDBClient.init_session(uri=settings.redis_url)
 
 
-@mqtt.subscribe(f'{settings.backend_domain}/+/pepeunit')
+@mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
-    backend_domain, unit_node_uuid, *_ = get_topic_split(topic)
-    is_valid_uuid(unit_node_uuid)
 
-    new_value = str(payload.decode())
+    topic_split = get_topic_split(topic)
 
-    await KeyDBClient.async_wait_for_ready()
-    redis_topic_value = await KeyDBClient.async_get(unit_node_uuid)
+    if len(topic_split) == 5:
+        backend_domain, destination, unit_uuid, topic_name, *_ = topic_split
+        is_valid_uuid(unit_uuid)
 
-    if redis_topic_value != new_value:
-        await KeyDBClient.async_set(unit_node_uuid, new_value)
+        topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
 
-        db = next(get_session())
-        unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-        unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
-        db.close()
+        if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
+            if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
+                db = next(get_session())
+                unit_repository = UnitRepository(db)
 
+                unit_state_dict = json.loads(payload.decode())
 
-@mqtt.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
-async def message_to_topic(client, topic, payload, qos, properties):
-    backend_domain, destination, unit_uuid, topic_name, *_ = get_topic_split(topic)
-    is_valid_uuid(unit_uuid)
+                current_unit = unit_repository.get(Unit(uuid=unit_uuid))
 
-    topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
-
-    if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
-        if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
-            db = next(get_session())
-            unit_repository = UnitRepository(db)
-
-            unit_state_dict = json.loads(payload.decode())
-
-            current_unit = unit_repository.get(Unit(uuid=unit_uuid))
-
-            new_unit_state = Unit(
-                **merge_two_dict_first_priority(
-                    {
-                        'unit_state_dict': str(payload.decode()),
-                        'current_commit_version': unit_state_dict['commit_version'],
-                    },
-                    current_unit.dict(),
+                new_unit_state = Unit(
+                    **merge_two_dict_first_priority(
+                        {
+                            'unit_state_dict': str(payload.decode()),
+                            'current_commit_version': unit_state_dict['commit_version'],
+                        },
+                        current_unit.dict(),
+                    )
                 )
-            )
 
-            unit_repository.update(
-                unit_uuid,
-                new_unit_state,
-            )
+                unit_repository.update(
+                    unit_uuid,
+                    new_unit_state,
+                )
+                db.close()
+
+    elif len(topic_split) == 3:
+        backend_domain, unit_node_uuid, *_ = topic_split
+        is_valid_uuid(unit_node_uuid)
+
+        new_value = str(payload.decode())
+
+        await KeyDBClient.async_wait_for_ready()
+        redis_topic_value = await KeyDBClient.async_get(unit_node_uuid)
+
+        if redis_topic_value != new_value:
+            await KeyDBClient.async_set(unit_node_uuid, new_value)
+
+            db = next(get_session())
+            unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+            unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
             db.close()
+    else:
+        pass
 
 
 @mqtt.on_disconnect()
