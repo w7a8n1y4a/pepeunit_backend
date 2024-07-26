@@ -385,7 +385,7 @@ class UnitService:
         return f'{firmware_tar_path}.tgz'
 
     def get_mqtt_auth(self, topic: str) -> None:
-        self.access_service.access_check([UserRole.PEPEUNIT], is_unit_available=True)
+        self.access_service.access_check([], is_unit_available=True)
 
         if isinstance(self.access_service.current_agent, Unit):
 

@@ -45,7 +45,7 @@ def check_emqx_state() -> None:
     assert response.status_code < 400, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
 
 
-def del_emqx_auth_hook() -> None:
+def del_emqx_auth_hooks() -> None:
     basic_auth = base64.b64encode((settings.mqtt_api_key + ':' + settings.mqtt_secret_key).encode('utf-8')).decode(
         'ascii'
     )
@@ -55,9 +55,67 @@ def del_emqx_auth_hook() -> None:
     logging.info(f'Del auth hook mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
     response = httpx.delete(f'{get_emqx_link()}/api/v5/authorization/sources/http', headers=headers)
     assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
+    response = httpx.delete(f'{get_emqx_link()}/api/v5/authorization/sources/redis', headers=headers)
+    assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
 
 
-def set_emqx_auth_hook() -> None:
+def set_redis_emqx_auth_hook() -> None:
+
+    basic_auth = base64.b64encode((settings.mqtt_api_key + ':' + settings.mqtt_secret_key).encode('utf-8')).decode(
+        'ascii'
+    )
+
+    headers = {'accept': '*/*', 'Authorization': f"Basic {basic_auth}", 'Content-Type': 'application/json'}
+
+    redis_url = settings.redis_mqtt_auth_url
+
+    data = {
+        "type": "redis",
+        "enable": True,
+        "server": redis_url[:-2].replace('redis://', ''),
+        "redis_type": "single",
+        "pool_size": 8,
+        "username": "",
+        "password": "",
+        "database": int(redis_url.split('/')[-1]),
+        "auto_reconnect": True,
+        "ssl": {
+            "cacertfile": "string",
+            "cacerts": False,
+            "certfile": "",
+            "keyfile": "",
+            "verify": "verify_peer",
+            "reuse_sessions": True,
+            "depth": 10,
+            "password": "",
+            "versions": [
+                "tlsv1.3",
+                "tlsv1.2"
+            ],
+            "ciphers": [],
+            "secure_renegotiate": True,
+            "log_level": "emergency",
+            "hibernate_after": "12m",
+            "enable": False,
+            "server_name_indication": "disable"
+        },
+        "cmd": "HGETALL mqtt_acl:${username}"
+    }
+
+    logging.info(f'Set redis auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
+    response = httpx.post(f'{get_emqx_link()}/api/v5/authorization/sources', json=data, headers=headers)
+
+    assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
+
+    try:
+        result = response.json()
+    except json.decoder.JSONDecodeError:
+        result = 'Success auth hook create'
+
+    logging.info(result)
+
+
+def set_http_emqx_auth_hook() -> None:
 
     basic_auth = base64.b64encode((settings.mqtt_api_key + ':' + settings.mqtt_secret_key).encode('utf-8')).decode(
         'ascii'
@@ -89,7 +147,7 @@ def set_emqx_auth_hook() -> None:
         "url": f"{settings.backend_link_prefix_and_v1}/units/auth",
     }
 
-    logging.info(f'Set auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
+    logging.info(f'Set http auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')
     response = httpx.post(f'{get_emqx_link()}/api/v5/authorization/sources', json=data, headers=headers)
 
     assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
