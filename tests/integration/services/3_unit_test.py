@@ -35,6 +35,7 @@ def test_create_unit(database) -> None:
     # create auto updated unit
     new_units = []
     for inc, test_repo in enumerate(pytest.repos[-2:-1]):
+        logging.info(test_repo.uuid)
         unit = unit_service.create(
             UnitCreate(
                 repo_uuid=test_repo.uuid,
@@ -47,6 +48,7 @@ def test_create_unit(database) -> None:
 
     # create no auto updated units, with all visibility levels
     for inc, test_repo in enumerate([pytest.repos[-3]] + pytest.repos[-3:]*2):
+        logging.info(test_repo.uuid)
         repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
         commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
 
@@ -199,6 +201,7 @@ def test_env_unit(database) -> None:
 
     # set valid env variable for Units
     for unit in pytest.units:
+        logging.info(unit.uuid)
         current_env = unit_service.get_env(unit.uuid)
 
         count_before = len(current_env.keys())
@@ -230,6 +233,7 @@ def test_get_firmware(database) -> None:
     # check create physical unit for all pytest unit - zip, tar, tgz
     del_file_list = []
     for inc, unit in enumerate(pytest.units):
+        logging.info(unit.uuid)
 
         inc = inc%3
 
@@ -304,13 +308,15 @@ def test_run_infrastructure_contour() -> None:
     # run units in screen
     for inc, unit in enumerate(pytest.units):
 
+        logging.info(unit.uuid)
+
         unit_screen_name = unit.name
         unit_script = f'cd tmp/test_units/{str(unit.uuid)} && bash entrypoint.sh'
 
         if not check_screen_session_by_name(unit_screen_name):
             assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
 
-        time.sleep(1)
+        time.sleep(0.5)
 
 
 @pytest.mark.run(order=6)
@@ -358,6 +364,8 @@ def test_hand_update_firmware_unit(database) -> None:
     # set all hand updated unit, old version
     target_versions = []
     for unit in target_units:
+        logging.info(unit.uuid)
+
         repo = repo_service.get(unit.repo_uuid)
         commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
         target_version = commits[1].commit
@@ -451,6 +459,7 @@ def test_repo_update_firmware_unit(database) -> None:
 
     # set auto update
     for unit in target_units:
+        logging.info(unit.uuid)
         unit_service.update(str(unit.uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
 
     # hand update repo
