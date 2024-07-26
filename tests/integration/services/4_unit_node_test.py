@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import logging
 
 import fastapi
 import httpx
@@ -100,6 +101,7 @@ def test_create_unit_node_edge(database) -> None:
 
     io_units_list = []
     for unit in target_units:
+        logging.info(unit.uuid)
         unit_nodes = unit_node_service.list(
             UnitNodeFilter(
                 unit_uuid=unit.uuid
@@ -130,10 +132,13 @@ def test_create_unit_node_edge(database) -> None:
 
     # test update schema 3 Unit
     for unit in target_units:
+        logging.info(unit.uuid)
         assert update_schema(token, unit.uuid) == 204
 
+    # sleep for update schema 3 unit
     time.sleep(4)
 
+    # target value for chain unit
     state = '0'
 
     # run chain input set
@@ -142,10 +147,12 @@ def test_create_unit_node_edge(database) -> None:
     # check set output state
     assert set_input_state(token, io_units_list[0][1].uuid, state) >= 400
 
+    # sleep for chain transmission data
     time.sleep(4)
 
     # check value in units
     for unit in target_units:
+        logging.info(unit.uuid)
 
         filepath = f'tmp/test_units/{str(unit.uuid)}/log.json'
 

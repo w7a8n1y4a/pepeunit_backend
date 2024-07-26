@@ -1,5 +1,6 @@
 import fastapi
 import pytest
+import logging
 
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
@@ -16,6 +17,7 @@ def test_create_repo(test_repos, database) -> None:
     # create test repos
     new_repos = []
     for test_repo in test_repos:
+        logging.info(test_repo['name'])
         repo = repo_service.create(RepoCreate(**test_repo))
         new_repos.append(repo)
 
@@ -53,11 +55,13 @@ def test_update_repo(database) -> None:
 
     # set default branch for all repos
     for update_repo in pytest.repos:
+        logging.info(update_repo.uuid)
         new_repo_state = RepoUpdate(default_branch=update_repo.branches[0])
         repo_service.update(update_repo.uuid, new_repo_state)
 
     # check change name to new
     test_repo = pytest.repos[3]
+    logging.info(test_repo.name)
     new_repo_name = test_repo.name + 'test'
     repo_service.update(str(test_repo.uuid), RepoUpdate(name=new_repo_name))
 
@@ -71,6 +75,7 @@ def test_update_repo(database) -> None:
 
     # check change repo auto update to hand update
     repo = pytest.repos[4]
+    logging.info(repo.uuid)
     commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
     new_repo_state = RepoUpdate(
         is_auto_update_repo=False,
@@ -85,6 +90,8 @@ def test_update_repo(database) -> None:
 
     # set three type repos update
     for inc, repo in enumerate(pytest.repos[4:7]):
+
+        logging.info(repo.uuid)
 
         if inc == 0:
 
@@ -118,6 +125,7 @@ def test_get_commits_repo(database) -> None:
 
     # check get repo commits - first 10
     target_repo = repo_service.get(pytest.repos[5].uuid)
+    logging.info(target_repo.uuid)
     branch_commits = repo_service.get_branch_commits(
         target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0], limit=1000)
     )
@@ -138,6 +146,7 @@ def test_update_credentials_repo(test_repos, database) -> None:
 
     # change to invalid credentials for gitlab and github
     for inc, repo in enumerate(pytest.repos[:1]):
+        logging.info(repo.uuid)
 
         # change to invalid credentials
         repo_service.update_credentials(repo.uuid, Credentials(username='test', pat_token='test'))
@@ -160,6 +169,8 @@ def test_update_default_branch_repo(database) -> None:
     for repo in pytest.repos:
         full_repo = repo_service.get(repo.uuid)
 
+        logging.info(repo.uuid)
+
         if len(full_repo.branches) > 0:
             repo_service.update_default_branch(repo.uuid, full_repo.branches[0])
 
@@ -180,6 +191,7 @@ def test_update_local_repo(database) -> None:
 
     # check update local repos
     for repo in pytest.repos:
+        logging.info(repo.uuid)
         repo_service.update_local_repo(repo.uuid)
 
 

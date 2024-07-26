@@ -1,5 +1,6 @@
 import fastapi
 import pytest
+import logging
 
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
@@ -16,6 +17,7 @@ def test_create_user(test_users, database, clear_database) -> None:
     # create test users
     new_users = []
     for test_user in test_users:
+        logging.info(test_user['login'])
         user = user_service.create(UserCreate(**test_user))
         new_users.append(user)
 
@@ -39,6 +41,7 @@ def test_get_auth_token_user(test_users, database) -> None:
 
     # get token for all test users
     for inc, user in enumerate(pytest.users):
+        logging.info(user.uuid)
         pytest.user_tokens_dict[user.uuid] = user_service.get_token(
             UserAuth(credentials=user.login, password=test_users[inc]['password'])
         )
@@ -71,8 +74,10 @@ async def test_verification_user(database) -> None:
     codes_list = []
     for inc, user in enumerate(pytest.users, start=1):
         user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]}))
+        logging.info(user.uuid)
 
         code = await user_service.generate_verification_code()
+        logging.info(code)
         codes_list.append(code)
 
         await user_service.verification(str(inc * 1_000_000), code)
@@ -92,6 +97,8 @@ def test_block_unblock_user(database) -> None:
 
     # block unblock users
     for user in pytest.users:
+        logging.info(user.uuid)
+
         user_service.block(user.uuid)
         assert user.status == UserStatus.BLOCKED
         user_service.unblock(user.uuid)
@@ -125,6 +132,7 @@ def test_update_user(database) -> None:
     current_user = pytest.users[-1]
     user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
+    logging.info(current_user.login)
     new_login = current_user.login + 'test'
     user_service.update(str(current_user.uuid), UserUpdate(login=new_login))
 
