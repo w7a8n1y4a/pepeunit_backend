@@ -57,8 +57,6 @@ class AccessService:
                         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
                 elif data['type'] == AgentType.UNIT.value:
                     agent = self.unit_repository.get(Unit(uuid=data['uuid']))
-                elif data['type'] == AgentType.PEPEUNIT.value:
-                    agent = User(role=UserRole.PEPEUNIT.value)
 
                 if not agent:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")

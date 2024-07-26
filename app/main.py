@@ -13,7 +13,7 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.utils import set_emqx_auth_hook, set_emqx_auth_cache_ttl, del_emqx_auth_hook, check_emqx_state, \
+from app.configs.utils import set_redis_emqx_auth_hook, set_http_emqx_auth_hook, set_emqx_auth_cache_ttl, del_emqx_auth_hooks, check_emqx_state, \
     is_valid_ip_address
 from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
@@ -27,8 +27,9 @@ from app.schemas.mqtt.topic import mqtt
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     check_emqx_state()
-    del_emqx_auth_hook()
-    set_emqx_auth_hook()
+    del_emqx_auth_hooks()
+    set_http_emqx_auth_hook()
+    set_redis_emqx_auth_hook()
     set_emqx_auth_cache_ttl()
 
     KeyDBClient.init_session(uri=settings.redis_mqtt_auth_url)
@@ -58,7 +59,7 @@ async def _lifespan(_app: FastAPI):
         await dp.start_polling(bot)
 
     if is_valid_ip_address(settings.backend_domain):
-        asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
+        await asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
 
     logging.info(f'Get current TG bot webhook info')
 
@@ -84,7 +85,7 @@ async def _lifespan(_app: FastAPI):
         mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
         mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
 
-    asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
+    await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
     yield
     await mqtt.mqtt_shutdown()
 
