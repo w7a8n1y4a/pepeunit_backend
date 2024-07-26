@@ -291,6 +291,10 @@ def test_run_infrastructure_contour() -> None:
             code = r.status_code
         except httpx.ConnectError:
             inc += 1
+            logging.info('No route to BACKEND_DOMAIN variable')
+        except httpx.ConnectTimeout:
+            inc += 1
+            logging.info('Connect timeout to BACKEND_DOMAIN variable')
 
         if inc > 10:
             assert False
