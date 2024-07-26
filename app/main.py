@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from aiogram import Dispatcher
+from aiokeydb import KeyDBClient
 
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
@@ -21,7 +22,6 @@ from app.schemas.gql.query import Query
 from app.schemas.pydantic.shared import Root
 from app.schemas.bot import *
 from app.schemas.mqtt.topic import mqtt
-from app.services.access_service import AccessService
 
 
 @asynccontextmanager
@@ -30,6 +30,25 @@ async def _lifespan(_app: FastAPI):
     del_emqx_auth_hook()
     set_emqx_auth_hook()
     set_emqx_auth_cache_ttl()
+
+    KeyDBClient.init_session(uri=settings.redis_mqtt_auth_url)
+
+    await KeyDBClient.async_wait_for_ready()
+    await KeyDBClient.async_delete(settings.backend_token)
+
+    backend_topics = (
+        f'{settings.backend_domain}/+/+/+/pepeunit',
+        f'{settings.backend_domain}/+/pepeunit'
+    )
+
+    async def hset_emqx_auth_keys(KeyDBClient, topic):
+        await KeyDBClient.async_hset(
+            f'mqtt_acl:{settings.backend_token}',
+            topic,
+            'all'
+        )
+
+    await asyncio.gather(*[hset_emqx_auth_keys(KeyDBClient, topic) for topic in backend_topics])
 
     async def run_polling_bot(dp, bot):
         logging.info(f'Delete webhook before run polling')
@@ -56,9 +75,12 @@ async def _lifespan(_app: FastAPI):
 
     async def run_mqtt_client(mqtt):
         logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
-
-        await asyncio.sleep(5)
         await mqtt.mqtt_startup()
+
+        access = await KeyDBClient.async_hgetall(settings.backend_token)
+        for k, v in access.items():
+            logging.info(f'Redis set {k} access {v}')
+
         mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
         mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
 

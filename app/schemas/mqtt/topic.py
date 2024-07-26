@@ -12,7 +12,6 @@ from app.domain.unit_model import Unit
 from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic, DestinationTopicType
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_topic_split
-from app.services.access_service import AccessService
 from app.services.utils import merge_two_dict_first_priority
 from app.services.validators import is_valid_uuid
 
@@ -20,21 +19,11 @@ mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
     port=settings.mqtt_port,
     keepalive=settings.mqtt_keepalive,
-    username=AccessService.generate_current_instance_token(),
+    username=settings.backend_token,
     password='',
 )
 
 mqtt = FastMQTT(config=mqtt_config)
-
-
-# @mqtt.on_connect()
-# def connect(client, flags, rc, properties):
-#     logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
-#
-#
-#     mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
-#     mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
-
 
 KeyDBClient.init_session(uri=settings.redis_url)
 

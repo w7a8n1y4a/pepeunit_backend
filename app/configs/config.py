@@ -23,12 +23,13 @@ class Settings(BaseSettings):
     backend_domain: str
     secure: bool = True
     http_type: str = 'https'
+    backend_token: str = ''
 
     backend_link: str = ''
     backend_link_prefix: str = ''
     backend_link_prefix_and_v1: str = ''
 
-    auth_token_expiration: str
+    auth_token_expiration: int
     sqlalchemy_database_url: str
 
     secret_key: str
@@ -49,6 +50,7 @@ class Settings(BaseSettings):
     mqtt_secret_key: str
 
     redis_url: str
+    redis_mqtt_auth_url: str
 
     available_topic_symbols: str = string.ascii_lowercase + string.ascii_uppercase + string.digits + '/_-'
     state_send_interval: int = 300

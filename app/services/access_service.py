@@ -148,7 +148,7 @@ class AccessService:
 
     @staticmethod
     def generate_user_token(user: User) -> str:
-        access_token_exp = datetime.utcnow() + timedelta(seconds=int(settings.auth_token_expiration))
+        access_token_exp = datetime.utcnow() + timedelta(seconds=settings.auth_token_expiration)
 
         token = jwt.encode(
             {'uuid': str(user.uuid), 'type': AgentType.USER.value, 'exp': access_token_exp},
@@ -162,17 +162,6 @@ class AccessService:
     def generate_unit_token(unit: Unit) -> str:
         token = jwt.encode(
             {'uuid': str(unit.uuid), 'type': AgentType.UNIT.value},
-            settings.secret_key,
-            'HS256',
-        )
-
-        return token
-
-    @staticmethod
-    def generate_current_instance_token() -> str:
-
-        token = jwt.encode(
-            {'uuid': settings.backend_domain, 'type': AgentType.PEPEUNIT.value},
             settings.secret_key,
             'HS256',
         )
