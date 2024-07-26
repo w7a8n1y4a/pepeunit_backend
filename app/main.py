@@ -59,7 +59,7 @@ async def _lifespan(_app: FastAPI):
         await dp.start_polling(bot)
 
     if is_valid_ip_address(settings.backend_domain):
-        await asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
+        asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
 
     logging.info(f'Get current TG bot webhook info')
 
