@@ -4,7 +4,6 @@ from typing import Union
 
 from fastapi import Depends
 
-from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.repositories.enum import UserRole, PermissionEntities
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -241,7 +240,6 @@ class RepoService:
         is_emtpy_sequence(unit_list)
 
         self.git_repo_repository.delete_repo(repo)
-        self.access_service.permission_repository.delete_by_resource(Permission(resource_uuid=repo.uuid))
         self.repo_repository.delete(repo)
 
         return None

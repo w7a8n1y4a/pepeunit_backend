@@ -15,7 +15,7 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
-from app.domain.permission_model import Permission
+from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -33,6 +33,7 @@ from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
 from app.schemas.mqtt.utils import get_topic_split
+from app.schemas.pydantic.permission import PermissionCreate
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
@@ -104,7 +105,7 @@ class UnitService:
 
                     for agent in [unit, self.access_service.current_agent]:
                         agents_default_permission_list.append(
-                            Permission(
+                            PermissionBaseType(
                                 agent_uuid=agent.uuid,
                                 agent_type=agent.__class__.__name__,
                                 resource_uuid=unit_node.uuid,
@@ -198,7 +199,7 @@ class UnitService:
 
                     for agent in [unit, self.access_service.current_agent]:
                         agents_default_permission_list.append(
-                            Permission(
+                            PermissionBaseType(
                                 agent_uuid=agent.uuid,
                                 agent_type=agent.__class__.__name__,
                                 resource_uuid=unit_node.uuid,
