@@ -9,6 +9,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_user_service
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import CommandNames
+from app.repositories.user_repository import UserRepository
 
 
 class VerificationState(StatesGroup):
@@ -18,7 +19,19 @@ class VerificationState(StatesGroup):
 @dp.message(StateFilter(None), Command(CommandNames.VERIFICATION.value))
 async def verification_user(message, state: FSMContext):
 
-    text = f'Введите код из личного кабинета {settings.backend_domain}'
+    db = next(get_session())
+
+    user_repository = UserRepository(db)
+    user = user_repository.get_user_by_telegram_id(str(message.chat.id))
+
+    text = f'Your account is already linked to an account on instance {settings.backend_domain}'
+    if user:
+        await message.answer(text, parse_mode='Markdown')
+        return
+
+    db.close()
+
+    text = f'Enter the code from your personal account on instance {settings.backend_domain}'
     await message.answer(text, parse_mode='Markdown')
     await state.set_state(VerificationState.check_code)
 
@@ -34,12 +47,12 @@ async def verification_user_check_code(message, state: FSMContext):
         await user_service.verification(str(message.chat.id), message.text)
         db.close()
 
-        text = 'Вы успешно прошли верификацию'
+        text = 'You have been successfully verified'
     except HTTPException as e:
         if e.status_code == 422:
-            text = 'Вы уже верифицированы'
+            text = 'You are already verified'
         else:
-            text = 'Такого кода не существует'
+            text = 'There is no such code'
 
     await message.answer(text, parse_mode='Markdown')
     await state.clear()

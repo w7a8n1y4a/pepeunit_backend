@@ -67,7 +67,7 @@ class UserService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
         redis = await anext(get_redis_session())
 
-        code = generate_random_string(6)
+        code = generate_random_string(8)
         await redis.set(code, str(self.access_service.current_agent.uuid), ex=60)
 
         return code
@@ -76,6 +76,7 @@ class UserService:
 
         redis = await anext(get_redis_session())
         uuid = await redis.get(verification_code)
+        is_valid_object(uuid)
         await redis.delete(verification_code)
 
         user = self.user_repository.get(User(uuid=uuid))

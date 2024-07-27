@@ -4,7 +4,6 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from aiogram import Dispatcher
 from aiokeydb import KeyDBClient
 
 from fastapi import FastAPI

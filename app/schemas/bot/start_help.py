@@ -4,27 +4,27 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.bot import dp
+from app.configs.bot import dp, bot
 from app.repositories.enum import CommandNames
 
 
-@dp.message(Command(CommandNames.START.value, CommandNames.HELP.value))
+@dp.message(Command(CommandNames.START, CommandNames.HELP))
 async def start_help_resolver(message: types.Message):
 
     documentation = (
-        '*Верификация*\n'
-        '/verification - верификация пользователя\n'
+        '*Verification*\n'
+        '/verification - User verification\n'
         '\n'
-        '*Управление*\n'
-        '/start - запуск бота\n'
+        '*Control*\n'
+        '/start - bot run\n'
         '\n'
-        '*Информация о узле*\n'
-        '/info - базовая информация\n'
+        '*Instance information*\n'
+        '/info - base info\n'
     )
 
     buttons = [
-        InlineKeyboardButton(text='Узел', url=settings.backend_link),
-        InlineKeyboardButton(text='Документация', url='https://pepeunit.com'),
+        InlineKeyboardButton(text='Instance', url=settings.backend_link),
+        InlineKeyboardButton(text='Docs', url='https://pepeunit.com'),
     ]
     builder = InlineKeyboardBuilder()
     for button in buttons:

@@ -68,7 +68,8 @@ class AccessService:
         else:
             if self.jwt_token:
                 agent = self.user_repository.get_user_by_credentials(self.jwt_token)
-                is_valid_object(agent)
+                if not agent:
+                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
                 if agent.status == UserStatus.BLOCKED.value:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
