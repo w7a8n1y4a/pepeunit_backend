@@ -100,6 +100,7 @@ class RepoRepository:
         return query.all()
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
+        uuid = str(uuid)
         repo_uuid = self.db.exec(select(Repo.uuid).where(Repo.name == name)).first()
         repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
 

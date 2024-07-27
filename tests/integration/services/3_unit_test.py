@@ -117,7 +117,7 @@ def test_delete_repo_with_unit(database) -> None:
     repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
     # test del repo with Unit
     with pytest.raises(fastapi.HTTPException):
-        repo_service.delete(str(pytest.repos[-1].uuid))
+        repo_service.delete(pytest.repos[-1].uuid)
 
 
 @pytest.mark.run(order=2)
@@ -129,33 +129,33 @@ def test_update_unit(database) -> None:
     # check change name to new
     test_unit = pytest.units[0]
     test_unit_name = test_unit.name + 'test'
-    unit_service.update(str(test_unit.uuid), UnitUpdate(name=test_unit_name))
+    unit_service.update(test_unit.uuid, UnitUpdate(name=test_unit_name))
 
     update_unit = unit_service.get(test_unit.uuid)
 
     assert test_unit_name == update_unit.name
 
     # change name to normal
-    unit_service.update(str(test_unit.uuid), UnitUpdate(name=test_unit.name))
+    unit_service.update(test_unit.uuid, UnitUpdate(name=test_unit.name))
 
     # check change name when name is exist
     with pytest.raises(fastapi.HTTPException):
-        unit_service.update(str(pytest.units[0].uuid), UnitUpdate(name=pytest.units[1].name))
+        unit_service.update(pytest.units[0].uuid, UnitUpdate(name=pytest.units[1].name))
 
     # check change visibility
     target_unit = pytest.units[0]
 
-    unit_service.update(str(target_unit.uuid), UnitUpdate(visibility_level=VisibilityLevel.INTERNAL))
+    unit_service.update(target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.INTERNAL))
     update_unit = unit_service.get(target_unit.uuid)
     assert update_unit.visibility_level == VisibilityLevel.INTERNAL
 
-    unit_service.update(str(target_unit.uuid), UnitUpdate(visibility_level=VisibilityLevel.PUBLIC))
+    unit_service.update(target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.PUBLIC))
     update_unit = unit_service.get(target_unit.uuid)
     assert update_unit.visibility_level == VisibilityLevel.PUBLIC
 
     # check set not auto update without commit and branch
     with pytest.raises(fastapi.HTTPException):
-        unit_service.update(str(pytest.units[0].uuid), UnitUpdate(is_auto_update_from_repo_unit=False))
+        unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=False))
 
     # check set hand update
     repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
@@ -165,21 +165,21 @@ def test_update_unit(database) -> None:
     commits = repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0]))
 
     unit_service.update(
-        str(pytest.units[0].uuid),
+        pytest.units[0].uuid,
         UnitUpdate(
             is_auto_update_from_repo_unit=False, repo_branch=target_repo.branches[0], repo_commit=commits[0].commit
         ),
     )
 
     # check set auto update
-    unit_service.update(str(pytest.units[0].uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
+    unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
 
     # check update not creator
     current_user = pytest.users[1]
     unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     with pytest.raises(fastapi.HTTPException):
-        unit_service.update(str(pytest.units[0].uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
+        unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
 
 
 @pytest.mark.run(order=3)
@@ -311,7 +311,7 @@ def test_run_infrastructure_contour() -> None:
         logging.info(unit.uuid)
 
         unit_screen_name = unit.name
-        unit_script = f'cd tmp/test_units/{str(unit.uuid)} && bash entrypoint.sh'
+        unit_script = f'cd tmp/test_units/{unit.uuid} && bash entrypoint.sh'
 
         if not check_screen_session_by_name(unit_screen_name):
             assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
@@ -354,7 +354,7 @@ def test_hand_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{settings.backend_link_prefix_and_v1}/units/{str(unit.uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/units/{unit.uuid}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=UnitUpdate(repo_commit=target_version).dict(), headers=headers)
@@ -404,7 +404,7 @@ def test_hand_update_firmware_unit(database) -> None:
     env_dict = unit_service.get_env(target_unit.uuid)
     del env_dict['SYNC_ENCRYPT_KEY']
 
-    logging.info(str(env_dict))
+    logging.info(env_dict)
 
     update_unit = unit_service.get(target_unit.uuid)
     update_unit.cipher_env_dict = aes_encode(json.dumps(env_dict))
@@ -428,7 +428,7 @@ def test_repo_update_firmware_unit(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{settings.backend_link_prefix_and_v1}/repos/{str(repo.uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/repos/{repo.uuid}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=repo_update.dict(), headers=headers)
@@ -460,7 +460,7 @@ def test_repo_update_firmware_unit(database) -> None:
     # set auto update
     for unit in target_units:
         logging.info(unit.uuid)
-        unit_service.update(str(unit.uuid), UnitUpdate(is_auto_update_from_repo_unit=True))
+        unit_service.update(unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
 
     # hand update repo
     target_repo = repo_service.get(target_units[0].repo_uuid)

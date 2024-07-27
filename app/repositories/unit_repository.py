@@ -67,6 +67,7 @@ class UnitRepository:
         return query.all()
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
+        uuid = str(uuid)
         unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
         unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
 
