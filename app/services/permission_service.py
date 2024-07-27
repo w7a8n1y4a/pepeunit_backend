@@ -4,11 +4,11 @@ from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
 
-from app.domain.permission_model import Permission
+from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.unit_model import Unit
 from app.repositories.enum import UserRole
 from app.schemas.gql.inputs.permission import PermissionCreateInput, ResourceInput
-from app.schemas.pydantic.permission import PermissionCreate, Resource
+from app.schemas.pydantic.permission import PermissionCreate, Resource, PermissionRead
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
 from app.services.validators import is_valid_object
@@ -21,10 +21,10 @@ class PermissionService:
     ) -> None:
         self.access_service = access_service
 
-    def create(self, data: Union[PermissionCreate, PermissionCreateInput]) -> Permission:
+    def create(self, data: Union[PermissionCreate, PermissionCreateInput]) -> PermissionBaseType:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        new_permission = Permission(**data.dict())
+        new_permission = PermissionBaseType(**data.dict())
 
         resource = self.access_service.permission_repository.get_resource(new_permission)
         is_valid_object(resource)
@@ -42,11 +42,14 @@ class PermissionService:
 
         return self.access_service.permission_repository.create(new_permission)
 
-    def get_resource_agents(self, resource: Union[Resource, ResourceInput]) -> list[Permission]:
+    def get_resource_agents(self, resource: Union[Resource, ResourceInput]) -> list[PermissionBaseType]:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         resource_entity = self.access_service.permission_repository.get_resource(
-            Permission(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
+            PermissionBaseType(
+                resource_uuid=resource.resource_uuid,
+                resource_type=resource.resource_type
+            )
         )
 
         is_valid_object(resource_entity)
@@ -54,7 +57,10 @@ class PermissionService:
         creator_check(self.access_service.current_agent, resource_entity)
 
         return self.access_service.permission_repository.get_resource_agents(
-            Permission(resource_uuid=resource.resource_uuid)
+            PermissionBaseType(
+                resource_uuid=resource.resource_uuid,
+                resource_type=resource.resource_type
+            )
         )
 
     def delete(self, uuid: str) -> None:

@@ -60,7 +60,6 @@ def clear_database(database) -> None:
     # clear screen with units
     units = database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).all()
     for unit in units:
-        print(unit.name)
         if check_screen_session_by_name(unit.name):
             kill_screen_session(unit.name)
 

@@ -1,5 +1,6 @@
 from datetime import timedelta, datetime
 from typing import Optional, Union
+import uuid as pkg_uuid
 
 import jwt
 from fastapi import Depends, params
@@ -7,7 +8,7 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
-from app.domain.permission_model import Permission
+from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -106,7 +107,12 @@ class AccessService:
             ):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:
-            permission_check = Permission(agent_uuid=self.current_agent.uuid, resource_uuid=check_entity.uuid)
+            permission_check = PermissionBaseType(
+                agent_type=self.current_agent.__class__.__name__,
+                agent_uuid=self.current_agent.uuid,
+                resource_type=check_entity.__class__.__name__,
+                resource_uuid=check_entity.uuid
+            )
             if not self.permission_repository.check(permission_check):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
@@ -124,14 +130,17 @@ class AccessService:
             else:
                 return [VisibilityLevel.PUBLIC.value, VisibilityLevel.INTERNAL]
 
-    def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[str]:
+    def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[pkg_uuid]:
         """
         Allows to get the uuid of all entities to which the agent has access
         """
         return [
             item.resource_uuid
             for item in self.permission_repository.get_agent_resources(
-                Permission(agent_uuid=self.current_agent.uuid, resource_type=resource_type)
+                PermissionBaseType(
+                    agent_type=self.current_agent.__class__.__name__,
+                    agent_uuid=self.current_agent.uuid,
+                    resource_type=resource_type)
             )
         ]
 
@@ -169,7 +178,7 @@ class AccessService:
 
     def create_permission(
         self, agent: Union[User, Unit, UnitNode], resource: Union[Repo, Unit, UnitNode]
-    ) -> Permission:
+    ) -> PermissionBaseType:
 
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
@@ -178,7 +187,7 @@ class AccessService:
         self.permission_repository.is_valid_resource_type(Permission(resource_type=resource_type))
 
         return self.permission_repository.create(
-            Permission(
+            PermissionBaseType(
                 agent_uuid=agent.uuid,
                 agent_type=agent_type,
                 resource_uuid=resource.uuid,
