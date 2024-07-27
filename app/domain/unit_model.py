@@ -17,7 +17,7 @@ class Unit(SQLModel, table=True):
 
     uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
-    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
+    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
 
     # Unique Unit name on Instance
     name: str = Field(nullable=False, unique=True)

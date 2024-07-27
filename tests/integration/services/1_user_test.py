@@ -81,7 +81,7 @@ async def test_verification_user(database) -> None:
         codes_list.append(code)
 
         await user_service.verification(str(inc * 1_000_000), code)
-        assert user.status == UserStatus.VERIFIED.value
+        assert user.status == UserStatus.VERIFIED
 
     # check del all verification codes in redis
     for code in codes_list:

@@ -25,8 +25,8 @@ class UserService:
 
         user = User(**data.dict())
 
-        user.role = UserRole.USER.value
-        user.status = UserStatus.UNVERIFIED.value
+        user.role = UserRole.USER
+        user.status = UserStatus.UNVERIFIED
         user.create_datetime = datetime.datetime.utcnow()
 
         user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
@@ -84,12 +84,12 @@ class UserService:
         self.user_repository.is_valid_telegram_chat_id(telegram_chat_id, user.uuid)
 
         return self.user_repository.update(
-            user.uuid, User(status=UserStatus.VERIFIED.value, telegram_chat_id=telegram_chat_id)
+            user.uuid, User(status=UserStatus.VERIFIED, telegram_chat_id=telegram_chat_id)
         )
 
     def block(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])
-        self.user_repository.update(uuid, User(status=UserStatus.BLOCKED.value))
+        self.user_repository.update(uuid, User(status=UserStatus.BLOCKED))
 
     def unblock(self, uuid: str) -> None:
         self.access_service.access_check([UserRole.ADMIN])
@@ -97,7 +97,7 @@ class UserService:
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
 
-        status = UserStatus.VERIFIED.value if user.telegram_chat_id else UserStatus.UNVERIFIED.value
+        status = UserStatus.VERIFIED if user.telegram_chat_id else UserStatus.UNVERIFIED
 
         self.user_repository.update(uuid, User(status=status))
 
