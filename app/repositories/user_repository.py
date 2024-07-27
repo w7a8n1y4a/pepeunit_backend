@@ -38,9 +38,7 @@ class UserRepository:
         ).first()
 
     def get_user_by_telegram_id(self, telegram_chat_id: str):
-        return self.db.exec(
-            select(User).where(User.telegram_chat_id == telegram_chat_id)
-        ).first()
+        return self.db.exec(select(User).where(User.telegram_chat_id == telegram_chat_id)).first()
 
     def update(self, uuid: uuid_pkg.UUID, user: User) -> User:
         user.uuid = uuid

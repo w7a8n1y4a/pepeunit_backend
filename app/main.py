@@ -12,8 +12,14 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.utils import set_redis_emqx_auth_hook, set_http_emqx_auth_hook, set_emqx_auth_cache_ttl, del_emqx_auth_hooks, check_emqx_state, \
-    is_valid_ip_address
+from app.configs.utils import (
+    set_redis_emqx_auth_hook,
+    set_http_emqx_auth_hook,
+    set_emqx_auth_cache_ttl,
+    del_emqx_auth_hooks,
+    check_emqx_state,
+    is_valid_ip_address,
+)
 from app.routers.v1.endpoints import api_router
 from app.configs.gql import get_graphql_context
 from app.schemas.gql.mutation import Mutation
@@ -36,17 +42,10 @@ async def _lifespan(_app: FastAPI):
     await KeyDBClient.async_wait_for_ready()
     await KeyDBClient.async_delete(settings.backend_token)
 
-    backend_topics = (
-        f'{settings.backend_domain}/+/+/+/pepeunit',
-        f'{settings.backend_domain}/+/pepeunit'
-    )
+    backend_topics = (f'{settings.backend_domain}/+/+/+/pepeunit', f'{settings.backend_domain}/+/pepeunit')
 
     async def hset_emqx_auth_keys(KeyDBClient, topic):
-        await KeyDBClient.async_hset(
-            f'mqtt_acl:{settings.backend_token}',
-            topic,
-            'all'
-        )
+        await KeyDBClient.async_hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
 
     await asyncio.gather(*[hset_emqx_auth_keys(KeyDBClient, topic) for topic in backend_topics])
 
@@ -95,7 +94,7 @@ app = FastAPI(
     openapi_url=f'{settings.app_prefix}{settings.api_v1_prefix}/openapi.json',
     docs_url=f'{settings.app_prefix}/docs',
     debug=settings.debug,
-    lifespan=_lifespan
+    lifespan=_lifespan,
 )
 
 

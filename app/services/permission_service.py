@@ -47,10 +47,7 @@ class PermissionService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         resource_entity = self.access_service.permission_repository.get_resource(
-            PermissionBaseType(
-                resource_uuid=resource.resource_uuid,
-                resource_type=resource.resource_type
-            )
+            PermissionBaseType(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
         )
 
         is_valid_object(resource_entity)
@@ -58,10 +55,7 @@ class PermissionService:
         creator_check(self.access_service.current_agent, resource_entity)
 
         return self.access_service.permission_repository.get_resource_agents(
-            PermissionBaseType(
-                resource_uuid=resource.resource_uuid,
-                resource_type=resource.resource_type
-            )
+            PermissionBaseType(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
         )
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:

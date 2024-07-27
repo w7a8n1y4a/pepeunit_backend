@@ -56,10 +56,7 @@ class PermissionRepository:
     @staticmethod
     def domain_to_base_type(permission: Permission) -> PermissionBaseType:
 
-        base_permission = PermissionBaseType(
-            agent_type=permission.agent_type,
-            resource_type=permission.resource_type
-        )
+        base_permission = PermissionBaseType(agent_type=permission.agent_type, resource_type=permission.resource_type)
 
         agent_type = eval(base_permission.agent_type)
         if agent_type is User:
@@ -97,7 +94,7 @@ class PermissionRepository:
         entities_dict = {
             PermissionEntities.USER: Permission.agent_user_uuid,
             PermissionEntities.UNIT: Permission.agent_unit_uuid,
-            PermissionEntities.UNIT_NODE: Permission.agent_unit_node_uuid
+            PermissionEntities.UNIT_NODE: Permission.agent_unit_node_uuid,
         }
         return entities_dict[fld_type]
 
@@ -106,7 +103,7 @@ class PermissionRepository:
         entities_dict = {
             PermissionEntities.REPO: Permission.resource_repo_uuid,
             PermissionEntities.UNIT: Permission.resource_unit_uuid,
-            PermissionEntities.UNIT_NODE: Permission.resource_unit_node_uuid
+            PermissionEntities.UNIT_NODE: Permission.resource_unit_node_uuid,
         }
         return entities_dict[fld_type]
 
@@ -138,7 +135,7 @@ class PermissionRepository:
             self.db.query(Permission)
             .filter(
                 self.get_agent_fld_uuid_by_type(base_permission.agent_type) == base_permission.agent_uuid,
-                self.get_resource_fld_uuid_by_type(base_permission.resource_type) == base_permission.resource_uuid
+                self.get_resource_fld_uuid_by_type(base_permission.resource_type) == base_permission.resource_uuid,
             )
             .first()
         )
