@@ -62,6 +62,7 @@ class UserRepository:
         return query.all()
 
     def is_valid_login(self, login: str, uuid: Optional[uuid_pkg.UUID] = None):
+        uuid = str(uuid)
         user_uuid = self.db.exec(select(User.uuid).where(User.login == login)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
@@ -69,6 +70,7 @@ class UserRepository:
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Login is not unique")
 
     def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: Optional[uuid_pkg.UUID] = None):
+        uuid = str(uuid)
         user_uuid = self.db.exec(select(User.uuid).where(User.telegram_chat_id == telegram_chat_id)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 

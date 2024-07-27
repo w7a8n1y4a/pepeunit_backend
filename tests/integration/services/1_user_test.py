@@ -134,7 +134,7 @@ def test_update_user(database) -> None:
 
     logging.info(current_user.login)
     new_login = current_user.login + 'test'
-    user_service.update(str(current_user.uuid), UserUpdate(login=new_login))
+    user_service.update(current_user.uuid, UserUpdate(login=new_login))
 
     assert new_login == current_user.login
 
@@ -144,13 +144,13 @@ def test_update_user(database) -> None:
         user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
         other_user = pytest.users[0]
-        user_service.update(str(current_user.uuid), UserUpdate(login=other_user.login))
+        user_service.update(current_user.uuid, UserUpdate(login=other_user.login))
 
     # check change password
     current_user = pytest.users[0]
     user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
-    user_service.update(str(current_user.uuid), UserUpdate(password='password'))
+    user_service.update(current_user.uuid, UserUpdate(password='password'))
 
 
 @pytest.mark.run(order=5)

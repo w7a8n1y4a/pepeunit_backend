@@ -68,7 +68,7 @@ def clear_database(database) -> None:
     # clear physical repos
     repos = database.query(Repo).where(Repo.name.ilike(f'%{test_hash}%')).all()
     for repo in repos:
-        target_del_path = f'{settings.save_repo_path}/{str(repo.uuid)}'
+        target_del_path = f'{settings.save_repo_path}/{repo.uuid}'
         try:
             shutil.rmtree(target_del_path)
         except FileNotFoundError:

@@ -79,7 +79,7 @@ def test_create_unit_node_edge(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{settings.backend_link_prefix_and_v1}/units/update_schema/{str(unit_uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/units/update_schema/{unit_uuid}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -92,7 +92,7 @@ def test_create_unit_node_edge(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{str(unit_node_uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=UnitNodeSetState(state=state).dict(), headers=headers)
@@ -154,7 +154,7 @@ def test_create_unit_node_edge(database) -> None:
     for unit in target_units:
         logging.info(unit.uuid)
 
-        filepath = f'tmp/test_units/{str(unit.uuid)}/log.json'
+        filepath = f'tmp/test_units/{unit.uuid}/log.json'
 
         assert os.path.exists(filepath)
 
@@ -180,7 +180,7 @@ def test_set_state_input_unit_node(database) -> None:
             'x-auth-token': token
         }
 
-        url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{str(unit_node_uuid)}'
+        url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=UnitNodeSetState(state=state).dict(), headers=headers)

@@ -176,7 +176,7 @@ class RepoService:
         self.git_repo_repository.is_valid_schema_file(repo, target_version)
         self.git_repo_repository.get_env_dict(repo, target_version)
 
-        units = self.unit_repository.list(UnitFilter(repo_uuid=str(repo.uuid), is_auto_update_from_repo_unit=True))
+        units = self.unit_repository.list(UnitFilter(repo_uuid=repo.uuid, is_auto_update_from_repo_unit=True))
 
         logging.info(f'{len(units)} units candidates update launched')
 

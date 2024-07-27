@@ -63,7 +63,7 @@ def test_update_repo(database) -> None:
     test_repo = pytest.repos[3]
     logging.info(test_repo.name)
     new_repo_name = test_repo.name + 'test'
-    repo_service.update(str(test_repo.uuid), RepoUpdate(name=new_repo_name))
+    repo_service.update(test_repo.uuid, RepoUpdate(name=new_repo_name))
 
     update_repo = repo_service.get(test_repo.uuid)
 
@@ -71,7 +71,7 @@ def test_update_repo(database) -> None:
 
     # check change name when name is exist
     with pytest.raises(fastapi.HTTPException):
-        repo_service.update(str(pytest.repos[0].uuid), RepoUpdate(name=pytest.repos[1].name))
+        repo_service.update(pytest.repos[0].uuid, RepoUpdate(name=pytest.repos[1].name))
 
     # check change repo auto update to hand update
     repo = pytest.repos[4]
@@ -114,7 +114,7 @@ def test_update_repo(database) -> None:
                 is_only_tag_update=True
             )
 
-        repo_service.update(str(repo.uuid), new_repo_state)
+        repo_service.update(repo.uuid, new_repo_state)
 
 
 @pytest.mark.run(order=2)
@@ -202,7 +202,7 @@ def test_delete_repo(database) -> None:
     repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
 
     # del repo
-    repo_service.delete(str(pytest.repos[3].uuid))
+    repo_service.delete(pytest.repos[3].uuid)
 
 
 @pytest.mark.run(order=7)
