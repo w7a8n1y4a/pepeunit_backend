@@ -6,13 +6,12 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app.domain.permission_model import Permission, PermissionBaseType
-from app.domain.unit_model import Unit
 from app.repositories.enum import UserRole
 from app.schemas.gql.inputs.permission import PermissionCreateInput, ResourceInput
-from app.schemas.pydantic.permission import PermissionCreate, Resource, PermissionRead
+from app.schemas.pydantic.permission import PermissionCreate, Resource
 from app.services.access_service import AccessService
 from app.services.utils import creator_check
-from app.services.validators import is_valid_object
+from app.services.validators import is_valid_object, is_valid_uuid
 
 
 class PermissionService:
@@ -23,6 +22,8 @@ class PermissionService:
         self.access_service = access_service
 
     def create(self, data: Union[PermissionCreate, PermissionCreateInput]) -> PermissionBaseType:
+        is_valid_uuid(data.agent_uuid)
+        is_valid_uuid(data.resource_uuid)
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         new_permission = PermissionBaseType(**data.dict())
@@ -44,6 +45,7 @@ class PermissionService:
         return self.access_service.permission_repository.create(new_permission)
 
     def get_resource_agents(self, resource: Union[Resource, ResourceInput]) -> list[PermissionBaseType]:
+        is_valid_uuid(resource.resource_uuid)
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         resource_entity = self.access_service.permission_repository.get_resource(

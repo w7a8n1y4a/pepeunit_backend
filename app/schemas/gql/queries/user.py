@@ -1,3 +1,5 @@
+import uuid as uuid_pkg
+
 import strawberry
 from strawberry.types import Info
 
@@ -7,7 +9,7 @@ from app.schemas.gql.types.user import UserType
 
 
 @strawberry.field()
-def get_user(uuid: str, info: Info) -> UserType:
+def get_user(uuid: uuid_pkg.UUID, info: Info) -> UserType:
     user_service = get_user_service(info)
     return UserType(**user_service.get(uuid).dict())
 

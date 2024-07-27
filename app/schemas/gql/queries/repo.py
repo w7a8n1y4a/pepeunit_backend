@@ -1,3 +1,5 @@
+import uuid as uuid_pkg
+
 import strawberry
 from strawberry.types import Info
 
@@ -7,7 +9,7 @@ from app.schemas.gql.types.repo import RepoType, CommitType, RepoVersionsType, R
 
 
 @strawberry.field()
-def get_repo(uuid: str, info: Info) -> RepoType:
+def get_repo(uuid: uuid_pkg.UUID, info: Info) -> RepoType:
     repo_service = get_repo_service(info)
     return RepoType(**repo_service.get(uuid).dict())
 
@@ -19,13 +21,13 @@ def get_repos(filters: RepoFilterInput, info: Info) -> list[RepoType]:
 
 
 @strawberry.field()
-def get_branch_commits(uuid: str, filters: CommitFilterInput, info: Info) -> list[CommitType]:
+def get_branch_commits(uuid: uuid_pkg.UUID, filters: CommitFilterInput, info: Info) -> list[CommitType]:
     repo_service = get_repo_service(info)
     return [CommitType(**commit.dict()) for commit in repo_service.get_branch_commits(uuid, filters)]
 
 
 @strawberry.field()
-def get_versions(uuid: str, info: Info) -> RepoVersionsType:
+def get_versions(uuid: uuid_pkg.UUID, info: Info) -> RepoVersionsType:
     repo_service = get_repo_service(info)
     item_list = RepoVersionsType(**repo_service.get_versions(uuid).dict())
     item_list.versions = [RepoVersionType(**item) for item in item_list.versions]

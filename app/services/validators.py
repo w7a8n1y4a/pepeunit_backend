@@ -1,7 +1,7 @@
 import json
-import uuid
+import uuid as uuid_pkg
 from json import JSONDecodeError
-from typing import Sequence
+from typing import Sequence, Union
 
 from fastapi import HTTPException
 from fastapi import status as http_status
@@ -36,8 +36,12 @@ def is_valid_json(json_str: str) -> dict:
     return env_dict
 
 
-def is_valid_uuid(uuid_str: str) -> None:
+def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
+
+    if isinstance(uuid, uuid_pkg.UUID):
+        return uuid
+
     try:
-        uuid.UUID(uuid_str)
+        return uuid_pkg.UUID(uuid)
     except ValueError:
         raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f'This string is not UUID')
