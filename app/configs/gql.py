@@ -128,6 +128,7 @@ def get_metrics_service(info: Info) -> MetricsService:
         repo_repository=repo_repository,
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
+        unit_node_edge_repository=UnitNodeEdgeRepository(db),
         user_repository=user_repository,
         access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),

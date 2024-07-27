@@ -77,10 +77,11 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
     try:
         unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': data.token}))
         unit_service.get_mqtt_auth(data.topic)
+        db.close()
     except Exception as e:
         logging.info(repr(e))
+        db.close()
         return MqttRead(result='deny')
-    db.close()
 
     return MqttRead(result='allow')
 

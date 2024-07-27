@@ -20,6 +20,9 @@ class UnitNodeEdgeRepository:
     def get(self, unit_node_edge: UnitNodeEdge) -> UnitNodeEdge:
         return self.db.get(UnitNodeEdge, unit_node_edge.uuid)
 
+    def get_all_count(self) -> int:
+        return self.db.query(UnitNodeEdge.uuid).count()
+
     def check(self, unit_node_edge: UnitNodeEdge) -> bool:
         check = (
             self.db.query(UnitNodeEdge)

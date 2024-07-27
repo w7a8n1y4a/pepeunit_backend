@@ -11,7 +11,7 @@ from app.repositories.enum import CommandNames
 from app.schemas.pydantic.shared import Root
 
 
-@dp.message(Command(CommandNames.INFO.value))
+@dp.message(Command(CommandNames.INFO))
 async def info_resolver(message: types.Message):
     root_data = Root()
 
@@ -23,16 +23,18 @@ async def info_resolver(message: types.Message):
     db.close()
 
     documentation = (
-        f'Текущая версия - {root_data.version}\n'
+        f'Current Version - {root_data.version}\n'
         '\n'
-        '*Метрики*\n'
-        f'Число пользователей - {metrics.user_count}'
+        '*Metrics*\n'
+        f'User count - {metrics.user_count}'
         '\n'
-        f'Число Repo - {metrics.repo_count}'
+        f'Repo count - {metrics.repo_count}'
         '\n'
-        f'Число Unit - {metrics.unit_count}'
+        f'Unit count - {metrics.unit_count}'
         '\n'
-        f'Число UnitNode - {metrics.unit_node_count}'
+        f'UnitNode count - {metrics.unit_node_count}'
+        '\n'
+        f'UnitNodeEdge count - {metrics.unit_node_edge_count}'
     )
 
     buttons = [

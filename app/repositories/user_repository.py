@@ -36,6 +36,11 @@ class UserRepository:
             select(User).where(or_(User.login == credentials, User.telegram_chat_id == credentials))
         ).first()
 
+    def get_user_by_telegram_id(self, telegram_chat_id: str):
+        return self.db.exec(
+            select(User).where(User.telegram_chat_id == telegram_chat_id)
+        ).first()
+
     def update(self, uuid, user: User) -> User:
         user.uuid = uuid
         self.db.merge(user)
