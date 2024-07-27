@@ -33,7 +33,7 @@ class UnitNodeSetState(BaseModel):
 
 @dataclass
 class UnitNodeFilter:
-    unit_uuid: Optional[str] = None
+    unit_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
     type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])

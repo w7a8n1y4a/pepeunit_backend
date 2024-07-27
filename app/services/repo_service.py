@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid as uuid_pkg
 from typing import Union
 
 from fastapi import Depends
@@ -69,7 +70,7 @@ class RepoService:
 
         return self.mapper_repo_to_repo_read(repo)
 
-    def get(self, uuid: str) -> RepoRead:
+    def get(self, uuid: uuid_pkg.UUID) -> RepoRead:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -89,12 +90,12 @@ class RepoService:
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
-    def get_versions(self, uuid: str) -> RepoVersionsRead:
+    def get_versions(self, uuid: uuid_pkg.UUID) -> RepoVersionsRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         return self.repo_repository.get_versions(Repo(uuid=uuid))
 
-    def update(self, uuid: str, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
+    def update(self, uuid: uuid_pkg.UUID, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -118,7 +119,7 @@ class RepoService:
 
         return self.mapper_repo_to_repo_read(repo)
 
-    def update_credentials(self, uuid: str, data: Union[Credentials, CredentialsInput]) -> RepoRead:
+    def update_credentials(self, uuid: uuid_pkg.UUID, data: Union[Credentials, CredentialsInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -133,7 +134,7 @@ class RepoService:
 
         return self.mapper_repo_to_repo_read(repo)
 
-    def update_default_branch(self, uuid: str, default_branch: str) -> RepoRead:
+    def update_default_branch(self, uuid: uuid_pkg.UUID, default_branch: str) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -146,7 +147,7 @@ class RepoService:
 
         return self.mapper_repo_to_repo_read(repo)
 
-    def update_local_repo(self, uuid: str) -> None:
+    def update_local_repo(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -159,7 +160,7 @@ class RepoService:
 
         return None
 
-    def update_units_firmware(self, uuid: str, is_auto_update: bool = False) -> None:
+    def update_units_firmware(self, uuid: uuid_pkg.UUID, is_auto_update: bool = False) -> None:
 
         if not is_auto_update:
             self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -228,7 +229,7 @@ class RepoService:
 
         logging.info('task auto update repo successfully completed')
 
-    def delete(self, uuid: str) -> None:
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))

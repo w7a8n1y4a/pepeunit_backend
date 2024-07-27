@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 from typing import Optional, Union
-import uuid as pkg_uuid
+import uuid as uuid_pkg
 
 import jwt
 from fastapi import Depends, params
@@ -18,7 +18,6 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.services.utils import token_depends
-from app.services.validators import is_valid_object
 
 
 class AccessService:
@@ -116,7 +115,7 @@ class AccessService:
             if not self.permission_repository.check(permission_check):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
-    def get_available_visibility_levels(self, levels: list[str], restriction: list[str] = None) -> list[str]:
+    def get_available_visibility_levels(self, levels: list[str], restriction: list[str] = None) -> list[VisibilityLevel]:
         """
         Prohibits all external users from getting information about internal entities and cuts off
         Private entities if the agent does not have any records about them
@@ -130,7 +129,7 @@ class AccessService:
             else:
                 return [VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]
 
-    def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[pkg_uuid]:
+    def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[uuid_pkg]:
         """
         Allows to get the uuid of all entities to which the agent has access
         """

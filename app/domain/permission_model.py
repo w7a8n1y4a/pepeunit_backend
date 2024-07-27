@@ -1,4 +1,4 @@
-import uuid as pkg_uuid
+import uuid as uuid_pkg
 from typing import Optional
 
 from pydantic import BaseModel
@@ -14,36 +14,36 @@ class Permission(SQLModel, table=True):
 
     __tablename__ = 'permissions'
 
-    uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # User, Unit, Unit Node
     agent_type: str = Field(nullable=False)
-    agent_user_uuid: pkg_uuid.UUID = Field(
+    agent_user_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'), nullable=True)
     )
-    agent_unit_uuid: pkg_uuid.UUID = Field(
+    agent_unit_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE'), nullable=True)
     )
-    agent_unit_node_uuid: pkg_uuid.UUID = Field(
+    agent_unit_node_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'), nullable=True)
     )
 
     # Repo, Unit, UnitNode
     resource_type: str = Field(nullable=False)
-    resource_repo_uuid: pkg_uuid.UUID = Field(
+    resource_repo_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE'), nullable=True)
     )
-    resource_unit_uuid: pkg_uuid.UUID = Field(
+    resource_unit_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE'), nullable=True)
     )
-    resource_unit_node_uuid: pkg_uuid.UUID = Field(
+    resource_unit_node_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'), nullable=True)
     )
 
 
 class PermissionBaseType(BaseModel):
-    agent_uuid: Optional[pkg_uuid.UUID] = None
+    agent_uuid: Optional[uuid_pkg.UUID] = None
     agent_type: Optional[PermissionEntities] = None
 
-    resource_uuid: Optional[pkg_uuid.UUID] = None
+    resource_uuid: Optional[uuid_pkg.UUID] = None
     resource_type: Optional[PermissionEntities] = None

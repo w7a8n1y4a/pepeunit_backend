@@ -67,7 +67,7 @@ class RepoUpdate(BaseModel):
 
 @dataclass
 class RepoFilter:
-    creator_uuid: Optional[str] = None
+    creator_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
     is_public_repository: Optional[bool] = None

@@ -118,14 +118,14 @@ class UnitService:
 
         return unit_deepcopy
 
-    def get(self, uuid: str) -> Unit:
+    def get(self, uuid: uuid_pkg.UUID) -> Unit:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
         self.access_service.visibility_check(unit)
         return unit
 
-    def update(self, uuid: str, data: Union[UnitUpdate, UnitUpdateInput]) -> Unit:
+    def update(self, uuid: uuid_pkg.UUID, data: Union[UnitUpdate, UnitUpdateInput]) -> Unit:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
@@ -243,7 +243,7 @@ class UnitService:
         unit.last_update_datetime = datetime.datetime.utcnow()
         return self.unit_repository.update(unit.uuid, unit)
 
-    def get_env(self, uuid: str) -> dict:
+    def get_env(self, uuid: uuid_pkg.UUID) -> dict:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
@@ -260,7 +260,7 @@ class UnitService:
 
         return env_dict
 
-    def set_env(self, uuid: str, env_json_str: str) -> None:
+    def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         env_dict = is_valid_json(env_json_str)
@@ -281,7 +281,7 @@ class UnitService:
 
         return None
 
-    def update_schema(self, uuid: str) -> None:
+    def update_schema(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -302,7 +302,7 @@ class UnitService:
         except AttributeError:
             logging.info('MQTT session is invalid')
 
-    def get_current_schema(self, uuid: str) -> dict:
+    def get_current_schema(self, uuid: uuid_pkg.UUID) -> dict:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -314,7 +314,7 @@ class UnitService:
 
         return self.generate_current_schema(unit, repo, target_version)
 
-    def get_unit_firmware(self, uuid: str) -> str:
+    def get_unit_firmware(self, uuid: uuid_pkg.UUID) -> str:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         self.access_service.visibility_check(unit)
 
@@ -339,7 +339,7 @@ class UnitService:
 
         return tmp_git_repo_path
 
-    def get_unit_firmware_zip(self, uuid: str) -> str:
+    def get_unit_firmware_zip(self, uuid: uuid_pkg.UUID) -> str:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
@@ -350,7 +350,7 @@ class UnitService:
 
         return f'{firmware_zip_path}.zip'
 
-    def get_unit_firmware_tar(self, uuid: str) -> str:
+    def get_unit_firmware_tar(self, uuid: uuid_pkg.UUID) -> str:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         firmware_path = self.get_unit_firmware(uuid)
@@ -361,7 +361,7 @@ class UnitService:
 
         return f'{firmware_tar_path}.tar'
 
-    def get_unit_firmware_tgz(self, uuid: str, wbits: int, level: int) -> str:
+    def get_unit_firmware_tgz(self, uuid: uuid_pkg.UUID, wbits: int, level: int) -> str:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         self.is_valid_wbits(wbits)
@@ -420,7 +420,7 @@ class UnitService:
                     status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Topic struct is invalid"
                 )
 
-    def delete(self, uuid: str) -> None:
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
@@ -488,13 +488,13 @@ class UnitService:
 
         return new_schema_dict
 
-    def generate_token(self, uuid: str) -> str:
+    def generate_token(self, uuid: uuid_pkg.UUID) -> str:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
         return self.access_service.generate_unit_token(unit)
 
-    def gen_env_dict(self, uuid: str) -> dict:
+    def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {
             'PEPEUNIT_URL': settings.backend_domain,
             'HTTP_TYPE': settings.http_type,

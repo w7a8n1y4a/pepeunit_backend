@@ -1,4 +1,5 @@
 from typing import Union
+import uuid as uuid_pkg
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
@@ -33,7 +34,7 @@ class UnitNodeService:
         self.unit_node_edge_repository = unit_node_edge_repository
         self.access_service = access_service
 
-    def get(self, uuid: str) -> UnitNode:
+    def get(self, uuid: uuid_pkg.UUID) -> UnitNode:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         self.access_service.visibility_check(unit_node)
@@ -41,7 +42,7 @@ class UnitNodeService:
         is_valid_object(unit_node)
         return unit_node
 
-    def update(self, uuid: str, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
+    def update(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
@@ -58,7 +59,7 @@ class UnitNodeService:
         update_unit_node = UnitNode(**unit_node_update_dict)
         return self.unit_node_repository.update(uuid, update_unit_node)
 
-    def set_state_input(self, uuid: str, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
+    def set_state_input(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
@@ -97,7 +98,7 @@ class UnitNodeService:
 
         return self.unit_node_edge_repository.create(new_edge)
 
-    def delete_node_edge(self, uuid: str) -> None:
+    def delete_node_edge(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         unit_node_edge = self.unit_node_edge_repository.get(UnitNodeEdge(uuid=uuid))
@@ -119,7 +120,7 @@ class UnitNodeService:
 
         return self.unit_node_repository.list(filters, restriction=restriction)
 
-    def set_state(self, unit_node_uuid: str, state: str) -> UnitNode:
+    def set_state(self, unit_node_uuid: uuid_pkg.UUID, state: str) -> UnitNode:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
         is_valid_object(unit_node)
         unit_node.state = state
