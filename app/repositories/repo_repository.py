@@ -14,6 +14,7 @@ from app.domain.unit_model import Unit
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate, RepoVersionRead, RepoVersionsRead, Credentials
+from app.services.validators import is_valid_uuid
 from app.utils.utils import aes_decode
 
 
@@ -79,7 +80,7 @@ class RepoRepository:
         query = self.db.query(Repo)
 
         if filters.creator_uuid:
-            query = query.filter(Repo.creator_uuid == filters.creator_uuid)
+            query = query.filter(Repo.creator_uuid == is_valid_uuid(filters.creator_uuid))
 
         if filters.is_auto_update_repo is not None:
             query = query.filter(Repo.is_auto_update_repo == filters.is_auto_update_repo)

@@ -53,6 +53,8 @@ class AccessService:
 
                 if data['type'] == AgentType.USER:
                     agent = self.user_repository.get(User(uuid=data['uuid']))
+                    if not agent:
+                        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
                     if agent.status == UserStatus.BLOCKED:
                         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
                 elif data['type'] == AgentType.UNIT:

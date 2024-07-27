@@ -1,3 +1,5 @@
+import uuid as uuid_pkg
+
 import strawberry
 from strawberry.types import Info
 
@@ -7,7 +9,7 @@ from app.schemas.gql.types.unit_node import UnitNodeType
 
 
 @strawberry.field()
-def get_unit_node(uuid: str, info: Info) -> UnitNodeType:
+def get_unit_node(uuid: uuid_pkg.UUID, info: Info) -> UnitNodeType:
     unit_node_service = get_unit_node_service(info)
     return UnitNodeType(**unit_node_service.get(uuid).dict())
 

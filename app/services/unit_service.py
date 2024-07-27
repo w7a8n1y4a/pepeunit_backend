@@ -395,10 +395,10 @@ class UnitService:
             len_struct = len(struct_topic)
             if len_struct == 5:
                 backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
-                is_valid_uuid(unit_uuid)
+                unit_uuid = is_valid_uuid(unit_uuid)
 
                 if destination in [DestinationTopicType.INPUT_BASE_TOPIC, DestinationTopicType.OUTPUT_BASE_TOPIC]:
-                    if str(self.access_service.current_agent.uuid) != unit_uuid:
+                    if self.access_service.current_agent.uuid != unit_uuid:
                         raise HTTPException(
                             status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Available only for a docked Unit"
                         )
@@ -409,7 +409,7 @@ class UnitService:
 
             elif len_struct in [2, 3]:
                 backend_domain, unit_node_uuid, *_ = struct_topic
-                is_valid_uuid(unit_node_uuid)
+                unit_node_uuid = is_valid_uuid(unit_node_uuid)
 
                 unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
                 is_valid_object(unit_node)

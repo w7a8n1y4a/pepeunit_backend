@@ -11,6 +11,7 @@ from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.services.validators import is_valid_uuid
 
 
 class UnitNodeRepository:
@@ -79,7 +80,7 @@ class UnitNodeRepository:
         query = self.db.query(UnitNode)
 
         if filters.unit_uuid:
-            query = query.filter(UnitNode.unit_uuid == filters.unit_uuid)
+            query = query.filter(UnitNode.unit_uuid == is_valid_uuid(filters.unit_uuid))
 
         if restriction:
             query = query.filter(UnitNode.uuid.in_(restriction))

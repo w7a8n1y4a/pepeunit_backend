@@ -1,3 +1,4 @@
+import uuid as uuid_pkg
 import json
 
 import strawberry
@@ -9,19 +10,19 @@ from app.schemas.gql.types.unit import UnitType
 
 
 @strawberry.field()
-def get_unit(uuid: str, info: Info) -> UnitType:
+def get_unit(uuid: uuid_pkg.UUID, info: Info) -> UnitType:
     unit_service = get_unit_service(info)
     return UnitType(**unit_service.get(uuid).dict())
 
 
 @strawberry.field()
-def get_unit_env(uuid: str, info: Info) -> str:
+def get_unit_env(uuid: uuid_pkg.UUID, info: Info) -> str:
     unit_service = get_unit_service(info)
     return json.dumps(unit_service.get_env(uuid))
 
 
 @strawberry.field()
-def get_unit_current_schema(uuid: str, info: Info) -> str:
+def get_unit_current_schema(uuid: uuid_pkg.UUID, info: Info) -> str:
     unit_service = get_unit_service(info)
     return json.dumps(unit_service.get_current_schema(uuid))
 

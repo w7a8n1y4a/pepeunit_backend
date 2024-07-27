@@ -20,7 +20,7 @@ from app.schemas.gql.inputs.unit_node import (
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
 from app.services.access_service import AccessService
 from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
-from app.services.validators import is_valid_object
+from app.services.validators import is_valid_object, is_valid_uuid
 
 
 class UnitNodeService:
@@ -79,6 +79,9 @@ class UnitNodeService:
         return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
 
     def create_node_edge(self, data: Union[UnitNodeEdgeCreate, UnitNodeEdgeCreateInput]) -> UnitNodeEdge:
+        data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
+        data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
+
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))

@@ -35,7 +35,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
     if len(topic_split) == 5:
         backend_domain, destination, unit_uuid, topic_name, *_ = topic_split
-        is_valid_uuid(unit_uuid)
+        unit_uuid = is_valid_uuid(unit_uuid)
 
         topic_name += GlobalPrefixTopic.BACKEND_SUB_PREFIX
 
@@ -66,15 +66,15 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
     elif len(topic_split) == 3:
         backend_domain, unit_node_uuid, *_ = topic_split
-        is_valid_uuid(unit_node_uuid)
+        unit_node_uuid = is_valid_uuid(unit_node_uuid)
 
         new_value = str(payload.decode())
 
         await KeyDBClient.async_wait_for_ready()
-        redis_topic_value = await KeyDBClient.async_get(unit_node_uuid)
+        redis_topic_value = await KeyDBClient.async_get(str(unit_node_uuid))
 
         if redis_topic_value != new_value:
-            await KeyDBClient.async_set(unit_node_uuid, new_value)
+            await KeyDBClient.async_set(str(unit_node_uuid), new_value)
 
             db = next(get_session())
             unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))

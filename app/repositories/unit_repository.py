@@ -10,6 +10,7 @@ from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit import UnitFilter
+from app.services.validators import is_valid_uuid
 
 
 class UnitRepository:
@@ -46,9 +47,9 @@ class UnitRepository:
         query = self.db.query(Unit)
 
         if filters.creator_uuid:
-            query = query.filter(Unit.creator_uuid == filters.creator_uuid)
+            query = query.filter(Unit.creator_uuid == is_valid_uuid(filters.creator_uuid))
         if filters.repo_uuid:
-            query = query.filter(Unit.repo_uuid == filters.repo_uuid)
+            query = query.filter(Unit.repo_uuid == is_valid_uuid(filters.repo_uuid))
         if filters.is_auto_update_from_repo_unit is not None:
             query = query.filter(Unit.is_auto_update_from_repo_unit == filters.is_auto_update_from_repo_unit)
         if restriction:
