@@ -16,7 +16,7 @@ class VerificationState(StatesGroup):
     check_code = State()
 
 
-@dp.message(StateFilter(None), Command(CommandNames.VERIFICATION.value))
+@dp.message(StateFilter(None), Command(CommandNames.VERIFICATION))
 async def verification_user(message, state: FSMContext):
 
     db = next(get_session())

@@ -52,11 +52,11 @@ class AccessService:
                 except jwt.exceptions.InvalidTokenError:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
-                if data['type'] == AgentType.USER.value:
+                if data['type'] == AgentType.USER:
                     agent = self.user_repository.get(User(uuid=data['uuid']))
-                    if agent.status == UserStatus.BLOCKED.value:
+                    if agent.status == UserStatus.BLOCKED:
                         raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
-                elif data['type'] == AgentType.UNIT.value:
+                elif data['type'] == AgentType.UNIT:
                     agent = self.unit_repository.get(Unit(uuid=data['uuid']))
 
                 if not agent:
@@ -64,7 +64,7 @@ class AccessService:
 
                 self.current_agent = agent
             else:
-                self.current_agent = User(role=UserRole.BOT.value)
+                self.current_agent = User(role=UserRole.BOT)
 
         else:
             if self.jwt_token:
@@ -72,12 +72,12 @@ class AccessService:
                 if not agent:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
-                if agent.status == UserStatus.BLOCKED.value:
+                if agent.status == UserStatus.BLOCKED:
                     raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
 
                 self.current_agent = agent
             else:
-                self.current_agent = User(role=UserRole.BOT.value)
+                self.current_agent = User(role=UserRole.BOT)
 
     def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
         """
@@ -98,15 +98,15 @@ class AccessService:
         For single entities, defines access by visibility
         """
 
-        if check_entity.visibility_level == VisibilityLevel.PUBLIC.value:
+        if check_entity.visibility_level == VisibilityLevel.PUBLIC:
             pass
-        elif check_entity.visibility_level == VisibilityLevel.INTERNAL.value:
+        elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
             if not (
                 isinstance(self.current_agent, Unit)
-                or self.current_agent.role in [UserRole.USER.value, UserRole.ADMIN.value]
+                or self.current_agent.role in [UserRole.USER, UserRole.ADMIN]
             ):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
-        elif check_entity.visibility_level == VisibilityLevel.PRIVATE.value:
+        elif check_entity.visibility_level == VisibilityLevel.PRIVATE:
             permission_check = PermissionBaseType(
                 agent_type=self.current_agent.__class__.__name__,
                 agent_uuid=self.current_agent.uuid,
@@ -122,13 +122,13 @@ class AccessService:
         Private entities if the agent does not have any records about them
         """
 
-        if self.current_agent.role == UserRole.BOT.value:
-            return [VisibilityLevel.PUBLIC.value]
+        if self.current_agent.role == UserRole.BOT:
+            return [VisibilityLevel.PUBLIC]
         else:
             if restriction:
                 return levels
             else:
-                return [VisibilityLevel.PUBLIC.value, VisibilityLevel.INTERNAL]
+                return [VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]
 
     def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[pkg_uuid]:
         """
@@ -159,7 +159,7 @@ class AccessService:
         access_token_exp = datetime.utcnow() + timedelta(seconds=settings.auth_token_expiration)
 
         token = jwt.encode(
-            {'uuid': str(user.uuid), 'type': AgentType.USER.value, 'exp': access_token_exp},
+            {'uuid': str(user.uuid), 'type': AgentType.USER, 'exp': access_token_exp},
             settings.secret_key,
             'HS256',
         )
@@ -169,7 +169,7 @@ class AccessService:
     @staticmethod
     def generate_unit_token(unit: Unit) -> str:
         token = jwt.encode(
-            {'uuid': str(unit.uuid), 'type': AgentType.UNIT.value},
+            {'uuid': str(unit.uuid), 'type': AgentType.UNIT},
             settings.secret_key,
             'HS256',
         )

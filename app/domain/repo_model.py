@@ -15,7 +15,7 @@ class Repo(SQLModel, table=True):
 
     uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
 
-    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC.value)
+    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
 
     # unique name Repo on Instance
     name: str = Field(nullable=False, unique=True)
