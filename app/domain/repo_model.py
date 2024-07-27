@@ -1,4 +1,4 @@
-import uuid as pkg_uuid
+import uuid as uuid_pkg
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, Column
@@ -13,7 +13,7 @@ class Repo(SQLModel, table=True):
 
     __tablename__ = 'repos'
 
-    uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
 
@@ -49,6 +49,6 @@ class Repo(SQLModel, table=True):
     last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
     # to User link
-    creator_uuid: pkg_uuid.UUID = Field(
+    creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
     )

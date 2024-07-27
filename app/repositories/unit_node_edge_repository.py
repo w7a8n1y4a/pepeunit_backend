@@ -1,3 +1,6 @@
+import uuid as uuid_pkg
+from typing import Optional
+
 from fastapi import Depends
 from sqlmodel import Session
 
@@ -17,7 +20,7 @@ class UnitNodeEdgeRepository:
         self.db.refresh(unit_node_edge)
         return unit_node_edge
 
-    def get(self, unit_node_edge: UnitNodeEdge) -> UnitNodeEdge:
+    def get(self, unit_node_edge: UnitNodeEdge) -> Optional[UnitNodeEdge]:
         return self.db.get(UnitNodeEdge, unit_node_edge.uuid)
 
     def get_all_count(self) -> int:
@@ -35,6 +38,6 @@ class UnitNodeEdgeRepository:
 
         return bool(check)
 
-    def delete(self, uuid: str) -> None:
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.db.query(UnitNodeEdge).filter(UnitNodeEdge.uuid == uuid).delete()
         self.db.commit()

@@ -1,4 +1,5 @@
 from typing import Union
+import uuid as uuid_pkg
 
 from fastapi import Depends
 from fastapi import HTTPException
@@ -63,7 +64,7 @@ class PermissionService:
             )
         )
 
-    def delete(self, uuid: str) -> None:
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         permission = self.access_service.permission_repository.get(Permission(uuid=uuid))

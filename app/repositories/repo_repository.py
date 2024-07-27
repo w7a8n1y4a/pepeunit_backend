@@ -1,4 +1,5 @@
 import json
+import uuid as uuid_pkg
 from typing import Optional
 
 from fastapi import Depends
@@ -29,7 +30,7 @@ class RepoRepository:
         self.db.refresh(repo)
         return repo
 
-    def get(self, repo: Repo) -> Repo:
+    def get(self, repo: Repo) -> Optional[Repo]:
         return self.db.get(Repo, repo.uuid)
 
     def get_credentials(self, repo: Repo) -> Optional[Credentials]:
@@ -98,7 +99,7 @@ class RepoRepository:
         query = apply_offset_and_limit(query, filters)
         return query.all()
 
-    def is_valid_name(self, name: str, uuid: str = None):
+    def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
         repo_uuid = self.db.exec(select(Repo.uuid).where(Repo.name == name)).first()
         repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
 

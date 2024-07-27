@@ -2,6 +2,7 @@ import io
 import json
 import os
 import shutil
+import uuid as uuid_pkg
 from collections import Counter
 from json import JSONDecodeError
 
@@ -51,7 +52,7 @@ class GitRepoRepository:
         except git.CommandError:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Error update Repo')
 
-    def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: str) -> str:
+    def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
         tmp_git_repo.git.checkout(commit)
 
@@ -74,7 +75,7 @@ class GitRepoRepository:
         return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')
 
     @staticmethod
-    def get_tmp_repo(repo: Repo, gen_uuid: str) -> GitRepo:
+    def get_tmp_repo(repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
         tmp_path = f'tmp/{gen_uuid}'
         current_path = f'{settings.save_repo_path}/{repo.uuid}'
 
@@ -202,7 +203,7 @@ class GitRepoRepository:
 
     @staticmethod
     def delete_repo(repo: Repo) -> None:
-        shutil.rmtree(f'{settings.save_repo_path}/{str(repo.uuid)}', ignore_errors=True)
+        shutil.rmtree(f'{settings.save_repo_path}/{repo.uuid}', ignore_errors=True)
         return None
 
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:

@@ -1,4 +1,5 @@
 from typing import Optional
+import uuid as uuid_pkg
 
 import strawberry
 
@@ -39,7 +40,7 @@ class RepoUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoFilterInput(TypeInputMixin):
-    creator_uuid: Optional[str] = None
+    creator_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
     is_public_repository: Optional[bool] = None

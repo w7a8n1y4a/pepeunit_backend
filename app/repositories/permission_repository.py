@@ -1,5 +1,5 @@
 from typing import Union, Optional
-import uuid as pkg_uuid
+import uuid as uuid_pkg
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
@@ -93,7 +93,7 @@ class PermissionRepository:
         self.db.commit()
 
     @staticmethod
-    def get_agent_fld_uuid_by_type(fld_type: PermissionEntities) -> pkg_uuid.UUID:
+    def get_agent_fld_uuid_by_type(fld_type: PermissionEntities) -> uuid_pkg.UUID:
         entities_dict = {
             PermissionEntities.USER: Permission.agent_user_uuid,
             PermissionEntities.UNIT: Permission.agent_unit_uuid,
@@ -102,7 +102,7 @@ class PermissionRepository:
         return entities_dict[fld_type]
 
     @staticmethod
-    def get_resource_fld_uuid_by_type(fld_type: PermissionEntities) -> pkg_uuid.UUID:
+    def get_resource_fld_uuid_by_type(fld_type: PermissionEntities) -> uuid_pkg.UUID:
         entities_dict = {
             PermissionEntities.REPO: Permission.resource_repo_uuid,
             PermissionEntities.UNIT: Permission.resource_unit_uuid,

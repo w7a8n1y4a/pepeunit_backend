@@ -1,3 +1,6 @@
+from typing import Optional
+import uuid as uuid_pkg
+
 from fastapi import Depends
 from sqlalchemy import func, text
 from sqlalchemy.orm import aliased
@@ -20,13 +23,13 @@ class UnitNodeRepository:
         self.db.bulk_save_objects(unit_nodes)
         self.db.commit()
 
-    def get(self, unit_node: UnitNode) -> UnitNode:
+    def get(self, unit_node: UnitNode) -> Optional[UnitNode]:
         return self.db.get(UnitNode, unit_node.uuid)
 
     def get_all_count(self) -> int:
         return self.db.query(UnitNode.uuid).count()
 
-    def get_by_topic(self, unit_uuid, unit_node: UnitNode) -> UnitNode:
+    def get_by_topic(self, unit_uuid: uuid_pkg.UUID, unit_node: UnitNode) -> UnitNode:
         return (
             self.db.query(UnitNode)
             .filter(
@@ -37,7 +40,7 @@ class UnitNodeRepository:
             .first()
         )
 
-    def get_nodes_with_edges(self, unit_uuid) -> list[tuple]:
+    def get_nodes_with_edges(self, unit_uuid: uuid_pkg.UUID) -> list[tuple]:
 
         unit_node_edge_alias = aliased(UnitNodeEdge)
         unit_node_alias = aliased(UnitNode)
@@ -62,7 +65,7 @@ class UnitNodeRepository:
             .all()
         )
 
-    def update(self, uuid, unit_node: UnitNode) -> UnitNode:
+    def update(self, uuid: uuid_pkg.UUID, unit_node: UnitNode) -> UnitNode:
         unit_node.uuid = uuid
         self.db.merge(unit_node)
         self.db.commit()

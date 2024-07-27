@@ -1,4 +1,4 @@
-import uuid as pkg_uuid
+import uuid as uuid_pkg
 
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.dialects.postgresql import UUID
@@ -14,13 +14,13 @@ class UnitNodeEdge(SQLModel, table=True):
 
     __tablename__ = 'units_nodes_edges'
 
-    uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # routed output UnitNode
-    node_output_uuid: pkg_uuid.UUID = Field(
+    node_output_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'))
     )
     # target input UnitNode
-    node_input_uuid: pkg_uuid.UUID = Field(
+    node_input_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'))
     )

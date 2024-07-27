@@ -1,4 +1,4 @@
-import uuid as pkg_uuid
+import uuid as uuid_pkg
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, Column
@@ -15,7 +15,7 @@ class UnitNode(SQLModel, table=True):
 
     __tablename__ = 'units_nodes'
 
-    uuid: pkg_uuid.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=pkg_uuid.uuid4)
+    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
 
     # Input or Output
     type: str = Field(nullable=False)
@@ -32,8 +32,8 @@ class UnitNode(SQLModel, table=True):
     state: str = Field(nullable=True)
 
     # to User link
-    creator_uuid: pkg_uuid.UUID = Field(
+    creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
     )
     # to Unit link
-    unit_uuid: pkg_uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))
+    unit_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))

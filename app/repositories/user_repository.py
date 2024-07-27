@@ -1,4 +1,5 @@
-from typing import Union
+from typing import Union, Optional
+import uuid as uuid_pkg
 
 from fastapi import Depends
 from fastapi import HTTPException
@@ -25,7 +26,7 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
-    def get(self, user: User) -> User:
+    def get(self, user: User) -> Optional[User]:
         return self.db.get(User, user.uuid)
 
     def get_all_count(self) -> int:
@@ -41,7 +42,7 @@ class UserRepository:
             select(User).where(User.telegram_chat_id == telegram_chat_id)
         ).first()
 
-    def update(self, uuid, user: User) -> User:
+    def update(self, uuid: uuid_pkg.UUID, user: User) -> User:
         user.uuid = uuid
         self.db.merge(user)
         self.db.commit()
@@ -62,14 +63,14 @@ class UserRepository:
         query = apply_offset_and_limit(query, filters)
         return query.all()
 
-    def is_valid_login(self, login: str, uuid: str = None):
+    def is_valid_login(self, login: str, uuid: Optional[uuid_pkg.UUID] = None):
         user_uuid = self.db.exec(select(User.uuid).where(User.login == login)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Login is not unique")
 
-    def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: str = None):
+    def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: Optional[uuid_pkg.UUID] = None):
         user_uuid = self.db.exec(select(User.uuid).where(User.telegram_chat_id == telegram_chat_id)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 

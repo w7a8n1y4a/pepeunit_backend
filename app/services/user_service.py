@@ -1,4 +1,5 @@
 import datetime
+import uuid as uuid_pkg
 from typing import Union
 
 from fastapi import Depends
@@ -33,7 +34,7 @@ class UserService:
 
         return self.user_repository.create(user)
 
-    def get(self, uuid: str) -> User:
+    def get(self, uuid: uuid_pkg.UUID) -> User:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
@@ -48,7 +49,7 @@ class UserService:
 
         return self.access_service.generate_user_token(user)
 
-    def update(self, uuid: str, data: Union[UserUpdate, UserUpdateInput]) -> User:
+    def update(self, uuid: uuid_pkg.UUID, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         user = self.user_repository.get(User(uuid=uuid))
@@ -87,11 +88,11 @@ class UserService:
             user.uuid, User(status=UserStatus.VERIFIED, telegram_chat_id=telegram_chat_id)
         )
 
-    def block(self, uuid: str) -> None:
+    def block(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.ADMIN])
         self.user_repository.update(uuid, User(status=UserStatus.BLOCKED))
 
-    def unblock(self, uuid: str) -> None:
+    def unblock(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.ADMIN])
 
         user = self.user_repository.get(User(uuid=uuid))

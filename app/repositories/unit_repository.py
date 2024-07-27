@@ -1,3 +1,6 @@
+from typing import Optional
+import uuid as uuid_pkg
+
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status as http_status
@@ -21,14 +24,14 @@ class UnitRepository:
         self.db.refresh(unit)
         return unit
 
-    def get(self, unit: Unit) -> Unit:
+    def get(self, unit: Unit) -> Optional[Unit]:
         self.db.commit()
         return self.db.get(Unit, unit.uuid)
 
     def get_all_count(self) -> int:
         return self.db.query(Unit.uuid).count()
 
-    def update(self, uuid, unit: Unit) -> Unit:
+    def update(self, uuid: uuid_pkg.UUID, unit: Unit) -> Unit:
         unit.uuid = uuid
         self.db.merge(unit)
         self.db.commit()
@@ -63,7 +66,7 @@ class UnitRepository:
         query = apply_offset_and_limit(query, filters)
         return query.all()
 
-    def is_valid_name(self, name: str, uuid: str = None):
+    def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
         unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
         unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
 

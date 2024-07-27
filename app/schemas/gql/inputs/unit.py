@@ -33,8 +33,8 @@ class UnitUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class UnitFilterInput(TypeInputMixin):
-    creator_uuid: Optional[str] = None
-    repo_uuid: Optional[str] = None
+    creator_uuid: Optional[uuid_pkg.UUID] = None
+    repo_uuid: Optional[uuid_pkg.UUID] = None
 
     search_string: Optional[str] = None
 

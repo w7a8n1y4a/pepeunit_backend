@@ -1,4 +1,5 @@
 from typing import Annotated
+import uuid as uuid_pkg
 
 from fastapi import HTTPException, Depends
 from fastapi import status as http_status
@@ -28,7 +29,7 @@ def remove_none_value_dict(data: dict) -> dict:
     return {k: v for k, v in data.items() if v is not None}
 
 
-def get_topic_name(node_uuid: str, topic_name: str):
+def get_topic_name(node_uuid: uuid_pkg.UUID, topic_name: str):
     main_topic = f'{settings.backend_domain}/{str(node_uuid)}'
     main_topic += (
         GlobalPrefixTopic.BACKEND_SUB_PREFIX
