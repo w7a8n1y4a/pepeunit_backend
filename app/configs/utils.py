@@ -88,18 +88,15 @@ def set_redis_emqx_auth_hook() -> None:
             "reuse_sessions": True,
             "depth": 10,
             "password": "",
-            "versions": [
-                "tlsv1.3",
-                "tlsv1.2"
-            ],
+            "versions": ["tlsv1.3", "tlsv1.2"],
             "ciphers": [],
             "secure_renegotiate": True,
             "log_level": "emergency",
             "hibernate_after": "12m",
             "enable": False,
-            "server_name_indication": "disable"
+            "server_name_indication": "disable",
         },
-        "cmd": "HGETALL mqtt_acl:${username}"
+        "cmd": "HGETALL mqtt_acl:${username}",
     }
 
     logging.info(f'Set redis auth hook to mqtt server {settings.mqtt_host}:{settings.mqtt_port}')

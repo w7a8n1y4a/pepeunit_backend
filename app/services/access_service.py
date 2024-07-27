@@ -100,22 +100,21 @@ class AccessService:
         if check_entity.visibility_level == VisibilityLevel.PUBLIC:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
-            if not (
-                isinstance(self.current_agent, Unit)
-                or self.current_agent.role in [UserRole.USER, UserRole.ADMIN]
-            ):
+            if not (isinstance(self.current_agent, Unit) or self.current_agent.role in [UserRole.USER, UserRole.ADMIN]):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE:
             permission_check = PermissionBaseType(
                 agent_type=self.current_agent.__class__.__name__,
                 agent_uuid=self.current_agent.uuid,
                 resource_type=check_entity.__class__.__name__,
-                resource_uuid=check_entity.uuid
+                resource_uuid=check_entity.uuid,
             )
             if not self.permission_repository.check(permission_check):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
-    def get_available_visibility_levels(self, levels: list[str], restriction: list[str] = None) -> list[VisibilityLevel]:
+    def get_available_visibility_levels(
+        self, levels: list[str], restriction: list[str] = None
+    ) -> list[VisibilityLevel]:
         """
         Prohibits all external users from getting information about internal entities and cuts off
         Private entities if the agent does not have any records about them
@@ -139,7 +138,8 @@ class AccessService:
                 PermissionBaseType(
                     agent_type=self.current_agent.__class__.__name__,
                     agent_uuid=self.current_agent.uuid,
-                    resource_type=resource_type)
+                    resource_type=resource_type,
+                )
             )
         ]
 
