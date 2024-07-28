@@ -77,7 +77,9 @@ class RepoService:
         self.access_service.visibility_check(repo)
         return self.mapper_repo_to_repo_read(repo)
 
-    def get_branch_commits(self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]) -> list[CommitRead]:
+    def get_branch_commits(
+        self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]
+    ) -> list[CommitRead]:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))

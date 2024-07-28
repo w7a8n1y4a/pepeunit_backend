@@ -29,12 +29,16 @@ class UnitNodeEdgeRepository:
 
         uuids = [unit_node.uuid for unit_node in unit_nodes]
 
-        return self.db.query(UnitNodeEdge).filter(
-            or_(
-                UnitNodeEdge.node_input_uuid.in_(uuids),
-                UnitNodeEdge.node_output_uuid.in_(uuids),
+        return (
+            self.db.query(UnitNodeEdge)
+            .filter(
+                or_(
+                    UnitNodeEdge.node_input_uuid.in_(uuids),
+                    UnitNodeEdge.node_output_uuid.in_(uuids),
+                )
             )
-        ).all()
+            .all()
+        )
 
     def get_all_count(self) -> int:
         return self.db.query(UnitNodeEdge.uuid).count()

@@ -70,7 +70,7 @@ def get_repo_service(info: Info) -> RepoService:
     unit_node_service = UnitNodeService(
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        access_service=access_service
+        access_service=access_service,
     )
 
     return RepoService(
@@ -81,7 +81,7 @@ def get_repo_service(info: Info) -> RepoService:
             unit_repository=unit_repository,
             unit_node_repository=UnitNodeRepository(db),
             access_service=access_service,
-            unit_node_service=unit_node_service
+            unit_node_service=unit_node_service,
         ),
         access_service=access_service,
     )
@@ -104,7 +104,7 @@ def get_unit_service(info: Info) -> UnitService:
     unit_node_service = UnitNodeService(
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        access_service=access_service
+        access_service=access_service,
     )
 
     return UnitService(
@@ -112,7 +112,7 @@ def get_unit_service(info: Info) -> UnitService:
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
         access_service=access_service,
-        unit_node_service=unit_node_service
+        unit_node_service=unit_node_service,
     )
 
 
