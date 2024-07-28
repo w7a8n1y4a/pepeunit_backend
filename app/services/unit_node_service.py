@@ -4,9 +4,11 @@ import uuid as uuid_pkg
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 
+from app.domain.permission_model import PermissionBaseType
+from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities
+from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities, DestinationTopicType
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.schemas.gql.inputs.unit_node import (
@@ -40,6 +42,68 @@ class UnitNodeService:
 
         is_valid_object(unit_node)
         return unit_node
+
+    def bulk_create(self, schema_dict: dict, unit: Unit, is_update: bool = False, input_node: dict = None, output_node: dict = None) -> None:
+
+        unit_nodes_list = []
+        agents_default_permission_list = []
+        for assignment, topic_list in schema_dict.items():
+            for topic in topic_list:
+
+                if is_update:
+                    if (assignment == DestinationTopicType.INPUT_TOPIC and topic not in input_node.keys()) or (
+                            assignment == DestinationTopicType.OUTPUT_TOPIC and topic not in output_node.keys()
+                    ):
+                        pass
+                    else:
+                        continue
+                else:
+                    if assignment not in [DestinationTopicType.INPUT_TOPIC, DestinationTopicType.OUTPUT_TOPIC]:
+                        continue
+
+                unit_node = UnitNode(
+                    type=(
+                        UnitNodeTypeEnum.INPUT
+                        if assignment == DestinationTopicType.INPUT_TOPIC
+                        else UnitNodeTypeEnum.OUTPUT
+                    ),
+                    visibility_level=unit.visibility_level,
+                    topic_name=topic,
+                    creator_uuid=unit.creator_uuid,
+                    unit_uuid=unit.uuid,
+                )
+
+                unit_nodes_list.append(unit_node)
+
+                for agent in [unit, self.access_service.current_agent]:
+                    agents_default_permission_list.append(
+                        PermissionBaseType(
+                            agent_uuid=agent.uuid,
+                            agent_type=agent.__class__.__name__,
+                            resource_uuid=unit_node.uuid,
+                            resource_type=unit_node.__class__.__name__,
+                        )
+                    )
+
+        self.unit_node_repository.bulk_save(unit_nodes_list)
+        self.access_service.permission_repository.bulk_save(agents_default_permission_list)
+
+    def bulk_update(self, schema_dict: dict, unit: Unit, input_node: dict, output_node: dict) -> None:
+
+        self.bulk_create(schema_dict, unit, True, input_node, output_node)
+
+        unit_node_uuid_delete = []
+        for assignment, topic_list in schema_dict.items():
+            if assignment == DestinationTopicType.INPUT_TOPIC:
+                unit_node_uuid_delete.extend(
+                    [input_node[topic] for topic in input_node.keys() - set(topic_list)]
+                )
+            elif assignment == DestinationTopicType.OUTPUT_TOPIC:
+                unit_node_uuid_delete.extend(
+                    [output_node[topic] for topic in output_node.keys() - set(topic_list)]
+                )
+
+        self.unit_node_repository.delete(unit_node_uuid_delete)
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
