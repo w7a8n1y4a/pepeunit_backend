@@ -2,6 +2,7 @@ import json
 import os
 import time
 import logging
+import uuid as uuid_pkg
 
 import fastapi
 import httpx
@@ -73,7 +74,7 @@ def test_create_unit_node_edge(database) -> None:
 
     target_units = pytest.units[-3:]
 
-    def update_schema(token: str, unit_uuid: str) -> int:
+    def update_schema(token: str, unit_uuid: uuid_pkg.UUID) -> int:
         headers = {
             'accept': 'application/json',
             'x-auth-token': token
@@ -86,7 +87,7 @@ def test_create_unit_node_edge(database) -> None:
 
         return r.status_code
 
-    def set_input_state(token: str, unit_node_uuid: str, state: str) -> int:
+    def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
         headers = {
             'accept': 'application/json',
             'x-auth-token': token
@@ -174,7 +175,7 @@ def test_set_state_input_unit_node(database) -> None:
     unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
     unit_token = unit_service.generate_token(target_unit.uuid)
 
-    def set_input_state(token: str, unit_node_uuid: str, state: str) -> int:
+    def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
         headers = {
             'accept': 'application/json',
             'x-auth-token': token

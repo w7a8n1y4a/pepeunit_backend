@@ -15,7 +15,7 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
-from app.domain.permission_model import Permission, PermissionBaseType
+from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -33,11 +33,10 @@ from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
 from app.schemas.mqtt.utils import get_topic_split
-from app.schemas.pydantic.permission import PermissionCreate
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
 from app.services.validators import is_valid_object, is_valid_json, is_valid_uuid
 from app.utils.utils import aes_decode, aes_encode
 
@@ -131,7 +130,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
-        creator_check(self.access_service.current_agent, unit)
+        self.access_service.access_creator_check(unit)
 
         unit_update = Unit(**merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit.dict()))
 
@@ -247,7 +246,8 @@ class UnitService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        self.access_service.visibility_check(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
 
         if not unit.cipher_env_dict:
             repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
@@ -266,7 +266,7 @@ class UnitService:
         env_dict = is_valid_json(env_json_str)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        creator_check(self.access_service.current_agent, unit)
+        self.access_service.access_creator_check(unit)
 
         gen_env_dict = self.gen_env_dict(unit.uuid)
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
@@ -286,7 +286,8 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
-        self.access_service.visibility_check(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
 
         try:
             from app.schemas.mqtt.topic import mqtt
@@ -307,7 +308,8 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
-        self.access_service.visibility_check(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.get_unit_target_version(repo, unit)
@@ -315,8 +317,11 @@ class UnitService:
         return self.generate_current_schema(unit, repo, target_version)
 
     def get_unit_firmware(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        self.access_service.visibility_check(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.get_unit_target_version(repo, unit)
@@ -340,8 +345,6 @@ class UnitService:
         return tmp_git_repo_path
 
     def get_unit_firmware_zip(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-
         firmware_path = self.get_unit_firmware(uuid)
         firmware_zip_path = f"tmp/{uuid}"
 
@@ -351,8 +354,6 @@ class UnitService:
         return f'{firmware_zip_path}.zip'
 
     def get_unit_firmware_tar(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-
         firmware_path = self.get_unit_firmware(uuid)
         firmware_tar_path = f"tmp/{uuid}"
 
@@ -362,8 +363,6 @@ class UnitService:
         return f'{firmware_tar_path}.tar'
 
     def get_unit_firmware_tgz(self, uuid: uuid_pkg.UUID, wbits: int, level: int) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-
         self.is_valid_wbits(wbits)
         self.is_valid_level(level)
 
@@ -419,6 +418,10 @@ class UnitService:
                 raise HTTPException(
                     status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Topic struct is invalid"
                 )
+        else:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not Unit - unavailable topic communication"
+            )
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -426,12 +429,12 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        creator_check(self.access_service.current_agent, unit)
+        self.access_service.access_creator_check(unit)
 
         return self.unit_repository.delete(unit)
 
     def list(self, filters: Union[UnitFilter, UnitFilterInput]) -> list[Unit]:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(

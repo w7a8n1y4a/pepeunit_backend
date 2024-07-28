@@ -24,3 +24,7 @@ class UnitNodeEdge(SQLModel, table=True):
     node_input_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'))
     )
+    # to User link
+    creator_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+    )

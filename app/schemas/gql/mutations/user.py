@@ -16,9 +16,9 @@ def create_user(info: Info, user: UserCreateInput) -> UserType:
 
 
 @strawberry.mutation()
-def update_user(info: Info, uuid: uuid_pkg.UUID, user: UserUpdateInput) -> UserType:
+def update_user(info: Info, user: UserUpdateInput) -> UserType:
     user_service = get_user_service(info)
-    user = user_service.update(uuid, user).dict()
+    user = user_service.update(user).dict()
     return UserType(**user)
 
 
