@@ -36,6 +36,9 @@ def pytest_configure():
     # ['update check', ' bad env.json', 'hand public', 'hand internal', 'hand private', 'auto ', 'auto', 'auto']
     pytest.units = []
 
+    # only save
+    pytest.permissions = []
+
 
 @pytest.fixture(scope="session")
 def database() -> Session:

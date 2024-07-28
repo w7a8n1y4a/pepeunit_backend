@@ -212,6 +212,15 @@ def test_set_state_input_unit_node(database) -> None:
 
 
 @pytest.mark.run(order=3)
+def test_delete_unit_node_edge(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
+    # todo придумать концепцию получения edge
+
+
+@pytest.mark.run(order=4)
 def test_get_many_unit_node(database) -> None:
 
     current_user = pytest.users[0]
@@ -229,7 +238,7 @@ def test_get_many_unit_node(database) -> None:
     assert len(units_nodes) == 8
 
 
-@pytest.mark.run(order=4)
+@pytest.mark.run(order=5)
 def test_delete_unit(database) -> None:
 
     current_user = pytest.users[0]

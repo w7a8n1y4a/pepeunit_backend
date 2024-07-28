@@ -42,6 +42,8 @@ class Permission(SQLModel, table=True):
 
 
 class PermissionBaseType(BaseModel):
+    uuid: Optional[uuid_pkg.UUID] = None
+
     agent_uuid: Optional[uuid_pkg.UUID] = None
     agent_type: Optional[PermissionEntities] = None
 
