@@ -1,4 +1,3 @@
-
 import pytest
 
 from app.configs.gql import get_metrics_service

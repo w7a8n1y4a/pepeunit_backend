@@ -48,7 +48,7 @@ class UnitService:
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         access_service: AccessService = Depends(),
-        unit_node_service: UnitNodeService = Depends()
+        unit_node_service: UnitNodeService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
         self.repo_repository = repo_repository
@@ -343,7 +343,8 @@ class UnitService:
                 )
         else:
             raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Not Unit - unavailable topic communication"
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Not Unit - unavailable topic communication",
             )
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:

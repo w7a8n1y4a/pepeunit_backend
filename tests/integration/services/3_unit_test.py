@@ -1,6 +1,3 @@
-import asyncio
-import copy
-import itertools
 import json
 import logging
 import os
@@ -11,14 +8,11 @@ import zlib
 import fastapi
 import httpx
 import pytest
-from aiohttp.test_utils import TestClient
 
 from app import settings
 from app.configs.gql import get_unit_service, get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
-from app.domain.unit_model import Unit
-from app.main import app
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import RepoUpdate, CommitFilter
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
@@ -96,7 +90,7 @@ def test_create_unit(database) -> None:
             )
         )
 
-    # check create without env_example and schema.json
+    # check create without env_example and schema_example.json
     with pytest.raises(fastapi.HTTPException):
         test_repo = pytest.repos[1]
 
@@ -115,6 +109,7 @@ def test_delete_repo_with_unit(database) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+
     # test del repo with Unit
     with pytest.raises(fastapi.HTTPException):
         repo_service.delete(pytest.repos[-1].uuid)

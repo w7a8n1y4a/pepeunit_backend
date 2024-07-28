@@ -43,7 +43,9 @@ class UnitNodeService:
         is_valid_object(unit_node)
         return unit_node
 
-    def bulk_create(self, schema_dict: dict, unit: Unit, is_update: bool = False, input_node: dict = None, output_node: dict = None) -> None:
+    def bulk_create(
+        self, schema_dict: dict, unit: Unit, is_update: bool = False, input_node: dict = None, output_node: dict = None
+    ) -> None:
 
         unit_nodes_list = []
         agents_default_permission_list = []
@@ -52,7 +54,7 @@ class UnitNodeService:
 
                 if is_update:
                     if (assignment == DestinationTopicType.INPUT_TOPIC and topic not in input_node.keys()) or (
-                            assignment == DestinationTopicType.OUTPUT_TOPIC and topic not in output_node.keys()
+                        assignment == DestinationTopicType.OUTPUT_TOPIC and topic not in output_node.keys()
                     ):
                         pass
                     else:
@@ -95,13 +97,9 @@ class UnitNodeService:
         unit_node_uuid_delete = []
         for assignment, topic_list in schema_dict.items():
             if assignment == DestinationTopicType.INPUT_TOPIC:
-                unit_node_uuid_delete.extend(
-                    [input_node[topic] for topic in input_node.keys() - set(topic_list)]
-                )
+                unit_node_uuid_delete.extend([input_node[topic] for topic in input_node.keys() - set(topic_list)])
             elif assignment == DestinationTopicType.OUTPUT_TOPIC:
-                unit_node_uuid_delete.extend(
-                    [output_node[topic] for topic in output_node.keys() - set(topic_list)]
-                )
+                unit_node_uuid_delete.extend([output_node[topic] for topic in output_node.keys() - set(topic_list)])
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
@@ -169,18 +167,13 @@ class UnitNodeService:
 
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
 
-        filters = UnitNodeFilter(
-            unit_uuid=unit_uuid
-        )
+        filters = UnitNodeFilter(unit_uuid=unit_uuid)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
 
-        unit_nodes = self.unit_node_repository.list(
-            filters=filters,
-            restriction=restriction
-        )
+        unit_nodes = self.unit_node_repository.list(filters=filters, restriction=restriction)
 
         return self.unit_node_edge_repository.get_by_nodes(unit_nodes)
 
