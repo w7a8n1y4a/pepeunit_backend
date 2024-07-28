@@ -22,7 +22,6 @@ class RepoType(TypeInputMixin):
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
-    update_frequency_in_seconds: int
     last_update_datetime: datetime
 
     branches: list[str]

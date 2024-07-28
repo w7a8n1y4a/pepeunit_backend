@@ -43,8 +43,6 @@ class Repo(SQLModel, table=True):
     # if is_only_tag_update = True - target version is last Tag,
     # if is_only_tag_update = False - last commit in default_branch
     is_only_tag_update: bool = Field(nullable=False, default=False)
-    # update rate in seconds - minimal 600 s
-    update_frequency_in_seconds: int = Field(nullable=False, default=86400)
 
     last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
