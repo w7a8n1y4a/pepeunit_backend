@@ -36,6 +36,9 @@ def pytest_configure():
     # ['update check', ' bad env.json', 'hand public', 'hand internal', 'hand private', 'auto ', 'auto', 'auto']
     pytest.units = []
 
+    # only for one unit
+    pytest.edges = []
+
     # only save
     pytest.permissions = []
 
