@@ -36,6 +36,7 @@ from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
+from app.services.unit_node_service import UnitNodeService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
 from app.services.validators import is_valid_object, is_valid_json, is_valid_uuid
 from app.utils.utils import aes_decode, aes_encode
@@ -48,12 +49,14 @@ class UnitService:
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         access_service: AccessService = Depends(),
+        unit_node_service: UnitNodeService = Depends()
     ) -> None:
         self.unit_repository = unit_repository
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
         self.access_service = access_service
+        self.unit_node_service = unit_node_service
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -76,44 +79,12 @@ class UnitService:
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
 
         unit = self.unit_repository.create(unit)
-
         unit_deepcopy = copy.deepcopy(unit)
 
         self.access_service.create_permission(self.access_service.current_agent, unit)
         self.access_service.create_permission(unit, unit)
 
-        unit_nodes_list = []
-        agents_default_permission_list = []
-        for assignment, topic_list in schema_dict.items():
-            for topic in topic_list:
-                if assignment in [DestinationTopicType.INPUT_TOPIC, DestinationTopicType.OUTPUT_TOPIC]:
-
-                    unit_node = UnitNode(
-                        type=(
-                            UnitNodeTypeEnum.INPUT
-                            if assignment == DestinationTopicType.INPUT_TOPIC
-                            else UnitNodeTypeEnum.OUTPUT
-                        ),
-                        visibility_level=unit.visibility_level,
-                        topic_name=topic,
-                        creator_uuid=unit.creator_uuid,
-                        unit_uuid=unit.uuid,
-                    )
-
-                    unit_nodes_list.append(unit_node)
-
-                    for agent in [unit, self.access_service.current_agent]:
-                        agents_default_permission_list.append(
-                            PermissionBaseType(
-                                agent_uuid=agent.uuid,
-                                agent_type=agent.__class__.__name__,
-                                resource_uuid=unit_node.uuid,
-                                resource_type=unit_node.__class__.__name__,
-                            )
-                        )
-
-        self.unit_node_repository.bulk_save(unit_nodes_list)
-        self.access_service.permission_repository.bulk_save(agents_default_permission_list)
+        self.unit_node_service.bulk_create(schema_dict, unit, False)
 
         return unit_deepcopy
 
@@ -174,54 +145,7 @@ class UnitService:
 
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
 
-        # create UnitNodes, that Unit doesn't have
-        unit_nodes_list = []
-        agents_default_permission_list = []
-        for assignment, topic_list in schema_dict.items():
-            for topic in topic_list:
-                if (assignment == DestinationTopicType.INPUT_TOPIC and topic not in input_node_dict.keys()) or (
-                    assignment == DestinationTopicType.OUTPUT_TOPIC and topic not in output_node_dict.keys()
-                ):
-                    unit_node = UnitNode(
-                        type=(
-                            UnitNodeTypeEnum.INPUT
-                            if assignment == DestinationTopicType.INPUT_TOPIC
-                            else UnitNodeTypeEnum.OUTPUT
-                        ),
-                        visibility_level=unit.visibility_level,
-                        topic_name=topic,
-                        creator_uuid=unit.creator_uuid,
-                        unit_uuid=unit.uuid,
-                    )
-
-                    unit_nodes_list.append(unit_node)
-
-                    for agent in [unit, self.access_service.current_agent]:
-                        agents_default_permission_list.append(
-                            PermissionBaseType(
-                                agent_uuid=agent.uuid,
-                                agent_type=agent.__class__.__name__,
-                                resource_uuid=unit_node.uuid,
-                                resource_type=unit_node.__class__.__name__,
-                            )
-                        )
-
-        self.unit_node_repository.bulk_save(unit_nodes_list)
-        self.access_service.permission_repository.bulk_save(agents_default_permission_list)
-
-        # removes UnitNodes that Unit does not have on this version
-        unit_node_uuid_delete = []
-        for assignment, topic_list in schema_dict.items():
-            if assignment == DestinationTopicType.INPUT_TOPIC:
-                unit_node_uuid_delete.extend(
-                    [input_node_dict[topic] for topic in input_node_dict.keys() - set(topic_list)]
-                )
-            elif assignment == DestinationTopicType.OUTPUT_TOPIC:
-                unit_node_uuid_delete.extend(
-                    [output_node_dict[topic] for topic in output_node_dict.keys() - set(topic_list)]
-                )
-
-        self.unit_node_repository.delete(unit_node_uuid_delete)
+        self.unit_node_service.bulk_update(schema_dict, unit, input_node_dict, output_node_dict)
 
         if ReservedInputBaseTopic.UPDATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX in schema_dict['input_base_topic']:
 
