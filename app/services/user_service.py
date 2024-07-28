@@ -1,3 +1,4 @@
+import copy
 import datetime
 import uuid as uuid_pkg
 from typing import Union
@@ -49,20 +50,19 @@ class UserService:
 
         return self.access_service.generate_user_token(user)
 
-    def update(self, uuid: uuid_pkg.UUID, data: Union[UserUpdate, UserUpdateInput]) -> User:
+    def update(self, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-
-        user = self.user_repository.get(User(uuid=uuid))
+        user = self.user_repository.get(User(uuid=self.access_service.current_agent.uuid))
         is_valid_object(user)
 
         if data.login:
-            self.user_repository.is_valid_login(data.login, uuid)
+            self.user_repository.is_valid_login(data.login, user.uuid)
             user.login = data.login
 
         if data.password:
             user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
 
-        return self.user_repository.update(uuid, user)
+        return self.user_repository.update(user.uuid, user)
 
     async def generate_verification_code(self) -> str:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

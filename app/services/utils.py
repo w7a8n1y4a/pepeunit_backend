@@ -1,12 +1,10 @@
 from typing import Annotated
 import uuid as uuid_pkg
 
-from fastapi import HTTPException, Depends
-from fastapi import status as http_status
+from fastapi import Depends
 from fastapi.security import APIKeyHeader
 
 from app import settings
-from app.domain.user_model import User
 from app.repositories.enum import GlobalPrefixTopic
 
 
@@ -14,11 +12,6 @@ def token_depends(
     jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None
 ):
     return jwt_token
-
-
-def creator_check(user: User, obj: any):
-    if not user.uuid == obj.creator_uuid:
-        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
 
 
 def merge_two_dict_first_priority(first: dict, two: dict) -> dict:

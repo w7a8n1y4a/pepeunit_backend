@@ -10,7 +10,6 @@ from app.repositories.enum import UserRole
 from app.schemas.gql.inputs.permission import PermissionCreateInput, ResourceInput
 from app.schemas.pydantic.permission import PermissionCreate, Resource
 from app.services.access_service import AccessService
-from app.services.utils import creator_check
 from app.services.validators import is_valid_object, is_valid_uuid
 
 
@@ -31,7 +30,7 @@ class PermissionService:
         resource = self.access_service.permission_repository.get_resource(new_permission)
         is_valid_object(resource)
 
-        creator_check(self.access_service.current_agent, resource)
+        self.access_service.access_creator_check(resource)
 
         agent = self.access_service.permission_repository.get_agent(new_permission)
         is_valid_object(agent)
@@ -54,7 +53,7 @@ class PermissionService:
 
         is_valid_object(resource_entity)
 
-        creator_check(self.access_service.current_agent, resource_entity)
+        self.access_service.access_creator_check(resource_entity)
 
         return self.access_service.permission_repository.get_resource_agents(
             PermissionBaseType(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
@@ -69,6 +68,6 @@ class PermissionService:
         # available delete permission - creator and resource agent
         if not permission.agent_uuid == self.access_service.current_agent.uuid:
             resource = self.access_service.permission_repository.get_resource(permission)
-            creator_check(self.access_service.current_agent, resource)
+            self.access_service.access_creator_check(resource)
 
         return self.access_service.permission_repository.delete(permission)

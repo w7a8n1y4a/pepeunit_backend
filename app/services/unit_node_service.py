@@ -4,7 +4,6 @@ import uuid as uuid_pkg
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 
-from app import settings
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities
@@ -19,7 +18,7 @@ from app.schemas.gql.inputs.unit_node import (
 
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
 from app.services.access_service import AccessService
-from app.services.utils import creator_check, merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
 from app.services.validators import is_valid_object, is_valid_uuid
 
 
@@ -48,8 +47,7 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
-        self.access_service.visibility_check(unit_node)
-        creator_check(self.access_service.current_agent, unit_node)
+        self.access_service.access_creator_check(unit_node)
 
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_node(unit_node)
@@ -82,7 +80,7 @@ class UnitNodeService:
         data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
         data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
 
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))
         is_valid_object(output_node)
@@ -95,6 +93,7 @@ class UnitNodeService:
         self.access_service.visibility_check(input_node)
 
         new_edge = UnitNodeEdge(**data.dict())
+        new_edge.creator_uuid = self.access_service.current_agent.uuid
 
         if self.unit_node_edge_repository.check(new_edge):
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Edge exist")
@@ -102,7 +101,7 @@ class UnitNodeService:
         return self.unit_node_edge_repository.create(new_edge)
 
     def delete_node_edge(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit_node_edge = self.unit_node_edge_repository.get(UnitNodeEdge(uuid=uuid))
         is_valid_object(unit_node_edge)
@@ -110,12 +109,15 @@ class UnitNodeService:
         input_unit = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_input_uuid))
         is_valid_object(input_unit)
 
-        self.access_service.visibility_check(input_unit)
+        if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
+            self.access_service.access_creator_check(input_unit)
+        else:
+            self.access_service.access_creator_check(unit_node_edge)
 
         return self.unit_node_edge_repository.delete(unit_node_edge.uuid)
 
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> list[UnitNode]:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction

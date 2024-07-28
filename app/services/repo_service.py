@@ -30,7 +30,7 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
-from app.services.utils import creator_check, remove_none_value_dict, merge_two_dict_first_priority
+from app.services.utils import remove_none_value_dict, merge_two_dict_first_priority
 from app.services.validators import is_valid_object, is_emtpy_sequence
 from app.utils.utils import aes_encode, aes_decode
 
@@ -77,8 +77,8 @@ class RepoService:
         self.access_service.visibility_check(repo)
         return self.mapper_repo_to_repo_read(repo)
 
-    def get_branch_commits(self, uuid: str, filters: Union[CommitFilter, CommitFilterInput]) -> list[CommitRead]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+    def get_branch_commits(self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]) -> list[CommitRead]:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -91,7 +91,11 @@ class RepoService:
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
     def get_versions(self, uuid: uuid_pkg.UUID) -> RepoVersionsRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+        is_valid_object(repo)
+        self.access_service.visibility_check(repo)
 
         return self.repo_repository.get_versions(Repo(uuid=uuid))
 
@@ -100,7 +104,8 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        creator_check(self.access_service.current_agent, repo)
+
+        self.access_service.access_creator_check(repo)
 
         if data.name:
             self.repo_repository.is_valid_name(data.name, uuid)
@@ -124,7 +129,8 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        creator_check(self.access_service.current_agent, repo)
+
+        self.access_service.access_creator_check(repo)
         self.repo_repository.is_private_repository(repo)
 
         repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
@@ -139,7 +145,8 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        creator_check(self.access_service.current_agent, repo)
+
+        self.access_service.access_creator_check(repo)
         self.git_repo_repository.is_valid_branch(repo, default_branch)
 
         repo.default_branch = default_branch
@@ -151,9 +158,9 @@ class RepoService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
-
         is_valid_object(repo)
-        creator_check(self.access_service.current_agent, repo)
+
+        self.access_service.access_creator_check(repo)
 
         data = self.repo_repository.get_credentials(repo)
         self.git_repo_repository.update_local_repo(repo, data)
@@ -166,10 +173,10 @@ class RepoService:
             self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
-
         is_valid_object(repo)
+
         if not is_auto_update:
-            creator_check(self.access_service.current_agent, repo)
+            self.access_service.access_creator_check(repo)
 
         target_version = self.git_repo_repository.get_target_version(repo)
 
@@ -233,9 +240,9 @@ class RepoService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
-
         is_valid_object(repo)
-        creator_check(self.access_service.current_agent, repo)
+
+        self.access_service.access_creator_check(repo)
 
         unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)

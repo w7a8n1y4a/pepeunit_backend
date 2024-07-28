@@ -11,6 +11,7 @@ from app import settings
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
+from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.repositories.enum import UserRole, AgentType, VisibilityLevel, UserStatus, PermissionEntities
@@ -113,6 +114,19 @@ class AccessService:
             )
             if not self.permission_repository.check(permission_check):
                 raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+
+    def access_creator_check(self, obj: Union[Repo, Unit, UnitNode, UnitNodeEdge]) -> None:
+        if self.current_agent.uuid != obj.creator_uuid:
+            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+
+    def access_unit_check(self, unit: Unit) -> None:
+        if isinstance(self.current_agent, Unit) and unit.uuid != self.current_agent.uuid:
+            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+
+    def access_only_creator_and_target_unit(self, unit: Unit):
+        if isinstance(self.current_agent, User):
+            self.access_creator_check(unit)
+        self.access_unit_check(unit)
 
     def get_available_visibility_levels(
         self, levels: list[str], restriction: list[str] = None

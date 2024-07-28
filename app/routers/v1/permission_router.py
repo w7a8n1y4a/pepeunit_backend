@@ -1,8 +1,9 @@
+import uuid as uuid_pkg
+
 from fastapi import APIRouter, Depends, status
 
 from app.schemas.pydantic.permission import PermissionRead, Resource, PermissionCreate
 from app.services.permission_service import PermissionService
-from app.services.validators import is_valid_uuid
 
 router = APIRouter()
 
@@ -24,5 +25,5 @@ def get_resource_agents(resource: Resource = Depends(), permission_service: Perm
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(uuid: str, permission_service: PermissionService = Depends()):
-    return permission_service.delete(is_valid_uuid(uuid))
+def delete(uuid: uuid_pkg.UUID, permission_service: PermissionService = Depends()):
+    return permission_service.delete(uuid)
