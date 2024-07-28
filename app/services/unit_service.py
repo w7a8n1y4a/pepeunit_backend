@@ -15,7 +15,6 @@ from fastapi import HTTPException
 from fastapi import status as http_status
 
 from app import settings
-from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode

@@ -65,9 +65,11 @@ class PermissionService:
         permission = self.access_service.permission_repository.get(Permission(uuid=uuid))
         is_valid_object(permission)
 
+        base_permission = self.access_service.permission_repository.domain_to_base_type(permission)
+
         # available delete permission - creator and resource agent
-        if not permission.agent_uuid == self.access_service.current_agent.uuid:
-            resource = self.access_service.permission_repository.get_resource(permission)
+        if not base_permission.agent_uuid == self.access_service.current_agent.uuid:
+            resource = self.access_service.permission_repository.get_resource(base_permission)
             self.access_service.access_creator_check(resource)
 
         return self.access_service.permission_repository.delete(permission)

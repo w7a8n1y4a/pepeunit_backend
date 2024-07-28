@@ -58,6 +58,9 @@ class PermissionRepository:
 
         base_permission = PermissionBaseType(agent_type=permission.agent_type, resource_type=permission.resource_type)
 
+        if permission.uuid:
+            base_permission.uuid = permission.uuid
+
         agent_type = eval(base_permission.agent_type)
         if agent_type is User:
             base_permission.agent_uuid = permission.agent_user_uuid
