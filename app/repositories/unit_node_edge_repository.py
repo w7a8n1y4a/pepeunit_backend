@@ -2,10 +2,12 @@ import uuid as uuid_pkg
 from typing import Optional
 
 from fastapi import Depends
+from sqlalchemy import or_
 from sqlmodel import Session
 
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
+from app.domain.unit_node_model import UnitNode
 
 
 class UnitNodeEdgeRepository:
@@ -22,6 +24,17 @@ class UnitNodeEdgeRepository:
 
     def get(self, unit_node_edge: UnitNodeEdge) -> Optional[UnitNodeEdge]:
         return self.db.get(UnitNodeEdge, unit_node_edge.uuid)
+
+    def get_by_nodes(self, unit_nodes: list[UnitNode]) -> list[UnitNodeEdge]:
+
+        uuids = [unit_node.uuid for unit_node in unit_nodes]
+
+        return self.db.query(UnitNodeEdge).filter(
+            or_(
+                UnitNodeEdge.node_input_uuid.in_(uuids),
+                UnitNodeEdge.node_output_uuid.in_(uuids),
+            )
+        ).all()
 
     def get_all_count(self) -> int:
         return self.db.query(UnitNodeEdge.uuid).count()
