@@ -23,7 +23,6 @@ class RepoRead(BaseModel):
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
-    update_frequency_in_seconds: int
     last_update_datetime: datetime
 
     branches: list[str]
@@ -62,7 +61,6 @@ class RepoUpdate(BaseModel):
     default_commit: Optional[str] = None
 
     is_only_tag_update: Optional[bool] = None
-    update_frequency_in_seconds: Optional[int] = None
 
 
 @dataclass

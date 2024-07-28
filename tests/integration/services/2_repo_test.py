@@ -81,12 +81,10 @@ def test_update_repo(database) -> None:
         is_auto_update_repo=False,
         default_branch=repo.branches[0],
         default_commit=commits[0].commit,
-        update_frequency_in_seconds=600,
     )
     update_repo = repo_service.update(repo.uuid, new_repo_state)
 
     assert update_repo.is_auto_update_repo == new_repo_state.is_auto_update_repo
-    assert update_repo.update_frequency_in_seconds == new_repo_state.update_frequency_in_seconds
 
     # set three type repos update
     for inc, repo in enumerate(pytest.repos[4:7]):
@@ -101,7 +99,6 @@ def test_update_repo(database) -> None:
                 is_auto_update_repo=False,
                 default_branch=repo.branches[0],
                 default_commit=commits[0].commit,
-                update_frequency_in_seconds=86400,
             )
         elif inc == 1:
             new_repo_state = RepoUpdate(

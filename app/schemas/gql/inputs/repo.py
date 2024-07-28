@@ -35,7 +35,6 @@ class RepoUpdateInput(TypeInputMixin):
     default_commit: Optional[str] = None
 
     is_only_tag_update: Optional[bool] = None
-    update_frequency_in_seconds: Optional[int] = None
 
 
 @strawberry.input()

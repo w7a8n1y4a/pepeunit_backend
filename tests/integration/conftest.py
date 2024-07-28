@@ -144,7 +144,6 @@ def test_repos() -> list[dict]:
                 else Credentials(username=repo['username'], pat_token=repo['pat_token'])
             ),
             'is_auto_update_repo': True,
-            'update_frequency_in_seconds': 86400,
         }
         for inc, repo in enumerate(test_repos)
     ]
