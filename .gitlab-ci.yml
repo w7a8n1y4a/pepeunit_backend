@@ -33,6 +33,7 @@ deploy:image:dev:
   before_script:
     - echo $USER
     - echo $PROJ
+    - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
   script:
     - docker pull $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
     - docker stop $PROJ || echo $?
