@@ -18,4 +18,3 @@ class UserType(TypeInputMixin):
     hashed_password: strawberry.Private[object]
     cipher_dynamic_salt: strawberry.Private[object]
     telegram_chat_id: strawberry.Private[object]
-    verification_code: strawberry.Private[object]
