@@ -24,6 +24,7 @@ class UserService:
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
         self.access_service.access_check([UserRole.BOT])
         self.user_repository.is_valid_login(data.login)
+        self.user_repository.is_valid_password(data.password)
 
         user = User(**data.dict())
 
@@ -60,6 +61,7 @@ class UserService:
             user.login = data.login
 
         if data.password:
+            self.user_repository.is_valid_password(data.password)
             user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
 
         return self.user_repository.update(user.uuid, user)

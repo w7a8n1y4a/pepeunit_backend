@@ -48,7 +48,7 @@ def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
         raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f'This string is not UUID')
 
 
-def is_valid_name_for_entity(
+def is_valid_string_with_rules(
         value: Optional[str],
         alphabet: str = settings.available_name_entity_symbols,
         min_length: int = 4,

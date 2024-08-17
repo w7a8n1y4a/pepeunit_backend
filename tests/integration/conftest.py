@@ -90,7 +90,7 @@ def test_users() -> list[dict]:
     return [
         {
             "login": f'test_{inc}_{test_hash}',
-            "password": f'test{inc}',
+            "password": f'testtest{inc}',
         }
         for inc in range(2)
     ]
