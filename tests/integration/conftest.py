@@ -17,7 +17,7 @@ from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
 from tests.integration.services.utils import check_screen_session_by_name, kill_screen_session
 
-test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()
+test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()[:5]
 
 
 def pytest_configure():

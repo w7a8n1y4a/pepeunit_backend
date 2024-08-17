@@ -10,7 +10,7 @@ from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit import UnitFilter
-from app.services.validators import is_valid_uuid
+from app.services.validators import is_valid_uuid, is_valid_name_for_entity
 
 
 class UnitRepository:
@@ -68,6 +68,10 @@ class UnitRepository:
         return query.all()
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
+
+        if not is_valid_name_for_entity(name):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not correct")
+
         uuid = str(uuid)
         unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
         unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid

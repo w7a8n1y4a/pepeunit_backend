@@ -1,11 +1,12 @@
 import json
 import uuid as uuid_pkg
 from json import JSONDecodeError
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app import settings
 from app.domain.user_model import User
 from app.utils.utils import check_password
 
@@ -45,3 +46,20 @@ def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
         return uuid_pkg.UUID(uuid)
     except ValueError:
         raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f'This string is not UUID')
+
+
+def is_valid_name_for_entity(
+        value: Optional[str],
+        alphabet: str = settings.available_name_entity_symbols,
+        min_length: int = 4,
+        max_length: int = 20
+) -> bool:
+
+    if value is None:
+        return False
+
+    current_length = len(value)
+    if current_length < min_length or current_length > max_length:
+        return False
+
+    return all(char in alphabet for char in value)

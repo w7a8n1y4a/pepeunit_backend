@@ -12,6 +12,7 @@ from app.domain.user_model import User
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.gql.inputs.user import UserFilterInput
 from app.schemas.pydantic.user import UserFilter
+from app.services.validators import is_valid_name_for_entity
 
 
 class UserRepository:
@@ -63,6 +64,10 @@ class UserRepository:
 
     def is_valid_login(self, login: str, uuid: Optional[uuid_pkg.UUID] = None):
         uuid = str(uuid)
+
+        if not is_valid_name_for_entity(login):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Login is not correct")
+
         user_uuid = self.db.exec(select(User.uuid).where(User.login == login)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
