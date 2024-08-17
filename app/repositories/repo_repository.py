@@ -14,7 +14,7 @@ from app.domain.unit_model import Unit
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.repo import RepoFilter, RepoCreate, RepoUpdate, RepoVersionRead, RepoVersionsRead, Credentials
-from app.services.validators import is_valid_uuid
+from app.services.validators import is_valid_uuid, is_valid_name_for_entity
 from app.utils.utils import aes_decode
 
 
@@ -101,6 +101,10 @@ class RepoRepository:
         return query.all()
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
+
+        if not is_valid_name_for_entity(name):
+            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not correct")
+
         uuid = str(uuid)
         repo_uuid = self.db.exec(select(Repo.uuid).where(Repo.name == name)).first()
         repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid

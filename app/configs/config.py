@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     redis_mqtt_auth_url: str
 
     available_topic_symbols: str = string.ascii_lowercase + string.ascii_uppercase + string.digits + '/_-'
+    available_name_entity_symbols: str = string.ascii_lowercase + string.ascii_uppercase + string.digits + '_-.'
     state_send_interval: int = 300
 
     test_clear_data: bool = True
