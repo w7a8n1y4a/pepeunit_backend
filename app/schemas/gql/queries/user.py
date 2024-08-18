@@ -21,6 +21,12 @@ def get_token(data: UserAuthInput, info: Info) -> str:
 
 
 @strawberry.field()
+async def get_verification_user(info: Info) -> str:
+    user_service = get_user_service(info)
+    return await user_service.generate_verification_code()
+
+
+@strawberry.field()
 def get_users(filters: UserFilterInput, info: Info) -> list[UserType]:
     user_service = get_user_service(info)
     return [UserType(**user.dict()) for user in user_service.list(filters)]
