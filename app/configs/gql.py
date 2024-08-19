@@ -1,5 +1,3 @@
-import copy
-
 from fastapi import Depends
 from sqlmodel import Session
 from strawberry.types import Info
@@ -29,13 +27,14 @@ async def get_graphql_context(
 
 
 def get_access_service(info: Info) -> type[AccessService]:
-    if 'is_bot_auth' in info.context and info.context['is_bot_auth']:
-        access_service = copy.deepcopy(AccessService)
-        access_service._is_bot_auth = info.context['is_bot_auth']
+    access_service = AccessService
 
-        return access_service
+    if 'is_bot_auth' in info.context and info.context['is_bot_auth']:
+        access_service._is_bot_auth = info.context['is_bot_auth']
     else:
-        return AccessService
+        access_service._is_bot_auth = False
+
+    return access_service
 
 
 def get_user_service(info: Info) -> UserService:
