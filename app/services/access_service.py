@@ -41,6 +41,9 @@ class AccessService:
 
     def token_required(self):
 
+        print(self.jwt_token)
+        print(self._is_bot_auth)
+
         if not self._is_bot_auth:
             if isinstance(self.jwt_token, params.Depends):
                 pass
@@ -80,6 +83,8 @@ class AccessService:
                 self.current_agent = agent
             else:
                 self.current_agent = User(role=UserRole.BOT)
+
+        print(self.current_agent)
 
     def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
         """
