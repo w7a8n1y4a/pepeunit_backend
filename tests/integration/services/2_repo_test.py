@@ -169,12 +169,22 @@ def test_update_default_branch_repo(database) -> None:
         logging.info(repo.uuid)
 
         if len(full_repo.branches) > 0:
-            repo_service.update_default_branch(repo.uuid, full_repo.branches[0])
+            repo_service.update(
+                repo.uuid,
+                RepoUpdate(
+                    default_branch=full_repo.branches[0]
+                )
+            )
 
     # set bad default branch
     with pytest.raises(fastapi.HTTPException):
         full_repo = repo_service.get(pytest.repos[-1].uuid)
-        repo_service.update_default_branch(repo.uuid, full_repo.branches[0] + 't')
+        repo_service.update(
+            repo.uuid,
+            RepoUpdate(
+                default_branch=full_repo.branches[0] + 't'
+            )
+        )
 
 
 @pytest.mark.run(order=5)

@@ -28,12 +28,6 @@ def update_repo_credentials(info: Info, uuid: uuid_pkg.UUID, data: CredentialsIn
 
 
 @strawberry.mutation()
-def update_repo_default_branch(info: Info, uuid: uuid_pkg.UUID, default_branch: str) -> RepoType:
-    repo_service = get_repo_service(info)
-    return RepoType(**repo_service.update_default_branch(uuid, default_branch).dict())
-
-
-@strawberry.mutation()
 def update_local_repo(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
     repo_service = get_repo_service(info)
     repo_service.update_local_repo(uuid)
