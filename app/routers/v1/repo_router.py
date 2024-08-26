@@ -74,11 +74,6 @@ def update_credentials(uuid: uuid_pkg.UUID, data: Credentials, repo_service: Rep
     return repo_service.update_credentials(uuid, data)
 
 
-@router.patch("/default_branch/{uuid}", response_model=RepoRead)
-def update_default_branch(uuid: uuid_pkg.UUID, default_branch: str, repo_service: RepoService = Depends()):
-    return repo_service.update_default_branch(uuid, default_branch)
-
-
 @router.patch("/update_local_repo/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def update_local_repo(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends()):
     return repo_service.update_local_repo(uuid)

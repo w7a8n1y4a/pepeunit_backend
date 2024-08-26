@@ -17,7 +17,6 @@ Mutation = create_type(
         update_repo,
         delete_repo,
         update_repo_credentials,
-        update_repo_default_branch,
         update_local_repo,
         update_units_firmware,
         create_unit,

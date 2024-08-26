@@ -112,6 +112,12 @@ class RepoService:
         if data.name:
             self.repo_repository.is_valid_name(data.name, uuid)
 
+        if data.default_branch:
+            self.git_repo_repository.is_valid_branch(repo, data.default_branch)
+
+        if data.default_commit:
+            self.git_repo_repository.is_valid_commit(repo, data.default_branch, data.default_commit)
+
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
         update_repo = Repo(**repo_update_dict)
