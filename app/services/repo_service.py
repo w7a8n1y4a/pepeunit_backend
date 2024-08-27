@@ -278,5 +278,4 @@ class RepoService:
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
         repo = self.repo_repository.get(repo)
         branches = self.git_repo_repository.get_branches(repo)
-        is_credentials_set = bool(repo.cipher_credentials_private_repository)
-        return RepoRead(branches=branches, is_credentials_set=is_credentials_set, **repo.dict())
+        return RepoRead(branches=branches, **repo.dict())

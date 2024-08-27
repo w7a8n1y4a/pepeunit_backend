@@ -18,10 +18,12 @@ class RepoType(TypeInputMixin):
 
     repo_url: str
     is_public_repository: bool
-    is_credentials_set: bool
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
+    default_commit: Optional[str] = None
+    is_only_tag_update: bool
+
     last_update_datetime: datetime
 
     branches: list[str]
