@@ -115,7 +115,8 @@ class GitRepoRepository:
 
         return [
             {'commit': item.commit.name_rev.split()[0], 'summary': item.commit.summary, 'tag': item.name}
-            for item in repo.tags if item.commit.name_rev.split()[0] in branch_commits_set
+            for item in repo.tags
+            if item.commit.name_rev.split()[0] in branch_commits_set
         ][::-1]
 
     def get_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:

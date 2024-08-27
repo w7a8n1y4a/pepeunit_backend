@@ -49,10 +49,10 @@ def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
 
 
 def is_valid_string_with_rules(
-        value: Optional[str],
-        alphabet: str = settings.available_name_entity_symbols,
-        min_length: int = 4,
-        max_length: int = 20
+    value: Optional[str],
+    alphabet: str = settings.available_name_entity_symbols,
+    min_length: int = 4,
+    max_length: int = 20,
 ) -> bool:
 
     if value is None:
