@@ -88,7 +88,7 @@ class RepoService:
 
         self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
 
-        commits_with_tag = self.git_repo_repository.get_commits_with_tag(repo, filters.repo_branch)
+        commits_with_tag = self.git_repo_repository.get_tags(repo, filters.repo_branch) if filters.only_tag else self.git_repo_repository.get_commits_with_tag(repo, filters.repo_branch)
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
@@ -115,12 +115,12 @@ class RepoService:
         if data.default_branch:
             self.git_repo_repository.is_valid_branch(repo, data.default_branch)
 
-        if data.default_commit:
-            self.git_repo_repository.is_valid_commit(repo, data.default_branch, data.default_commit)
-
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
         update_repo = Repo(**repo_update_dict)
+
+        if data.default_commit:
+            self.git_repo_repository.is_valid_commit(repo, update_repo.default_branch, data.default_commit)
 
         self.repo_repository.is_valid_auto_updated_repo(update_repo)
         self.repo_repository.is_valid_no_auto_updated_repo(update_repo)

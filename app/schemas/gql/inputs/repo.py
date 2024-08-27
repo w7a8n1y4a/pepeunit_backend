@@ -57,6 +57,7 @@ class RepoFilterInput(TypeInputMixin):
 @strawberry.input()
 class CommitFilterInput(TypeInputMixin):
     repo_branch: str
+    only_tag: bool = False
 
     offset: Optional[int] = 0
     limit: Optional[int] = 10

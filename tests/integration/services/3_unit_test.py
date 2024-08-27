@@ -300,6 +300,8 @@ def test_run_infrastructure_contour() -> None:
 
         inc += 1
 
+    time.sleep(5)
+
     # run units in screen
     for inc, unit in enumerate(pytest.units):
 
@@ -485,7 +487,7 @@ def test_repo_update_firmware_unit(database) -> None:
 
     # wait bulk update unit
     target_repo = repo_service.get(target_units[0].repo_uuid)
-    tags = repo_service.git_repo_repository.get_tags(target_repo)
+    tags = repo_service.git_repo_repository.get_tags(target_repo, target_repo.default_branch)
     inc = 0
     while True:
         data = [unit_service.get(unit.uuid).current_commit_version for unit in target_units[-2:]]
