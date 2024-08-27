@@ -109,23 +109,24 @@ class GitRepoRepository:
             for item in repo.iter_commits(rev=f'remotes/origin/{branch}')
         ][:depth]
 
-    def get_tags(self, repo: Repo) -> list[dict]:
+    def get_tags(self, repo: Repo, branch: str) -> list[dict]:
+        branch_commits_set = {item['commit'] for item in self.get_commits(repo, branch)}
         repo = self.get_repo(repo)
+
         return [
             {'commit': item.commit.name_rev.split()[0], 'summary': item.commit.summary, 'tag': item.name}
-            for item in repo.tags
+            for item in repo.tags if item.commit.name_rev.split()[0] in branch_commits_set
         ][::-1]
 
     def get_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
         commits_dict = self.get_commits(repo, branch)
 
-        tags_dict = self.get_tags(repo)
+        tags_dict = self.get_tags(repo, branch)
 
         commits_with_tag = []
         for commit in commits_dict:
             commit_dict = commit
 
-            # tags set for any branch by commit hash.
             for tag in tags_dict:
                 if commit['commit'] == tag['commit']:
                     commit_dict['tag'] = tag['tag']
