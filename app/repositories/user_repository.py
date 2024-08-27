@@ -77,14 +77,10 @@ class UserRepository:
 
     @staticmethod
     def is_valid_password(password: str):
-        if not is_valid_string_with_rules(
-            password,
-            settings.available_password_symbols,
-            8,
-            100
-        ):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                detail=f"Password is not correct")
+        if not is_valid_string_with_rules(password, settings.available_password_symbols, 8, 100):
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Password is not correct"
+            )
 
     def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: Optional[uuid_pkg.UUID] = None):
         uuid = str(uuid)
