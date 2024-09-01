@@ -42,6 +42,13 @@ def update_units_firmware(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
 
 
 @strawberry.mutation()
+def bulk_update(info: Info) -> NoneType:
+    repo_service = get_repo_service(info)
+    repo_service.bulk_update_repositories()
+    return NoneType()
+
+
+@strawberry.mutation()
 def delete_repo(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
     repo_service = get_repo_service(info)
     repo_service.delete(uuid)
