@@ -63,12 +63,13 @@ class UnitService:
 
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
         is_valid_object(repo)
-        self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
         self.repo_repository.is_valid_auto_updated_repo(repo)
-
         self.is_valid_no_auto_updated_unit(repo, data)
 
-        if not data.is_auto_update_from_repo_unit:
+        if data.is_auto_update_from_repo_unit:
+            self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
+        else:
+            self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
             self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
             self.git_repo_repository.get_env_dict(repo, data.repo_commit)
 
