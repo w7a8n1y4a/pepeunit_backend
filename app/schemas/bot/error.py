@@ -1,9 +1,8 @@
 import logging
 
-from fastapi import exceptions
-
 from aiogram import F
 from aiogram.types import ErrorEvent, Message
+from fastapi import exceptions
 
 from app.configs.bot import dp
 

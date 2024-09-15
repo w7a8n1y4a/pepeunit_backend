@@ -4,7 +4,7 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_repo_service
-from app.schemas.gql.inputs.repo import RepoCreateInput, RepoUpdateInput, CredentialsInput
+from app.schemas.gql.inputs.repo import CredentialsInput, RepoCreateInput, RepoUpdateInput
 from app.schemas.gql.types.repo import RepoType
 from app.schemas.gql.types.shared import NoneType
 

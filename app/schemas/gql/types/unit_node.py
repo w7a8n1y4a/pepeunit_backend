@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from app.repositories.enum import VisibilityLevel, UnitNodeTypeEnum
+from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 

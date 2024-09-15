@@ -2,9 +2,9 @@ import uuid as uuid_pkg
 from typing import Optional
 
 from pydantic import BaseModel
-from sqlalchemy import ForeignKey, Column
+from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 from app.repositories.enum import PermissionEntities
 

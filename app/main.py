@@ -1,32 +1,31 @@
-import logging
 import asyncio
+import logging
 import time
 from contextlib import asynccontextmanager
 
 import uvicorn
 from aiokeydb import KeyDBClient
-
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
+from app.configs.gql import get_graphql_context
 from app.configs.utils import (
-    set_redis_emqx_auth_hook,
-    set_http_emqx_auth_hook,
-    set_emqx_auth_cache_ttl,
-    del_emqx_auth_hooks,
     check_emqx_state,
+    del_emqx_auth_hooks,
     is_valid_ip_address,
+    set_emqx_auth_cache_ttl,
+    set_http_emqx_auth_hook,
+    set_redis_emqx_auth_hook,
 )
 from app.routers.v1.endpoints import api_router
-from app.configs.gql import get_graphql_context
+from app.schemas.bot import *
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
-from app.schemas.pydantic.shared import Root
-from app.schemas.bot import *
 from app.schemas.mqtt.topic import mqtt
+from app.schemas.pydantic.shared import Root
 
 
 @asynccontextmanager

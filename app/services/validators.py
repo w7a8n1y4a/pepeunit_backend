@@ -1,7 +1,7 @@
 import json
 import uuid as uuid_pkg
 from json import JSONDecodeError
-from typing import Sequence, Union, Optional
+from typing import Optional, Sequence, Union
 
 from fastapi import HTTPException
 from fastapi import status as http_status

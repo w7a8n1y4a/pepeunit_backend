@@ -1,7 +1,7 @@
 import json
+import logging
 import os
 import time
-import logging
 import uuid as uuid_pkg
 
 import fastapi
@@ -11,58 +11,39 @@ import pytest
 from app import settings
 from app.configs.gql import get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.repositories.enum import VisibilityLevel, UnitNodeTypeEnum
-from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate, UnitNodeEdgeCreate, UnitNodeSetState
+from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
+from app.schemas.pydantic.unit_node import UnitNodeEdgeCreate, UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate
 
 
 @pytest.mark.run(order=0)
 def test_update_unit_node(database) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_node_service = get_unit_node_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_unit = pytest.units[-2]
 
-    input_unit_node = unit_node_service.list(
-        UnitNodeFilter(
-            unit_uuid=target_unit.uuid,
-            type=[UnitNodeTypeEnum.INPUT]
-        )
-    )
+    input_unit_node = unit_node_service.list(UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT]))
 
     # check update visibility level
     update_unit_node = unit_node_service.update(
-        input_unit_node[0].uuid,
-        UnitNodeUpdate(
-            visibility_level=VisibilityLevel.PUBLIC
-        )
+        input_unit_node[0].uuid, UnitNodeUpdate(visibility_level=VisibilityLevel.PUBLIC)
     )
     assert update_unit_node.visibility_level == VisibilityLevel.PUBLIC
 
     # check update is_rewritable_input for input
-    update_unit_node = unit_node_service.update(
-        input_unit_node[0].uuid,
-        UnitNodeUpdate(
-            is_rewritable_input=True
-        )
-    )
+    update_unit_node = unit_node_service.update(input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
     assert update_unit_node.is_rewritable_input == True
 
     output_unit_node = unit_node_service.list(
-        UnitNodeFilter(
-            unit_uuid=target_unit.uuid,
-            type=[UnitNodeTypeEnum.OUTPUT]
-        )
+        UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
     # check update is_rewritable_input for output
     with pytest.raises(fastapi.HTTPException):
-        update_unit_node = unit_node_service.update(
-            output_unit_node[0].uuid,
-            UnitNodeUpdate(
-                is_rewritable_input=True
-            )
-        )
+        update_unit_node = unit_node_service.update(output_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
 
 
 @pytest.mark.run(order=1)
@@ -70,15 +51,14 @@ def test_create_unit_node_edge(database) -> None:
 
     current_user = pytest.users[0]
     token = pytest.user_tokens_dict[current_user.uuid]
-    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_node_service = get_unit_node_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_units = pytest.units[-3:]
 
     def update_schema(token: str, unit_uuid: uuid_pkg.UUID) -> int:
-        headers = {
-            'accept': 'application/json',
-            'x-auth-token': token
-        }
+        headers = {'accept': 'application/json', 'x-auth-token': token}
 
         url = f'{settings.backend_link_prefix_and_v1}/units/update_schema/{unit_uuid}'
 
@@ -88,10 +68,7 @@ def test_create_unit_node_edge(database) -> None:
         return r.status_code
 
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
-        headers = {
-            'accept': 'application/json',
-            'x-auth-token': token
-        }
+        headers = {'accept': 'application/json', 'x-auth-token': token}
 
         url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}'
 
@@ -103,11 +80,7 @@ def test_create_unit_node_edge(database) -> None:
     io_units_list = []
     for unit in target_units:
         logging.info(unit.uuid)
-        unit_nodes = unit_node_service.list(
-            UnitNodeFilter(
-                unit_uuid=unit.uuid
-            )
-        )
+        unit_nodes = unit_node_service.list(UnitNodeFilter(unit_uuid=unit.uuid))
 
         # first input, two output - [Input, Output]
         if unit_nodes[0].type == UnitNodeTypeEnum.OUTPUT:
@@ -117,18 +90,12 @@ def test_create_unit_node_edge(database) -> None:
 
     # output 0 unit to input 1 unit
     unit_node_service.create_node_edge(
-        UnitNodeEdgeCreate(
-            node_output_uuid=io_units_list[0][1].uuid,
-            node_input_uuid=io_units_list[1][0].uuid
-        )
+        UnitNodeEdgeCreate(node_output_uuid=io_units_list[0][1].uuid, node_input_uuid=io_units_list[1][0].uuid)
     )
 
     # output 1 unit to input 2 unit
     unit_node_service.create_node_edge(
-        UnitNodeEdgeCreate(
-            node_output_uuid=io_units_list[1][1].uuid,
-            node_input_uuid=io_units_list[2][0].uuid
-        )
+        UnitNodeEdgeCreate(node_output_uuid=io_units_list[1][1].uuid, node_input_uuid=io_units_list[2][0].uuid)
     )
 
     # test update schema 3 Unit
@@ -169,17 +136,18 @@ def test_create_unit_node_edge(database) -> None:
 def test_set_state_input_unit_node(database) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_node_service = get_unit_node_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_unit = pytest.units[-3]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
     unit_token = unit_service.generate_token(target_unit.uuid)
 
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
-        headers = {
-            'accept': 'application/json',
-            'x-auth-token': token
-        }
+        headers = {'accept': 'application/json', 'x-auth-token': token}
 
         url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}'
 
@@ -188,24 +156,14 @@ def test_set_state_input_unit_node(database) -> None:
 
         return r.status_code
 
-    unit_nodes = unit_node_service.list(
-        UnitNodeFilter(
-            unit_uuid=target_unit.uuid,
-            type=[UnitNodeTypeEnum.INPUT]
-        )
-    )
+    unit_nodes = unit_node_service.list(UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT]))
 
     state = 'test'
 
     # check set with is_rewritable_input=False
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) >= 400
 
-    unit_node_service.update(
-        unit_nodes[0].uuid,
-        UnitNodeUpdate(
-            is_rewritable_input=True
-        )
-    )
+    unit_node_service.update(unit_nodes[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
 
     # check set with is_rewritable_input=True
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) < 400
@@ -215,7 +173,9 @@ def test_set_state_input_unit_node(database) -> None:
 def test_get_unit_node_edge(database) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_node_service = get_unit_node_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_unit = pytest.units[-2]
 
@@ -230,7 +190,9 @@ def test_get_unit_node_edge(database) -> None:
 def test_delete_unit_node_edge(database) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_node_service = get_unit_node_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_edge = pytest.edges[0]
 
@@ -246,16 +208,13 @@ def test_delete_unit_node_edge(database) -> None:
 def test_get_many_unit_node(database) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_node_service = get_unit_node_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     # check many get with all filters
     units_nodes = unit_node_service.list(
-        UnitNodeFilter(
-            search_string='pepeunit',
-            type=[UnitNodeTypeEnum.INPUT],
-            offset=0,
-            limit=1_000_000
-        )
+        UnitNodeFilter(search_string='pepeunit', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
     )
     assert len(units_nodes) == 8
 
@@ -264,7 +223,9 @@ def test_get_many_unit_node(database) -> None:
 def test_delete_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_unit = pytest.units[0]
 

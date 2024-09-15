@@ -9,11 +9,11 @@ from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.repositories.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
-from app.schemas.gql.inputs.user import UserCreateInput, UserAuthInput, UserUpdateInput, UserFilterInput
-from app.schemas.pydantic.user import UserCreate, UserUpdate, UserFilter, UserAuth
+from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
+from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object, is_valid_password
-from app.utils.utils import password_to_hash, generate_random_string
+from app.utils.utils import generate_random_string, password_to_hash
 
 
 class UserService:

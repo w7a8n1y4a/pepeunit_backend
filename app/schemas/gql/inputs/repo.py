@@ -1,5 +1,5 @@
-from typing import Optional
 import uuid as uuid_pkg
+from typing import Optional
 
 import strawberry
 

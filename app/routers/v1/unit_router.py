@@ -11,7 +11,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.schemas.pydantic.shared import MqttRead
-from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter, UnitRead, UnitMqttTokenAuth
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitMqttTokenAuth, UnitRead, UnitUpdate
 from app.services.unit_service import UnitService
 
 router = APIRouter()

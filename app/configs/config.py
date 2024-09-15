@@ -1,8 +1,7 @@
 import string
+
 import toml
-
 from pydantic_settings import BaseSettings
-
 
 with open("pyproject.toml", "r") as f:
     data = toml.loads(f.read())

@@ -1,5 +1,5 @@
-import uuid as uuid_pkg
 import json
+import uuid as uuid_pkg
 
 import strawberry
 from strawberry.types import Info

@@ -1,6 +1,7 @@
 .env
 venv
 .idea
+.pre-commit-config.yaml
 test.py
 test.ipynb
 repo_cache/*

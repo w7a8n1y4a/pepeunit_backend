@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 
-from app.routers.v1.user_router import router as user_router
-from app.routers.v1.repo_router import router as repo_router
-from app.routers.v1.unit_router import router as unit_router
-from app.routers.v1.unit_node_router import router as unit_node_router
 from app.routers.v1.metrics_router import router as metrics_router
 from app.routers.v1.permission_router import router as permission_router
+from app.routers.v1.repo_router import router as repo_router
+from app.routers.v1.unit_node_router import router as unit_node_router
+from app.routers.v1.unit_router import router as unit_router
+from app.routers.v1.user_router import router as user_router
 
 api_router = APIRouter()
 

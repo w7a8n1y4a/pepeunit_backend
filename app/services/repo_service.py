@@ -6,33 +6,33 @@ from typing import Union
 from fastapi import Depends
 
 from app.domain.repo_model import Repo
-from app.repositories.enum import UserRole, PermissionEntities
+from app.repositories.enum import PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.repo import (
-    RepoUpdateInput,
-    RepoFilterInput,
-    RepoCreateInput,
-    CredentialsInput,
     CommitFilterInput,
+    CredentialsInput,
+    RepoCreateInput,
+    RepoFilterInput,
+    RepoUpdateInput,
 )
 from app.schemas.pydantic.repo import (
+    CommitFilter,
+    CommitRead,
+    Credentials,
     RepoCreate,
-    RepoUpdate,
     RepoFilter,
     RepoRead,
-    Credentials,
-    CommitRead,
-    CommitFilter,
+    RepoUpdate,
     RepoVersionsRead,
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
-from app.services.utils import remove_none_value_dict, merge_two_dict_first_priority
-from app.services.validators import is_valid_object, is_emtpy_sequence
-from app.utils.utils import aes_encode, aes_decode
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
+from app.services.validators import is_emtpy_sequence, is_valid_object
+from app.utils.utils import aes_decode, aes_encode
 
 
 class RepoService:

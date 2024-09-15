@@ -1,4 +1,4 @@
-from aiogram.filters import StateFilter, Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from fastapi import HTTPException

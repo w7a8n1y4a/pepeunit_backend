@@ -13,7 +13,9 @@ from app.schemas.pydantic.permission import PermissionCreate, Resource
 def test_create_permission(database) -> None:
 
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_permission_service = get_permission_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_agent = pytest.users[1]
     target_resource = pytest.units[-1]
@@ -23,7 +25,7 @@ def test_create_permission(database) -> None:
             agent_uuid=target_agent.uuid,
             agent_type=PermissionEntities.USER,
             resource_uuid=target_resource.uuid,
-            resource_type=PermissionEntities.UNIT
+            resource_type=PermissionEntities.UNIT,
         )
     )
 
@@ -36,7 +38,7 @@ def test_create_permission(database) -> None:
                 agent_uuid=target_agent.uuid,
                 agent_type=PermissionEntities.UNIT,
                 resource_uuid=target_resource.uuid,
-                resource_type=PermissionEntities.UNIT
+                resource_type=PermissionEntities.UNIT,
             )
         )
 
@@ -47,7 +49,7 @@ def test_create_permission(database) -> None:
                 agent_uuid=target_agent.uuid,
                 agent_type=PermissionEntities.USER,
                 resource_uuid=target_resource.uuid,
-                resource_type=PermissionEntities.UNIT_NODE
+                resource_type=PermissionEntities.UNIT_NODE,
             )
         )
 
@@ -56,16 +58,15 @@ def test_create_permission(database) -> None:
 def test_get_permission(database) -> None:
 
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_permission_service = get_permission_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_resource = pytest.units[-1]
 
     # get resource agents
     target_agents = unit_permission_service.get_resource_agents(
-        Resource(
-            resource_uuid=target_resource.uuid,
-            resource_type=PermissionEntities.UNIT
-        )
+        Resource(resource_uuid=target_resource.uuid, resource_type=PermissionEntities.UNIT)
     )
 
     assert len(target_agents) == 3
@@ -73,10 +74,7 @@ def test_get_permission(database) -> None:
     # check get invalid resource agents
     with pytest.raises(fastapi.HTTPException):
         unit_permission_service.get_resource_agents(
-            Resource(
-                resource_uuid=target_resource.uuid,
-                resource_type=PermissionEntities.USER
-            )
+            Resource(resource_uuid=target_resource.uuid, resource_type=PermissionEntities.USER)
         )
 
 
@@ -84,7 +82,9 @@ def test_get_permission(database) -> None:
 def test_delete_permission(database) -> None:
 
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_permission_service = get_permission_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_permission = pytest.permissions[0]
 

@@ -1,6 +1,6 @@
 from typing import AsyncIterator
 
-from aioredis import from_url, Redis
+from aioredis import Redis, from_url
 
 from app import settings
 

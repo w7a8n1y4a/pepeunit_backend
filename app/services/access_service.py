@@ -1,10 +1,9 @@
-from datetime import timedelta, datetime
-from typing import Optional, Union
 import uuid as uuid_pkg
+from datetime import datetime, timedelta
+from typing import Optional, Union
 
 import jwt
-from fastapi import Depends, params
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException, params
 from fastapi import status as http_status
 
 from app import settings
@@ -14,10 +13,10 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import UserRole, AgentType, VisibilityLevel, UserStatus, PermissionEntities
+from app.repositories.enum import AgentType, PermissionEntities, UserRole, UserStatus, VisibilityLevel
+from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
-from app.repositories.permission_repository import PermissionRepository
 from app.services.utils import token_depends
 
 

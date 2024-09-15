@@ -45,10 +45,14 @@
 2. `https://BACKEND_DOMAIN/APP_PREFIX/docs` - Swagger UI
 3. `https://BACKEND_DOMAIN/APP_PREFIX/graphql` - GraphQL
 
-## Полезные команды
+## Поддержание формата кода
+1. Установите `.pre-commit-config.yaml` на основе `.pre-commit-config.example.yaml`
+2. Теперь при каждом коммите у вас будет происходить проверка через `black` и `isort`
+3. В случае, если нужно запустить вручную - `pre-commit run --all-files`
+
+## Миграции базы данных
 1. Создание новой миграции `alembic revision -m 'best_revision_name'`
-1. Применение новой миграции `alembic upgrade head` - 
-1. Поддержание нормального форматирования кода `black ./app -l 120 --target-version py310 -S`
+1. Применение новой миграции `alembic upgrade head`
 
 ## Интеграционное тестирование
 Запустить интеграционное тестирование можно командой - `pytest tests -v`

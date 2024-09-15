@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, status
 
-from app.schemas.pydantic.permission import PermissionRead, Resource, PermissionCreate
+from app.schemas.pydantic.permission import PermissionCreate, PermissionRead, Resource
 from app.services.permission_service import PermissionService
 
 router = APIRouter()

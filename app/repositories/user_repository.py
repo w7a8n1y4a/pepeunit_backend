@@ -1,8 +1,7 @@
-from typing import Union, Optional
 import uuid as uuid_pkg
+from typing import Optional, Union
 
-from fastapi import Depends
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 from sqlalchemy import or_
 from sqlmodel import Session, select
@@ -10,7 +9,7 @@ from sqlmodel import Session, select
 from app import settings
 from app.configs.db import get_session
 from app.domain.user_model import User
-from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.gql.inputs.user import UserFilterInput
 from app.schemas.pydantic.user import UserFilter
 from app.services.validators import is_valid_string_with_rules

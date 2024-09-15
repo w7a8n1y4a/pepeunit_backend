@@ -3,12 +3,12 @@ import uuid as uuid_pkg
 from fastapi import APIRouter, Depends, status
 
 from app.schemas.pydantic.unit_node import (
-    UnitNodeRead,
-    UnitNodeFilter,
-    UnitNodeUpdate,
-    UnitNodeSetState,
-    UnitNodeEdgeRead,
     UnitNodeEdgeCreate,
+    UnitNodeEdgeRead,
+    UnitNodeFilter,
+    UnitNodeRead,
+    UnitNodeSetState,
+    UnitNodeUpdate,
 )
 from app.services.unit_node_service import UnitNodeService
 

@@ -1,9 +1,8 @@
-from typing import Union, Optional
 import uuid as uuid_pkg
+from typing import Optional, Union
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
-
 from sqlmodel import Session
 
 from app.configs.db import get_session

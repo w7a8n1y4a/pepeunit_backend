@@ -2,7 +2,7 @@ from typing import Optional
 
 import strawberry
 
-from app.repositories.enum import UserRole, UserStatus, OrderByDate
+from app.repositories.enum import OrderByDate, UserRole, UserStatus
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 

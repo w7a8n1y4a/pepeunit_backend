@@ -1,8 +1,7 @@
-from typing import Union
 import uuid as uuid_pkg
+from typing import Union
 
-from fastapi import Depends
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 
 from app.domain.permission_model import Permission, PermissionBaseType

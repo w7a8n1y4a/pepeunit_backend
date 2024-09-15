@@ -1,7 +1,7 @@
 import uuid as uuid_pkg
 from datetime import datetime
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 
 class User(SQLModel, table=True):

@@ -9,7 +9,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_unit_node_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.unit_model import Unit
-from app.repositories.enum import ReservedOutputBaseTopic, GlobalPrefixTopic, DestinationTopicType
+from app.repositories.enum import DestinationTopicType, GlobalPrefixTopic, ReservedOutputBaseTopic
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_topic_split
 from app.services.utils import merge_two_dict_first_priority

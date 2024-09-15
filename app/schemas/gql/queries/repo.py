@@ -4,8 +4,8 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_repo_service
-from app.schemas.gql.inputs.repo import RepoFilterInput, CommitFilterInput
-from app.schemas.gql.types.repo import RepoType, CommitType, RepoVersionsType, RepoVersionType
+from app.schemas.gql.inputs.repo import CommitFilterInput, RepoFilterInput
+from app.schemas.gql.types.repo import CommitType, RepoType, RepoVersionsType, RepoVersionType
 
 
 @strawberry.field()
