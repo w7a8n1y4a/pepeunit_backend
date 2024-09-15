@@ -10,12 +10,12 @@ import httpx
 import pytest
 
 from app import settings
-from app.configs.gql import get_unit_service, get_repo_service
+from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
 from app.repositories.enum import VisibilityLevel
-from app.schemas.pydantic.repo import RepoUpdate, CommitFilter
-from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
+from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
 from app.utils.utils import aes_encode
 from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
 
@@ -24,7 +24,9 @@ from tests.integration.services.utils import check_screen_session_by_name, run_b
 def test_create_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     # create auto updated unit
     new_units = []
@@ -41,9 +43,11 @@ def test_create_unit(database) -> None:
         new_units.append(unit)
 
     # create no auto updated units, with all visibility levels
-    for inc, test_repo in enumerate([pytest.repos[-3]] + pytest.repos[-3:]*2):
+    for inc, test_repo in enumerate([pytest.repos[-3]] + pytest.repos[-3:] * 2):
         logging.info(test_repo.uuid)
-        repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+        repo_service = get_repo_service(
+            InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+        )
         commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
 
         unit = unit_service.create(
@@ -75,7 +79,9 @@ def test_create_unit(database) -> None:
         )
 
     # check create Unit with Repo without default branch
-    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    repo_service = get_repo_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
     repo_service.repo_repository.update(pytest.repos[0].uuid, Repo(default_branch=None))
 
     with pytest.raises(fastapi.HTTPException):
@@ -108,7 +114,9 @@ def test_create_unit(database) -> None:
 def test_delete_repo_with_unit(database) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    repo_service = get_repo_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     # test del repo with Unit
     with pytest.raises(fastapi.HTTPException):
@@ -119,7 +127,9 @@ def test_delete_repo_with_unit(database) -> None:
 def test_update_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     # check change name to new
     test_unit = pytest.units[0]
@@ -153,7 +163,9 @@ def test_update_unit(database) -> None:
         unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=False))
 
     # check set hand update
-    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    repo_service = get_repo_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_unit = pytest.units[0]
     target_repo = repo_service.get(target_unit.repo_uuid)
@@ -171,7 +183,9 @@ def test_update_unit(database) -> None:
 
     # check update not creator
     current_user = pytest.users[1]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     with pytest.raises(fastapi.HTTPException):
         unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
@@ -181,7 +195,9 @@ def test_update_unit(database) -> None:
 def test_env_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     target_unit = pytest.units[0]
 
@@ -210,7 +226,9 @@ def test_env_unit(database) -> None:
 def test_get_firmware(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     test_unit_path = 'tmp/test_units'
 
@@ -230,7 +248,7 @@ def test_get_firmware(database) -> None:
     for inc, unit in enumerate(pytest.units):
         logging.info(unit.uuid)
 
-        inc = inc%3
+        inc = inc % 3
 
         if inc == 2:
             # tgz
@@ -346,10 +364,7 @@ def test_hand_update_firmware_unit(database) -> None:
         inc += 1
 
     def set_unit_new_commit(token: str, unit, target_version: str) -> int:
-        headers = {
-            'accept': 'application/json',
-            'x-auth-token': token
-        }
+        headers = {'accept': 'application/json', 'x-auth-token': token}
 
         url = f'{settings.backend_link_prefix_and_v1}/units/{unit.uuid}'
 
@@ -420,10 +435,7 @@ def test_hand_update_firmware_unit(database) -> None:
 def test_repo_update_firmware_unit(database) -> None:
 
     def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
-        headers = {
-            'accept': 'application/json',
-            'x-auth-token': token
-        }
+        headers = {'accept': 'application/json', 'x-auth-token': token}
 
         url = f'{settings.backend_link_prefix_and_v1}/repos/{repo.uuid}'
 
@@ -433,10 +445,7 @@ def test_repo_update_firmware_unit(database) -> None:
         return r.status_code
 
     def bulk_update_repo(token: str) -> int:
-        headers = {
-            'accept': 'application/json',
-            'x-auth-token': token
-        }
+        headers = {'accept': 'application/json', 'x-auth-token': token}
 
         url = f'{settings.backend_link_prefix_and_v1}/repos/bulk_update'
 
@@ -511,7 +520,9 @@ def test_repo_update_firmware_unit(database) -> None:
 def test_get_many_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     # check many get with all filters
     units = unit_service.list(
@@ -521,7 +532,7 @@ def test_get_many_unit(database) -> None:
             search_string=pytest.test_hash,
             is_auto_update_from_repo_unit=True,
             offset=0,
-            limit=1_000_000
+            limit=1_000_000,
         )
     )
     assert len(units) == 1

@@ -3,7 +3,6 @@ from sqlmodel import Session, create_engine
 
 from app import settings
 
-
 engine = create_engine(
     settings.sqlalchemy_database_url,
     echo=settings.debug,

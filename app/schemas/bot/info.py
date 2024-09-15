@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.configs.bot import dp, bot
+from app.configs.bot import bot, dp
 from app.configs.db import get_session
 from app.configs.gql import get_metrics_service
 from app.configs.sub_entities import InfoSubEntity

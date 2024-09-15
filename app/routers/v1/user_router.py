@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 from fastapi import APIRouter, Depends, status
 
 from app.repositories.user_repository import UserFilter
-from app.schemas.pydantic.user import UserRead, UserCreate, UserUpdate, AccessToken, UserAuth
+from app.schemas.pydantic.user import AccessToken, UserAuth, UserCreate, UserRead, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter()

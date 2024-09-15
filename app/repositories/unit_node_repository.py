@@ -1,5 +1,5 @@
-from typing import Optional
 import uuid as uuid_pkg
+from typing import Optional
 
 from fastapi import Depends
 from sqlalchemy import func, text
@@ -9,7 +9,7 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
-from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.validators import is_valid_uuid
 

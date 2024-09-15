@@ -1,4 +1,5 @@
 import uuid as uuid_pkg
+
 import strawberry
 
 from app.repositories.enum import PermissionEntities

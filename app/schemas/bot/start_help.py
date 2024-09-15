@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.bot import dp, bot
+from app.configs.bot import bot, dp
 from app.repositories.enum import CommandNames
 
 

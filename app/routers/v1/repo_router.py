@@ -8,13 +8,13 @@ from app.configs.db import get_session
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.schemas.pydantic.repo import (
-    RepoRead,
-    RepoCreate,
-    RepoUpdate,
-    RepoFilter,
-    Credentials,
-    CommitRead,
     CommitFilter,
+    CommitRead,
+    Credentials,
+    RepoCreate,
+    RepoFilter,
+    RepoRead,
+    RepoUpdate,
     RepoVersionsRead,
 )
 from app.services.repo_service import RepoService

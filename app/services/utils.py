@@ -1,5 +1,5 @@
-from typing import Annotated
 import uuid as uuid_pkg
+from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import APIKeyHeader

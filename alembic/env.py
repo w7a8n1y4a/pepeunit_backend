@@ -1,13 +1,12 @@
+import os
+import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from alembic import context
-
-import os, sys
-from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -32,12 +31,12 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
-from app.domain.user_model import User
+from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
-from app.domain.permission_model import Permission
 from app.domain.unit_node_edge_model import UnitNodeEdge
+from app.domain.unit_node_model import UnitNode
+from app.domain.user_model import User
 
 target_metadata = SQLModel.metadata
 

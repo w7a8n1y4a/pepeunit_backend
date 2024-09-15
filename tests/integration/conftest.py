@@ -1,9 +1,10 @@
+import hashlib
 import json
 import shutil
-import hashlib
 from json import JSONDecodeError
 
 import pytest
+from sqlmodel import Session
 
 from app import settings
 from app.configs.db import get_session
@@ -11,8 +12,6 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from sqlmodel import Session
-
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
 from tests.integration.services.utils import check_screen_session_by_name, kill_screen_session

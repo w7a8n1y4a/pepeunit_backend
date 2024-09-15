@@ -6,12 +6,11 @@ import json
 import logging
 import os
 import shutil
-import zlib
 import uuid as uuid_pkg
+import zlib
 from typing import Union
 
-from fastapi import Depends
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 
 from app import settings
@@ -19,25 +18,25 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import (
-    UserRole,
-    UnitNodeTypeEnum,
     DestinationTopicType,
-    PermissionEntities,
     GlobalPrefixTopic,
+    PermissionEntities,
     ReservedInputBaseTopic,
+    UnitNodeTypeEnum,
+    UserRole,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput, UnitFilterInput
+from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUpdateInput
 from app.schemas.mqtt.utils import get_topic_split
-from app.schemas.pydantic.unit import UnitCreate, UnitUpdate, UnitFilter
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
-from app.services.validators import is_valid_object, is_valid_json, is_valid_uuid
+from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
+from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
 from app.utils.utils import aes_decode, aes_encode
 
 

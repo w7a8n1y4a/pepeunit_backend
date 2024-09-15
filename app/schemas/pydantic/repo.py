@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import Query
-from pydantic import BaseModel
 from fastapi_filter.contrib.sqlalchemy import Filter
+from pydantic import BaseModel
 
-from app.repositories.enum import VisibilityLevel, OrderByDate
+from app.repositories.enum import OrderByDate, VisibilityLevel
 
 
 class RepoRead(BaseModel):

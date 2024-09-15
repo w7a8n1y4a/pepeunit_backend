@@ -1,16 +1,15 @@
-from typing import Optional
 import uuid as uuid_pkg
+from typing import Optional
 
-from fastapi import Depends
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from fastapi import status as http_status
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
-from app.repositories.utils import apply_ilike_search_string, apply_enums, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.unit import UnitFilter
-from app.services.validators import is_valid_uuid, is_valid_string_with_rules
+from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
 
 class UnitRepository:

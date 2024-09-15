@@ -1,13 +1,14 @@
+import logging
+
 import fastapi
 import pytest
-import logging
 
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
-from app.schemas.pydantic.user import UserCreate, UserAuth, UserUpdate, UserFilter
+from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
 
 
 @pytest.mark.run(order=0)
@@ -73,7 +74,9 @@ async def test_verification_user(database) -> None:
     # set verified status all test users
     codes_list = []
     for inc, user in enumerate(pytest.users, start=1):
-        user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]}))
+        user_service = get_user_service(
+            InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]})
+        )
         logging.info(user.uuid)
 
         code = await user_service.generate_verification_code()
@@ -93,7 +96,9 @@ async def test_verification_user(database) -> None:
 
 @pytest.mark.run(order=3)
 def test_block_unblock_user(database) -> None:
-    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]}))
+    user_service = get_user_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]})
+    )
 
     # block unblock users
     for user in pytest.users:
@@ -130,7 +135,9 @@ def test_update_user(database) -> None:
 
     # check change login on new
     current_user = pytest.users[-1]
-    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    user_service = get_user_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     logging.info(current_user.login)
     new_login = current_user.login + 'test'
@@ -141,14 +148,18 @@ def test_update_user(database) -> None:
     # check change login on exist
     with pytest.raises(fastapi.HTTPException):
         current_user = pytest.users[-1]
-        user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+        user_service = get_user_service(
+            InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+        )
 
         other_user = pytest.users[0]
         user_service.update(UserUpdate(login=other_user.login))
 
     # check change password
     current_user = pytest.users[0]
-    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    user_service = get_user_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     user_service.update(UserUpdate(password='password'))
 
@@ -156,7 +167,9 @@ def test_update_user(database) -> None:
 @pytest.mark.run(order=5)
 def test_get_many_user(database) -> None:
     current_user = pytest.users[-1]
-    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]}))
+    user_service = get_user_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
 
     # check many get with all filters
     users = user_service.list(

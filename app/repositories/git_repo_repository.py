@@ -5,13 +5,11 @@ import shutil
 import uuid as uuid_pkg
 from collections import Counter
 from json import JSONDecodeError
-
 from typing import Optional
 
 import git
 from fastapi import HTTPException
 from fastapi import status as http_status
-
 from git import Repo as GitRepo
 from git.exc import GitCommandError
 

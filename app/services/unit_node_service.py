@@ -1,5 +1,5 @@
-from typing import Union
 import uuid as uuid_pkg
+from typing import Union
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
@@ -8,19 +8,18 @@ from app.domain.permission_model import PermissionBaseType
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UserRole, UnitNodeTypeEnum, PermissionEntities, DestinationTopicType
+from app.repositories.enum import DestinationTopicType, PermissionEntities, UnitNodeTypeEnum, UserRole
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.schemas.gql.inputs.unit_node import (
-    UnitNodeFilterInput,
-    UnitNodeUpdateInput,
-    UnitNodeSetStateInput,
     UnitNodeEdgeCreateInput,
+    UnitNodeFilterInput,
+    UnitNodeSetStateInput,
+    UnitNodeUpdateInput,
 )
-
-from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, UnitNodeEdgeCreate
+from app.schemas.pydantic.unit_node import UnitNodeEdgeCreate, UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate
 from app.services.access_service import AccessService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, get_topic_name
+from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_valid_object, is_valid_uuid
 
 

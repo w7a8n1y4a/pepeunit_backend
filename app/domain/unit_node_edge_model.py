@@ -1,8 +1,8 @@
 import uuid as uuid_pkg
 
-from sqlalchemy import ForeignKey, Column
+from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 
 class UnitNodeEdge(SQLModel, table=True):

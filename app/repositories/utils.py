@@ -1,5 +1,5 @@
 from fastapi import params
-from sqlalchemy import desc, asc
+from sqlalchemy import asc, desc
 from sqlmodel import or_
 
 from app.repositories.enum import OrderByDate

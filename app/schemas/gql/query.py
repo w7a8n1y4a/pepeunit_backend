@@ -1,11 +1,11 @@
 from strawberry.tools import create_type
 
-from app.schemas.gql.queries.repo import *
-from app.schemas.gql.queries.user import *
-from app.schemas.gql.queries.unit import *
-from app.schemas.gql.queries.unit_node import *
 from app.schemas.gql.queries.metrics import *
 from app.schemas.gql.queries.permission import *
+from app.schemas.gql.queries.repo import *
+from app.schemas.gql.queries.unit import *
+from app.schemas.gql.queries.unit_node import *
+from app.schemas.gql.queries.user import *
 
 Query = create_type(
     "Query",
