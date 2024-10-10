@@ -9,3 +9,4 @@ repo_cache/*
 tmp
 .ropeproject
 connections.json
+.nvim
