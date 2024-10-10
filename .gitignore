@@ -8,3 +8,4 @@ test.ipynb
 repo_cache/*
 tmp
 .ropeproject
+connections.json
