@@ -23,8 +23,8 @@ class UnitNodeFilterInput(TypeInputMixin):
     unit_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
-    type: Optional[list[str]] = tuple([item for item in UnitNodeTypeEnum])
-    visibility_level: list[VisibilityLevel] = tuple([item for item in VisibilityLevel])
+    type: Optional[list[UnitNodeTypeEnum]] = tuple([item for item in UnitNodeTypeEnum])
+    visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 

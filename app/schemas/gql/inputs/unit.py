@@ -40,7 +40,7 @@ class UnitFilterInput(TypeInputMixin):
 
     is_auto_update_from_repo_unit: Optional[bool] = None
 
-    visibility_level: list[VisibilityLevel] = tuple([item for item in VisibilityLevel])
+    visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
