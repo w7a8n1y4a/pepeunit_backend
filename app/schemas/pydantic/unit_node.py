@@ -1,5 +1,6 @@
 import uuid as uuid_pkg
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 from fastapi import Query
@@ -18,8 +19,11 @@ class UnitNodeRead(BaseModel):
 
     topic_name: str
 
+    create_datetime: datetime
     state: Optional[str] = None
+
     unit_uuid: uuid_pkg.UUID
+    creator_uuid: uuid_pkg.UUID
 
 
 class UnitNodeUpdate(BaseModel):
