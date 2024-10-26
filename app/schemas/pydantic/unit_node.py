@@ -52,6 +52,19 @@ class UnitNodeFilter:
         return self.__dict__
 
 
+@dataclass
+class UnitNodeEdgeOutputFilter:
+    unit_node_input_uuid: uuid_pkg.UUID
+
+    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__
+
+
 class UnitNodeEdgeRead(BaseModel):
     uuid: uuid_pkg.UUID
     node_output_uuid: uuid_pkg.UUID

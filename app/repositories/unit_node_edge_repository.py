@@ -8,6 +8,9 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.repositories.utils import apply_enums, apply_offset_and_limit
+from app.schemas.pydantic.unit_node import UnitNodeEdgeOutputFilter
+from app.services.validators import is_valid_uuid
 
 
 class UnitNodeEdgeRepository:
@@ -58,3 +61,18 @@ class UnitNodeEdgeRepository:
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.db.query(UnitNodeEdge).filter(UnitNodeEdge.uuid == uuid).delete()
         self.db.commit()
+
+    def get_output_unit_nodes(self, filters: UnitNodeEdgeOutputFilter, restriction: list[str] = None) -> list[UnitNode]:
+        query = self.db.query(UnitNode).join(UnitNodeEdge, UnitNode.uuid == UnitNodeEdge.node_output_uuid)
+
+        query = query.filter(UnitNodeEdge.node_input_uuid == is_valid_uuid(filters.unit_node_input_uuid))
+
+        if restriction:
+            query = query.filter(UnitNode.uuid.in_(restriction))
+
+
+        fields = {'visibility_level': UnitNode.visibility_level}
+        query = apply_enums(query, filters, fields)
+
+        query = apply_offset_and_limit(query, filters)
+        return query.all()

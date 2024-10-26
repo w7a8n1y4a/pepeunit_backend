@@ -36,3 +36,13 @@ class UnitNodeFilterInput(TypeInputMixin):
 class UnitNodeEdgeCreateInput(TypeInputMixin):
     node_output_uuid: uuid_pkg.UUID
     node_input_uuid: uuid_pkg.UUID
+
+
+@strawberry.input()
+class UnitNodeEdgeOutputFilterInput(TypeInputMixin):
+    unit_node_input_uuid: uuid_pkg.UUID
+
+    visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
