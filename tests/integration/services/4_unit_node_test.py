@@ -12,7 +12,8 @@ from app import settings
 from app.configs.gql import get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
-from app.schemas.pydantic.unit_node import UnitNodeEdgeCreate, UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate
+from app.schemas.pydantic.unit_node import UnitNodeEdgeCreate, UnitNodeFilter, UnitNodeSetState, UnitNodeUpdate, \
+    UnitNodeEdgeOutputFilter
 
 
 @pytest.mark.run(order=0)
@@ -217,6 +218,17 @@ def test_get_many_unit_node(database) -> None:
         UnitNodeFilter(search_string='pepeunit', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
     )
     assert len(units_nodes) == 8
+
+    # check get all output UnitNode linked with target UnitNode input
+    units_input_nodes = unit_node_service.get_output_unit_nodes(
+        UnitNodeEdgeOutputFilter(
+            unit_node_input_uuid=pytest.edges[1].node_input_uuid, offset=0, limit=1_000_000
+        )
+    )
+
+    print(units_input_nodes)
+
+    assert len(units_input_nodes) == 1
 
 
 @pytest.mark.run(order=6)
