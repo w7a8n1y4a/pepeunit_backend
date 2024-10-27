@@ -48,7 +48,9 @@ def create_unit_node_edge(data: UnitNodeEdgeCreate, unit_node_service: UnitNodeS
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_unit_node_edge(input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends()):
+def delete_unit_node_edge(
+    input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends()
+):
     return unit_node_service.delete_node_edge(input_uuid, output_uuid)
 
 
