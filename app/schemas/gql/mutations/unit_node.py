@@ -28,7 +28,7 @@ def create_unit_node_edge(info: Info, unit_node_edge: UnitNodeEdgeCreateInput) -
 
 
 @strawberry.mutation()
-def delete_unit_node_edge(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
+def delete_unit_node_edge(info: Info, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> NoneType:
     unit_node_service = get_unit_node_service(info)
-    unit_node_service.delete_node_edge(uuid)
+    unit_node_service.delete_node_edge(input_uuid, output_uuid)
     return NoneType()

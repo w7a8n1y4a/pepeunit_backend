@@ -183,10 +183,10 @@ class UnitNodeService:
 
         return self.unit_node_edge_repository.get_by_nodes(unit_nodes)
 
-    def delete_node_edge(self, uuid: uuid_pkg.UUID) -> None:
+    def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        unit_node_edge = self.unit_node_edge_repository.get(UnitNodeEdge(uuid=uuid))
+        unit_node_edge = self.unit_node_edge_repository.get_by_two_uuid(input_uuid, output_uuid)
         is_valid_object(unit_node_edge)
 
         input_unit = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_input_uuid))
