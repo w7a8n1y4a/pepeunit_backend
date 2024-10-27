@@ -45,6 +45,12 @@ class UnitNodeEdgeRepository:
             .all()
         )
 
+    def get_by_two_uuid(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID):
+        return self.db.query(UnitNodeEdge).filter(
+            UnitNodeEdge.node_input_uuid == is_valid_uuid(input_uuid),
+            UnitNodeEdge.node_output_uuid == is_valid_uuid(output_uuid)
+        ).first()
+
     def get_all_count(self) -> int:
         return self.db.query(UnitNodeEdge.uuid).count()
 

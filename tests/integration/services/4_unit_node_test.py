@@ -203,11 +203,11 @@ def test_delete_unit_node_edge(database) -> None:
     target_edge = pytest.edges[0]
 
     # check del edge
-    unit_node_service.delete_node_edge(target_edge.uuid)
+    unit_node_service.delete_node_edge(target_edge.node_input_uuid, target_edge.node_output_uuid)
 
     # check del with invalid del
     with pytest.raises(fastapi.HTTPException):
-        unit_node_service.delete_node_edge(uuid_pkg.uuid4())
+        unit_node_service.delete_node_edge(uuid_pkg.uuid4(), uuid_pkg.uuid4())
 
 
 @pytest.mark.run(order=5)
