@@ -10,6 +10,12 @@ class OrderByDate(str, enum.Enum):
 
 
 @strawberry.enum
+class OrderByText(str, enum.Enum):
+    asc = 'asc'
+    desc = 'desc'
+
+
+@strawberry.enum
 class VisibilityLevel(str, enum.Enum):
     """
     Visibility level for all entities

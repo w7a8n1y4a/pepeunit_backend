@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from app.repositories.enum import OrderByDate, UnitNodeTypeEnum, VisibilityLevel
+from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -41,8 +41,13 @@ class UnitNodeEdgeCreateInput(TypeInputMixin):
 @strawberry.input()
 class UnitNodeEdgeOutputFilterInput(TypeInputMixin):
     unit_node_input_uuid: uuid_pkg.UUID
+    search_string: Optional[str] = None
+    creator_uuid: Optional[uuid_pkg.UUID] = None
 
     visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
+
+    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
