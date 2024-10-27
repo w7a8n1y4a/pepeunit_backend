@@ -6,7 +6,8 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.repositories.enum import OrderByDate, UnitNodeTypeEnum, VisibilityLevel
+from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
+from app.schemas.pydantic.unit import UnitRead
 
 
 class UnitNodeRead(BaseModel):
@@ -24,6 +25,11 @@ class UnitNodeRead(BaseModel):
 
     unit_uuid: uuid_pkg.UUID
     creator_uuid: uuid_pkg.UUID
+
+
+class UnitNodeOutputRead(BaseModel):
+    unit: UnitRead
+    unit_output_nodes: list[UnitNodeRead]
 
 
 class UnitNodeUpdate(BaseModel):
@@ -55,8 +61,13 @@ class UnitNodeFilter:
 @dataclass
 class UnitNodeEdgeOutputFilter:
     unit_node_input_uuid: uuid_pkg.UUID
+    search_string: Optional[str] = None
+    creator_uuid: Optional[uuid_pkg.UUID] = None
 
     visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
+
+    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
