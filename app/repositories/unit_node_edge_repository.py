@@ -117,6 +117,4 @@ class UnitNodeEdgeRepository:
 
         query = apply_offset_and_limit(query, filters)
 
-        test = query.all()
-
-        return test
+        return query.all()

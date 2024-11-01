@@ -1,30 +1,13 @@
 import uuid as uuid_pkg
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Optional
 
 from fastapi import Query
 from pydantic import BaseModel
 
 from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
+from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit import UnitRead
-
-
-class UnitNodeRead(BaseModel):
-    uuid: uuid_pkg.UUID
-
-    type: UnitNodeTypeEnum
-    visibility_level: VisibilityLevel
-
-    is_rewritable_input: bool
-
-    topic_name: str
-
-    create_datetime: datetime
-    state: Optional[str] = None
-
-    unit_uuid: uuid_pkg.UUID
-    creator_uuid: uuid_pkg.UUID
 
 
 class UnitNodeOutputRead(BaseModel):

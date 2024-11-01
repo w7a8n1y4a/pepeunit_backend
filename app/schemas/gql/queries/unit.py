@@ -6,7 +6,9 @@ from strawberry.types import Info
 
 from app.configs.gql import get_unit_service
 from app.schemas.gql.inputs.unit import UnitFilterInput
+from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.gql.types.unit import UnitType
+from app.schemas.gql.utils import has_selected_field
 
 
 @strawberry.field()
@@ -30,4 +32,8 @@ def get_unit_current_schema(uuid: uuid_pkg.UUID, info: Info) -> str:
 @strawberry.field()
 def get_units(filters: UnitFilterInput, info: Info) -> list[UnitType]:
     unit_service = get_unit_service(info)
-    return [UnitType(**unit.dict()) for unit in unit_service.list(filters)]
+
+    return [
+        unit_service.mapper_unit_to_unit_type(unit)
+        for unit in unit_service.list(filters, has_selected_field(info.selected_fields, 'outputUnitNodes'))
+    ]
