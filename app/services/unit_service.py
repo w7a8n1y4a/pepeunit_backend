@@ -8,7 +8,7 @@ import os
 import shutil
 import uuid as uuid_pkg
 import zlib
-from typing import Union
+from typing import List, Optional, Union
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
@@ -30,8 +30,11 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUpdateInput
+from app.schemas.gql.types.shared import UnitNodeType
+from app.schemas.gql.types.unit import UnitType
 from app.schemas.mqtt.utils import get_topic_split
-from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
+from app.schemas.pydantic.shared import UnitNodeRead
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitRead, UnitUpdate
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
@@ -357,14 +360,18 @@ class UnitService:
 
         return self.unit_repository.delete(unit)
 
-    def list(self, filters: Union[UnitFilter, UnitFilterInput]) -> list[Unit]:
+    def list(
+        self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False
+    ) -> list[tuple[Unit, list[dict]]]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
-        return self.unit_repository.list(filters, restriction=restriction)
+        return self.unit_repository.list(
+            filters, restriction=restriction, is_include_output_unit_nodes=is_include_output_unit_nodes
+        )
 
     def get_unit_target_version(self, repo: Repo, unit: Unit):
         """
@@ -441,6 +448,16 @@ class UnitService:
         if not data.is_auto_update_from_repo_unit:
             self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
             self.git_repo_repository.is_valid_commit(repo, data.repo_branch, data.repo_commit)
+
+    @staticmethod
+    def mapper_unit_to_unit_read(unit: tuple[Unit, List[dict]]) -> UnitRead:
+        return UnitRead(**unit[0].dict(), output_unit_nodes=[UnitNodeRead(**item) for item in unit[1]])
+
+    @staticmethod
+    def mapper_unit_to_unit_type(unit: tuple[Unit, List[dict]]) -> UnitType:
+        return UnitType(
+            **unit[0].dict(), output_unit_nodes=[UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]]
+        )
 
     @staticmethod
     def is_valid_cipher_env(unit: Unit, env_dict: dict):

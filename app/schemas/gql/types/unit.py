@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from strawberry import field
 
 from app.repositories.enum import VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.types.shared import UnitNodeType
 
 
 @strawberry.type()
@@ -30,3 +32,6 @@ class UnitType(TypeInputMixin):
     repo_uuid: uuid_pkg.UUID
 
     cipher_env_dict: strawberry.Private[object]
+
+    # only if requested
+    output_unit_nodes: list[UnitNodeType] = field(default_factory=list)

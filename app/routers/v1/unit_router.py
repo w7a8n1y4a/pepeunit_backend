@@ -108,5 +108,11 @@ def delete(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
 
 
 @router.get("", response_model=list[UnitRead])
-def get_units(filters: UnitFilter = Depends(UnitFilter), unit_service: UnitService = Depends()):
-    return [UnitRead(**unit.dict()) for unit in unit_service.list(filters)]
+def get_units(
+    filters: UnitFilter = Depends(UnitFilter),
+    is_include_output_unit_nodes: bool = False,
+    unit_service: UnitService = Depends(),
+):
+    return [
+        unit_service.mapper_unit_to_unit_read(unit) for unit in unit_service.list(filters, is_include_output_unit_nodes)
+    ]

@@ -7,6 +7,7 @@ from fastapi import Query
 from pydantic import BaseModel
 
 from app.repositories.enum import OrderByDate, VisibilityLevel
+from app.schemas.pydantic.shared import UnitNodeRead
 
 
 class UnitRead(BaseModel):
@@ -28,6 +29,9 @@ class UnitRead(BaseModel):
 
     creator_uuid: uuid_pkg.UUID
     repo_uuid: uuid_pkg.UUID
+
+    # only if requested
+    output_unit_nodes: list[UnitNodeRead] = []
 
 
 class UnitCreate(BaseModel):

@@ -202,7 +202,7 @@ class RepoService:
         count_with_valid_version = 0
         count_error_update = 0
         count_success_update = 0
-        for unit in units:
+        for unit in [unit[0] for unit in units]:
             if unit.current_commit_version != target_version:
 
                 logging.info(f'Run update unit {unit.uuid}')
