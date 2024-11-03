@@ -79,10 +79,11 @@ class UnitNodeEdgeRepository:
     ) -> list[tuple[Unit, list[dict]]]:
 
         unit_node_edge_alias = aliased(UnitNodeEdge)
-        unit_node_alias = aliased(UnitNode)
+        unit_node_alias = aliased(UnitNode, name="unit_node_alias")
 
+        # TODO: разобраться с доступами через restriction
         unit_node_subquery = (
-            self.db.query(func.json_agg(text('units_nodes')).label('test'))
+            self.db.query(func.json_agg(text('unit_node_alias')).label('test'))
             .select_from(unit_node_alias)
             .join(unit_node_edge_alias, unit_node_edge_alias.node_output_uuid == unit_node_alias.uuid)
             .filter(
@@ -104,7 +105,7 @@ class UnitNodeEdgeRepository:
             query = query.filter(UnitNode.creator_uuid == is_valid_uuid(filters.creator_uuid))
 
         if restriction:
-            query = query.filter(UnitNode.uuid.in_(restriction))
+            query = query.filter(UnitNodeEdge.node_input_uuid.in_(restriction))
 
         fields = [Unit.name]
         query = apply_ilike_search_string(query, filters, fields)
