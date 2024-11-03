@@ -12,6 +12,7 @@ class UnitNodeEdgeType(TypeInputMixin):
     uuid: uuid_pkg.UUID
     node_output_uuid: uuid_pkg.UUID
     node_input_uuid: uuid_pkg.UUID
+    creator_uuid: strawberry.Private[object]
 
 
 @strawberry.type()
