@@ -88,7 +88,7 @@ class UnitRepository:
         fields = {'order_by_create_date': Unit.create_datetime, 'order_by_last_update': Unit.last_update_datetime}
         query = apply_orders_by(query, filters, fields)
 
-        query = apply_offset_and_limit(query, filters)
+        count, query = apply_offset_and_limit(query, filters)
 
         return (
             [(item[0], item[1]) for item in query.all()]

@@ -81,9 +81,9 @@ class UnitNodeRepository:
 
         if filters.unit_uuid:
             query = query.filter(UnitNode.unit_uuid == is_valid_uuid(filters.unit_uuid))
-        # TODO: разобраться с доступами
-        # if restriction:
-        #     query = query.filter(UnitNode.uuid.in_(restriction))
+
+        if restriction:
+            query = query.filter(UnitNode.uuid.in_(restriction))
 
         fields = [UnitNode.topic_name]
         query = apply_ilike_search_string(query, filters, fields)
@@ -94,5 +94,5 @@ class UnitNodeRepository:
         fields = {'order_by_create_date': UnitNode.create_datetime}
         query = apply_orders_by(query, filters, fields)
 
-        query = apply_offset_and_limit(query, filters)
+        count, query = apply_offset_and_limit(query, filters)
         return query.all()

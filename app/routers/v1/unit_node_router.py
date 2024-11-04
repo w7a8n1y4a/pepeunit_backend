@@ -11,6 +11,7 @@ from app.schemas.pydantic.unit_node import (
     UnitNodeOutputRead,
     UnitNodeRead,
     UnitNodeSetState,
+    UnitNodesOutputsResult,
     UnitNodeUpdate,
 )
 from app.services.unit_node_service import UnitNodeService
@@ -54,14 +55,18 @@ def delete_unit_node_edge(
     return unit_node_service.delete_node_edge(input_uuid, output_uuid)
 
 
-@router.get("/get_output_unit_nodes/", response_model=list[UnitNodeOutputRead])
+@router.get("/get_output_unit_nodes/", response_model=UnitNodesOutputsResult)
 def get_output_unit_nodes(
     filters: UnitNodeEdgeOutputFilter = Depends(UnitNodeEdgeOutputFilter),
     unit_node_service: UnitNodeService = Depends(),
 ):
-    return [
-        UnitNodeOutputRead(
-            unit=UnitRead(**item[0].dict()), unit_output_nodes=[UnitNodeRead(**node) for node in item[1]]
-        )
-        for item in unit_node_service.get_output_unit_nodes(filters)
-    ]
+    count, unit_nodes = unit_node_service.get_output_unit_nodes(filters)
+    return UnitNodesOutputsResult(
+        count=count,
+        unit_nodes_output=[
+            UnitNodeOutputRead(
+                unit=UnitRead(**item[0].dict()), unit_output_nodes=[UnitNodeRead(**node) for node in item[1]]
+            )
+            for item in unit_nodes
+        ],
+    )

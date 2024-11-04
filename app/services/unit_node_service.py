@@ -210,7 +210,7 @@ class UnitNodeService:
 
     def get_output_unit_nodes(
         self, filters: Union[UnitNodeEdgeOutputFilter, UnitNodeEdgeOutputFilterInput]
-    ) -> List[tuple[Unit, List[dict]]]:
+    ) -> tuple[int, List[tuple[Unit, List[dict]]]]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
         filters.visibility_level = self.access_service.get_available_visibility_levels(

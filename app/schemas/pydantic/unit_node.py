@@ -15,6 +15,11 @@ class UnitNodeOutputRead(BaseModel):
     unit_output_nodes: list[UnitNodeRead]
 
 
+class UnitNodesOutputsResult(BaseModel):
+    count: int
+    unit_nodes_output: list[UnitNodeOutputRead]
+
+
 class UnitNodeUpdate(BaseModel):
     visibility_level: Optional[VisibilityLevel] = None
     is_rewritable_input: Optional[bool] = None

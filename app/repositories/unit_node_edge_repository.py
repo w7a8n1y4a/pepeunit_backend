@@ -76,12 +76,11 @@ class UnitNodeEdgeRepository:
 
     def get_output_unit_nodes(
         self, filters: UnitNodeEdgeOutputFilter, restriction: list[str] = None
-    ) -> list[tuple[Unit, list[dict]]]:
+    ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
 
         unit_node_edge_alias = aliased(UnitNodeEdge)
         unit_node_alias = aliased(UnitNode, name="unit_node_alias")
 
-        # TODO: разобраться с доступами через restriction
         unit_node_subquery = (
             self.db.query(func.json_agg(text('unit_node_alias')).label('test'))
             .select_from(unit_node_alias)
@@ -105,7 +104,7 @@ class UnitNodeEdgeRepository:
             query = query.filter(UnitNode.creator_uuid == is_valid_uuid(filters.creator_uuid))
 
         if restriction:
-            query = query.filter(UnitNodeEdge.node_input_uuid.in_(restriction))
+            query = query.filter(UnitNode.uuid.in_(restriction))
 
         fields = [Unit.name]
         query = apply_ilike_search_string(query, filters, fields)
@@ -116,6 +115,6 @@ class UnitNodeEdgeRepository:
         fields = {'order_by_create_date': Unit.create_datetime, 'order_by_unit_name': Unit.name}
         query = apply_orders_by(query, filters, fields)
 
-        query = apply_offset_and_limit(query, filters)
+        count, query = apply_offset_and_limit(query, filters)
 
-        return query.all()
+        return count, query.all()

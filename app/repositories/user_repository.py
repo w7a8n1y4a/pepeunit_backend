@@ -59,7 +59,7 @@ class UserRepository:
         fields = {'order_by_create_date': User.create_datetime}
         query = apply_orders_by(query, filters, fields)
 
-        query = apply_offset_and_limit(query, filters)
+        count, query = apply_offset_and_limit(query, filters)
         return query.all()
 
     def is_valid_login(self, login: str, uuid: Optional[uuid_pkg.UUID] = None):

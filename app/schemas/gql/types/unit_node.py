@@ -19,3 +19,9 @@ class UnitNodeEdgeType(TypeInputMixin):
 class UnitNodeOutputType(TypeInputMixin):
     unit: UnitType
     unit_output_nodes: list[UnitNodeType]
+
+
+@strawberry.type()
+class UnitNodesOutputsResult(TypeInputMixin):
+    count: int
+    unit_nodes_output: list[UnitNodeOutputType]
