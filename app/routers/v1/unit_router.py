@@ -11,7 +11,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.schemas.pydantic.shared import MqttRead
-from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitMqttTokenAuth, UnitRead, UnitUpdate
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitMqttTokenAuth, UnitRead, UnitsResult, UnitUpdate
 from app.services.unit_service import UnitService
 
 router = APIRouter()
@@ -107,12 +107,11 @@ def delete(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
     return unit_service.delete(uuid)
 
 
-@router.get("", response_model=list[UnitRead])
+@router.get("", response_model=UnitsResult)
 def get_units(
     filters: UnitFilter = Depends(UnitFilter),
     is_include_output_unit_nodes: bool = False,
     unit_service: UnitService = Depends(),
 ):
-    return [
-        unit_service.mapper_unit_to_unit_read(unit) for unit in unit_service.list(filters, is_include_output_unit_nodes)
-    ]
+    count, units = unit_service.list(filters, is_include_output_unit_nodes)
+    return UnitsResult(count=count, units=[unit_service.mapper_unit_to_unit_read(unit) for unit in units])

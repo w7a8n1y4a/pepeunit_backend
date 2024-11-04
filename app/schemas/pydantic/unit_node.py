@@ -6,18 +6,6 @@ from fastapi import Query
 from pydantic import BaseModel
 
 from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
-from app.schemas.pydantic.shared import UnitNodeRead
-from app.schemas.pydantic.unit import UnitRead
-
-
-class UnitNodeOutputRead(BaseModel):
-    unit: UnitRead
-    unit_output_nodes: list[UnitNodeRead]
-
-
-class UnitNodesOutputsResult(BaseModel):
-    count: int
-    unit_nodes_output: list[UnitNodeOutputRead]
 
 
 class UnitNodeUpdate(BaseModel):
@@ -37,24 +25,6 @@ class UnitNodeFilter:
     type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])
     visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
-
-    def dict(self):
-        return self.__dict__
-
-
-@dataclass
-class UnitNodeEdgeOutputFilter:
-    unit_node_input_uuid: uuid_pkg.UUID
-    search_string: Optional[str] = None
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-
-    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
-
-    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None

@@ -525,7 +525,7 @@ def test_get_many_unit(database) -> None:
     )
 
     # check many get with all filters
-    units = unit_service.list(
+    count, units = unit_service.list(
         UnitFilter(
             creator_uuid=current_user.uuid,
             repo_uuid=pytest.repos[-1].uuid,

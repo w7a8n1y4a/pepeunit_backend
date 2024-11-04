@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from app.repositories.enum import OrderByDate, VisibilityLevel
+from app.repositories.enum import OrderByDate, OrderByText, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -35,6 +35,8 @@ class UnitUpdateInput(TypeInputMixin):
 class UnitFilterInput(TypeInputMixin):
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
+    # only with is_include_output_unit_nodes
+    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
 
     search_string: Optional[str] = None
 
@@ -42,6 +44,7 @@ class UnitFilterInput(TypeInputMixin):
 
     visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
 
+    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
 

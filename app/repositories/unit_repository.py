@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from app.configs.db import get_session
 from app.domain.unit_model import Unit
+from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UnitNodeTypeEnum
 from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
@@ -48,25 +49,47 @@ class UnitRepository:
 
     def list(
         self, filters: UnitFilter, restriction: list[str] = None, is_include_output_unit_nodes: bool = False
-    ) -> list[tuple[Unit, list[dict]]]:
+    ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
+
+        unit_node_edge_alias = aliased(UnitNodeEdge)
         unit_node_alias = aliased(UnitNode, name="unit_node_alias")
 
-        unit_node_subquery = (
-            self.db.query(func.json_agg(text('unit_node_alias')).label('test'))
-            .select_from(unit_node_alias)
-            .filter(
-                unit_node_alias.type == UnitNodeTypeEnum.OUTPUT.value,
-                unit_node_alias.unit_uuid == Unit.uuid,
-            )
-        )
-
         if is_include_output_unit_nodes:
-            query = (
-                self.db.query(Unit, unit_node_subquery.label('output_nodes'))
-                .select_from(Unit)
-                .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
-                .group_by(Unit.uuid)
-            )
+            if filters.unit_node_input_uuid:
+                unit_node_by_input_subquery = (
+                    self.db.query(func.json_agg(text('unit_node_alias')).label('unit_nodes'))
+                    .select_from(unit_node_alias)
+                    .join(unit_node_edge_alias, unit_node_edge_alias.node_output_uuid == unit_node_alias.uuid)
+                    .filter(
+                        unit_node_edge_alias.node_input_uuid == is_valid_uuid(filters.unit_node_input_uuid),
+                        unit_node_alias.unit_uuid == Unit.uuid,
+                    )
+                )
+
+                query = (
+                    self.db.query(Unit, unit_node_by_input_subquery.label('output_nodes'))
+                    .select_from(Unit)
+                    .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
+                    .join(UnitNodeEdge, UnitNode.uuid == UnitNodeEdge.node_output_uuid)
+                    .filter(UnitNodeEdge.node_input_uuid == is_valid_uuid(filters.unit_node_input_uuid))
+                    .group_by(Unit.uuid)
+                )
+            else:
+                unit_node_subquery = (
+                    self.db.query(func.json_agg(text('unit_node_alias')).label('unit_nodes'))
+                    .select_from(unit_node_alias)
+                    .filter(
+                        unit_node_alias.type == UnitNodeTypeEnum.OUTPUT.value,
+                        unit_node_alias.unit_uuid == Unit.uuid,
+                    )
+                )
+
+                query = (
+                    self.db.query(Unit, unit_node_subquery.label('output_nodes'))
+                    .select_from(Unit)
+                    .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
+                    .group_by(Unit.uuid)
+                )
         else:
             query = self.db.query(Unit)
 
@@ -85,12 +108,16 @@ class UnitRepository:
         fields = {'visibility_level': Unit.visibility_level}
         query = apply_enums(query, filters, fields)
 
-        fields = {'order_by_create_date': Unit.create_datetime, 'order_by_last_update': Unit.last_update_datetime}
+        fields = {
+            'order_by_create_date': Unit.create_datetime,
+            'order_by_last_update': Unit.last_update_datetime,
+            'order_by_unit_name': Unit.name,
+        }
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
 
-        return (
+        return count, (
             [(item[0], item[1]) for item in query.all()]
             if is_include_output_unit_nodes
             else [(item, []) for item in query.all()]

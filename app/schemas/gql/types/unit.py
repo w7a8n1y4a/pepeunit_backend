@@ -35,3 +35,9 @@ class UnitType(TypeInputMixin):
 
     # only if requested
     output_unit_nodes: list[UnitNodeType] = field(default_factory=list)
+
+
+@strawberry.type()
+class UnitsResult(TypeInputMixin):
+    count: int
+    units: list[UnitType] = field(default_factory=list)

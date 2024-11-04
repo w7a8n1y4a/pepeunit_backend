@@ -2,16 +2,12 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, status
 
-from app.schemas.pydantic.unit import UnitRead
+from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit_node import (
     UnitNodeEdgeCreate,
-    UnitNodeEdgeOutputFilter,
     UnitNodeEdgeRead,
     UnitNodeFilter,
-    UnitNodeOutputRead,
-    UnitNodeRead,
     UnitNodeSetState,
-    UnitNodesOutputsResult,
     UnitNodeUpdate,
 )
 from app.services.unit_node_service import UnitNodeService
@@ -46,27 +42,3 @@ def get_unit_nodes(filters: UnitNodeFilter = Depends(UnitNodeFilter), unit_node_
 )
 def create_unit_node_edge(data: UnitNodeEdgeCreate, unit_node_service: UnitNodeService = Depends()):
     return UnitNodeEdgeRead(**unit_node_service.create_node_edge(data).dict())
-
-
-@router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_unit_node_edge(
-    input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends()
-):
-    return unit_node_service.delete_node_edge(input_uuid, output_uuid)
-
-
-@router.get("/get_output_unit_nodes/", response_model=UnitNodesOutputsResult)
-def get_output_unit_nodes(
-    filters: UnitNodeEdgeOutputFilter = Depends(UnitNodeEdgeOutputFilter),
-    unit_node_service: UnitNodeService = Depends(),
-):
-    count, unit_nodes = unit_node_service.get_output_unit_nodes(filters)
-    return UnitNodesOutputsResult(
-        count=count,
-        unit_nodes_output=[
-            UnitNodeOutputRead(
-                unit=UnitRead(**item[0].dict()), unit_output_nodes=[UnitNodeRead(**node) for node in item[1]]
-            )
-            for item in unit_nodes
-        ],
-    )
