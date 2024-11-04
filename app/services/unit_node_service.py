@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from typing import List, Union
+from typing import Union
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
@@ -13,14 +13,12 @@ from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.schemas.gql.inputs.unit_node import (
     UnitNodeEdgeCreateInput,
-    UnitNodeEdgeOutputFilterInput,
     UnitNodeFilterInput,
     UnitNodeSetStateInput,
     UnitNodeUpdateInput,
 )
 from app.schemas.pydantic.unit_node import (
     UnitNodeEdgeCreate,
-    UnitNodeEdgeOutputFilter,
     UnitNodeFilter,
     UnitNodeSetState,
     UnitNodeUpdate,
@@ -207,17 +205,6 @@ class UnitNodeService:
         )
 
         return self.unit_node_repository.list(filters, restriction=restriction)
-
-    def get_output_unit_nodes(
-        self, filters: Union[UnitNodeEdgeOutputFilter, UnitNodeEdgeOutputFilterInput]
-    ) -> tuple[int, List[tuple[Unit, List[dict]]]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
-            filters.visibility_level, restriction
-        )
-
-        return self.unit_node_edge_repository.get_output_unit_nodes(filters, restriction=restriction)
 
     def set_state(self, unit_node_uuid: uuid_pkg.UUID, state: str) -> UnitNode:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))

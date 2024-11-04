@@ -362,7 +362,7 @@ class UnitService:
 
     def list(
         self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False
-    ) -> list[tuple[Unit, list[dict]]]:
+    ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
 

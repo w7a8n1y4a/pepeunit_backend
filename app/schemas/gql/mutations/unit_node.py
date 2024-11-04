@@ -5,8 +5,8 @@ from strawberry.types import Info
 
 from app.configs.gql import get_unit_node_service
 from app.schemas.gql.inputs.unit_node import UnitNodeEdgeCreateInput, UnitNodeSetStateInput, UnitNodeUpdateInput
-from app.schemas.gql.types.shared import NoneType
-from app.schemas.gql.types.unit_node import UnitNodeEdgeType, UnitNodeType
+from app.schemas.gql.types.shared import NoneType, UnitNodeType
+from app.schemas.gql.types.unit_node import UnitNodeEdgeType
 
 
 @strawberry.mutation()

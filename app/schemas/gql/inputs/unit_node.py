@@ -36,18 +36,3 @@ class UnitNodeFilterInput(TypeInputMixin):
 class UnitNodeEdgeCreateInput(TypeInputMixin):
     node_output_uuid: uuid_pkg.UUID
     node_input_uuid: uuid_pkg.UUID
-
-
-@strawberry.input()
-class UnitNodeEdgeOutputFilterInput(TypeInputMixin):
-    unit_node_input_uuid: uuid_pkg.UUID
-    search_string: Optional[str] = None
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-
-    visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
-
-    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
