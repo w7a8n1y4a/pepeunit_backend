@@ -96,7 +96,7 @@ class RepoRepository:
         fields = {'order_by_create_date': Repo.create_datetime, 'order_by_last_update': Repo.last_update_datetime}
         query = apply_orders_by(query, filters, fields)
 
-        query = apply_offset_and_limit(query, filters)
+        count, query = apply_offset_and_limit(query, filters)
         return query.all()
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):

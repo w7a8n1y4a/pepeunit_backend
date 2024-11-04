@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import params
 from sqlalchemy import asc, desc
 from sqlmodel import or_
@@ -25,8 +27,10 @@ def apply_enums(query, filters, fields: dict):
     return query
 
 
-def apply_offset_and_limit(query, filters):
-    return query.offset(filters.offset if filters.offset else None).limit(filters.limit if filters.limit else None)
+def apply_offset_and_limit(query, filters) -> tuple[int, Any]:
+    return query.count(), query.offset(filters.offset if filters.offset else None).limit(
+        filters.limit if filters.limit else None
+    )
 
 
 def apply_orders_by(query, filters, fields: dict):
