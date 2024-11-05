@@ -12,7 +12,13 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UnitNodeTypeEnum
-from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import (
+    apply_enums,
+    apply_ilike_search_string,
+    apply_offset_and_limit,
+    apply_orders_by,
+    apply_restriction,
+)
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
@@ -107,6 +113,8 @@ class UnitRepository:
 
         fields = {'visibility_level': Unit.visibility_level}
         query = apply_enums(query, filters, fields)
+
+        query = apply_restriction(query, filters, Unit, restriction)
 
         fields = {
             'order_by_create_date': Unit.create_datetime,

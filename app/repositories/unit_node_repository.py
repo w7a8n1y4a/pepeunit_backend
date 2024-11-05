@@ -2,14 +2,20 @@ import uuid as uuid_pkg
 from typing import Optional
 
 from fastapi import Depends
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from sqlmodel import Session
 
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
-from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import (
+    apply_enums,
+    apply_ilike_search_string,
+    apply_offset_and_limit,
+    apply_orders_by,
+    apply_restriction,
+)
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.validators import is_valid_uuid
 
@@ -90,6 +96,8 @@ class UnitNodeRepository:
 
         fields = {'visibility_level': UnitNode.visibility_level, 'type': UnitNode.type}
         query = apply_enums(query, filters, fields)
+
+        query = apply_restriction(query, filters, UnitNode, restriction)
 
         fields = {'order_by_create_date': UnitNode.create_datetime}
         query = apply_orders_by(query, filters, fields)

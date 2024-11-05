@@ -10,8 +10,15 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
+from app.repositories.enum import VisibilityLevel
 from app.repositories.git_repo_repository import GitRepoRepository
-from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import (
+    apply_enums,
+    apply_ilike_search_string,
+    apply_offset_and_limit,
+    apply_orders_by,
+    apply_restriction,
+)
 from app.schemas.pydantic.repo import Credentials, RepoCreate, RepoFilter, RepoUpdate, RepoVersionRead, RepoVersionsRead
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 from app.utils.utils import aes_decode
@@ -84,14 +91,13 @@ class RepoRepository:
         if filters.is_auto_update_repo is not None:
             query = query.filter(Repo.is_auto_update_repo == filters.is_auto_update_repo)
 
-        if restriction:
-            query = query.filter(Repo.uuid.in_(restriction))
-
         fields = [Repo.name, Repo.repo_url, Repo.default_branch]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {'visibility_level': Repo.visibility_level}
         query = apply_enums(query, filters, fields)
+
+        query = apply_restriction(query, filters, Repo, restriction)
 
         fields = {'order_by_create_date': Repo.create_datetime, 'order_by_last_update': Repo.last_update_datetime}
         query = apply_orders_by(query, filters, fields)
