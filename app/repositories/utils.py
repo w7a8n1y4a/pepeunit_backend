@@ -2,9 +2,9 @@ from typing import Any
 
 from fastapi import params
 from sqlalchemy import asc, desc
-from sqlmodel import or_
+from sqlmodel import and_, or_
 
-from app.repositories.enum import OrderByDate
+from app.repositories.enum import OrderByDate, VisibilityLevel
 
 
 def apply_ilike_search_string(query, filters, fields: list):
@@ -24,6 +24,25 @@ def apply_enums(query, filters, fields: dict):
                 value = value.default
 
             query = query.where(field.in_(value))
+    return query
+
+
+def apply_restriction(query, filters, entity_type: any, restriction: list):
+
+    visibility_levels = (
+        filters.visibility_level.default
+        if isinstance(filters.visibility_level, params.Query)
+        else filters.visibility_level
+    )
+
+    if restriction and VisibilityLevel.PRIVATE in visibility_levels:
+        query = query.filter(
+            or_(
+                entity_type.visibility_level.in_([VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]),
+                and_(entity_type.visibility_level == VisibilityLevel.PRIVATE, entity_type.uuid.in_(restriction)),
+            )
+        )
+
     return query
 
 
