@@ -88,9 +88,6 @@ class UnitNodeRepository:
         if filters.unit_uuid:
             query = query.filter(UnitNode.unit_uuid == is_valid_uuid(filters.unit_uuid))
 
-        if restriction:
-            query = query.filter(UnitNode.uuid.in_(restriction))
-
         fields = [UnitNode.topic_name]
         query = apply_ilike_search_string(query, filters, fields)
 
