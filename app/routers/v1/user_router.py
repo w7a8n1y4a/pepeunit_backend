@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 from fastapi import APIRouter, Depends, status
 
 from app.repositories.user_repository import UserFilter
-from app.schemas.pydantic.user import AccessToken, UserAuth, UserCreate, UserRead, UserUpdate
+from app.schemas.pydantic.user import AccessToken, UserAuth, UserCreate, UserRead, UsersResult, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -49,6 +49,7 @@ def unblock(uuid: uuid_pkg.UUID, user_service: UserService = Depends()):
     return user_service.unblock(uuid)
 
 
-@router.get("", response_model=list[UserRead])
+@router.get("", response_model=UsersResult)
 def get_users(filters: UserFilter = Depends(UserFilter), user_service: UserService = Depends()):
-    return [UserRead(**user.dict()) for user in user_service.list(filters)]
+    count, users = user_service.list(filters)
+    return UsersResult(count=count, users=[UserRead(**user.dict()) for user in users])

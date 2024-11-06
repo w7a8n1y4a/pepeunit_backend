@@ -82,7 +82,7 @@ class UnitNodeRepository:
         self.db.query(UnitNode).filter(UnitNode.uuid.in_(del_uuid_list)).delete()
         self.db.commit()
 
-    def list(self, filters: UnitNodeFilter, restriction: list[str] = None) -> list[UnitNode]:
+    def list(self, filters: UnitNodeFilter, restriction: list[str] = None) -> tuple[int, list[UnitNode]]:
         query = self.db.query(UnitNode)
 
         if filters.unit_uuid:
@@ -100,4 +100,4 @@ class UnitNodeRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return query.all()
+        return count, query.all()

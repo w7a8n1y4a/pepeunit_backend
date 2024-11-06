@@ -17,6 +17,11 @@ class UserRead(BaseModel):
     create_datetime: datetime
 
 
+class UsersResult(BaseModel):
+    count: int
+    users: list[UserRead]
+
+
 class UserCreate(BaseModel):
     login: str
     password: str

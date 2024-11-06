@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from strawberry import field
 
 from app.repositories.enum import VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
@@ -29,6 +30,12 @@ class RepoType(TypeInputMixin):
     branches: list[str]
 
     creator_uuid: uuid_pkg.UUID
+
+
+@strawberry.type()
+class ReposResultType(TypeInputMixin):
+    count: int
+    repos: list[RepoType] = field(default_factory=list)
 
 
 @strawberry.type()

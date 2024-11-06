@@ -104,6 +104,6 @@ class UserService:
 
         self.user_repository.update(uuid, User(status=status))
 
-    def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
+    def list(self, filters: Union[UserFilter, UserFilterInput]) -> tuple[int, list[User]]:
         self.access_service.access_check([UserRole.ADMIN, UserRole.USER])
         return self.user_repository.list(filters)

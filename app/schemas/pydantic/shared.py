@@ -38,3 +38,8 @@ class UnitNodeRead(BaseModel):
 
     unit_uuid: uuid_pkg.UUID
     creator_uuid: uuid_pkg.UUID
+
+
+class UnitNodesResult(BaseModel):
+    count: int
+    unit_nodes: list[UnitNodeRead]

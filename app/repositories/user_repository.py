@@ -47,7 +47,7 @@ class UserRepository:
         self.db.commit()
         return self.get(user)
 
-    def list(self, filters: Union[UserFilter, UserFilterInput]) -> list[User]:
+    def list(self, filters: Union[UserFilter, UserFilterInput]) -> tuple[int, list[User]]:
         query = self.db.query(User)
 
         fields = [User.login]
@@ -60,7 +60,7 @@ class UserRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return query.all()
+        return count, query.all()
 
     def is_valid_login(self, login: str, uuid: Optional[uuid_pkg.UUID] = None):
         uuid = str(uuid)
