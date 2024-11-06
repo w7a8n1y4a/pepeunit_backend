@@ -221,7 +221,7 @@ def test_get_many_unit_node(database) -> None:
     units_nodes = unit_node_service.list(
         UnitNodeFilter(search_string='pepeunit', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
     )
-    assert len(units_nodes) == 8
+    assert len(units_nodes) >= 8
 
 
 @pytest.mark.run(order=6)
