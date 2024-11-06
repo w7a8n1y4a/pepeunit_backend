@@ -277,5 +277,9 @@ class RepoService:
 
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
         repo = self.repo_repository.get(repo)
-        branches = self.git_repo_repository.get_branches(repo)
+        try:
+            branches = self.git_repo_repository.get_branches(repo)
+        except:
+            branches = []
+
         return RepoRead(branches=branches, **repo.dict())
