@@ -30,7 +30,9 @@ def test_update_unit_node(database) -> None:
 
     target_unit = pytest.units[-2]
 
-    input_unit_node = unit_node_service.list(UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT]))
+    count, input_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+    )
 
     # check update visibility level
     update_unit_node = unit_node_service.update(
@@ -42,7 +44,7 @@ def test_update_unit_node(database) -> None:
     update_unit_node = unit_node_service.update(input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
     assert update_unit_node.is_rewritable_input == True
 
-    output_unit_node = unit_node_service.list(
+    count, output_unit_node = unit_node_service.list(
         UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
@@ -85,7 +87,7 @@ def test_create_unit_node_edge(database) -> None:
     io_units_list = []
     for unit in target_units:
         logging.info(unit.uuid)
-        unit_nodes = unit_node_service.list(UnitNodeFilter(unit_uuid=unit.uuid))
+        count, unit_nodes = unit_node_service.list(UnitNodeFilter(unit_uuid=unit.uuid))
 
         # first input, two output - [Input, Output]
         if unit_nodes[0].type == UnitNodeTypeEnum.OUTPUT:
@@ -161,7 +163,9 @@ def test_set_state_input_unit_node(database) -> None:
 
         return r.status_code
 
-    unit_nodes = unit_node_service.list(UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT]))
+    count, unit_nodes = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+    )
 
     state = 'test'
 
@@ -185,7 +189,7 @@ def test_get_unit_node_edge(database) -> None:
     target_unit = pytest.units[-2]
 
     # check get unit node edges by uuid unit
-    target_edges = unit_node_service.get_unit_node_edges(target_unit.uuid)
+    count, target_edges = unit_node_service.get_unit_node_edges(target_unit.uuid)
     pytest.edges.extend(target_edges)
 
     assert len(target_edges) == 2
@@ -218,7 +222,7 @@ def test_get_many_unit_node(database) -> None:
     )
 
     # check many get with all filters
-    units_nodes = unit_node_service.list(
+    count, units_nodes = unit_node_service.list(
         UnitNodeFilter(search_string='pepeunit', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
     )
     assert len(units_nodes) >= 8

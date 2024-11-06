@@ -14,6 +14,7 @@ from app.schemas.pydantic.repo import (
     RepoCreate,
     RepoFilter,
     RepoRead,
+    ReposResult,
     RepoUpdate,
     RepoVersionsRead,
 )
@@ -47,9 +48,10 @@ def get(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends()):
     return repo_service.get(uuid)
 
 
-@router.get("", response_model=list[RepoRead])
+@router.get("", response_model=ReposResult)
 def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoService = Depends()):
-    return repo_service.list(filters)
+    count, repos = repo_service.list(filters)
+    return ReposResult(count=count, repos=repos)
 
 
 @router.get("/branch_commits/{uuid}", response_model=list[CommitRead])

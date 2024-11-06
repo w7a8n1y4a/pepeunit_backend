@@ -82,7 +82,7 @@ class RepoRepository:
         self.db.commit()
         self.db.flush()
 
-    def list(self, filters: RepoFilter, restriction: list[str] = None) -> list[Repo]:
+    def list(self, filters: RepoFilter, restriction: list[str] = None) -> tuple[int, list[Repo]]:
         query = self.db.query(Repo)
 
         if filters.creator_uuid:
@@ -103,7 +103,7 @@ class RepoRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return query.all()
+        return count, query.all()
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 

@@ -166,7 +166,7 @@ class UnitNodeService:
 
         return self.unit_node_edge_repository.create(new_edge)
 
-    def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> list[UnitNodeEdge]:
+    def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[UnitNodeEdge]]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
 
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
@@ -177,9 +177,9 @@ class UnitNodeService:
             filters.visibility_level, restriction
         )
 
-        unit_nodes = self.unit_node_repository.list(filters=filters, restriction=restriction)
+        count, unit_nodes = self.unit_node_repository.list(filters=filters, restriction=restriction)
 
-        return self.unit_node_edge_repository.get_by_nodes(unit_nodes)
+        return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -197,7 +197,7 @@ class UnitNodeService:
 
         return self.unit_node_edge_repository.delete(unit_node_edge.uuid)
 
-    def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> list[UnitNode]:
+    def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> tuple[int, list[UnitNode]]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
         filters.visibility_level = self.access_service.get_available_visibility_levels(

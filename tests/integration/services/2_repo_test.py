@@ -219,12 +219,12 @@ def test_get_many_repo(database) -> None:
     )
 
     # check for users is updated
-    repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
+    count, repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
 
     assert len(repos) == 5
 
     # check many get with all filters
-    repos = repo_service.list(
+    count, repos = repo_service.list(
         RepoFilter(
             creator_uuid=current_user.uuid,
             search_string=pytest.test_hash,

@@ -32,6 +32,11 @@ class RepoRead(BaseModel):
     creator_uuid: uuid_pkg.UUID
 
 
+class ReposResult(BaseModel):
+    count: int
+    repos: list[RepoRead]
+
+
 class Credentials(BaseModel):
     username: str
     pat_token: str

@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, status
 
-from app.schemas.pydantic.shared import UnitNodeRead
+from app.schemas.pydantic.shared import UnitNodeRead, UnitNodesResult
 from app.schemas.pydantic.unit_node import (
     UnitNodeEdgeCreate,
     UnitNodeEdgeRead,
@@ -30,9 +30,10 @@ def set_state_input(uuid: uuid_pkg.UUID, data: UnitNodeSetState, unit_node_servi
     return UnitNodeRead(**unit_node_service.set_state_input(uuid, data).dict())
 
 
-@router.get("", response_model=list[UnitNodeRead])
+@router.get("", response_model=UnitNodesResult)
 def get_unit_nodes(filters: UnitNodeFilter = Depends(UnitNodeFilter), unit_node_service: UnitNodeService = Depends()):
-    return [UnitNodeRead(**user.dict()) for user in unit_node_service.list(filters)]
+    count, unit_nodes = unit_node_service.list(filters)
+    return UnitNodesResult(count=count, unit_nodes=[UnitNodeRead(**unit_node.dict()) for unit_node in unit_nodes])
 
 
 @router.post(

@@ -131,7 +131,7 @@ class UnitService:
     def update_firmware(self, unit: Unit, target_version: str) -> Unit:
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
-        all_exist_unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
+        count, all_exist_unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
 
         input_node_dict = {
             unit_node.topic_name: unit_node.uuid

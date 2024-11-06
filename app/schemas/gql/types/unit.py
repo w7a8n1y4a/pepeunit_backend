@@ -38,6 +38,6 @@ class UnitType(TypeInputMixin):
 
 
 @strawberry.type()
-class UnitsResult(TypeInputMixin):
+class UnitsResultType(TypeInputMixin):
     count: int
     units: list[UnitType] = field(default_factory=list)

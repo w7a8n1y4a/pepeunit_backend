@@ -2,6 +2,7 @@ import uuid as uuid_pkg
 from datetime import datetime
 
 import strawberry
+from strawberry import field
 
 from app.repositories.enum import UserRole, UserStatus
 from app.schemas.gql.type_input_mixin import TypeInputMixin
@@ -18,3 +19,9 @@ class UserType(TypeInputMixin):
     hashed_password: strawberry.Private[object]
     cipher_dynamic_salt: strawberry.Private[object]
     telegram_chat_id: strawberry.Private[object]
+
+
+@strawberry.type()
+class UsersResultType(TypeInputMixin):
+    count: int
+    users: list[UserType] = field(default_factory=list)

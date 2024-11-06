@@ -172,7 +172,7 @@ def test_get_many_user(database) -> None:
     )
 
     # check many get with all filters
-    users = user_service.list(
+    count, users = user_service.list(
         UserFilter(search_string=pytest.test_hash, role=[UserRole.USER], offset=0, limit=1_000_000)
     )
     assert len(users) == len(pytest.users) - 1
