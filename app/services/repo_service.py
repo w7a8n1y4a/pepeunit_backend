@@ -3,7 +3,7 @@ import logging
 import uuid as uuid_pkg
 from typing import Union
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
 from app.repositories.enum import PermissionEntities, UserRole
@@ -247,6 +247,26 @@ class RepoService:
                 logging.info(f'failed update repo {repo.uuid}')
 
         logging.info('task auto update repo successfully completed')
+
+    def sync_local_repo_storage(self) -> None:
+
+        logging.info('run sync local repo storage')
+
+        current_physic_repos = self.git_repo_repository.get_current_repos()
+        current_db_repos = self.repo_repository.get_all_repo()
+
+        for repo in current_db_repos:
+            if str(repo.uuid) not in current_physic_repos:
+                try:
+                    data = self.repo_repository.get_credentials(repo)
+                    self.git_repo_repository.update_local_repo(repo, data)
+
+                    logging.info(f'success load: {repo.repo_url}')
+
+                except HTTPException as e:
+                    logging.warning(f'corrupt load: {repo.repo_url} {e.detail}')
+
+        logging.info('end sync local repo storage')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

@@ -29,7 +29,7 @@ class GitRepoRepository:
 
         try:
             # cloning repo by url
-            git_repo = GitRepo.clone_from(self.get_url(repo, data), repo_save_path)
+            git_repo = GitRepo.clone_from(self.get_url(repo, data), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"})
         except GitCommandError:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
@@ -200,6 +200,11 @@ class GitRepoRepository:
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
         return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
+
+    @staticmethod
+    def get_current_repos() -> list[str]:
+        path = settings.save_repo_path
+        return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 
     @staticmethod
     def delete_repo(repo: Repo) -> None:

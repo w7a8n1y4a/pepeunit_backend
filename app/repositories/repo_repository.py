@@ -82,6 +82,9 @@ class RepoRepository:
         self.db.commit()
         self.db.flush()
 
+    def get_all_repo(self) -> list[Repo]:
+        return self.db.query(Repo).all()
+
     def list(self, filters: RepoFilter, restriction: list[str] = None) -> tuple[int, list[Repo]]:
         query = self.db.query(Repo)
 
