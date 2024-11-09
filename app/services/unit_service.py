@@ -175,14 +175,13 @@ class UnitService:
 
         self.access_service.access_only_creator_and_target_unit(unit)
 
-        if not unit.cipher_env_dict:
-            repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        target_version = self.get_unit_target_version(repo, unit)
+        env_dict = self.git_repo_repository.get_env_example(repo, target_version)
 
-            target_version = self.get_unit_target_version(repo, unit)
-
-            env_dict = self.git_repo_repository.get_env_example(repo, target_version)
-        else:
-            env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+        if unit.cipher_env_dict:
+            current_unit_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+            env_dict = merge_two_dict_first_priority(current_unit_env_dict, env_dict)
 
         return env_dict
 
