@@ -82,7 +82,9 @@ def test_create_unit(database) -> None:
     repo_service = get_repo_service(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
-    repo_service.repo_repository.update(pytest.repos[0].uuid, Repo(default_branch=None))
+    target_repo = Repo(**pytest.repos[0].__dict__)
+    target_repo.default_branch = None
+    repo_service.repo_repository.update(pytest.repos[0].uuid, target_repo)
 
     with pytest.raises(fastapi.HTTPException):
         test_repo = pytest.repos[0]

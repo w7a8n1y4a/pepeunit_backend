@@ -11,7 +11,7 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.gql import get_graphql_context
+from app.configs.gql import get_graphql_context, get_repo_service
 from app.configs.utils import (
     check_emqx_state,
     del_emqx_auth_hooks,
@@ -83,6 +83,12 @@ async def _lifespan(_app: FastAPI):
         mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
 
     await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
+
+    db = next(get_session())
+    repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+    repo_service.sync_local_repo_storage()
+    db.close()
+
     yield
     await mqtt.mqtt_shutdown()
 
