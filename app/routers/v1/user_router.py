@@ -33,10 +33,9 @@ def update(data: UserUpdate, user_service: UserService = Depends()):
     return UserRead(**user_service.update(data).dict())
 
 
-@router.get("/generate_verification_code/", response_model=str)
+@router.get("/generate_verification_link/", response_model=str)
 async def get_verification(user_service: UserService = Depends()):
-    code = await user_service.generate_verification_code()
-    return code
+    return await user_service.generate_verification_link()
 
 
 @router.patch("/block/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
