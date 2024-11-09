@@ -3,6 +3,7 @@ import logging
 import fastapi
 import pytest
 
+from app import settings
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
 from app.configs.sub_entities import InfoSubEntity
@@ -68,7 +69,9 @@ async def test_verification_user(database) -> None:
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
 
-        code = await user_service.generate_verification_code()
+        link = await user_service.generate_verification_link()
+        code = link.replace(f'{settings.telegram_bot_link}?start=', '')
+
         await user_service.verification(str(1_000_000), code[:-2])
 
     # set verified status all test users
@@ -79,7 +82,9 @@ async def test_verification_user(database) -> None:
         )
         logging.info(user.uuid)
 
-        code = await user_service.generate_verification_code()
+        link = await user_service.generate_verification_link()
+        code = link.replace(f'{settings.telegram_bot_link}?start=', '')
+
         logging.info(code)
         codes_list.append(code)
 

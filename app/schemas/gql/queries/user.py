@@ -23,7 +23,7 @@ def get_token(data: UserAuthInput, info: Info) -> str:
 @strawberry.field()
 async def get_verification_user(info: Info) -> str:
     user_service = get_user_service(info)
-    return await user_service.generate_verification_code()
+    return await user_service.generate_verification_link()
 
 
 @strawberry.field()

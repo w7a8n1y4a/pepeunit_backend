@@ -5,6 +5,7 @@ from typing import Union
 
 from fastapi import Depends
 
+from app import settings
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.repositories.enum import UserRole, UserStatus
@@ -66,14 +67,14 @@ class UserService:
 
         return self.user_repository.update(user.uuid, user)
 
-    async def generate_verification_code(self) -> str:
+    async def generate_verification_link(self) -> str:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
         redis = await anext(get_redis_session())
 
         code = generate_random_string(8)
         await redis.set(code, str(self.access_service.current_agent.uuid), ex=60)
 
-        return code
+        return f'{settings.telegram_bot_link}?start={code}'
 
     async def verification(self, telegram_chat_id: str, verification_code: str):
 
