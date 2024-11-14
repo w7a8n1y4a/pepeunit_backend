@@ -27,5 +27,7 @@ class PermissionFilterInput(TypeInputMixin):
     resource_uuid: uuid_pkg.UUID
     resource_type: PermissionEntities
 
+    agent_type: Optional[PermissionEntities] = None
+
     offset: Optional[int] = None
     limit: Optional[int] = None
