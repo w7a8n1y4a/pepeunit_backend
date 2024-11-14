@@ -6,8 +6,8 @@ from fastapi import status as http_status
 
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.repositories.enum import UserRole
-from app.schemas.gql.inputs.permission import PermissionCreateInput, ResourceInput
-from app.schemas.pydantic.permission import PermissionCreate, Resource
+from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
+from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object, is_valid_uuid
 
@@ -42,21 +42,22 @@ class PermissionService:
 
         return self.access_service.permission_repository.create(new_permission)
 
-    def get_resource_agents(self, resource: Union[Resource, ResourceInput]) -> list[PermissionBaseType]:
-        is_valid_uuid(resource.resource_uuid)
+    def get_resource_agents(
+        self, filters: Union[PermissionFilter, PermissionFilterInput]
+    ) -> tuple[int, list[PermissionBaseType]]:
+        is_valid_uuid(filters.resource_uuid)
+
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         resource_entity = self.access_service.permission_repository.get_resource(
-            PermissionBaseType(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
+            PermissionBaseType(resource_uuid=filters.resource_uuid, resource_type=filters.resource_type)
         )
 
         is_valid_object(resource_entity)
 
         self.access_service.access_creator_check(resource_entity)
 
-        return self.access_service.permission_repository.get_resource_agents(
-            PermissionBaseType(resource_uuid=resource.resource_uuid, resource_type=resource.resource_type)
-        )
+        return self.access_service.permission_repository.get_resource_agents(filters)
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

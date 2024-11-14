@@ -1,4 +1,5 @@
 import uuid as uuid_pkg
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -23,6 +24,14 @@ class PermissionCreate(BaseModel):
     resource_type: PermissionEntities
 
 
-class Resource(BaseModel):
+class PermissionFilter(BaseModel):
     resource_uuid: uuid_pkg.UUID
     resource_type: PermissionEntities
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
+
+
+class PermissionsRead(BaseModel):
+    count: int
+    permissions: list[PermissionRead]

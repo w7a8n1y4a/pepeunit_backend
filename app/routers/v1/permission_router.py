@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, status
 
-from app.schemas.pydantic.permission import PermissionCreate, PermissionRead, Resource
+from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter, PermissionRead, PermissionsRead
 from app.services.permission_service import PermissionService
 
 router = APIRouter()
@@ -17,11 +17,13 @@ def create(data: PermissionCreate, permission_service: PermissionService = Depen
     return PermissionRead(**permission_service.create(data).dict())
 
 
-@router.get("/get_resource_agents", response_model=list[PermissionRead])
-def get_resource_agents(resource: Resource = Depends(), permission_service: PermissionService = Depends()):
+@router.get("/get_resource_agents", response_model=PermissionsRead)
+def get_resource_agents(
+    filters: PermissionFilter = Depends(PermissionFilter), permission_service: PermissionService = Depends()
+):
 
-    items = permission_service.get_resource_agents(resource)
-    return [PermissionRead(**item.dict()) for item in items]
+    count, permissions = permission_service.get_resource_agents(filters)
+    return PermissionsRead(count=count, permissions=[PermissionRead(**item.dict()) for item in permissions])
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
