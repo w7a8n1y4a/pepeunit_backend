@@ -128,6 +128,9 @@ class PermissionRepository:
             self.get_resource_fld_uuid_by_type(filters.resource_type) == filters.resource_uuid,
         )
 
+        if filters.agent_type:
+            query = query.filter(Permission.agent_type == filters.agent_type)
+
         count, query = apply_offset_and_limit(query, filters)
 
         return count, [self.domain_to_base_type(permission) for permission in query.all()]
