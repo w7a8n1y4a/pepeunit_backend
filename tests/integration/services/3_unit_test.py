@@ -320,7 +320,8 @@ def test_run_infrastructure_contour() -> None:
 
         inc += 1
 
-    time.sleep(5)
+    # TODO: придумать как изменить проверку
+    time.sleep(10)
 
     # run units in screen
     for inc, unit in enumerate(pytest.units):

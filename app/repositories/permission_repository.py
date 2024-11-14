@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from typing import Optional, Union
+from typing import Optional
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
@@ -12,6 +12,8 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.repositories.enum import PermissionEntities
+from app.repositories.utils import apply_offset_and_limit
+from app.schemas.pydantic.permission import PermissionFilter
 
 
 class PermissionRepository:
@@ -120,16 +122,15 @@ class PermissionRepository:
 
         return [self.domain_to_base_type(permission) for permission in permissions.all()]
 
-    def get_resource_agents(self, base_permission: PermissionBaseType) -> list[PermissionBaseType]:
+    def get_resource_agents(self, filters: PermissionFilter) -> tuple[int, list[PermissionBaseType]]:
 
-        permissions = self.db.query(Permission).filter(
-            self.get_resource_fld_uuid_by_type(base_permission.resource_type) == base_permission.resource_uuid,
+        query = self.db.query(Permission).filter(
+            self.get_resource_fld_uuid_by_type(filters.resource_type) == filters.resource_uuid,
         )
 
-        if base_permission.agent_type:
-            permissions = permissions.filter(Permission.agent_type == base_permission.agent_type)
+        count, query = apply_offset_and_limit(query, filters)
 
-        return [self.domain_to_base_type(permission) for permission in permissions.all()]
+        return count, [self.domain_to_base_type(permission) for permission in query.all()]
 
     def check(self, base_permission: PermissionBaseType) -> bool:
 
