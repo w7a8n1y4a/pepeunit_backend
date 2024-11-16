@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.params import Query
 from sqlalchemy import or_
 from sqlmodel import Session, select
 
@@ -12,7 +13,7 @@ from app.domain.user_model import User
 from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.gql.inputs.user import UserFilterInput
 from app.schemas.pydantic.user import UserFilter
-from app.services.validators import is_valid_string_with_rules
+from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
 
 class UserRepository:
@@ -49,6 +50,10 @@ class UserRepository:
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> tuple[int, list[User]]:
         query = self.db.query(User)
+
+        filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+        if filters.uuids:
+            query = query.filter(User.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
 
         fields = [User.login]
         query = apply_ilike_search_string(query, filters, fields)

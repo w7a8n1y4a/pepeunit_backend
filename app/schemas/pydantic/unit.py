@@ -63,6 +63,8 @@ class UnitUpdate(BaseModel):
 
 @dataclass
 class UnitFilter:
+    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
     # only with is_include_output_unit_nodes

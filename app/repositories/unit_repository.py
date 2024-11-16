@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.params import Query
 from sqlalchemy import func, text
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
@@ -98,6 +99,10 @@ class UnitRepository:
                 )
         else:
             query = self.db.query(Unit)
+
+        filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+        if filters.uuids:
+            query = query.filter(Unit.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
 
         if filters.creator_uuid:
             query = query.filter(Unit.creator_uuid == is_valid_uuid(filters.creator_uuid))

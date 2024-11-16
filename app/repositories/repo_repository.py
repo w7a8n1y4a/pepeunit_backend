@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.params import Query
 from sqlalchemy import desc, func
 from sqlmodel import Session, select
 
@@ -87,6 +88,10 @@ class RepoRepository:
 
     def list(self, filters: RepoFilter, restriction: list[str] = None) -> tuple[int, list[Repo]]:
         query = self.db.query(Repo)
+
+        filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+        if filters.uuids:
+            query = query.filter(Repo.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
 
         if filters.creator_uuid:
             query = query.filter(Repo.creator_uuid == is_valid_uuid(filters.creator_uuid))
