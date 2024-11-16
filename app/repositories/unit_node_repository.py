@@ -2,6 +2,7 @@ import uuid as uuid_pkg
 from typing import Optional
 
 from fastapi import Depends
+from fastapi.params import Query
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from sqlmodel import Session
@@ -84,6 +85,10 @@ class UnitNodeRepository:
 
     def list(self, filters: UnitNodeFilter, restriction: list[str] = None) -> tuple[int, list[UnitNode]]:
         query = self.db.query(UnitNode)
+
+        filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+        if filters.uuids:
+            query = query.filter(UnitNode.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
 
         if filters.unit_uuid:
             query = query.filter(UnitNode.unit_uuid == is_valid_uuid(filters.unit_uuid))

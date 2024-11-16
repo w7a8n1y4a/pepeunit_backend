@@ -72,6 +72,8 @@ class RepoUpdate(BaseModel):
 
 @dataclass
 class RepoFilter:
+    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+
     creator_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 

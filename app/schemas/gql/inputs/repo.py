@@ -39,6 +39,8 @@ class RepoUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoFilterInput(TypeInputMixin):
+    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+
     creator_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 

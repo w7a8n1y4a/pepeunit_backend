@@ -20,6 +20,8 @@ class UnitNodeSetStateInput(TypeInputMixin):
 
 @strawberry.input()
 class UnitNodeFilterInput(TypeInputMixin):
+    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+
     unit_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 

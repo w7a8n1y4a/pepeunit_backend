@@ -1,3 +1,4 @@
+import uuid as uuid_pkg
 from typing import Optional
 
 import strawberry
@@ -26,6 +27,8 @@ class UserUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class UserFilterInput(TypeInputMixin):
+    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+
     search_string: Optional[str] = None
 
     role: Optional[list[UserRole]] = tuple([item for item in UserRole])

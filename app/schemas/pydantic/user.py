@@ -43,6 +43,8 @@ class AccessToken(BaseModel):
 
 @dataclass
 class UserFilter:
+    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+
     search_string: Optional[str] = None
 
     role: Optional[list[str]] = Query([item.value for item in UserRole])
