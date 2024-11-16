@@ -89,8 +89,8 @@ def test_delete_permission(database) -> None:
     target_permission = pytest.permissions[0]
 
     # check delete permission
-    unit_permission_service.delete(target_permission.uuid)
+    unit_permission_service.delete(target_permission.agent_uuid, target_permission.resource_uuid)
 
     # check del invalid permission
     with pytest.raises(fastapi.HTTPException):
-        unit_permission_service.delete(uuid_pkg.uuid4())
+        unit_permission_service.delete(uuid_pkg.uuid4(), uuid_pkg.uuid4())

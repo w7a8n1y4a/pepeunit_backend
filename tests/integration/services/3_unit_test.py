@@ -306,7 +306,7 @@ def test_run_infrastructure_contour() -> None:
     inc = 0
     while code >= 500 and inc <= 10:
         try:
-            r = httpx.get(settings.backend_link)
+            r = httpx.get(settings.backend_link_prefix)
             code = r.status_code
         except httpx.ConnectError:
             logging.info('No route to BACKEND_DOMAIN variable')

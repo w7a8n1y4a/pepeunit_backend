@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException
 from fastapi import status as http_status
+from sqlalchemy import or_
 from sqlmodel import Session
 
 from app.configs.db import get_session
@@ -24,6 +25,24 @@ class PermissionRepository:
 
     def get(self, permission: Permission) -> Optional[Permission]:
         return self.db.get(Permission, permission.uuid)
+
+    def get_by_uuid(self, agent_uuid, resource_uuid):
+        return (
+            self.db.query(Permission)
+            .filter(
+                or_(
+                    Permission.agent_user_uuid == agent_uuid,
+                    Permission.agent_unit_uuid == agent_uuid,
+                    Permission.agent_unit_node_uuid == agent_uuid,
+                ),
+                or_(
+                    Permission.resource_repo_uuid == resource_uuid,
+                    Permission.resource_unit_uuid == resource_uuid,
+                    Permission.resource_unit_node_uuid == resource_uuid,
+                ),
+            )
+            .first()
+        )
 
     def get_agent(self, base_permission: PermissionBaseType):
         return self.db.get(eval(base_permission.agent_type), base_permission.agent_uuid)
