@@ -27,5 +27,5 @@ def get_resource_agents(
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(uuid: uuid_pkg.UUID, permission_service: PermissionService = Depends()):
-    return permission_service.delete(uuid)
+def delete(agent_uuid: uuid_pkg.UUID, resource_uuid: uuid_pkg.UUID, permission_service: PermissionService = Depends()):
+    return permission_service.delete(agent_uuid=agent_uuid, resource_uuid=resource_uuid)

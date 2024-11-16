@@ -59,10 +59,12 @@ class PermissionService:
 
         return self.access_service.permission_repository.get_resource_agents(filters)
 
-    def delete(self, uuid: uuid_pkg.UUID) -> None:
+    def delete(self, agent_uuid: uuid_pkg.UUID, resource_uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        permission = self.access_service.permission_repository.get(Permission(uuid=uuid))
+        permission = self.access_service.permission_repository.get_by_uuid(
+            agent_uuid=agent_uuid, resource_uuid=resource_uuid
+        )
         is_valid_object(permission)
 
         base_permission = self.access_service.permission_repository.domain_to_base_type(permission)
