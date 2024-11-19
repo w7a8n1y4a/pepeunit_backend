@@ -86,7 +86,7 @@ class UnitRepository:
                     self.db.query(func.json_agg(text('unit_node_alias')).label('unit_nodes'))
                     .select_from(unit_node_alias)
                     .filter(
-                        unit_node_alias.type == UnitNodeTypeEnum.OUTPUT.value,
+                        unit_node_alias.type.in_(filters.unit_node_type),
                         unit_node_alias.unit_uuid == Unit.uuid,
                     )
                 )
