@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from app.repositories.enum import OrderByDate, OrderByText, VisibilityLevel
+from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -37,8 +37,6 @@ class UnitFilterInput(TypeInputMixin):
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
-    # only with is_include_output_unit_nodes
-    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
 
     search_string: Optional[str] = None
 
@@ -52,3 +50,8 @@ class UnitFilterInput(TypeInputMixin):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    # only with outputUnitNodes requested
+    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
+    # nly with outputUnitNodes requested and unit_node_input_uuid == None
+    unit_node_type: Optional[list[UnitNodeTypeEnum]] = tuple([item for item in UnitNodeTypeEnum])
