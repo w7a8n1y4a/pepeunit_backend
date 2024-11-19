@@ -51,7 +51,7 @@ class UnitFilterInput(TypeInputMixin):
     offset: Optional[int] = None
     limit: Optional[int] = None
 
-    # only with outputUnitNodes requested
+    # only with unitNodes requested
     unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
-    # nly with outputUnitNodes requested and unit_node_input_uuid == None
+    # nly with unitNodes requested and unit_node_input_uuid == None
     unit_node_type: Optional[list[UnitNodeTypeEnum]] = tuple([item for item in UnitNodeTypeEnum])
