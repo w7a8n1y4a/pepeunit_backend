@@ -34,7 +34,7 @@ class UnitType(TypeInputMixin):
     cipher_env_dict: strawberry.Private[object]
 
     # only if requested
-    output_unit_nodes: list[UnitNodeType] = field(default_factory=list)
+    unit_nodes: list[UnitNodeType] = field(default_factory=list)
 
 
 @strawberry.type()
