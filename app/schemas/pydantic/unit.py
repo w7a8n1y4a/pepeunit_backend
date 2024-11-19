@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.repositories.enum import OrderByDate, OrderByText, VisibilityLevel
+from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -67,8 +67,6 @@ class UnitFilter:
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
-    # only with is_include_output_unit_nodes
-    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
 
     search_string: Optional[str] = None
 
@@ -82,6 +80,11 @@ class UnitFilter:
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    # only with outputUnitNodes requested
+    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
+    # nly with outputUnitNodes requested and unit_node_input_uuid == None
+    unit_node_type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])
 
     def dict(self):
         return self.__dict__
