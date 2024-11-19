@@ -450,13 +450,11 @@ class UnitService:
 
     @staticmethod
     def mapper_unit_to_unit_read(unit: tuple[Unit, List[dict]]) -> UnitRead:
-        return UnitRead(**unit[0].dict(), output_unit_nodes=[UnitNodeRead(**item) for item in unit[1]])
+        return UnitRead(**unit[0].dict(), unit_nodes=[UnitNodeRead(**item) for item in unit[1]])
 
     @staticmethod
     def mapper_unit_to_unit_type(unit: tuple[Unit, List[dict]]) -> UnitType:
-        return UnitType(
-            **unit[0].dict(), output_unit_nodes=[UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]]
-        )
+        return UnitType(**unit[0].dict(), unit_nodes=[UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]])
 
     @staticmethod
     def is_valid_cipher_env(unit: Unit, env_dict: dict):

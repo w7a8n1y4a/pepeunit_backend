@@ -31,5 +31,5 @@ def get_unit_current_schema(uuid: uuid_pkg.UUID, info: Info) -> str:
 @strawberry.field()
 def get_units(filters: UnitFilterInput, info: Info) -> UnitsResultType:
     unit_service = get_unit_service(info)
-    count, units = unit_service.list(filters, has_selected_field(info.selected_fields, 'outputUnitNodes'))
+    count, units = unit_service.list(filters, has_selected_field(info.selected_fields, 'unitNodes'))
     return UnitsResultType(count=count, units=[unit_service.mapper_unit_to_unit_type(unit) for unit in units])
