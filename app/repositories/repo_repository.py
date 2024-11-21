@@ -61,7 +61,7 @@ class RepoRepository:
             self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
         )
 
-        tags = self.git_repo_repository.get_tags(repo)
+        tags = self.git_repo_repository.get_tags(repo, repo.default_branch)
 
         versions_list = []
         for commit, count in versions:
