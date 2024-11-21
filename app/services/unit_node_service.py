@@ -11,6 +11,7 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import DestinationTopicType, PermissionEntities, UnitNodeTypeEnum, UserRole
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
+from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit_node import (
     UnitNodeEdgeCreateInput,
     UnitNodeFilterInput,
@@ -24,17 +25,24 @@ from app.schemas.pydantic.unit_node import (
     UnitNodeUpdate,
 )
 from app.services.access_service import AccessService
-from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
-from app.services.validators import is_valid_object, is_valid_uuid
+from app.services.utils import (
+    get_topic_name,
+    get_visibility_level_priority,
+    merge_two_dict_first_priority,
+    remove_none_value_dict,
+)
+from app.services.validators import is_valid_object, is_valid_uuid, is_valid_visibility_level
 
 
 class UnitNodeService:
     def __init__(
         self,
+        unit_repository: UnitRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
+        self.unit_repository = unit_repository
         self.unit_node_repository = unit_node_repository
         self.unit_node_edge_repository = unit_node_edge_repository
         self.access_service = access_service
@@ -107,6 +115,20 @@ class UnitNodeService:
 
         self.unit_node_repository.delete(unit_node_uuid_delete)
 
+    def bulk_set_visibility_level(self, unit: Unit):
+
+        count, unit_nodes = self.unit_node_repository.list(filters=UnitNodeFilter(unit_uuid=unit.uuid))
+
+        update_list = []
+        for unit_node in unit_nodes:
+            if get_visibility_level_priority(unit_node.visibility_level) > get_visibility_level_priority(
+                unit.visibility_level
+            ):
+                unit_node.visibility_level = unit.visibility_level
+                update_list.append(unit_node)
+
+        self.unit_node_repository.bulk_save(update_list)
+
     def update(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
@@ -118,9 +140,11 @@ class UnitNodeService:
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_node(unit_node)
 
-        unit_node_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit_node.dict())
+        update_unit_node = UnitNode(
+            **merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit_node.dict())
+        )
+        is_valid_visibility_level(self.unit_repository.get(Unit(uuid=update_unit_node.unit_uuid)), [update_unit_node])
 
-        update_unit_node = UnitNode(**unit_node_update_dict)
         return self.unit_node_repository.update(uuid, update_unit_node)
 
     def set_state_input(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
