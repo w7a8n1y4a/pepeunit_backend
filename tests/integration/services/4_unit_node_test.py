@@ -36,9 +36,9 @@ def test_update_unit_node(database) -> None:
 
     # check update visibility level
     update_unit_node = unit_node_service.update(
-        input_unit_node[0].uuid, UnitNodeUpdate(visibility_level=VisibilityLevel.PUBLIC)
+        input_unit_node[0].uuid, UnitNodeUpdate(visibility_level=VisibilityLevel.PRIVATE)
     )
-    assert update_unit_node.visibility_level == VisibilityLevel.PUBLIC
+    assert update_unit_node.visibility_level == VisibilityLevel.PRIVATE
 
     # check update is_rewritable_input for input
     update_unit_node = unit_node_service.update(input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
