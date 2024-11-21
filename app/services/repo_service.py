@@ -103,7 +103,7 @@ class RepoService:
         is_valid_object(repo)
         self.access_service.visibility_check(repo)
 
-        return self.repo_repository.get_versions(Repo(uuid=uuid))
+        return self.repo_repository.get_versions(repo)
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
