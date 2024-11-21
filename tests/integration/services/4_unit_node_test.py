@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from app import settings
-from app.configs.gql import get_unit_node_service, get_unit_service
+from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.unit_node import (
@@ -242,3 +242,17 @@ def test_delete_unit(database) -> None:
     unit_service.delete(target_unit.uuid)
     with pytest.raises(fastapi.HTTPException):
         unit_service.get(target_unit.uuid)
+
+
+@pytest.mark.run(order=7)
+def test_get_repo_versions(database) -> None:
+    current_user = pytest.users[0]
+    repo_service = get_repo_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    target_unit = pytest.repos[6]
+
+    # check get_versions
+    versions = repo_service.get_versions(target_unit.uuid)
+    assert versions.unit_count == 2
