@@ -108,6 +108,7 @@ class GitRepoRepository:
         ][:depth]
 
     def get_tags(self, repo: Repo, branch: str) -> list[dict]:
+        self.is_valid_branch(repo, repo.default_branch)
         branch_commits_set = {item['commit'] for item in self.get_commits(repo, branch)}
         repo = self.get_repo(repo)
 
