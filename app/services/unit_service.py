@@ -39,7 +39,7 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
 from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
-from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
+from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
 from app.utils.utils import aes_decode, aes_encode
 
 
@@ -65,6 +65,8 @@ class UnitService:
 
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
         is_valid_object(repo)
+        is_valid_visibility_level(repo, [data])
+
         self.repo_repository.is_valid_auto_updated_repo(repo)
         self.is_valid_no_auto_updated_unit(repo, data)
 
@@ -110,6 +112,7 @@ class UnitService:
         self.unit_repository.is_valid_name(unit_update.name, uuid)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        is_valid_visibility_level(repo, [unit_update])
         self.is_valid_no_auto_updated_unit(repo, unit_update)
 
         if not unit_update.is_auto_update_from_repo_unit and unit.current_commit_version != unit_update.repo_commit:
@@ -126,7 +129,10 @@ class UnitService:
 
                 self.update_firmware(unit, unit_update.repo_commit)
 
-        return self.unit_repository.update(uuid, unit_update)
+        result_unit = self.unit_repository.update(uuid, unit_update)
+        self.unit_node_service.bulk_set_visibility_level(result_unit)
+
+        return self.unit_repository.update(uuid, result_unit)
 
     def update_firmware(self, unit: Unit, target_version: str) -> Unit:
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))

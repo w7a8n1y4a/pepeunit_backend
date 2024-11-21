@@ -31,7 +31,7 @@ from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
-from app.services.validators import is_emtpy_sequence, is_valid_object
+from app.services.validators import is_emtpy_sequence, is_valid_object, is_valid_visibility_level
 from app.utils.utils import aes_decode, aes_encode
 
 
@@ -122,6 +122,9 @@ class RepoService:
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
         update_repo = Repo(**repo_update_dict)
+
+        count, child_units = self.unit_repository.list(filters=UnitFilter(repo_uuid=update_repo.uuid))
+        is_valid_visibility_level(update_repo, [unit[0] for unit in child_units])
 
         if data.default_commit:
             self.git_repo_repository.is_valid_commit(repo, update_repo.default_branch, data.default_commit)

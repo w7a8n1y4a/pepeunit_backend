@@ -8,6 +8,8 @@ from fastapi import status as http_status
 
 from app import settings
 from app.domain.user_model import User
+from app.repositories.enum import VisibilityLevel
+from app.services.utils import get_visibility_level_priority
 from app.utils.utils import check_password
 
 
@@ -63,3 +65,15 @@ def is_valid_string_with_rules(
         return False
 
     return all(char in alphabet for char in value)
+
+
+def is_valid_visibility_level(parent_obj: any, child_objs: list) -> None:
+
+    for child_obj in child_objs:
+        if get_visibility_level_priority(parent_obj.visibility_level) < get_visibility_level_priority(
+            child_obj.visibility_level
+        ):
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f'The visibility level of the parent object is lower than that of the child object',
+            )

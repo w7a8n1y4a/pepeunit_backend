@@ -121,12 +121,15 @@ def get_unit_node_service(info: Info) -> UnitNodeService:
     db = info.context['db']
     jwt_token = info.context['jwt_token']
 
+    unit_repository = UnitRepository(db)
+
     return UnitNodeService(
+        unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
         access_service=get_access_service(info)(
             permission_repository=PermissionRepository(db),
-            unit_repository=UnitRepository(db),
+            unit_repository=unit_repository,
             user_repository=UserRepository(db),
             jwt_token=jwt_token,
         ),
