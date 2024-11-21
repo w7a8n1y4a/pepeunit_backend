@@ -150,15 +150,15 @@ def test_update_unit(database) -> None:
         unit_service.update(pytest.units[0].uuid, UnitUpdate(name=pytest.units[1].name))
 
     # check change visibility
-    target_unit = pytest.units[3]
-
-    unit_service.update(target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.PUBLIC))
-    update_unit = unit_service.get(target_unit.uuid)
-    assert update_unit.visibility_level == VisibilityLevel.PUBLIC
+    target_unit = pytest.units[1]
 
     unit_service.update(target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.INTERNAL))
     update_unit = unit_service.get(target_unit.uuid)
     assert update_unit.visibility_level == VisibilityLevel.INTERNAL
+
+    unit_service.update(target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.PUBLIC))
+    update_unit = unit_service.get(target_unit.uuid)
+    assert update_unit.visibility_level == VisibilityLevel.PUBLIC
 
     # check set not auto update without commit and branch
     with pytest.raises(fastapi.HTTPException):
