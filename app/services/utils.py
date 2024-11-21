@@ -5,7 +5,7 @@ from fastapi import Depends
 from fastapi.security import APIKeyHeader
 
 from app import settings
-from app.repositories.enum import GlobalPrefixTopic
+from app.repositories.enum import GlobalPrefixTopic, VisibilityLevel
 
 
 def token_depends(
@@ -31,3 +31,14 @@ def get_topic_name(node_uuid: uuid_pkg.UUID, topic_name: str):
     )
 
     return main_topic
+
+
+def get_visibility_level_priority(visibility_level: VisibilityLevel) -> int:
+
+    priority_dict = {
+        VisibilityLevel.PUBLIC: 0,
+        VisibilityLevel.INTERNAL: 1,
+        VisibilityLevel.PRIVATE: 2,
+    }
+
+    return priority_dict[visibility_level]
