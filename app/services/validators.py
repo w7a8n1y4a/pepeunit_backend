@@ -70,7 +70,7 @@ def is_valid_string_with_rules(
 def is_valid_visibility_level(parent_obj: any, child_objs: list) -> None:
 
     for child_obj in child_objs:
-        if get_visibility_level_priority(parent_obj.visibility_level) < get_visibility_level_priority(
+        if get_visibility_level_priority(parent_obj.visibility_level) > get_visibility_level_priority(
             child_obj.visibility_level
         ):
             raise HTTPException(
