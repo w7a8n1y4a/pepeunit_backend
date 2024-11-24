@@ -368,7 +368,7 @@ class UnitService:
     def list(
         self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(
