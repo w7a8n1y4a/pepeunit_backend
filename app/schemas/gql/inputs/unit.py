@@ -34,6 +34,7 @@ class UnitUpdateInput(TypeInputMixin):
 @strawberry.input()
 class UnitFilterInput(TypeInputMixin):
     uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    unit_node_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
