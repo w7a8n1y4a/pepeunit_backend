@@ -12,7 +12,6 @@ from app.configs.db import get_session
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import UnitNodeTypeEnum
 from app.repositories.utils import (
     apply_enums,
     apply_ilike_search_string,
@@ -91,12 +90,19 @@ class UnitRepository:
                     )
                 )
 
+                if filters.unit_node_uuids:
+                    unit_node_subquery = unit_node_subquery.filter(unit_node_alias.uuid.in_(filters.unit_node_uuids))
+
                 query = (
                     self.db.query(Unit, unit_node_subquery.label('output_nodes'))
                     .select_from(Unit)
                     .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
                     .group_by(Unit.uuid)
                 )
+
+                if filters.unit_node_uuids:
+                    query = query.filter(UnitNode.uuid.in_(filters.unit_node_uuids))
+
         else:
             query = self.db.query(Unit)
 
