@@ -134,7 +134,7 @@ class AccessService:
         Private entities if the agent does not have any records about them
         """
 
-        if self.current_agent.role == UserRole.BOT:
+        if not isinstance(self.current_agent, Unit) and self.current_agent.role == UserRole.BOT:
             return [VisibilityLevel.PUBLIC]
         else:
             if restriction:
