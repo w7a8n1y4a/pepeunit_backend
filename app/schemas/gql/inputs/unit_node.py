@@ -22,6 +22,9 @@ class UnitNodeSetStateInput(TypeInputMixin):
 class UnitNodeFilterInput(TypeInputMixin):
     uuids: Optional[list[uuid_pkg.UUID]] = tuple()
 
+    # get only input for this output node
+    output_uuid: Optional[uuid_pkg.UUID] = None
+
     unit_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
