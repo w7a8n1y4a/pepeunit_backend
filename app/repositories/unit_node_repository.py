@@ -86,6 +86,11 @@ class UnitNodeRepository:
     def list(self, filters: UnitNodeFilter, restriction: list[str] = None) -> tuple[int, list[UnitNode]]:
         query = self.db.query(UnitNode)
 
+        if filters.output_uuid:
+            query = query.join(UnitNodeEdge, UnitNodeEdge.node_input_uuid == UnitNode.uuid).filter(
+                UnitNodeEdge.node_output_uuid == filters.output_uuid
+            )
+
         filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
         if filters.uuids:
             query = query.filter(UnitNode.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
