@@ -193,41 +193,27 @@ class RepoService:
         if not is_auto_update:
             self.access_service.access_creator_check(repo)
 
-        target_version = self.git_repo_repository.get_target_version(repo)
-
-        self.git_repo_repository.is_valid_schema_file(repo, target_version)
-        self.git_repo_repository.get_env_dict(repo, target_version)
-
         count, units = self.unit_repository.list(UnitFilter(repo_uuid=repo.uuid, is_auto_update_from_repo_unit=True))
 
         logging.info(f'{len(units)} units candidates update launched')
 
-        count_with_valid_version = 0
         count_error_update = 0
         count_success_update = 0
         for unit in [unit[0] for unit in units]:
-            if unit.current_commit_version != target_version:
 
-                logging.info(f'Run update unit {unit.uuid}')
+            logging.info(f'Run update unit {unit.uuid}')
 
-                try:
-                    self.git_repo_repository.is_valid_env_file(
-                        repo, target_version, json.loads(aes_decode(unit.cipher_env_dict))
-                    )
-                    self.unit_service.update_firmware(unit, target_version)
-                except:
-                    logging.warning(f'Failed update unit {unit.uuid}')
-                    count_error_update += 1
+            try:
+                self.unit_service.update_firmware(unit, repo)
+            except:
+                logging.warning(f'Failed update unit {unit.uuid}')
+                count_error_update += 1
 
-                count_success_update += 1
-                logging.info(f'Successfully update unit {unit.uuid}')
-
-            else:
-                count_with_valid_version += 1
+            count_success_update += 1
+            logging.info(f'Successfully update unit {unit.uuid}')
 
         result = {
             'repo': repo.uuid,
-            'count_with_valid_version': count_with_valid_version,
             'count_success_update': count_success_update,
             'count_error_update': count_error_update,
         }
