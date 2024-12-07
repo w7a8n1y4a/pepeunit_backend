@@ -103,39 +103,50 @@ class UnitService:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
-
         is_valid_object(unit)
         self.access_service.access_creator_check(unit)
 
         unit_update = Unit(**merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit.dict()))
-
         self.unit_repository.is_valid_name(unit_update.name, uuid)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         is_valid_visibility_level(repo, [unit_update])
+
         self.is_valid_no_auto_updated_unit(repo, unit_update)
-
-        if not unit_update.is_auto_update_from_repo_unit and unit.current_commit_version != unit_update.repo_commit:
-
-            self.git_repo_repository.is_valid_schema_file(repo, unit_update.repo_commit)
-            env_dict = self.git_repo_repository.get_env_dict(repo, unit_update.repo_commit)
-
-            if unit.cipher_env_dict:
-                self.git_repo_repository.is_valid_env_file(
-                    repo, unit_update.repo_commit, json.loads(aes_decode(unit.cipher_env_dict))
-                )
-
-                self.is_valid_cipher_env(unit_update, env_dict)
-
-                self.update_firmware(unit, unit_update.repo_commit)
 
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
+        result_unit = self.update_firmware(result_unit, repo)
 
-        return self.unit_repository.update(uuid, result_unit)
+        return result_unit
 
-    def update_firmware(self, unit: Unit, target_version: str) -> Unit:
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+    def update_firmware(self, unit: Unit, repo: Repo) -> Unit:
+
+        if unit.is_auto_update_from_repo_unit:
+            target_version = self.git_repo_repository.get_target_version(repo)
+        else:
+            target_version = unit.repo_commit
+
+        if target_version == unit.current_commit_version:
+            return self.unit_repository.update(unit.uuid, unit)
+
+        self.git_repo_repository.is_valid_schema_file(repo, target_version)
+        target_env_dict = self.git_repo_repository.get_env_dict(repo, target_version)
+
+        if unit.cipher_env_dict:
+            current_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+
+            # create env with default pepeunit vars, and default repo vars
+            gen_env_dict = self.gen_env_dict(unit.uuid)
+            merged_env_dict = merge_two_dict_first_priority(gen_env_dict, target_env_dict)
+
+            new_env_dict = merge_two_dict_first_priority(current_env_dict, merged_env_dict)
+
+            self.git_repo_repository.is_valid_env_file(repo, target_version, new_env_dict)
+
+            unit.cipher_env_dict = aes_encode(json.dumps(new_env_dict))
+
+            unit = self.unit_repository.update(unit.uuid, unit)
 
         count, all_exist_unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
 
@@ -461,12 +472,6 @@ class UnitService:
     @staticmethod
     def mapper_unit_to_unit_type(unit: tuple[Unit, List[dict]]) -> UnitType:
         return UnitType(**unit[0].dict(), unit_nodes=[UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]])
-
-    @staticmethod
-    def is_valid_cipher_env(unit: Unit, env_dict: dict):
-        current_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
-        if env_dict.keys() - current_env_dict.keys() != set():
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Dict in env.json is bad")
 
     @staticmethod
     def is_valid_wbits(wbits: int):

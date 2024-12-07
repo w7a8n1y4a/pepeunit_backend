@@ -431,7 +431,7 @@ def test_hand_update_firmware_unit(database) -> None:
     commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
     target_version = commits[0].commit
 
-    assert set_unit_new_commit(token, target_unit, target_version) >= 400
+    assert set_unit_new_commit(token, target_unit, target_version) == 200
 
 
 @pytest.mark.run(order=7)
