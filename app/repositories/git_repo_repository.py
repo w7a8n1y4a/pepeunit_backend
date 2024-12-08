@@ -39,17 +39,6 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
-    def update_local_repo(self, repo: Repo, data: Optional[Credentials] = None) -> None:
-        if not os.path.exists(f'{settings.save_repo_path}/{repo.uuid}'):
-            self.clone_remote_repo(repo, data)
-
-        git_repo = self.get_repo(repo)
-
-        try:
-            git_repo.remotes.origin.pull()
-        except git.CommandError:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Error update Repo')
-
     def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
         tmp_git_repo.git.checkout(commit)
@@ -92,7 +81,12 @@ class GitRepoRepository:
         return repo_url
 
     def update_credentials(self, repo: Repo, data: Credentials):
-        git_repo = self.get_repo(repo)
+        try:
+            git_repo = self.get_repo(repo)
+        except git.NoSuchPathError:
+            self.clone_remote_repo(repo, data)
+            git_repo = self.get_repo(repo)
+
         for remote in git_repo.remotes:
             remote.set_url(self.get_url(repo, data))
 
