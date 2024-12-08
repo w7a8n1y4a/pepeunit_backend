@@ -178,7 +178,7 @@ class RepoService:
         self.access_service.access_creator_check(repo)
 
         data = self.repo_repository.get_credentials(repo)
-        self.git_repo_repository.update_local_repo(repo, data)
+        self.git_repo_repository.clone_remote_repo(repo, data)
 
         return None
 
@@ -248,7 +248,7 @@ class RepoService:
             if str(repo.uuid) not in current_physic_repos:
                 try:
                     data = self.repo_repository.get_credentials(repo)
-                    self.git_repo_repository.update_local_repo(repo, data)
+                    self.git_repo_repository.clone_remote_repo(repo, data)
 
                     logging.info(f'success load: {repo.repo_url}')
 
