@@ -5,7 +5,7 @@ from typing import Optional
 import strawberry
 from strawberry import field
 
-from app.repositories.enum import VisibilityLevel
+from app.repositories.enum import GitPlatform, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -18,12 +18,16 @@ class RepoType(TypeInputMixin):
     create_datetime: datetime
 
     repo_url: str
+    platform: GitPlatform
+
     is_public_repository: bool
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
     default_commit: Optional[str] = None
     is_only_tag_update: bool
+
+    is_compilable_repo: bool
 
     last_update_datetime: datetime
 

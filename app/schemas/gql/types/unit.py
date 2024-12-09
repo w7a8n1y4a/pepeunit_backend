@@ -20,6 +20,8 @@ class UnitType(TypeInputMixin):
 
     is_auto_update_from_repo_unit: bool
 
+    target_firmware_platform: Optional[str] = None
+
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
