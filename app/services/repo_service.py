@@ -64,7 +64,7 @@ class RepoService:
 
         repo = self.repo_repository.create(repo)
 
-        self.git_repo_repository.clone_remote_repo(repo, data.credentials)
+        self.git_repo_repository.clone_remote_repo(repo)
 
         self.access_service.create_permission(self.access_service.current_agent, repo)
 
@@ -151,7 +151,7 @@ class RepoService:
         repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
         repo = self.repo_repository.update(uuid, repo)
 
-        self.git_repo_repository.update_credentials(repo, data)
+        self.git_repo_repository.update_credentials(repo)
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -177,8 +177,7 @@ class RepoService:
 
         self.access_service.access_creator_check(repo)
 
-        data = self.repo_repository.get_credentials(repo)
-        self.git_repo_repository.clone_remote_repo(repo, data)
+        self.git_repo_repository.clone_remote_repo(repo)
 
         return None
 
@@ -247,8 +246,7 @@ class RepoService:
         for repo in current_db_repos:
             if str(repo.uuid) not in current_physic_repos:
                 try:
-                    data = self.repo_repository.get_credentials(repo)
-                    self.git_repo_repository.clone_remote_repo(repo, data)
+                    self.git_repo_repository.clone_remote_repo(repo)
 
                     logging.info(f'success load: {repo.repo_url}')
 

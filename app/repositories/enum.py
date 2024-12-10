@@ -149,3 +149,13 @@ class PermissionEntities(str, enum.Enum):
     UNIT = 'Unit'
     REPO = 'Repo'
     UNIT_NODE = 'UnitNode'
+
+
+@strawberry.enum
+class GitPlatform(str, enum.Enum):
+    """
+    Types git platforms
+    """
+
+    GITLAB = 'Gitlab'
+    GITHUB = 'Github'

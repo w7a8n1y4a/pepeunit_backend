@@ -15,12 +15,24 @@ from git.exc import GitCommandError
 
 from app import settings
 from app.domain.repo_model import Repo
-from app.repositories.enum import DestinationTopicType, ReservedEnvVariableName
+from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName
+from app.repositories.git_platform_repository import (
+    GithubPlatformRepository,
+    GitlabPlatformRepository,
+    GitPlatformRepositoryABC,
+)
 from app.schemas.pydantic.repo import Credentials
 
 
 class GitRepoRepository:
-    def clone_remote_repo(self, repo: Repo, data: Credentials) -> None:
+
+    @staticmethod
+    def get_platform(repo: Repo) -> GitPlatformRepositoryABC:
+        platforms_dict = {GitPlatform.GITLAB: GitlabPlatformRepository, GitPlatform.GITHUB: GithubPlatformRepository}
+
+        return platforms_dict[GitPlatform(repo.platform)](repo)
+
+    def clone_remote_repo(self, repo: Repo) -> None:
         repo_save_path = f'{settings.save_repo_path}/{repo.uuid}'
         try:
             shutil.rmtree(repo_save_path)
@@ -29,7 +41,9 @@ class GitRepoRepository:
 
         try:
             # cloning repo by url
-            git_repo = GitRepo.clone_from(self.get_url(repo, data), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"})
+            git_repo = GitRepo.clone_from(
+                self.get_platform(repo).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
+            )
         except GitCommandError:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
@@ -38,6 +52,9 @@ class GitRepoRepository:
         # get all remotes branches to local repo
         for remote in git_repo.remotes:
             remote.fetch()
+
+    def get_releases(self, repo: Repo) -> dict[str, list[tuple[str, str]]]:
+        return self.get_platform(repo).get_releases()
 
     def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
@@ -80,15 +97,15 @@ class GitRepoRepository:
 
         return repo_url
 
-    def update_credentials(self, repo: Repo, data: Credentials):
+    def update_credentials(self, repo: Repo):
         try:
             git_repo = self.get_repo(repo)
         except git.NoSuchPathError:
-            self.clone_remote_repo(repo, data)
+            self.clone_remote_repo(repo)
             git_repo = self.get_repo(repo)
 
         for remote in git_repo.remotes:
-            remote.set_url(self.get_url(repo, data))
+            remote.set_url(self.get_platform(repo).get_cloning_url())
 
     def get_branches(self, repo: Repo) -> list[str]:
         repo = self.get_repo(repo)

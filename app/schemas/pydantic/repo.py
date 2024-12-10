@@ -7,7 +7,7 @@ from fastapi import Query
 from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import BaseModel
 
-from app.repositories.enum import OrderByDate, VisibilityLevel
+from app.repositories.enum import GitPlatform, OrderByDate, VisibilityLevel
 
 
 class RepoRead(BaseModel):
@@ -18,12 +18,16 @@ class RepoRead(BaseModel):
     create_datetime: datetime
 
     repo_url: str
+    platform: GitPlatform
+
     is_public_repository: bool
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
     default_commit: Optional[str] = None
     is_only_tag_update: bool
+
+    is_compilable_repo: bool
 
     last_update_datetime: datetime
 
@@ -53,9 +57,12 @@ class RepoCreate(BaseModel):
     name: str
 
     repo_url: str
+    platform: GitPlatform
 
     is_public_repository: bool
     credentials: Optional[Credentials] = None
+
+    is_compilable_repo: bool
 
 
 class RepoUpdate(BaseModel):
@@ -68,6 +75,8 @@ class RepoUpdate(BaseModel):
     default_commit: Optional[str] = None
 
     is_only_tag_update: Optional[bool] = None
+
+    is_compilable_repo: Optional[bool] = None
 
 
 @dataclass

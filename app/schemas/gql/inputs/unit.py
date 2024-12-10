@@ -16,6 +16,8 @@ class UnitCreateInput(TypeInputMixin):
 
     is_auto_update_from_repo_unit: bool
 
+    target_firmware_platform: Optional[str] = None
+
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
@@ -26,6 +28,8 @@ class UnitUpdateInput(TypeInputMixin):
     name: Optional[str] = None
 
     is_auto_update_from_repo_unit: Optional[bool] = None
+
+    target_firmware_platform: Optional[str] = None
 
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None

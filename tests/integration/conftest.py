@@ -113,26 +113,31 @@ def test_repos() -> list[dict]:
                 'type': VisibilityLevel.PUBLIC,
                 'is_public': True,
                 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
+                'platform': 'Gitlab',
             },
             {
                 'type': VisibilityLevel.PUBLIC,
                 'is_public': True,
                 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
+                'platform': 'Github',
             },
             {
                 'type': VisibilityLevel.PUBLIC,
                 'is_public': True,
                 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+                'platform': 'Gitlab',
             },
             {
                 'type': VisibilityLevel.INTERNAL,
                 'is_public': True,
                 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+                'platform': 'Gitlab',
             },
             {
                 'type': VisibilityLevel.PRIVATE,
                 'is_public': True,
                 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+                'platform': 'Gitlab',
             },
         ]
     )
@@ -143,6 +148,8 @@ def test_repos() -> list[dict]:
             'name': f'test_{inc}_{test_hash}',
             'repo_url': repo['link'],
             'is_public_repository': repo['is_public'],
+            'platform': repo['platform'],
+            'is_compilable_repo': False,
             'credentials': (
                 None
                 if repo['is_public'] == True

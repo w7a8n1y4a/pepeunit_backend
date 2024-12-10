@@ -19,6 +19,8 @@ class UnitRead(BaseModel):
 
     is_auto_update_from_repo_unit: bool
 
+    target_firmware_platform: Optional[str] = None
+
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
@@ -47,6 +49,8 @@ class UnitCreate(BaseModel):
 
     is_auto_update_from_repo_unit: bool
 
+    target_firmware_platform: Optional[str] = None
+
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
@@ -56,6 +60,8 @@ class UnitUpdate(BaseModel):
     name: Optional[str] = None
 
     is_auto_update_from_repo_unit: Optional[bool] = None
+
+    target_firmware_platform: Optional[str] = None
 
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
