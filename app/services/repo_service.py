@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 import uuid as uuid_pkg
 from typing import Union
 
@@ -32,7 +33,7 @@ from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_emtpy_sequence, is_valid_object, is_valid_visibility_level
-from app.utils.utils import aes_decode, aes_encode
+from app.utils.utils import aes_decode, aes_encode, timeit
 
 
 class RepoService:
@@ -56,11 +57,16 @@ class RepoService:
         self.repo_repository.is_valid_name(data.name)
         self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
         self.repo_repository.is_valid_private_repo(data)
+        self.repo_repository.is_valid_platform(data)
+        self.repo_repository.is_valid_compilable_repo(data)
 
         repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
         if not repo.is_public_repository:
             repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.credentials.dict()))
+
+        if repo.is_compilable_repo:
+            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
         repo = self.repo_repository.create(repo)
 
@@ -89,9 +95,9 @@ class RepoService:
         self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
 
         commits_with_tag = (
-            self.git_repo_repository.get_tags(repo, filters.repo_branch)
+            self.git_repo_repository.get_branch_tags(repo, filters.repo_branch)
             if filters.only_tag
-            else self.git_repo_repository.get_commits_with_tag(repo, filters.repo_branch)
+            else self.git_repo_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
         )
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
@@ -131,6 +137,10 @@ class RepoService:
 
         self.repo_repository.is_valid_auto_updated_repo(update_repo)
         self.repo_repository.is_valid_no_auto_updated_repo(update_repo)
+        self.repo_repository.is_valid_compilable_repo(update_repo)
+
+        if update_repo.is_compilable_repo:
+            update_repo.releases_data = json.dumps(self.git_repo_repository.get_releases(update_repo))
 
         repo = self.repo_repository.update(uuid, update_repo)
 
@@ -149,6 +159,10 @@ class RepoService:
         self.repo_repository.is_private_repository(repo)
 
         repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
+
+        if repo.is_compilable_repo:
+            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+
         repo = self.repo_repository.update(uuid, repo)
 
         self.git_repo_repository.update_credentials(repo)
@@ -176,6 +190,11 @@ class RepoService:
         is_valid_object(repo)
 
         self.access_service.access_creator_check(repo)
+
+        if repo.is_compilable_repo:
+            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+
+            repo = self.repo_repository.update(uuid, repo)
 
         self.git_repo_repository.clone_remote_repo(repo)
 
@@ -223,16 +242,20 @@ class RepoService:
         if not is_auto_update:
             self.access_service.access_check([UserRole.ADMIN])
 
+        threading.Thread(target=self._process_bulk_update_repositories, daemon=True).start()
+
+        return None
+
+    def _process_bulk_update_repositories(self):
         count, auto_update_repositories = self.repo_repository.list(RepoFilter(is_auto_update_repo=True))
         logging.info(f'{len(auto_update_repositories)} repos update launched')
 
         for repo in auto_update_repositories:
             logging.info(f'run update repo {repo.uuid}')
-
             try:
                 self.update_units_firmware(repo.uuid, is_auto_update=True)
-            except:
-                logging.info(f'failed update repo {repo.uuid}')
+            except Exception as e:
+                logging.error(f'failed to update repo {repo.uuid}: {e}')
 
         logging.info('task auto update repo successfully completed')
 
@@ -246,6 +269,12 @@ class RepoService:
         for repo in current_db_repos:
             if str(repo.uuid) not in current_physic_repos:
                 try:
+
+                    if repo.is_compilable_repo:
+                        repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+
+                        repo = self.repo_repository.update(repo.uuid, repo)
+
                     self.git_repo_repository.clone_remote_repo(repo)
 
                     logging.info(f'success load: {repo.repo_url}')

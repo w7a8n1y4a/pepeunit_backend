@@ -499,7 +499,7 @@ def test_repo_update_firmware_unit(database) -> None:
 
     # wait bulk update unit
     target_repo = repo_service.get(target_units[0].repo_uuid)
-    tags = repo_service.git_repo_repository.get_tags(target_repo, target_repo.default_branch)
+    tags = repo_service.git_repo_repository.get_branch_tags(target_repo, target_repo.default_branch)
     inc = 0
     while True:
         data = [unit_service.get(unit.uuid).current_commit_version for unit in target_units[-2:]]
