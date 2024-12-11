@@ -2,6 +2,7 @@ import base64
 import hashlib
 import os
 import string
+import time
 
 import pyaes
 
@@ -65,3 +66,15 @@ def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: 
 def generate_random_string(length=6):
     chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
     return ''.join(chars[c % len(chars)] for c in os.urandom(length))
+
+
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Function '{func.__name__}' executed in {execution_time:.6f} seconds.")
+        return result
+
+    return wrapper

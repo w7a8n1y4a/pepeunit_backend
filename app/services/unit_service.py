@@ -78,7 +78,7 @@ class UnitService:
             self.git_repo_repository.get_env_dict(repo, data.repo_commit)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
-        target_commit = self.get_unit_target_version(repo, unit)
+        target_commit = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
 
@@ -122,10 +122,7 @@ class UnitService:
 
     def update_firmware(self, unit: Unit, repo: Repo) -> Unit:
 
-        if unit.is_auto_update_from_repo_unit:
-            target_version = self.git_repo_repository.get_target_version(repo)
-        else:
-            target_version = unit.repo_commit
+        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
         if target_version == unit.current_commit_version:
             return self.unit_repository.update(unit.uuid, unit)
@@ -193,7 +190,7 @@ class UnitService:
         self.access_service.access_only_creator_and_target_unit(unit)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        target_version = self.get_unit_target_version(repo, unit)
+        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
         env_dict = self.git_repo_repository.get_env_example(repo, target_version)
 
         if unit.cipher_env_dict:
@@ -214,7 +211,7 @@ class UnitService:
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        target_version = self.get_unit_target_version(repo, unit)
+        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
         self.git_repo_repository.is_valid_env_file(repo, target_version, merged_env_dict)
 
@@ -254,7 +251,7 @@ class UnitService:
         self.access_service.access_only_creator_and_target_unit(unit)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        target_version = self.get_unit_target_version(repo, unit)
+        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
         return self.generate_current_schema(unit, repo, target_version)
 
@@ -266,7 +263,7 @@ class UnitService:
         self.access_service.access_only_creator_and_target_unit(unit)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        target_version = self.get_unit_target_version(repo, unit)
+        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
         env_dict = self.get_env(unit.uuid)
         self.git_repo_repository.is_valid_env_file(repo, target_version, env_dict)
@@ -387,16 +384,6 @@ class UnitService:
         )
         return self.unit_repository.list(
             filters, restriction=restriction, is_include_output_unit_nodes=is_include_output_unit_nodes
-        )
-
-    def get_unit_target_version(self, repo: Repo, unit: Unit):
-        """
-        Get target version - only repo and unit context, without current in physical Unit
-        """
-        return (
-            self.git_repo_repository.get_target_version(repo)
-            if unit.is_auto_update_from_repo_unit
-            else unit.repo_commit
         )
 
     def generate_current_schema(self, unit: Unit, repo: Repo, target_version: str) -> dict:

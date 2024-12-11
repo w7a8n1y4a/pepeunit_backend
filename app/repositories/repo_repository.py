@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import VisibilityLevel
+from app.repositories.enum import GitPlatform, VisibilityLevel
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -61,7 +61,7 @@ class RepoRepository:
             self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
         )
 
-        tags = self.git_repo_repository.get_tags(repo, repo.default_branch)
+        tags = self.git_repo_repository.get_branch_tags(repo, repo.default_branch)
 
         versions_list = []
         for commit, count in versions:
@@ -143,9 +143,24 @@ class RepoRepository:
         if repo.is_public_repository:
             raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Is public repo")
 
+    @staticmethod
+    def is_valid_platform(repo: RepoCreate):
+        if repo.platform not in list(GitPlatform):
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Platform is not supported"
+            )
+
+    @staticmethod
+    def is_valid_compilable_repo(repo: RepoCreate or RepoUpdate):
+        if repo.is_compilable_repo and repo.is_auto_update_repo and not repo.is_only_tag_update:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Compiled repositories use only tags when updating automatically",
+            )
+
     def is_valid_auto_updated_repo(self, repo: Repo):
         # not commit for last commit or not tags for last tags auto update
-        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_version(repo):
+        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo):
             raise HTTPException(
                 status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid auto updated target version"
             )
