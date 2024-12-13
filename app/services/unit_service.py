@@ -78,7 +78,7 @@ class UnitService:
             self.git_repo_repository.get_env_dict(repo, data.repo_commit)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.firmware_platform)
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
 
         target_commit = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
@@ -115,7 +115,7 @@ class UnitService:
         is_valid_visibility_level(repo, [unit_update])
 
         self.is_valid_no_auto_updated_unit(repo, unit_update)
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit_update, unit_update.firmware_platform)
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit_update, unit_update.target_firmware_platform)
 
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
@@ -124,7 +124,7 @@ class UnitService:
         return result_unit
 
     def update_firmware(self, unit: Unit, repo: Repo) -> Unit:
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.firmware_platform)
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
 
         target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
 
