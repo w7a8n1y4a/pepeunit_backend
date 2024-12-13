@@ -80,8 +80,11 @@ class GitRepoRepository:
         return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')
 
     @staticmethod
-    def get_tmp_repo(repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
-        tmp_path = f'tmp/{gen_uuid}'
+    def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
+        return f'tmp/{gen_uuid}'
+
+    def get_tmp_repo(self, repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
+        tmp_path = self.get_tmp_path(gen_uuid)
         current_path = f'{settings.save_repo_path}/{repo.uuid}'
 
         shutil.copytree(current_path, tmp_path)
