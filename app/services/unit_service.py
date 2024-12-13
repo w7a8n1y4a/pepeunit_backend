@@ -78,6 +78,8 @@ class UnitService:
             self.git_repo_repository.get_env_dict(repo, data.repo_commit)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.firmware_platform)
+
         target_commit = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
 
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
@@ -113,6 +115,7 @@ class UnitService:
         is_valid_visibility_level(repo, [unit_update])
 
         self.is_valid_no_auto_updated_unit(repo, unit_update)
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit_update, unit_update.firmware_platform)
 
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
@@ -121,8 +124,9 @@ class UnitService:
         return result_unit
 
     def update_firmware(self, unit: Unit, repo: Repo) -> Unit:
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.firmware_platform)
 
-        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
 
         if target_version == unit.current_commit_version:
             return self.unit_repository.update(unit.uuid, unit)
@@ -172,9 +176,14 @@ class UnitService:
                 pass
 
             try:
+                update_dict = {'NEW_COMMIT_VERSION': target_version}
+
+                if repo.is_compilable_repo:
+                    update_dict['COMPILED_FIRMWARE_LINK'] = json.loads(repo.releases_data)[target_tag][unit.platform]
+
                 mqtt.publish(
                     f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
-                    json.dumps({"NEW_COMMIT_VERSION": target_version}),
+                    json.dumps(update_dict),
                 )
             except AttributeError:
                 logging.info('MQTT session is invalid')
@@ -269,7 +278,11 @@ class UnitService:
         self.git_repo_repository.is_valid_env_file(repo, target_version, env_dict)
 
         gen_uuid = uuid_pkg.uuid4()
-        tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, target_version, gen_uuid)
+
+        if repo.is_compilable_repo:
+            tmp_git_repo_path = self.git_repo_repository.get_tmp_path(gen_uuid)
+        else:
+            tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, target_version, gen_uuid)
 
         env_dict['COMMIT_VERSION'] = target_version
 
