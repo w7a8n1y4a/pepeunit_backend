@@ -15,12 +15,25 @@ from git.exc import GitCommandError
 
 from app import settings
 from app.domain.repo_model import Repo
-from app.repositories.enum import DestinationTopicType, ReservedEnvVariableName
+from app.domain.unit_model import Unit
+from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName
+from app.repositories.git_platform_repository import (
+    GithubPlatformRepository,
+    GitlabPlatformRepository,
+    GitPlatformRepositoryABC,
+)
 from app.schemas.pydantic.repo import Credentials
 
 
 class GitRepoRepository:
-    def clone_remote_repo(self, repo: Repo, data: Credentials) -> None:
+
+    @staticmethod
+    def get_platform(repo: Repo) -> GitPlatformRepositoryABC:
+        platforms_dict = {GitPlatform.GITLAB: GitlabPlatformRepository, GitPlatform.GITHUB: GithubPlatformRepository}
+
+        return platforms_dict[GitPlatform(repo.platform)](repo)
+
+    def clone_remote_repo(self, repo: Repo) -> None:
         repo_save_path = f'{settings.save_repo_path}/{repo.uuid}'
         try:
             shutil.rmtree(repo_save_path)
@@ -29,7 +42,9 @@ class GitRepoRepository:
 
         try:
             # cloning repo by url
-            git_repo = GitRepo.clone_from(self.get_url(repo, data), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"})
+            git_repo = GitRepo.clone_from(
+                self.get_platform(repo).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
+            )
         except GitCommandError:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
@@ -38,6 +53,9 @@ class GitRepoRepository:
         # get all remotes branches to local repo
         for remote in git_repo.remotes:
             remote.fetch()
+
+    def get_releases(self, repo: Repo) -> dict[str, list[tuple[str, str]]]:
+        return self.get_platform(repo).get_releases()
 
     def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
@@ -62,8 +80,11 @@ class GitRepoRepository:
         return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')
 
     @staticmethod
-    def get_tmp_repo(repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
-        tmp_path = f'tmp/{gen_uuid}'
+    def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
+        return f'tmp/{gen_uuid}'
+
+    def get_tmp_repo(self, repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
+        tmp_path = self.get_tmp_path(gen_uuid)
         current_path = f'{settings.save_repo_path}/{repo.uuid}'
 
         shutil.copytree(current_path, tmp_path)
@@ -80,30 +101,38 @@ class GitRepoRepository:
 
         return repo_url
 
-    def update_credentials(self, repo: Repo, data: Credentials):
+    def update_credentials(self, repo: Repo):
         try:
             git_repo = self.get_repo(repo)
         except git.NoSuchPathError:
-            self.clone_remote_repo(repo, data)
+            self.clone_remote_repo(repo)
             git_repo = self.get_repo(repo)
 
         for remote in git_repo.remotes:
-            remote.set_url(self.get_url(repo, data))
+            remote.set_url(self.get_platform(repo).get_cloning_url())
 
     def get_branches(self, repo: Repo) -> list[str]:
         repo = self.get_repo(repo)
         return [r.remote_head for r in repo.remote().refs][1:]
 
-    def get_commits(self, repo: Repo, branch: str, depth: int = None) -> list[dict]:
+    def get_branch_commits(self, repo: Repo, branch: str, depth: int = None) -> list[dict]:
+        """
+        Get all commits for branch with depth
+        """
+
         repo = self.get_repo(repo)
         return [
             {'commit': item.name_rev.split()[0], 'summary': item.summary}
             for item in repo.iter_commits(rev=f'remotes/origin/{branch}')
         ][:depth]
 
-    def get_tags(self, repo: Repo, branch: str) -> list[dict]:
+    def get_branch_tags(self, repo: Repo, branch: str) -> list[dict]:
+        """
+        Get all commits with tags for branch
+        """
+
         self.is_valid_branch(repo, repo.default_branch)
-        branch_commits_set = {item['commit'] for item in self.get_commits(repo, branch)}
+        branch_commits_set = {item['commit'] for item in self.get_branch_commits(repo, branch)}
         repo = self.get_repo(repo)
 
         return [
@@ -112,16 +141,20 @@ class GitRepoRepository:
             if item.commit.name_rev.split()[0] in branch_commits_set
         ][::-1]
 
-    def get_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
-        commits_dict = self.get_commits(repo, branch)
+    def get_branch_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
+        """
+        Get all commits for branch, with tags
+        """
 
-        tags_dict = self.get_tags(repo, branch)
+        commits = self.get_branch_commits(repo, branch)
+        tags = self.get_branch_tags(repo, branch)
 
         commits_with_tag = []
-        for commit in commits_dict:
+        for commit in commits:
             commit_dict = commit
+            commit_dict['tag'] = None
 
-            for tag in tags_dict:
+            for tag in tags:
                 if commit['commit'] == tag['commit']:
                     commit_dict['tag'] = tag['tag']
 
@@ -129,26 +162,79 @@ class GitRepoRepository:
 
         return commits_with_tag
 
-    def get_target_version(self, repo: Repo) -> str:
+    @staticmethod
+    def find_by_commit(data: list[dict], commit: str) -> Optional[dict]:
+        for item in data:
+            if item["commit"] == commit:
+                return item
+        return None
 
+    def get_target_repo_version(self, repo: Repo) -> tuple[str, Optional[str]]:
         self.is_valid_branch(repo, repo.default_branch)
 
-        all_versions = self.get_commits_with_tag(repo, repo.default_branch)
-        versions_tag_only = [version for version in all_versions if 'tag' in version and version['tag']]
+        all_commits = self.get_branch_commits_with_tag(repo, repo.default_branch)
+        tags = self.get_branch_tags(repo, repo.default_branch)
 
-        if len(all_versions) == 0:
+        target_commit = None
+        error_info = ''
+        if repo.is_auto_update_repo:
+            if repo.is_compilable_repo:
+                if len(tags) != 0:
+                    target_commit = tags[0]
+                else:
+                    error_info = 'The tags are not in the repository'
+            else:
+                if repo.is_only_tag_update:
+                    if len(tags) != 0:
+                        target_commit = tags[0]
+                    else:
+                        error_info = 'The tags are not in the repository'
+                else:
+                    target_commit = all_commits[0]
+
+        else:
+            self.is_valid_commit(repo, repo.default_branch, repo.default_commit)
+
+            target_commit = self.find_by_commit(all_commits, repo.default_commit)
+
+            if repo.is_compilable_repo and target_commit['tag'] is None:
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail=f'Commit without Tag',
+                )
+
+        if not target_commit:
             raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'Commits are missing',
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail='Version is missing: {}'.format(error_info)
             )
 
-        if repo.is_only_tag_update and len(versions_tag_only) == 0:
+        return target_commit['commit'], target_commit['tag']
+
+    def get_target_unit_version(self, repo: Repo, unit: Unit) -> tuple[str, Optional[str]]:
+
+        target_commit = None
+        if unit.is_auto_update_from_repo_unit:
+            repo_target = self.get_target_repo_version(repo)
+            target_commit = {'commit': repo_target[0], 'tag': repo_target[1]}
+        else:
+            self.is_valid_branch(repo, unit.repo_branch)
+            all_commits = self.get_branch_commits_with_tag(repo, unit.repo_branch)
+            target_commit = self.find_by_commit(all_commits, unit.repo_commit)
+
+            if target_commit:
+                if repo.is_compilable_repo and target_commit['tag'] is None:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_400_BAD_REQUEST,
+                        detail=f'Commit without Tag',
+                    )
+
+        if not target_commit:
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'Tags are missing',
+                detail=f'Version is missing',
             )
 
-        return versions_tag_only[0]['commit'] if repo.is_only_tag_update else all_versions[0]['commit']
+        return target_commit['commit'], target_commit['tag']
 
     def get_file(self, repo: Repo, commit: str, path: str) -> io.BytesIO:
         repo = self.get_repo(repo)
@@ -263,5 +349,34 @@ class GitRepoRepository:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid branch")
 
     def is_valid_commit(self, repo: Repo, branch: str, commit: str):
-        if commit not in [commit_dict['commit'] for commit_dict in self.get_commits(repo, branch)]:
+        if commit not in [commit_dict['commit'] for commit_dict in self.get_branch_commits(repo, branch)]:
             raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid commit")
+
+    @staticmethod
+    def find_by_platform(data: list[tuple[str, str]], platform: str) -> Optional[tuple[str, str]]:
+        for item in data:
+            if item[0] == platform:
+                return item
+        return None
+
+    def is_valid_firmware_platform(self, repo: Repo, unit: Unit, firmware_platform: str):
+
+        if repo.is_compilable_repo:
+            if repo.releases_data is None:
+                raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Not available releases")
+
+            releases = json.loads(repo.releases_data)
+            target_commit, target_tag = self.get_target_unit_version(repo, unit)
+
+            target_platforms = releases.get(target_tag)
+
+            if target_platforms:
+                if self.find_by_platform(target_platforms, firmware_platform) is None:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Not find platform for target Tag"
+                    )
+
+            else:
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Target Tag not found in Releases"
+                )

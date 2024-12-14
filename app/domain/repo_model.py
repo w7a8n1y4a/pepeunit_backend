@@ -22,8 +22,11 @@ class Repo(SQLModel, table=True):
     # datetime Create Repo
     create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
 
-    # link to remote repository Gitlab or Github
+    # link to remote repository
     repo_url: str = Field(nullable=False)
+    # type of remote hosting
+    platform: str = Field(nullable=False)
+
     # this remote repository is Public ?
     is_public_repository: bool = Field(nullable=False, default=True)
     # if is_public_repository=False - cipher creds to load remote repository
@@ -31,6 +34,13 @@ class Repo(SQLModel, table=True):
 
     # default branch - need for auto and hand updates
     default_branch: str = Field(nullable=True)
+
+    # repo is compilable ?
+    # if is_compilable_repo == True - user will see only tags for updates, app archive: only env and schema
+    # if is_compilable_repo == False - user will see all commits for updates, app archive: full repo inside archives
+    is_compilable_repo: bool = Field(nullable=False, default=False)
+    # assets links by tags
+    releases_data: str = Field(nullable=True, default=None)
 
     # this repository is auto updated?
     is_auto_update_repo: bool = Field(nullable=False, default=True)
