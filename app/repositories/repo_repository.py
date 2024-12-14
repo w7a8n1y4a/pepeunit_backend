@@ -151,7 +151,7 @@ class RepoRepository:
             )
 
     @staticmethod
-    def is_valid_compilable_repo(repo: RepoCreate or RepoUpdate):
+    def is_valid_compilable_repo(repo: RepoUpdate):
         if repo.is_compilable_repo and repo.is_auto_update_repo and not repo.is_only_tag_update:
             raise HTTPException(
                 status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,

@@ -21,6 +21,10 @@ def test_create_repo(test_repos, database) -> None:
     new_repos = []
     for test_repo in test_repos:
         logging.info(test_repo['name'])
+
+        if test_repo['is_compilable_repo'] and test_repo.get('is_auto_update_repo'):
+            test_repo['is_only_tag_update'] = True
+
         repo = repo_service.create(RepoCreate(**test_repo))
         new_repos.append(repo)
 
@@ -61,7 +65,11 @@ def test_update_repo(database) -> None:
     # set default branch for all repos
     for update_repo in pytest.repos:
         logging.info(update_repo.uuid)
-        new_repo_state = RepoUpdate(default_branch=update_repo.branches[0])
+
+        new_repo_state = RepoUpdate(
+            default_branch=update_repo.branches[0],
+            is_only_tag_update=True if update_repo.is_compilable_repo else update_repo.is_only_tag_update,
+        )
         repo_service.update(update_repo.uuid, new_repo_state)
 
     # check change name to new
@@ -221,7 +229,7 @@ def test_get_many_repo(database) -> None:
     # check for users is updated
     count, repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
 
-    assert len(repos) == 5
+    assert len(repos) == 6
 
     # check many get with all filters
     count, repos = repo_service.list(
@@ -233,4 +241,4 @@ def test_get_many_repo(database) -> None:
             limit=1_000_000,
         )
     )
-    assert len(repos) == 5
+    assert len(repos) == 6

@@ -179,7 +179,11 @@ class UnitService:
                 update_dict = {'NEW_COMMIT_VERSION': target_version}
 
                 if repo.is_compilable_repo:
-                    update_dict['COMPILED_FIRMWARE_LINK'] = json.loads(repo.releases_data)[target_tag][unit.platform]
+
+                    links = json.loads(repo.releases_data)[target_tag]
+                    platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
+
+                    update_dict['COMPILED_FIRMWARE_LINK'] = link
 
                 mqtt.publish(
                     f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
@@ -281,6 +285,7 @@ class UnitService:
 
         if repo.is_compilable_repo:
             tmp_git_repo_path = self.git_repo_repository.get_tmp_path(gen_uuid)
+            os.mkdir(tmp_git_repo_path)
         else:
             tmp_git_repo_path = self.git_repo_repository.generate_tmp_git_repo(repo, target_version, gen_uuid)
 

@@ -176,14 +176,19 @@ class GitRepoRepository:
         tags = self.get_branch_tags(repo, repo.default_branch)
 
         target_commit = None
+        error_info = ''
         if repo.is_auto_update_repo:
             if repo.is_compilable_repo:
                 if len(tags) != 0:
                     target_commit = tags[0]
+                else:
+                    error_info = 'The tags are not in the repository'
             else:
                 if repo.is_only_tag_update:
                     if len(tags) != 0:
                         target_commit = tags[0]
+                    else:
+                        error_info = 'The tags are not in the repository'
                 else:
                     target_commit = all_commits[0]
 
@@ -200,8 +205,7 @@ class GitRepoRepository:
 
         if not target_commit:
             raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'Version is missing',
+                status_code=http_status.HTTP_400_BAD_REQUEST, detail='Version is missing: {}'.format(error_info)
             )
 
         return target_commit['commit'], target_commit['tag']

@@ -58,7 +58,6 @@ class RepoService:
         self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
         self.repo_repository.is_valid_private_repo(data)
         self.repo_repository.is_valid_platform(data)
-        self.repo_repository.is_valid_compilable_repo(data)
 
         repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
