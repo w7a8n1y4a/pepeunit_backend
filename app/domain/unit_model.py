@@ -27,6 +27,9 @@ class Unit(SQLModel, table=True):
     # the last tag or commit in the default Repo branch is taken automatically
     is_auto_update_from_repo_unit: bool = Field(nullable=False, default=True)
 
+    # if is_compilable_repo == True - link names from assets releases
+    target_firmware_platform: str = Field(nullable=True, default=None)
+
     # if is_auto_update_from_repo_unit = False
     # target branch name
     repo_branch: str = Field(nullable=True)

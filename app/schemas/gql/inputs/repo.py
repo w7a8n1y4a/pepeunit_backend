@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from app.repositories.enum import OrderByDate, VisibilityLevel
+from app.repositories.enum import GitPlatform, OrderByDate, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -19,9 +19,12 @@ class RepoCreateInput(TypeInputMixin):
     name: str
 
     repo_url: str
+    platform: GitPlatform
 
     is_public_repository: bool
     credentials: Optional[CredentialsInput] = None
+
+    is_compilable_repo: bool
 
 
 @strawberry.input()
@@ -35,6 +38,8 @@ class RepoUpdateInput(TypeInputMixin):
     default_commit: Optional[str] = None
 
     is_only_tag_update: Optional[bool] = None
+
+    is_compilable_repo: Optional[bool] = None
 
 
 @strawberry.input()
