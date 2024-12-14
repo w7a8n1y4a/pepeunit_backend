@@ -43,7 +43,7 @@ def test_create_unit(database) -> None:
         new_units.append(unit)
 
     # create no auto updated units, with all visibility levels
-    for inc, test_repo in enumerate([pytest.repos[-3]] + pytest.repos[-3:] * 2):
+    for inc, test_repo in enumerate([pytest.repos[-4]] + pytest.repos[-4:-1] * 2 + [pytest.repos[-1]]):
         logging.info(test_repo.uuid)
         repo_service = get_repo_service(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
@@ -58,6 +58,7 @@ def test_create_unit(database) -> None:
                 is_auto_update_from_repo_unit=False,
                 repo_branch=test_repo.branches[0],
                 repo_commit=commits[0].commit,
+                target_firmware_platform='Universal' if test_repo.is_compilable_repo else None,
             )
         )
         new_units.append(unit)
@@ -151,6 +152,7 @@ def test_update_unit(database) -> None:
 
     # check change visibility
     target_unit = pytest.units[1]
+    logging.info(target_unit.uuid)
 
     unit_service.update(target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.INTERNAL))
     update_unit = unit_service.get(target_unit.uuid)
@@ -292,7 +294,7 @@ def test_get_firmware(database) -> None:
 
 
 @pytest.mark.run(order=5)
-def test_run_infrastructure_contour() -> None:
+def test_run_infrastructure_contour(database) -> None:
 
     backend_screen_name = 'pepeunit_backend'
     backend_run_script = 'bash tests/entrypoint.sh'
@@ -323,13 +325,31 @@ def test_run_infrastructure_contour() -> None:
     # TODO: придумать как изменить проверку
     time.sleep(10)
 
+    current_user = pytest.users[0]
+    token = pytest.user_tokens_dict[current_user.uuid]
+    logging.info(f'User token: {token}')
+
+    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': token}))
+
     # run units in screen
     for inc, unit in enumerate(pytest.units):
 
         logging.info(unit.uuid)
 
         unit_screen_name = unit.name
-        unit_script = f'cd tmp/test_units/{unit.uuid} && bash entrypoint.sh'
+        if inc == 8:
+            # only for compile
+
+            target_repo = repo_service.repo_repository.get(Repo(uuid=unit.repo_uuid))
+            target_version, target_tag = repo_service.git_repo_repository.get_target_unit_version(target_repo, unit)
+
+            links = json.loads(target_repo.releases_data)[target_tag]
+            platform, link = repo_service.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
+
+            unit_script = f'cd tmp/test_units/{unit.uuid} && curl {link} --output test.zip && unzip test.zip -d test && cp -r test/* ./ && bash entrypoint.sh'
+
+        else:
+            unit_script = f'cd tmp/test_units/{unit.uuid} && bash entrypoint.sh'
 
         if not check_screen_session_by_name(unit_screen_name):
             assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
@@ -382,7 +402,10 @@ def test_hand_update_firmware_unit(database) -> None:
         logging.info(unit.uuid)
 
         repo = repo_service.get(unit.repo_uuid)
-        commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+        commits = repo_service.get_branch_commits(
+            repo.uuid, CommitFilter(repo_branch=repo.branches[0], only_tag=repo.is_only_tag_update)
+        )
+        print(commits)
         target_version = commits[1].commit
         target_versions.append(target_version)
 
@@ -464,7 +487,7 @@ def test_repo_update_firmware_unit(database) -> None:
     unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': token}))
     repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': token}))
 
-    target_units = pytest.units[-3:]
+    target_units = pytest.units[-4:-1]
 
     # set auto update
     for unit in target_units:
@@ -480,8 +503,7 @@ def test_repo_update_firmware_unit(database) -> None:
     # wait hand update unit
     inc = 0
     while True:
-        data = unit_service.get(target_units[-3].uuid).current_commit_version
-        logging.info(data)
+        data = unit_service.get(target_units[0].uuid).current_commit_version
 
         if data == target_version:
             break
@@ -531,11 +553,11 @@ def test_get_many_unit(database) -> None:
     count, units = unit_service.list(
         UnitFilter(
             creator_uuid=current_user.uuid,
-            repo_uuid=pytest.repos[-1].uuid,
+            repo_uuid=pytest.repos[-2].uuid,
             search_string=pytest.test_hash,
             is_auto_update_from_repo_unit=True,
             offset=0,
             limit=1_000_000,
         )
     )
-    assert len(units) == 1
+    assert len(units) == 2

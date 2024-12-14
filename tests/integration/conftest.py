@@ -139,6 +139,13 @@ def test_repos() -> list[dict]:
                 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
                 'platform': 'Gitlab',
             },
+            {
+                'type': VisibilityLevel.PUBLIC,
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+                'platform': 'Gitlab',
+                'compile': True,
+            },
         ]
     )
 
@@ -149,7 +156,7 @@ def test_repos() -> list[dict]:
             'repo_url': repo['link'],
             'is_public_repository': repo['is_public'],
             'platform': repo['platform'],
-            'is_compilable_repo': False,
+            'is_compilable_repo': repo['compile'] if 'compile' in repo else False,
             'credentials': (
                 None
                 if repo['is_public'] == True

@@ -62,7 +62,7 @@ def test_create_unit_node_edge(database) -> None:
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
-    target_units = pytest.units[-3:]
+    target_units = pytest.units[-4:-1]
 
     def update_schema(token: str, unit_uuid: uuid_pkg.UUID) -> int:
         headers = {'accept': 'application/json', 'x-auth-token': token}
@@ -147,7 +147,7 @@ def test_set_state_input_unit_node(database) -> None:
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
-    target_unit = pytest.units[-3]
+    target_unit = pytest.units[-4]
     unit_service = get_unit_service(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
@@ -186,7 +186,7 @@ def test_get_unit_node_edge(database) -> None:
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
-    target_unit = pytest.units[-2]
+    target_unit = pytest.units[-3]
 
     # check get unit node edges by uuid unit
     count, target_edges = unit_node_service.get_unit_node_edges(target_unit.uuid)
