@@ -52,6 +52,11 @@ class CommitRead(BaseModel):
     tag: Optional[str] = None
 
 
+class PlatformRead(BaseModel):
+    name: str
+    link: str
+
+
 class RepoCreate(BaseModel):
     visibility_level: VisibilityLevel
     name: str

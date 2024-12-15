@@ -145,6 +145,29 @@ def test_get_commits_repo(database) -> None:
 
 
 @pytest.mark.run(order=3)
+def test_get_available_platforms(database) -> None:
+
+    current_user = pytest.users[0]
+    repo_service = get_repo_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    target_repo = pytest.repos[-1]
+
+    # check get platforms
+    platforms = repo_service.get_available_platforms(target_repo.uuid)
+    assert len(platforms) > 0
+
+    # check get platforms by tag
+    platforms = repo_service.get_available_platforms(target_repo.uuid, '0.0.9')
+    assert len(platforms) > 0
+
+    # check get with bad tag
+    platforms = repo_service.get_available_platforms(target_repo.uuid, '0.0.0.0')
+    assert len(platforms) == 0
+
+
+@pytest.mark.run(order=4)
 def test_update_credentials_repo(test_repos, database) -> None:
 
     current_user = pytest.users[0]
@@ -167,7 +190,7 @@ def test_update_credentials_repo(test_repos, database) -> None:
         repo_service.update_credentials(repo.uuid, test_repos[inc]['credentials'])
 
 
-@pytest.mark.run(order=4)
+@pytest.mark.run(order=5)
 def test_update_default_branch_repo(database) -> None:
 
     current_user = pytest.users[0]
@@ -190,7 +213,7 @@ def test_update_default_branch_repo(database) -> None:
         repo_service.update(repo.uuid, RepoUpdate(default_branch=full_repo.branches[0] + 't'))
 
 
-@pytest.mark.run(order=5)
+@pytest.mark.run(order=6)
 def test_update_local_repo(database) -> None:
 
     current_user = pytest.users[0]
@@ -207,7 +230,7 @@ def test_update_local_repo(database) -> None:
         repo_service.update_local_repo(repo.uuid)
 
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=7)
 def test_delete_repo(database) -> None:
 
     current_user = pytest.users[0]
@@ -219,7 +242,7 @@ def test_delete_repo(database) -> None:
     repo_service.delete(pytest.repos[3].uuid)
 
 
-@pytest.mark.run(order=7)
+@pytest.mark.run(order=8)
 def test_get_many_repo(database) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(

@@ -1,11 +1,19 @@
 import uuid as uuid_pkg
+from typing import Optional
 
 import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_repo_service
 from app.schemas.gql.inputs.repo import CommitFilterInput, RepoFilterInput
-from app.schemas.gql.types.repo import CommitType, ReposResultType, RepoType, RepoVersionsType, RepoVersionType
+from app.schemas.gql.types.repo import (
+    CommitType,
+    PlatformType,
+    ReposResultType,
+    RepoType,
+    RepoVersionsType,
+    RepoVersionType,
+)
 
 
 @strawberry.field()
@@ -25,6 +33,15 @@ def get_repos(filters: RepoFilterInput, info: Info) -> ReposResultType:
 def get_branch_commits(uuid: uuid_pkg.UUID, filters: CommitFilterInput, info: Info) -> list[CommitType]:
     repo_service = get_repo_service(info)
     return [CommitType(**commit.dict()) for commit in repo_service.get_branch_commits(uuid, filters)]
+
+
+@strawberry.field()
+def get_available_platforms(uuid: uuid_pkg.UUID, info: Info, target_tag: Optional[str] = None) -> list[PlatformType]:
+    repo_service = get_repo_service(info)
+    return [
+        PlatformType(name=platform[0], link=platform[1])
+        for platform in repo_service.get_available_platforms(uuid, target_tag)
+    ]
 
 
 @strawberry.field()
