@@ -2,7 +2,7 @@ import json
 import logging
 import threading
 import uuid as uuid_pkg
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import Depends, HTTPException
 
@@ -100,6 +100,29 @@ class RepoService:
         )
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
+
+    def get_available_platforms(self, uuid: uuid_pkg.UUID, target_tag: Optional[str] = None) -> list[tuple[str, str]]:
+
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+        is_valid_object(repo)
+        self.access_service.visibility_check(repo)
+
+        platforms = []
+        if repo.is_compilable_repo and repo.releases_data:
+            releases = json.loads(repo.releases_data)
+
+            if target_tag:
+                try:
+                    platforms = releases[target_tag]
+                except KeyError:
+                    return platforms
+            else:
+                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo)
+                platforms = releases[target_tag]
+
+        return platforms
 
     def get_versions(self, uuid: uuid_pkg.UUID) -> RepoVersionsRead:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
