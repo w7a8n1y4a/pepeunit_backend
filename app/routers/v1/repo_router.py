@@ -65,11 +65,14 @@ def get_branch_commits(
 
 @router.get("/available_platforms/{uuid}", response_model=list[PlatformRead])
 def get_available_platforms(
-    uuid: uuid_pkg.UUID, target_tag: Optional[str] = None, repo_service: RepoService = Depends()
+    uuid: uuid_pkg.UUID,
+    target_commit: Optional[str] = None,
+    target_tag: Optional[str] = None,
+    repo_service: RepoService = Depends(),
 ):
     return [
         PlatformRead(name=platform[0], link=platform[1])
-        for platform in repo_service.get_available_platforms(uuid, target_tag)
+        for platform in repo_service.get_available_platforms(uuid, target_commit, target_tag)
     ]
 
 
