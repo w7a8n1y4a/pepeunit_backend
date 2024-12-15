@@ -50,6 +50,12 @@ class CommitType(TypeInputMixin):
 
 
 @strawberry.type()
+class PlatformType(TypeInputMixin):
+    name: str
+    link: str
+
+
+@strawberry.type()
 class RepoVersionType(TypeInputMixin):
     commit: str
     unit_count: int

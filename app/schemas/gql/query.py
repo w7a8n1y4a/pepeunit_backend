@@ -17,6 +17,7 @@ Query = create_type(
         get_repo,
         get_repos,
         get_branch_commits,
+        get_available_platforms,
         get_versions,
         get_unit,
         get_unit_env,

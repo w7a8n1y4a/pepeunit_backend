@@ -1,5 +1,6 @@
 import logging
 import uuid as uuid_pkg
+from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
@@ -11,6 +12,7 @@ from app.schemas.pydantic.repo import (
     CommitFilter,
     CommitRead,
     Credentials,
+    PlatformRead,
     RepoCreate,
     RepoFilter,
     RepoRead,
@@ -59,6 +61,16 @@ def get_branch_commits(
     uuid: uuid_pkg.UUID, filters: CommitFilter = Depends(CommitFilter), repo_service: RepoService = Depends()
 ):
     return repo_service.get_branch_commits(uuid, filters)
+
+
+@router.get("/available_platforms/{uuid}", response_model=list[PlatformRead])
+def get_available_platforms(
+    uuid: uuid_pkg.UUID, target_tag: Optional[str] = None, repo_service: RepoService = Depends()
+):
+    return [
+        PlatformRead(name=platform[0], link=platform[1])
+        for platform in repo_service.get_available_platforms(uuid, target_tag)
+    ]
 
 
 @router.get("/versions/{uuid}", response_model=RepoVersionsRead)
