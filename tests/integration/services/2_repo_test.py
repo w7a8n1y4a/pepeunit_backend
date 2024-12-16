@@ -198,7 +198,8 @@ def test_update_credentials_repo(test_repos, database) -> None:
         logging.info(repo.uuid)
 
         # change to invalid credentials
-        repo_service.update_credentials(repo.uuid, Credentials(username='test', pat_token='test'))
+        with pytest.raises(fastapi.HTTPException):
+            repo_service.update_credentials(repo.uuid, Credentials(username='test', pat_token='test'))
 
         # check update local repo with bad credentials
         with pytest.raises(fastapi.HTTPException):
