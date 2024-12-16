@@ -112,14 +112,22 @@ def test_repos() -> list[dict]:
             {
                 'type': VisibilityLevel.PUBLIC,
                 'is_public': True,
+                'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
+                'platform': 'Github',
+            },
+            {
+                'type': VisibilityLevel.PUBLIC,
+                'is_public': True,
                 'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
                 'platform': 'Gitlab',
+                'compile': True,
             },
             {
                 'type': VisibilityLevel.PUBLIC,
                 'is_public': True,
                 'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
                 'platform': 'Github',
+                'compile': True,
             },
             {
                 'type': VisibilityLevel.PUBLIC,
