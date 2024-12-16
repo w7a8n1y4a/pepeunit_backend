@@ -2,9 +2,8 @@ import json
 from abc import ABC, abstractmethod
 
 import httpx
-from fastapi import HTTPException
-from fastapi import status as http_status
 
+from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
 from app.utils.utils import aes_decode
@@ -80,10 +79,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         try:
             target_id = result_data.json()['id']
         except KeyError:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f'Invalid Credentials',
-            )
+            app_errors.validation_error.raise_exception('Invalid Credentials')
 
         return target_id
 

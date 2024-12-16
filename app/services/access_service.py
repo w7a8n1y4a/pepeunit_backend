@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 from typing import Optional, Union
 
 import jwt
-from fastapi import Depends, HTTPException, params
-from fastapi import status as http_status
+from fastapi import Depends, params
 
 from app import settings
+from app.configs.errors import app_errors
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -46,21 +46,22 @@ class AccessService:
                 try:
                     data = jwt.decode(self.jwt_token, settings.secret_key, algorithms=['HS256'])
                 except jwt.exceptions.ExpiredSignatureError:
-                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                    app_errors.no_access.raise_exception("Token expired")
                 except jwt.exceptions.InvalidTokenError:
-                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                    app_errors.no_access.raise_exception("Token is invalid")
 
                 if data['type'] == AgentType.USER:
                     agent = self.user_repository.get(User(uuid=data['uuid']))
                     if not agent:
-                        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                        app_errors.no_access.raise_exception("User not found")
+
                     if agent.status == UserStatus.BLOCKED:
-                        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                        app_errors.no_access.raise_exception("User is Blocked")
                 elif data['type'] == AgentType.UNIT:
                     agent = self.unit_repository.get(Unit(uuid=data['uuid']))
 
                 if not agent:
-                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                    app_errors.no_access.raise_exception("Agent not found")
 
                 self.current_agent = agent
             else:
@@ -70,10 +71,10 @@ class AccessService:
             if self.jwt_token:
                 agent = self.user_repository.get_user_by_credentials(self.jwt_token)
                 if not agent:
-                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                    app_errors.no_access.raise_exception("User not found")
 
                 if agent.status == UserStatus.BLOCKED:
-                    raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No Access")
+                    app_errors.no_access.raise_exception("User is Blocked")
 
                 self.current_agent = agent
             else:
@@ -86,12 +87,12 @@ class AccessService:
 
         if isinstance(self.current_agent, User):
             if self.current_agent.role not in [role.value for role in available_user_role]:
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+                app_errors.no_access.raise_exception("The current user role is not in the list of available roles")
         elif isinstance(self.current_agent, Unit):
             if not is_unit_available:
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+                app_errors.no_access.raise_exception("The resource is not available for the current Unit")
         else:
-            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+            app_errors.no_access.raise_exception("Agent unavailable")
 
     def visibility_check(self, check_entity):
         """
@@ -102,7 +103,7 @@ class AccessService:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
             if not (isinstance(self.current_agent, Unit) or self.current_agent.role in [UserRole.USER, UserRole.ADMIN]):
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+                app_errors.no_access.raise_exception("Internal visibility level is not allowed")
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE:
             permission_check = PermissionBaseType(
                 agent_type=self.current_agent.__class__.__name__,
@@ -111,15 +112,15 @@ class AccessService:
                 resource_uuid=check_entity.uuid,
             )
             if not self.permission_repository.check(permission_check):
-                raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+                app_errors.no_access.raise_exception("Private visibility level is not allowed")
 
     def access_creator_check(self, obj: Union[Repo, Unit, UnitNode, UnitNodeEdge]) -> None:
         if self.current_agent.uuid != obj.creator_uuid:
-            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+            app_errors.no_access.raise_exception("Agent is not creator this entity - {}".format(obj.__class__.__name__))
 
     def access_unit_check(self, unit: Unit) -> None:
         if isinstance(self.current_agent, Unit) and unit.uuid != self.current_agent.uuid:
-            raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+            app_errors.no_access.raise_exception("The unit requesting the information does not have access to it")
 
     def access_only_creator_and_target_unit(self, unit: Unit):
         if isinstance(self.current_agent, User):
@@ -162,9 +163,8 @@ class AccessService:
         Checks that the Unit has access to set the value of the Input UnitNode
         """
         if isinstance(self.current_agent, Unit) and not unit_node.is_rewritable_input:
-            raise HTTPException(
-                status_code=http_status.HTTP_403_FORBIDDEN,
-                detail=f"This UnitNode topic can only be edited by a User, set is_rewritable_input=True for available",
+            app_errors.no_access.raise_exception(
+                'This UnitNode topic can only be edited by a User, set is_rewritable_input=True for available'
             )
 
     @staticmethod
