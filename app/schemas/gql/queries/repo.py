@@ -36,11 +36,13 @@ def get_branch_commits(uuid: uuid_pkg.UUID, filters: CommitFilterInput, info: In
 
 
 @strawberry.field()
-def get_available_platforms(uuid: uuid_pkg.UUID, info: Info, target_tag: Optional[str] = None) -> list[PlatformType]:
+def get_available_platforms(
+    uuid: uuid_pkg.UUID, info: Info, target_commit: Optional[str] = None, target_tag: Optional[str] = None
+) -> list[PlatformType]:
     repo_service = get_repo_service(info)
     return [
         PlatformType(name=platform[0], link=platform[1])
-        for platform in repo_service.get_available_platforms(uuid, target_tag)
+        for platform in repo_service.get_available_platforms(uuid, target_commit, target_tag)
     ]
 
 
