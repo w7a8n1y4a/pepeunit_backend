@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import threading
@@ -67,6 +68,8 @@ class RepoService:
         if repo.is_compilable_repo:
             repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
+        repo.create_datetime = datetime.datetime.utcnow()
+        repo.last_update_datetime = repo.create_datetime
         repo = self.repo_repository.create(repo)
 
         self.git_repo_repository.clone_remote_repo(repo)
@@ -157,6 +160,7 @@ class RepoService:
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
         update_repo = Repo(**repo_update_dict)
+        update_repo.last_update_datetime = datetime.datetime.utcnow()
 
         count, child_units = self.unit_repository.list(filters=UnitFilter(repo_uuid=update_repo.uuid))
         is_valid_visibility_level(update_repo, [unit[0] for unit in child_units])
@@ -192,6 +196,7 @@ class RepoService:
         if repo.is_compilable_repo:
             repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
+        repo.last_update_datetime = datetime.datetime.utcnow()
         repo = self.repo_repository.update(uuid, repo)
 
         self.git_repo_repository.update_credentials(repo)
@@ -208,6 +213,7 @@ class RepoService:
         self.git_repo_repository.is_valid_branch(repo, default_branch)
 
         repo.default_branch = default_branch
+        repo.last_update_datetime = datetime.datetime.utcnow()
         repo = self.repo_repository.update(uuid, repo)
 
         return self.mapper_repo_to_repo_read(repo)
