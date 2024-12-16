@@ -57,6 +57,8 @@ def test_create_repo(test_repos, database) -> None:
 @pytest.mark.run(order=1)
 def test_update_repo(database) -> None:
 
+    pytest.repos = pytest.repos[:2] + pytest.repos[3:]
+
     current_user = pytest.users[0]
     repo_service = get_repo_service(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
@@ -271,7 +273,7 @@ def test_get_many_repo(database) -> None:
     # check for users is updated
     count, repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))
 
-    assert len(repos) == 6
+    assert len(repos) == 7
 
     # check many get with all filters
     count, repos = repo_service.list(
@@ -283,4 +285,4 @@ def test_get_many_repo(database) -> None:
             limit=1_000_000,
         )
     )
-    assert len(repos) == 6
+    assert len(repos) == 7
