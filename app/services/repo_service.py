@@ -101,7 +101,9 @@ class RepoService:
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
-    def get_available_platforms(self, uuid: uuid_pkg.UUID, target_tag: Optional[str] = None) -> list[tuple[str, str]]:
+    def get_available_platforms(
+        self, uuid: uuid_pkg.UUID, target_commit: Optional[str] = None, target_tag: Optional[str] = None
+    ) -> list[tuple[str, str]]:
 
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
@@ -117,7 +119,12 @@ class RepoService:
                 try:
                     platforms = releases[target_tag]
                 except KeyError:
-                    return platforms
+                    pass
+            elif target_commit:
+                commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+                commit = self.git_repo_repository.find_by_commit(commits, target_commit)
+                if commit and commit.get('tag'):
+                    platforms = releases[commit['tag']]
             else:
                 target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo)
                 platforms = releases[target_tag]

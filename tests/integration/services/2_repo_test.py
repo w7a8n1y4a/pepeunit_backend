@@ -120,6 +120,12 @@ def test_update_repo(database) -> None:
 
         repo_service.update(repo.uuid, new_repo_state)
 
+    # set for compile repo default branch
+    new_repo_state = RepoUpdate(
+        default_branch=pytest.repos[-1].branches[0],
+    )
+    pytest.repos[-1] = repo_service.update(pytest.repos[-1].uuid, new_repo_state)
+
 
 @pytest.mark.run(order=2)
 def test_get_commits_repo(database) -> None:
@@ -159,12 +165,24 @@ def test_get_available_platforms(database) -> None:
     assert len(platforms) > 0
 
     # check get platforms by tag
-    platforms = repo_service.get_available_platforms(target_repo.uuid, '0.0.9')
+    platforms = repo_service.get_available_platforms(target_repo.uuid, target_tag='0.0.9')
     assert len(platforms) > 0
 
     # check get with bad tag
-    platforms = repo_service.get_available_platforms(target_repo.uuid, '0.0.0.0')
+    platforms = repo_service.get_available_platforms(target_repo.uuid, target_tag='0.0.0.0')
     assert len(platforms) == 0
+
+    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+
+    # check get by commit without tag
+    platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=commits[-1]['commit'])
+    assert len(platforms) == 0
+
+    tags = repo_service.git_repo_repository.get_branch_tags(target_repo, target_repo.default_branch)
+
+    # check get by commit with tag
+    platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=tags[0]['commit'])
+    assert len(platforms) > 0
 
 
 @pytest.mark.run(order=4)

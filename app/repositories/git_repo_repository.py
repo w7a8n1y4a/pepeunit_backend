@@ -120,6 +120,8 @@ class GitRepoRepository:
         Get all commits for branch with depth
         """
 
+        self.is_valid_branch(repo, branch)
+
         repo = self.get_repo(repo)
         return [
             {'commit': item.name_rev.split()[0], 'summary': item.summary}
