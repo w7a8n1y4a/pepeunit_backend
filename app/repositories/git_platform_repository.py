@@ -2,6 +2,8 @@ import json
 from abc import ABC, abstractmethod
 
 import httpx
+from fastapi import HTTPException
+from fastapi import status as http_status
 
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
@@ -64,8 +66,26 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         return super()._get_repository_name()
 
     def _get_repository_id(self) -> int:
-        result_data = httpx.get(self._get_api_url() + self._get_repository_name().replace('/', '%2F'))
-        return result_data.json()['id']
+
+        headers = None
+        if self.credentials:
+            headers = {
+                'PRIVATE-TOKEN': self.credentials.pat_token,
+            }
+
+        result_data = httpx.get(
+            url=self._get_api_url() + self._get_repository_name().replace('/', '%2F'), headers=headers
+        )
+
+        try:
+            target_id = result_data.json()['id']
+        except KeyError:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f'Invalid Credentials',
+            )
+
+        return target_id
 
     def get_releases(self) -> dict[str, list[tuple[str, str]]]:
         repository_id = self._get_repository_id()
@@ -73,7 +93,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         headers = None
         if self.credentials:
             headers = {
-                'PRIVATE-TOKEN:': self.credentials.pat_token,
+                'PRIVATE-TOKEN': self.credentials.pat_token,
             }
 
         releases_data = httpx.get(url=f'{self._get_api_url()}{repository_id}/releases', headers=headers)
