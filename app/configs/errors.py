@@ -25,6 +25,10 @@ class AppErrors:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="JSON Decode Error: {}", error_code=3
         )
 
+        self.mqtt_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="MQTT Error: {}", error_code=4
+        )
+
 
 app_errors = AppErrors()
 
