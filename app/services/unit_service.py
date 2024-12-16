@@ -85,6 +85,7 @@ class UnitService:
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
 
         unit.create_datetime = datetime.datetime.utcnow()
+        unit.last_update_datetime = unit.create_datetime
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
@@ -118,6 +119,7 @@ class UnitService:
         self.is_valid_no_auto_updated_unit(repo, unit_update)
         self.git_repo_repository.is_valid_firmware_platform(repo, unit_update, unit_update.target_firmware_platform)
 
+        unit_update.last_update_datetime = datetime.datetime.utcnow()
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
         result_unit = self.update_firmware(result_unit, repo)
@@ -230,6 +232,7 @@ class UnitService:
         self.git_repo_repository.is_valid_env_file(repo, target_version, merged_env_dict)
 
         unit.cipher_env_dict = aes_encode(json.dumps(merged_env_dict))
+        unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
 
         return None
