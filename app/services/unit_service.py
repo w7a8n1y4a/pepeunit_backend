@@ -84,6 +84,7 @@ class UnitService:
 
         schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
 
+        unit.create_datetime = datetime.datetime.utcnow()
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 

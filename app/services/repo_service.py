@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import threading
@@ -67,6 +68,7 @@ class RepoService:
         if repo.is_compilable_repo:
             repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
+        repo.create_datetime = datetime.datetime.utcnow()
         repo = self.repo_repository.create(repo)
 
         self.git_repo_repository.clone_remote_repo(repo)

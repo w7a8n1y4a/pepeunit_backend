@@ -26,7 +26,7 @@ class UnitNode(SQLModel, table=True):
 
     # linked topic name
     topic_name: str = Field(nullable=False)
-    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    create_datetime: datetime = Field(nullable=False)
 
     # last state topic - only for topics with prefix #/pepeunit
     state: str = Field(nullable=True)

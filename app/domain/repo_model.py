@@ -20,7 +20,7 @@ class Repo(SQLModel, table=True):
     # unique name Repo on Instance
     name: str = Field(nullable=False, unique=True)
     # datetime Create Repo
-    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    create_datetime: datetime = Field(nullable=False)
 
     # link to remote repository
     repo_url: str = Field(nullable=False)

@@ -1,3 +1,4 @@
+import datetime
 import uuid as uuid_pkg
 from typing import Union
 
@@ -87,6 +88,7 @@ class UnitNodeService:
                     unit_uuid=unit.uuid,
                 )
 
+                unit_node.create_datetime = datetime.datetime.utcnow()
                 unit_nodes_list.append(unit_node)
 
                 for agent in [unit, self.access_service.current_agent]:
