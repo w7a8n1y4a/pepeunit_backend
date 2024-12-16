@@ -21,7 +21,7 @@ class Unit(SQLModel, table=True):
 
     # Unique Unit name on Instance
     name: str = Field(nullable=False, unique=True)
-    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    create_datetime: datetime = Field(nullable=False)
 
     # Automatically update when the parent Repo is updated?
     # the last tag or commit in the default Repo branch is taken automatically
@@ -36,7 +36,7 @@ class Unit(SQLModel, table=True):
     # target commit name - if target is Tag - will be assigned to the commit corresponding Tag
     repo_commit: str = Field(nullable=True)
 
-    last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    last_update_datetime: datetime = Field(nullable=False)
 
     # last state Unit
     unit_state_dict: str = Field(nullable=True)

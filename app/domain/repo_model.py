@@ -20,7 +20,7 @@ class Repo(SQLModel, table=True):
     # unique name Repo on Instance
     name: str = Field(nullable=False, unique=True)
     # datetime Create Repo
-    create_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    create_datetime: datetime = Field(nullable=False)
 
     # link to remote repository
     repo_url: str = Field(nullable=False)
@@ -54,7 +54,7 @@ class Repo(SQLModel, table=True):
     # if is_only_tag_update = False - last commit in default_branch
     is_only_tag_update: bool = Field(nullable=False, default=False)
 
-    last_update_datetime: datetime = Field(nullable=False, default_factory=datetime.utcnow)
+    last_update_datetime: datetime = Field(nullable=False)
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
