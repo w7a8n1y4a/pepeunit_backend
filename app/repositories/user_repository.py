@@ -90,4 +90,4 @@ class UserRepository:
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            app_errors.validation_error.raise_exception('This Telegram user is already verified')
+            app_errors.validation_error.raise_exception('This Telegram User is already verified')
