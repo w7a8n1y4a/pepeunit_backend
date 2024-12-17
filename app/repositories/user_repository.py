@@ -1,14 +1,14 @@
 import uuid as uuid_pkg
 from typing import Optional, Union
 
-from fastapi import Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends
 from fastapi.params import Query
 from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from app import settings
 from app.configs.db import get_session
+from app.configs.errors import app_errors
 from app.domain.user_model import User
 from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.gql.inputs.user import UserFilterInput
@@ -71,20 +71,18 @@ class UserRepository:
         uuid = str(uuid)
 
         if not is_valid_string_with_rules(login):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Login is not correct")
+            app_errors.validation_error.raise_exception('Login is not correct')
 
         user_uuid = self.db.exec(select(User.uuid).where(User.login == login)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Login is not unique")
+            app_errors.validation_error.raise_exception('Login is not unique')
 
     @staticmethod
     def is_valid_password(password: str):
         if not is_valid_string_with_rules(password, settings.available_password_symbols, 8, 100):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Password is not correct"
-            )
+            app_errors.validation_error.raise_exception('Password is not correct')
 
     def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: Optional[uuid_pkg.UUID] = None):
         uuid = str(uuid)
@@ -92,6 +90,4 @@ class UserRepository:
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"This Telegram user is already verified"
-            )
+            app_errors.validation_error.raise_exception('This Telegram user is already verified')

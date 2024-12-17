@@ -1,12 +1,12 @@
 import uuid as uuid_pkg
 from typing import Optional
 
-from fastapi import Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends
 from sqlalchemy import or_
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.configs.errors import app_errors
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -179,7 +179,9 @@ class PermissionRepository:
         entities.remove(PermissionEntities.REPO)
 
         if permission.agent_type not in entities:
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Agent type is invalid")
+            app_errors.validation_error.raise_exception(
+                'Agent type {} is invalid, available: {}'.format(permission.agent_type, ', '.join(entities))
+            )
 
     @staticmethod
     def is_valid_resource_type(permission: Permission) -> None:
@@ -188,6 +190,6 @@ class PermissionRepository:
         entities.remove(PermissionEntities.USER)
 
         if permission.resource_type not in entities:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Resource type is invalid"
+            app_errors.validation_error.raise_exception(
+                'Resource type {} is invalid, available: {}'.format(permission.resource_type, ', '.join(entities))
             )

@@ -8,12 +8,12 @@ import os
 import shutil
 import uuid as uuid_pkg
 import zlib
-from typing import List, Optional, Union
+from typing import List, Union
 
-from fastapi import Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends
 
 from app import settings
+from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -218,7 +218,7 @@ class UnitService:
     def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        env_dict = is_valid_json(env_json_str)
+        env_dict = is_valid_json(env_json_str, 'env.json')
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         self.access_service.access_creator_check(unit)
@@ -359,12 +359,10 @@ class UnitService:
 
                 if destination in [DestinationTopicType.INPUT_BASE_TOPIC, DestinationTopicType.OUTPUT_BASE_TOPIC]:
                     if self.access_service.current_agent.uuid != unit_uuid:
-                        raise HTTPException(
-                            status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Available only for a docked Unit"
-                        )
+                        app_errors.no_access.raise_exception('Available only for a docked Unit')
                 else:
-                    raise HTTPException(
-                        status_code=http_status.HTTP_403_FORBIDDEN, detail=f"Topic destination is invalid"
+                    app_errors.no_access.raise_exception(
+                        'Topic destination {} is invalid, available {}'.format(destination, list(DestinationTopicType))
                     )
 
             elif len_struct in [2, 3]:
@@ -376,14 +374,11 @@ class UnitService:
 
                 self.access_service.visibility_check(unit_node)
             else:
-                raise HTTPException(
-                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Topic struct is invalid"
+                app_errors.validation_error.raise_exception(
+                    'Topic struct is invalid, len {}, available - [2, 3]'.format(len_struct)
                 )
         else:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Not Unit - unavailable topic communication",
-            )
+            app_errors.validation_error.raise_exception('Only for Unit available topic communication')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -467,7 +462,9 @@ class UnitService:
 
     def is_valid_no_auto_updated_unit(self, repo: Repo, data: Union[Unit, UnitCreate]):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid hand updated unit")
+            app_errors.validation_error.raise_exception(
+                'Unit updated manually requires branch and commit to be filled out'
+            )
 
         # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
@@ -486,10 +483,14 @@ class UnitService:
     def is_valid_wbits(wbits: int):
         available_values_list = list(itertools.chain(range(-15, -8), range(9, 16), range(25, 32)))
         if wbits not in available_values_list:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Wbits is not valid")
+            app_errors.validation_error.raise_exception(
+                'Wbits {} is not valid, available {}'.format(wbits, available_values_list)
+            )
 
     @staticmethod
     def is_valid_level(level: int):
         available_values_list = list(range(-1, 10))
         if level not in available_values_list:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Level is not valid")
+            app_errors.validation_error.raise_exception(
+                'Level {} is not valid, available {}'.format(level, available_values_list)
+            )
