@@ -22,6 +22,7 @@ from app.repositories.enum import (
     GlobalPrefixTopic,
     PermissionEntities,
     ReservedInputBaseTopic,
+    StaticRepoFileName,
     UnitNodeTypeEnum,
     UserRole,
 )
@@ -218,7 +219,7 @@ class UnitService:
     def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        env_dict = is_valid_json(env_json_str, 'env.json')
+        env_dict = is_valid_json(env_json_str, StaticRepoFileName.ENV)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         self.access_service.access_creator_check(unit)
@@ -295,12 +296,12 @@ class UnitService:
 
         env_dict['COMMIT_VERSION'] = target_version
 
-        with open(f'{tmp_git_repo_path}/env.json', 'w') as f:
+        with open(f'{tmp_git_repo_path}/{StaticRepoFileName.ENV}', 'w') as f:
             f.write(json.dumps(env_dict, indent=4))
 
         new_schema_dict = self.generate_current_schema(unit, repo, target_version)
 
-        with open(f'{tmp_git_repo_path}/schema.json', 'w') as f:
+        with open(f'{tmp_git_repo_path}/{StaticRepoFileName.SCHEMA}', 'w') as f:
             f.write(json.dumps(new_schema_dict, indent=4))
 
         return tmp_git_repo_path
