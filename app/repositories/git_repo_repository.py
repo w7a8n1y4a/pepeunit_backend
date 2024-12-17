@@ -16,7 +16,7 @@ from app import settings
 from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName
+from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
 from app.repositories.git_platform_repository import (
     GithubPlatformRepository,
     GitlabPlatformRepository,
@@ -62,7 +62,15 @@ class GitRepoRepository:
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
 
-        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md', 'LICENSE']
+        del_path_list = [
+            '.gitignore',
+            StaticRepoFileName.ENV_EXAMPLE,
+            '.git',
+            'docs',
+            'model' 'readme.md',
+            'README.md',
+            'LICENSE',
+        ]
 
         for path in del_path_list:
             merge_path = f'{tmp_git_repo_path}/{path}'
@@ -239,14 +247,12 @@ class GitRepoRepository:
         return buffer
 
     def get_schema_dict(self, repo: Repo, commit: str) -> dict:
-        # TODO: hardcode - подумать как избавиться
-        target_file = 'schema_example.json'
+        target_file = StaticRepoFileName.SCHEMA_EXAMPLE
         schema_buffer = self.get_file(repo, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
     def get_env_dict(self, repo: Repo, commit: str) -> dict:
-        # TODO: hardcode - подумать как избавиться
-        target_file = 'env_example.json'
+        target_file = StaticRepoFileName.ENV_EXAMPLE
         schema_buffer = self.get_file(repo, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
