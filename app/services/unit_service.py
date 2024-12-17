@@ -375,11 +375,11 @@ class UnitService:
 
                 self.access_service.visibility_check(unit_node)
             else:
-                app_errors.validation_error.raise_exception(
+                app_errors.mqtt_error.raise_exception(
                     'Topic struct is invalid, len {}, available - [2, 3]'.format(len_struct)
                 )
         else:
-            app_errors.validation_error.raise_exception('Only for Unit available topic communication')
+            app_errors.mqtt_error.raise_exception('Only for Unit available topic communication')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
