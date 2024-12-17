@@ -112,6 +112,18 @@ class GlobalPrefixTopic(str, enum.Enum):
 
 
 @strawberry.enum
+class StaticRepoFileName(str, enum.Enum):
+    """
+    Static files
+    """
+
+    SCHEMA_EXAMPLE = 'schema_example.json'
+    SCHEMA = 'schema.json'
+    ENV_EXAMPLE = 'env_example.json'
+    ENV = 'env.json'
+
+
+@strawberry.enum
 class ReservedEnvVariableName(str, enum.Enum):
     """
     Reserved environment variable names in Unit

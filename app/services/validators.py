@@ -3,40 +3,33 @@ import uuid as uuid_pkg
 from json import JSONDecodeError
 from typing import Optional, Sequence, Union
 
-from fastapi import HTTPException
-from fastapi import status as http_status
-
 from app import settings
+from app.configs.errors import app_errors
 from app.domain.user_model import User
-from app.repositories.enum import VisibilityLevel
 from app.services.utils import get_visibility_level_priority
 from app.utils.utils import check_password
 
 
 def is_valid_object(obj: any) -> None:
     if not obj:
-        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid request")
+        app_errors.validation_error.raise_exception('The object does not exist')
 
 
 def is_emtpy_sequence(obj: Sequence):
     if len(obj) != 0:
-        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"There are related objects")
+        app_errors.validation_error.raise_exception('The array was expected to be empty, but it turned out to be full')
 
 
 def is_valid_password(password: str, user: User) -> None:
     if not check_password(password, user.hashed_password, user.cipher_dynamic_salt):
-        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=f"No access")
+        app_errors.no_access.raise_exception("Password hash mismatched")
 
 
-def is_valid_json(json_str: str) -> dict:
+def is_valid_json(json_str: str, name: str) -> dict:
     try:
-        env_dict = json.loads(json_str)
+        return json.loads(json_str)
     except JSONDecodeError:
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This env_example.json file is not a json serialise'
-        )
-
-    return env_dict
+        app_errors.json_decode_error.raise_exception('Data {} is invalid'.format(name))
 
 
 def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
@@ -47,7 +40,7 @@ def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
     try:
         return uuid_pkg.UUID(uuid)
     except ValueError:
-        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f'This string is not UUID')
+        app_errors.validation_error.raise_exception('This {} string is not UUID'.format(uuid))
 
 
 def is_valid_string_with_rules(
@@ -73,7 +66,9 @@ def is_valid_visibility_level(parent_obj: any, child_objs: list) -> None:
         if get_visibility_level_priority(parent_obj.visibility_level) > get_visibility_level_priority(
             child_obj.visibility_level
         ):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f'The visibility level of the parent object is lower than that of the child object',
+            app_errors.validation_error.raise_exception(
+                'The visibility level of the parent object {} is lower than that of the child object {}'.format(
+                    parent_obj.__class__.__name__,
+                    child_obj.__class__.__name__,
+                )
             )

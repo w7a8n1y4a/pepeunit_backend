@@ -2,16 +2,16 @@ import json
 import uuid as uuid_pkg
 from typing import Optional
 
-from fastapi import Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends
 from fastapi.params import Query
 from sqlalchemy import desc, func
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
+from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import GitPlatform, VisibilityLevel
+from app.repositories.enum import GitPlatform
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -116,59 +116,58 @@ class RepoRepository:
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 
         if not is_valid_string_with_rules(name):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not correct")
+            app_errors.validation_error.raise_exception("Name is not correct")
 
         uuid = str(uuid)
         repo_uuid = self.db.exec(select(Repo.uuid).where(Repo.name == name)).first()
         repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
 
         if (uuid is None and repo_uuid) or (uuid and repo_uuid != uuid and repo_uuid is not None):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Name is not unique")
+            app_errors.validation_error.raise_exception("Name is not unique")
 
     @staticmethod
     def is_valid_repo_url(repo: Repo):
         url = repo.repo_url
         if url[-4:] != '.git' or not (url.find('https://') == 0 or url.find('http://') == 0):
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url")
+            app_errors.validation_error.raise_exception(
+                "Repo URL is not correct check the .git at the end of the link and the correctness of https / http"
+            )
 
     @staticmethod
     def is_valid_private_repo(data: RepoCreate or RepoUpdate):
         if not data.is_public_repository and (
             not data.credentials or (not data.credentials.username or not data.credentials.pat_token)
         ):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"No valid credentials")
+            app_errors.validation_error.raise_exception('No valid credentials')
 
     @staticmethod
     def is_private_repository(repo: Repo):
         if repo.is_public_repository:
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Is public repo")
+            app_errors.validation_error.raise_exception('Is public repo')
 
     @staticmethod
     def is_valid_platform(repo: RepoCreate):
         if repo.platform not in list(GitPlatform):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Platform is not supported"
+            app_errors.validation_error.raise_exception(
+                'Platform {} is not supported - available: {}'.format(repo.platform, ", ".join(list(GitPlatform)))
             )
 
     @staticmethod
     def is_valid_compilable_repo(repo: RepoUpdate):
         if repo.is_compilable_repo and repo.is_auto_update_repo and not repo.is_only_tag_update:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Compiled repositories use only tags when updating automatically",
+            app_errors.validation_error.raise_exception(
+                'Compiled repositories use only tags when updating automatically'
             )
 
     def is_valid_auto_updated_repo(self, repo: Repo):
         # not commit for last commit or not tags for last tags auto update
         if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid auto updated target version"
-            )
+            app_errors.validation_error.raise_exception('Invalid auto updated target version')
 
     def is_valid_no_auto_updated_repo(self, repo: Repo):
         if not repo.is_auto_update_repo and (not repo.default_branch or not repo.default_commit):
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid hand update commit or branch"
+            app_errors.validation_error.raise_exception(
+                'Repo updated manually requires branch and commit to be filled out'
             )
 
         # check commit and branch for not auto updated repo

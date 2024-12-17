@@ -6,23 +6,24 @@ import uuid as uuid_pkg
 from collections import Counter
 from json import JSONDecodeError
 from typing import Optional
+from zoneinfo import available_timezones
 
 import git
-from fastapi import HTTPException
-from fastapi import status as http_status
 from git import Repo as GitRepo
 from git.exc import GitCommandError
 
 from app import settings
+from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName
+from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
 from app.repositories.git_platform_repository import (
     GithubPlatformRepository,
     GitlabPlatformRepository,
     GitPlatformRepositoryABC,
 )
 from app.schemas.pydantic.repo import Credentials
+from app.services.validators import is_valid_json, is_valid_object
 
 
 class GitRepoRepository:
@@ -46,9 +47,7 @@ class GitRepoRepository:
                 self.get_platform(repo).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
             )
         except GitCommandError:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid repo_url or credentials"
-            )
+            app_errors.validation_error.raise_exception('No valid repo_url or credentials')
 
         # get all remotes branches to local repo
         for remote in git_repo.remotes:
@@ -63,7 +62,15 @@ class GitRepoRepository:
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
 
-        del_path_list = ['.gitignore', 'env_example.json', '.git', 'docs', 'model' 'readme.md', 'README.md', 'LICENSE']
+        del_path_list = [
+            '.gitignore',
+            StaticRepoFileName.ENV_EXAMPLE,
+            '.git',
+            'docs',
+            'model' 'readme.md',
+            'README.md',
+            'LICENSE',
+        ]
 
         for path in del_path_list:
             merge_path = f'{tmp_git_repo_path}/{path}'
@@ -178,19 +185,14 @@ class GitRepoRepository:
         tags = self.get_branch_tags(repo, repo.default_branch)
 
         target_commit = None
-        error_info = ''
         if repo.is_auto_update_repo:
             if repo.is_compilable_repo:
                 if len(tags) != 0:
                     target_commit = tags[0]
-                else:
-                    error_info = 'The tags are not in the repository'
             else:
                 if repo.is_only_tag_update:
                     if len(tags) != 0:
                         target_commit = tags[0]
-                    else:
-                        error_info = 'The tags are not in the repository'
                 else:
                     target_commit = all_commits[0]
 
@@ -200,15 +202,10 @@ class GitRepoRepository:
             target_commit = self.find_by_commit(all_commits, repo.default_commit)
 
             if repo.is_compilable_repo and target_commit['tag'] is None:
-                raise HTTPException(
-                    status_code=http_status.HTTP_400_BAD_REQUEST,
-                    detail=f'Commit without Tag',
-                )
+                app_errors.validation_error.raise_exception('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail='Version is missing: {}'.format(error_info)
-            )
+            app_errors.validation_error.raise_exception('Version is missing: The tags are not in the repository')
 
         return target_commit['commit'], target_commit['tag']
 
@@ -225,16 +222,10 @@ class GitRepoRepository:
 
             if target_commit:
                 if repo.is_compilable_repo and target_commit['tag'] is None:
-                    raise HTTPException(
-                        status_code=http_status.HTTP_400_BAD_REQUEST,
-                        detail=f'Commit without Tag',
-                    )
+                    app_errors.validation_error.raise_exception('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'Version is missing',
-            )
+            app_errors.validation_error.raise_exception('Version is missing')
 
         return target_commit['commit'], target_commit['tag']
 
@@ -242,12 +233,12 @@ class GitRepoRepository:
         repo = self.get_repo(repo)
 
         if commit is None:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Commit not found')
+            app_errors.validation_error.raise_exception('Commit not found')
 
         try:
             target_file = repo.commit(commit).tree / path
         except KeyError:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'File not found in repo commit')
+            app_errors.validation_error.raise_exception('File {} not found in repo commit {}'.format(path, commit))
 
         buffer = io.BytesIO()
 
@@ -256,27 +247,17 @@ class GitRepoRepository:
         return buffer
 
     def get_schema_dict(self, repo: Repo, commit: str) -> dict:
-        schema_buffer = self.get_file(repo, commit, 'schema_example.json')
-
-        return json.loads(schema_buffer.getvalue().decode())
+        target_file = StaticRepoFileName.SCHEMA_EXAMPLE
+        schema_buffer = self.get_file(repo, commit, target_file)
+        return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
     def get_env_dict(self, repo: Repo, commit: str) -> dict:
-        schema_buffer = self.get_file(repo, commit, 'env_example.json')
-
-        try:
-            env_dict = json.loads(schema_buffer.getvalue().decode())
-        except JSONDecodeError:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'This env_example.json file is not a json serialise',
-            )
-
-        return env_dict
+        target_file = StaticRepoFileName.ENV_EXAMPLE
+        schema_buffer = self.get_file(repo, commit, target_file)
+        return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
     def get_env_example(self, repo: Repo, commit: str) -> dict:
-
-        if commit is None:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'Commit not found')
+        is_valid_object(commit)
 
         env_dict = self.get_env_dict(repo, commit)
 
@@ -295,64 +276,59 @@ class GitRepoRepository:
         return None
 
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
-        file_buffer = self.get_file(repo, commit, 'schema_example.json')
-
-        # check - json loads
-        try:
-            schema_dict = json.loads(file_buffer.getvalue().decode())
-        except JSONDecodeError:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This schema file is not a json file'
-            )
+        schema_dict = self.get_schema_dict(repo, commit)
 
         binding_schema_keys = [i.value for i in DestinationTopicType]
 
         # check - all 4 topic destination, is in schema
         if len(binding_schema_keys) != len(set(schema_dict.keys()) & set(binding_schema_keys)):
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'This schema file has unresolved IO and base IO keys',
-            )
+            app_errors.validation_error.raise_exception('This schema file has unresolved IO and base IO keys')
 
         schema_dict_values_type = [type(value) for value in schema_dict.values()]
 
         # check - all values first layer schema is list
         if Counter(schema_dict_values_type)[list] != len(schema_dict):
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'This schema file has not available value types, only list is available',
+            app_errors.validation_error.raise_exception(
+                'This schema file has not available value types, only list is available'
             )
 
         all_unique_chars_topic = Counter(''.join([item for value in schema_dict.values() for item in value])).keys()
 
         # check - all chars in topics is valid
         if (set(all_unique_chars_topic) - set(settings.available_topic_symbols)) != set():
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f'Topics in the schema use characters that are not allowed',
+            app_errors.validation_error.raise_exception(
+                'Topics in the schema use characters that are not allowed, allowed: {}'.format(
+                    settings.available_topic_symbols
+                )
             )
 
         # check - length topics. 100 chars is stock for system track parts
-        if max([len(item) for value in schema_dict.values() for item in value]) >= 65535 - 100:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'The length of the topic title is too long'
+        current_len = max([len(item) for value in schema_dict.values() for item in value])
+        max_value = 65535 - 100
+        if current_len >= max_value:
+            app_errors.validation_error.raise_exception(
+                'The length {} of the topic title is too long, max: {}'.format(current_len, max_value)
             )
 
     def is_valid_env_file(self, repo: Repo, commit: str, env: dict) -> None:
         env_example_dict = self.get_env_dict(repo, commit)
 
-        if env_example_dict.keys() - env.keys() != set():
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST, detail=f'This env file has unresolved variable'
+        unresolved_set = env_example_dict.keys() - env.keys()
+        if unresolved_set != set():
+            app_errors.validation_error.raise_exception(
+                'This env file has {} unresolved variable'.format(unresolved_set)
             )
 
     def is_valid_branch(self, repo: Repo, branch: str):
-        if not branch or branch not in self.get_branches(repo):
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid branch")
+        available_branches = self.get_branches(repo)
+        if not branch or branch not in available_branches:
+            app_errors.validation_error.raise_exception(
+                'Branch {} not found, available: {}'.format(branch, available_branches)
+            )
 
     def is_valid_commit(self, repo: Repo, branch: str, commit: str):
         if commit not in [commit_dict['commit'] for commit_dict in self.get_branch_commits(repo, branch)]:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"No valid commit")
+            app_errors.validation_error.raise_exception('Commit {} not in branch {}'.format(commit, branch))
 
     @staticmethod
     def find_by_platform(data: list[tuple[str, str]], platform: str) -> Optional[tuple[str, str]]:
@@ -364,8 +340,7 @@ class GitRepoRepository:
     def is_valid_firmware_platform(self, repo: Repo, unit: Unit, firmware_platform: str):
 
         if repo.is_compilable_repo:
-            if repo.releases_data is None:
-                raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Not available releases")
+            is_valid_object(repo.releases_data)
 
             releases = json.loads(repo.releases_data)
             target_commit, target_tag = self.get_target_unit_version(repo, unit)
@@ -374,11 +349,11 @@ class GitRepoRepository:
 
             if target_platforms:
                 if self.find_by_platform(target_platforms, firmware_platform) is None:
-                    raise HTTPException(
-                        status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Not find platform for target Tag"
+                    app_errors.validation_error.raise_exception(
+                        'Not find platform {}, available: {}'.format(
+                            firmware_platform, [item[0] for item in target_platforms]
+                        )
                     )
 
             else:
-                raise HTTPException(
-                    status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Target Tag not found in Releases"
-                )
+                app_errors.validation_error.raise_exception('Target Tag has no platforms')

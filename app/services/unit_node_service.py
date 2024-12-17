@@ -2,9 +2,9 @@ import datetime
 import uuid as uuid_pkg
 from typing import Union
 
-from fastapi import Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends
 
+from app.configs.errors import app_errors
 from app.domain.permission_model import PermissionBaseType
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
@@ -188,7 +188,7 @@ class UnitNodeService:
         new_edge.creator_uuid = self.access_service.current_agent.uuid
 
         if self.unit_node_edge_repository.check(new_edge):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Edge exist")
+            app_errors.validation_error.raise_exception('Edge exist')
 
         return self.unit_node_edge_repository.create(new_edge)
 
@@ -242,9 +242,9 @@ class UnitNodeService:
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.INPUT:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"This Node is not Input")
+            app_errors.validation_error.raise_exception('This Node {} is not Input'.format(unit_node.uuid))
 
     @staticmethod
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
-            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"This Node is not Output")
+            app_errors.validation_error.raise_exception('This Node {} is not Output'.format(unit_node.uuid))

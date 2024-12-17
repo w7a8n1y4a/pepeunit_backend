@@ -13,7 +13,7 @@ from app import settings
 from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
-from app.repositories.enum import VisibilityLevel
+from app.repositories.enum import StaticRepoFileName, VisibilityLevel
 from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
 from app.utils.utils import aes_encode
@@ -277,7 +277,7 @@ def test_get_firmware(database) -> None:
         shutil.unpack_archive(archive_path, unpack_path, 'zip' if inc == 0 else 'tar')
 
         # check env.json file
-        with open(f'{unpack_path}/env.json', 'r') as f:
+        with open(f'{unpack_path}/{StaticRepoFileName.ENV}', 'r') as f:
             env_dict = json.loads(f.read())
             assert len(env_dict['PEPEUNIT_TOKEN']) > 100
 

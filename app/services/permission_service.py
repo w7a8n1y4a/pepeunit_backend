@@ -1,10 +1,10 @@
 import uuid as uuid_pkg
 from typing import Union
 
-from fastapi import Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends
 
-from app.domain.permission_model import Permission, PermissionBaseType
+from app.configs.errors import app_errors
+from app.domain.permission_model import PermissionBaseType
 from app.repositories.enum import UserRole
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
@@ -35,7 +35,7 @@ class PermissionService:
         is_valid_object(agent)
 
         if self.access_service.permission_repository.check(new_permission):
-            raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Permission is exist")
+            app_errors.validation_error.raise_exception('Permission is exist')
 
         self.access_service.permission_repository.is_valid_agent_type(new_permission)
         self.access_service.permission_repository.is_valid_resource_type(new_permission)
