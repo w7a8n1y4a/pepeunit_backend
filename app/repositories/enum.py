@@ -81,12 +81,24 @@ class ReservedOutputBaseTopic(str, enum.Enum):
 
 
 @strawberry.enum
+class BackendTopicCommand(str, enum.Enum):
+    """
+    Booked input topics at Unit
+    """
+
+    UPDATE = 'Update'
+    ENV_UPDATE = 'EnvUpdate'
+    SCHEMA_UPDATE = 'SchemaUpdate'
+
+
+@strawberry.enum
 class ReservedInputBaseTopic(str, enum.Enum):
     """
     Booked input topics at Unit
     """
 
     UPDATE = 'update'
+    ENV_UPDATE = 'env_update'
     SCHEMA_UPDATE = 'schema_update'
 
 

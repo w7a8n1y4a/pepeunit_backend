@@ -67,7 +67,7 @@ def test_create_unit_node_edge(database) -> None:
     def update_schema(token: str, unit_uuid: uuid_pkg.UUID) -> int:
         headers = {'accept': 'application/json', 'x-auth-token': token}
 
-        url = f'{settings.backend_link_prefix_and_v1}/units/update_schema/{unit_uuid}'
+        url = f'{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit_uuid}?command=SchemaUpdate'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)

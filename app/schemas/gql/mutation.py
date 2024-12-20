@@ -23,7 +23,7 @@ Mutation = create_type(
         create_unit,
         update_unit,
         update_unit_env,
-        update_unit_schema,
+        send_command_to_input_base_topic,
         delete_unit,
         update_unit_node,
         set_state_unit_node_input,

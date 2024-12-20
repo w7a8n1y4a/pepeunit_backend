@@ -8,7 +8,7 @@ from typing import Optional, Union
 from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
-from app.repositories.enum import PermissionEntities, UserRole
+from app.repositories.enum import BackendTopicCommand, PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
@@ -257,9 +257,12 @@ class RepoService:
             logging.info(f'Run update unit {unit.uuid}')
 
             try:
-                self.unit_service.update_firmware(unit, repo)
-            except:
-                logging.warning(f'Failed update unit {unit.uuid}')
+                unit = self.unit_service.sync_state_unit_nodes_for_version(unit, repo)
+                self.unit_service.command_to_input_base_topic(
+                    uuid=unit.uuid, command=BackendTopicCommand.UPDATE, is_auto_update=True
+                )
+            except Exception as ex:
+                logging.warning(f'Failed update unit {unit.uuid} {ex}')
                 count_error_update += 1
 
             count_success_update += 1
