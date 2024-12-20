@@ -18,6 +18,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import (
+    BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
     PermissionEntities,
@@ -33,7 +34,7 @@ from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUpdateInput
 from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.gql.types.unit import UnitType
-from app.schemas.mqtt.utils import get_topic_split
+from app.schemas.mqtt.utils import get_topic_split, publish_to_topic
 from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitRead, UnitUpdate
 from app.schemas.pydantic.unit_node import UnitNodeFilter
@@ -123,11 +124,23 @@ class UnitService:
         unit_update.last_update_datetime = datetime.datetime.utcnow()
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
-        result_unit = self.update_firmware(result_unit, repo)
+
+        result_unit = self.sync_state_unit_nodes_for_version(
+            result_unit,
+            repo,
+        )
+
+        try:
+            self.command_to_input_base_topic(
+                uuid=result_unit.uuid,
+                command=BackendTopicCommand.UPDATE,
+            )
+        except Exception as ex:
+            logging.info(ex)
 
         return result_unit
 
-    def update_firmware(self, unit: Unit, repo: Repo) -> Unit:
+    def sync_state_unit_nodes_for_version(self, unit: Unit, repo: Repo) -> Unit:
         self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
 
         target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
@@ -171,31 +184,6 @@ class UnitService:
 
         self.unit_node_service.bulk_update(schema_dict, unit, input_node_dict, output_node_dict)
 
-        if ReservedInputBaseTopic.UPDATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX in schema_dict['input_base_topic']:
-
-            try:
-                from app.schemas.mqtt.topic import mqtt
-            except ImportError:
-                # this UnitNodeService entity imported in mqtt schema layer
-                pass
-
-            try:
-                update_dict = {'NEW_COMMIT_VERSION': target_version}
-
-                if repo.is_compilable_repo:
-
-                    links = json.loads(repo.releases_data)[target_tag]
-                    platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
-
-                    update_dict['COMPILED_FIRMWARE_LINK'] = link
-
-                mqtt.publish(
-                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
-                    json.dumps(update_dict),
-                )
-            except AttributeError:
-                logging.info('MQTT session is invalid')
-
         unit.last_update_datetime = datetime.datetime.utcnow()
         return self.unit_repository.update(unit.uuid, unit)
 
@@ -207,8 +195,8 @@ class UnitService:
         self.access_service.access_only_creator_and_target_unit(unit)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
-        env_dict = self.git_repo_repository.get_env_example(repo, target_version)
+        target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
+        env_dict = self.git_repo_repository.get_env_example(repo, target_commit)
 
         if unit.cipher_env_dict:
             current_unit_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
@@ -235,30 +223,6 @@ class UnitService:
         unit.cipher_env_dict = aes_encode(json.dumps(merged_env_dict))
         unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
-
-        return None
-
-    def update_schema(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-        unit = self.unit_repository.get(Unit(uuid=uuid))
-
-        is_valid_object(unit)
-
-        self.access_service.access_only_creator_and_target_unit(unit)
-
-        try:
-            from app.schemas.mqtt.topic import mqtt
-        except ImportError:
-            # this UnitNodeService entity imported in mqtt schema layer
-            pass
-
-        try:
-            mqtt.publish(
-                f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
-                '{"": ""}',
-            )
-        except AttributeError:
-            logging.info('MQTT session is invalid')
 
     def get_current_schema(self, uuid: uuid_pkg.UUID) -> dict:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
@@ -380,6 +344,50 @@ class UnitService:
                 )
         else:
             app_errors.mqtt_error.raise_exception('Only for Unit available topic communication')
+
+    def command_to_input_base_topic(
+        self, uuid: uuid_pkg.UUID, command: BackendTopicCommand, is_auto_update: bool = False
+    ) -> None:
+
+        if not is_auto_update:
+            self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        is_valid_object(unit)
+
+        if not is_auto_update:
+            self.access_service.access_only_creator_and_target_unit(unit)
+
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+
+        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
+
+        command_to_topic_dict = {
+            BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
+            BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE,
+            BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE,
+        }
+
+        target_topic = command_to_topic_dict[command] + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
+        if target_topic in schema_dict['input_base_topic']:
+
+            update_dict = {'COMMAND': command}
+
+            if command == BackendTopicCommand.UPDATE:
+                update_dict['NEW_COMMIT_VERSION'] = target_version
+
+                if repo.is_compilable_repo:
+                    links = json.loads(repo.releases_data)[target_tag]
+                    platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
+
+                    update_dict['COMPILED_FIRMWARE_LINK'] = link
+
+            publish_to_topic(
+                f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{target_topic}",
+                update_dict,
+            )
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])

@@ -10,6 +10,7 @@ from starlette.responses import FileResponse
 from app.configs.db import get_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
+from app.repositories.enum import BackendTopicCommand
 from app.schemas.pydantic.shared import MqttRead
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitMqttTokenAuth, UnitRead, UnitsResult, UnitUpdate
 from app.services.unit_service import UnitService
@@ -92,9 +93,11 @@ def update(uuid: uuid_pkg.UUID, data: UnitUpdate, unit_service: UnitService = De
     return UnitRead(**unit_service.update(uuid, data).dict())
 
 
-@router.post("/update_schema/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def update_schema(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
-    return unit_service.update_schema(uuid)
+@router.post("/send_command_to_input_base_topic/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def send_command_to_input_base_topic(
+    uuid: uuid_pkg.UUID, command: BackendTopicCommand, unit_service: UnitService = Depends()
+):
+    return unit_service.command_to_input_base_topic(uuid, command)
 
 
 @router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

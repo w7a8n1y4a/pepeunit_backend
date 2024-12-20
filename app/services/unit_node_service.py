@@ -19,6 +19,7 @@ from app.schemas.gql.inputs.unit_node import (
     UnitNodeSetStateInput,
     UnitNodeUpdateInput,
 )
+from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_node import (
     UnitNodeEdgeCreate,
     UnitNodeFilter,
@@ -158,13 +159,7 @@ class UnitNodeService:
         self.access_service.check_access_unit_to_input_node(unit_node)
         self.access_service.visibility_check(unit_node)
 
-        try:
-            from app.schemas.mqtt.topic import mqtt
-        except ImportError:
-            # this UnitNodeService entity imported in mqtt schema layer
-            pass
-
-        mqtt.publish(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
+        publish_to_topic(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
 
         return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
 
