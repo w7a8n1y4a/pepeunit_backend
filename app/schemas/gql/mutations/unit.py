@@ -4,6 +4,7 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_unit_service
+from app.repositories.enum import BackendTopicCommand
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput
 from app.schemas.gql.types.shared import NoneType
 from app.schemas.gql.types.unit import UnitType
@@ -31,9 +32,9 @@ def update_unit_env(info: Info, uuid: uuid_pkg.UUID, env_json_str: str) -> NoneT
 
 
 @strawberry.mutation()
-def update_unit_schema(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
+def send_command_to_input_base_topic(info: Info, uuid: uuid_pkg.UUID, command: BackendTopicCommand) -> NoneType:
     unit_service = get_unit_service(info)
-    unit_service.update_schema(uuid)
+    unit_service.command_to_input_base_topic(uuid, command)
     return NoneType()
 
 
