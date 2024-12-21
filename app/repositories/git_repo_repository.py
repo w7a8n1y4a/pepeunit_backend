@@ -4,9 +4,7 @@ import os
 import shutil
 import uuid as uuid_pkg
 from collections import Counter
-from json import JSONDecodeError
 from typing import Optional
-from zoneinfo import available_timezones
 
 import git
 from git import Repo as GitRepo
@@ -24,6 +22,7 @@ from app.repositories.git_platform_repository import (
 )
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json, is_valid_object
+from app.utils.utils import timeit
 
 
 class GitRepoRepository:
@@ -130,25 +129,22 @@ class GitRepoRepository:
         self.is_valid_branch(repo, branch)
 
         repo = self.get_repo(repo)
-        return [
-            {'commit': item.name_rev.split()[0], 'summary': item.summary}
-            for item in repo.iter_commits(rev=f'remotes/origin/{branch}')
-        ][:depth]
+        rev_list = repo.git.rev_list(f'remotes/origin/{branch}', max_count=depth, pretty='%H|%s')
+        commits = rev_list.strip().split("\n")
+        return [{'commit': line.split('|')[0], 'summary': line.split('|')[1]} for line in commits if '|' in line]
 
-    def get_branch_tags(self, repo: Repo, branch: str) -> list[dict]:
+    def get_branch_tags(self, repo: Repo, commits: set) -> list[dict]:
         """
         Get all commits with tags for branch
         """
 
-        self.is_valid_branch(repo, repo.default_branch)
-        branch_commits_set = {item['commit'] for item in self.get_branch_commits(repo, branch)}
         repo = self.get_repo(repo)
-
-        return [
-            {'commit': item.commit.name_rev.split()[0], 'summary': item.commit.summary, 'tag': item.name}
-            for item in repo.tags
-            if item.commit.name_rev.split()[0] in branch_commits_set
-        ][::-1]
+        tags = []
+        for tag in repo.tags:
+            commit_hash = tag.commit.hexsha
+            if commit_hash in commits:
+                tags.append({'commit': commit_hash, 'summary': tag.commit.summary, 'tag': tag.name})
+        return tags[::-1]
 
     def get_branch_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
         """
@@ -156,7 +152,7 @@ class GitRepoRepository:
         """
 
         commits = self.get_branch_commits(repo, branch)
-        tags = self.get_branch_tags(repo, branch)
+        tags = self.get_branch_tags(repo, {item['commit'] for item in commits})
 
         commits_with_tag = []
         for commit in commits:
@@ -172,17 +168,22 @@ class GitRepoRepository:
         return commits_with_tag
 
     @staticmethod
+    def get_tags_from_all_commits(commits: list[dict]) -> list[dict]:
+        return [commit for commit in commits if commit['tag']]
+
+    @staticmethod
     def find_by_commit(data: list[dict], commit: str) -> Optional[dict]:
         for item in data:
             if item["commit"] == commit:
                 return item
         return None
 
+    @timeit
     def get_target_repo_version(self, repo: Repo) -> tuple[str, Optional[str]]:
         self.is_valid_branch(repo, repo.default_branch)
 
         all_commits = self.get_branch_commits_with_tag(repo, repo.default_branch)
-        tags = self.get_branch_tags(repo, repo.default_branch)
+        tags = self.get_tags_from_all_commits(all_commits)
 
         target_commit = None
         if repo.is_auto_update_repo:
@@ -209,6 +210,7 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
+    @timeit
     def get_target_unit_version(self, repo: Repo, unit: Unit) -> tuple[str, Optional[str]]:
 
         target_commit = None

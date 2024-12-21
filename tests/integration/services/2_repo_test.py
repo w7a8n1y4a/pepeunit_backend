@@ -180,7 +180,8 @@ def test_get_available_platforms(database) -> None:
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=commits[-1]['commit'])
     assert len(platforms) == 0
 
-    tags = repo_service.git_repo_repository.get_branch_tags(target_repo, target_repo.default_branch)
+    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
 
     # check get by commit with tag
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=tags[0]['commit'])

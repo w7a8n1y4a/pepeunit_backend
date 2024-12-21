@@ -125,10 +125,7 @@ class UnitService:
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
 
-        result_unit = self.sync_state_unit_nodes_for_version(
-            result_unit,
-            repo,
-        )
+        result_unit = self.sync_state_unit_nodes_for_version(result_unit, repo)
 
         try:
             self.command_to_input_base_topic(

@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
+from app.repositories.enum import OrderByDate, OrderByText, UnitFirmwareUpdateStatus, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -31,6 +31,10 @@ class UnitRead(BaseModel):
 
     creator_uuid: uuid_pkg.UUID
     repo_uuid: uuid_pkg.UUID
+
+    firmware_update_status: Optional[UnitFirmwareUpdateStatus] = None
+    firmware_update_error: Optional[str] = None
+    last_firmware_update_datetime: Optional[datetime] = None
 
     # only if requested
     unit_nodes: list[UnitNodeRead] = []
