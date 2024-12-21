@@ -5,7 +5,7 @@ from typing import Optional
 import strawberry
 from strawberry import field
 
-from app.repositories.enum import VisibilityLevel
+from app.repositories.enum import UnitFirmwareUpdateStatus, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 from app.schemas.gql.types.shared import UnitNodeType
 
@@ -34,6 +34,10 @@ class UnitType(TypeInputMixin):
     repo_uuid: uuid_pkg.UUID
 
     cipher_env_dict: strawberry.Private[object]
+
+    firmware_update_status: Optional[UnitFirmwareUpdateStatus] = None
+    firmware_update_error: Optional[str] = None
+    last_firmware_update_datetime: Optional[datetime] = None
 
     # only if requested
     unit_nodes: list[UnitNodeType] = field(default_factory=list)

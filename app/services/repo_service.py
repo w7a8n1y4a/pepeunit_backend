@@ -96,11 +96,9 @@ class RepoService:
 
         self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
 
-        commits_with_tag = (
-            self.git_repo_repository.get_branch_tags(repo, filters.repo_branch)
-            if filters.only_tag
-            else self.git_repo_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
-        )
+        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
+
+        commits_with_tag = self.git_repo_repository.get_tags_from_all_commits(commits) if filters.only_tag else commits
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
