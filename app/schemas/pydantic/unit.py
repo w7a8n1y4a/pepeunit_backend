@@ -4,10 +4,29 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import Query
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from app.repositories.enum import OrderByDate, OrderByText, UnitFirmwareUpdateStatus, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.shared import UnitNodeRead
+
+
+class UnitStateRead(BaseModel):
+    ifconfig: list = []
+    millis: Optional[float] = None
+    mem_free: Optional[float] = None
+    mem_alloc: Optional[float] = None
+    freq: Optional[float] = None
+    statvfs: list = []
+    commit_version: Optional[str] = None
+
+    @root_validator(pre=True)
+    def check_types(cls, values):
+        annotations = cls.__annotations__
+        for field, expected_type in annotations.items():
+            value = values.get(field, None)
+            if not isinstance(value, expected_type):
+                values[field] = [] if expected_type is list else None
+        return values
 
 
 class UnitRead(BaseModel):
@@ -24,7 +43,7 @@ class UnitRead(BaseModel):
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
-    unit_state_dict: Optional[str] = None
+    unit_state: Optional[UnitStateRead] = None
     current_commit_version: Optional[str] = None
 
     last_update_datetime: datetime

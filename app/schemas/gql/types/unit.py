@@ -11,6 +11,17 @@ from app.schemas.gql.types.shared import UnitNodeType
 
 
 @strawberry.type()
+class UnitStateType(TypeInputMixin):
+    ifconfig: list[str] = field(default_factory=list)
+    millis: Optional[float] = None
+    mem_free: Optional[float] = None
+    mem_alloc: Optional[float] = None
+    freq: Optional[float] = None
+    statvfs: list[float] = field(default_factory=list)
+    commit_version: Optional[str] = None
+
+
+@strawberry.type()
 class UnitType(TypeInputMixin):
     uuid: uuid_pkg.UUID
     visibility_level: VisibilityLevel
@@ -25,7 +36,7 @@ class UnitType(TypeInputMixin):
     repo_branch: Optional[str] = None
     repo_commit: Optional[str] = None
 
-    unit_state_dict: Optional[str] = None
+    unit_state: Optional[UnitStateType] = None
     current_commit_version: Optional[str] = None
 
     last_update_datetime: datetime
@@ -34,6 +45,7 @@ class UnitType(TypeInputMixin):
     repo_uuid: uuid_pkg.UUID
 
     cipher_env_dict: strawberry.Private[object]
+    unit_state_dict: strawberry.Private[object]
 
     firmware_update_status: Optional[UnitFirmwareUpdateStatus] = None
     firmware_update_error: Optional[str] = None
