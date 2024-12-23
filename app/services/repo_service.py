@@ -259,12 +259,11 @@ class RepoService:
                 self.unit_service.command_to_input_base_topic(
                     uuid=unit.uuid, command=BackendTopicCommand.UPDATE, is_auto_update=True
                 )
+                logging.info(f'Successfully update unit {unit.uuid}')
+                count_success_update += 1
             except Exception as ex:
                 logging.warning(f'Failed update unit {unit.uuid} {ex}')
                 count_error_update += 1
-
-            count_success_update += 1
-            logging.info(f'Successfully update unit {unit.uuid}')
 
         result = {
             'repo': repo.uuid,
