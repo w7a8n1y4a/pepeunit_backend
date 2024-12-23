@@ -34,7 +34,7 @@ from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUpdateInput
 from app.schemas.gql.types.shared import UnitNodeType
-from app.schemas.gql.types.unit import UnitType
+from app.schemas.gql.types.unit import UnitStateType, UnitType
 from app.schemas.mqtt.utils import get_topic_split, publish_to_topic
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import UnitNodeRead
@@ -319,6 +319,27 @@ class UnitService:
 
         return f'{firmware_tar_path}.tgz'
 
+    def set_state_storage(self, uuid: uuid_pkg.UUID, state: str) -> None:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        is_valid_object(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
+
+        unit.cipher_state_storage = aes_encode(state)
+        self.unit_repository.update(unit.uuid, unit)
+
+    def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        is_valid_object(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
+
+        return aes_decode(unit.cipher_state_storage)
+
     def get_mqtt_auth(self, topic: str) -> None:
         self.access_service.access_check([], is_unit_available=True)
 
@@ -500,11 +521,20 @@ class UnitService:
 
     @staticmethod
     def mapper_unit_to_unit_read(unit: tuple[Unit, List[dict]]) -> UnitRead:
-        return UnitRead(**unit[0].dict(), unit_nodes=[UnitNodeRead(**item) for item in unit[1]])
+        return UnitRead(**unit[0].to_dict(), unit_nodes=[UnitNodeRead(**item) for item in unit[1]])
 
     @staticmethod
     def mapper_unit_to_unit_type(unit: tuple[Unit, List[dict]]) -> UnitType:
-        return UnitType(**unit[0].dict(), unit_nodes=[UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]])
+
+        unit_dict = unit[0].to_dict()
+        unit_state = unit_dict['unit_state']
+        del unit_dict['unit_state']
+
+        return UnitType(
+            **unit_dict,
+            unit_nodes=[UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]],
+            unit_state=UnitStateType(**unit_state) if unit_state else None,
+        )
 
     @staticmethod
     def is_valid_wbits(wbits: int):

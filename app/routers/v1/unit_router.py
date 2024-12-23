@@ -25,12 +25,12 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 def create(data: UnitCreate, unit_service: UnitService = Depends()):
-    return UnitRead(**unit_service.create(data).dict())
+    return UnitRead(**unit_service.create(data).to_dict())
 
 
 @router.get("/{uuid}", response_model=UnitRead)
 def get(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
-    return UnitRead(**unit_service.get(uuid).dict())
+    return UnitRead(**unit_service.get(uuid).to_dict())
 
 
 @router.get("/env/{uuid}", response_model=str)
@@ -78,6 +78,16 @@ def get_firmware_tgz(uuid: uuid_pkg.UUID, wbits: int = 9, level: int = 9, unit_s
     return FileResponse(tgz_filepath, background=BackgroundTask(cleanup))
 
 
+@router.get("/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def set_state_storage(uuid: uuid_pkg.UUID, state: str, unit_service: UnitService = Depends()):
+    return unit_service.set_state_storage(uuid, state)
+
+
+@router.get("/get_state_storage/{uuid}", response_model=str)
+def get_state_storage(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
+    return unit_service.get_state_storage(uuid)
+
+
 @router.post("/auth", response_model=MqttRead, status_code=status.HTTP_200_OK)
 def get_mqtt_auth(data: UnitMqttTokenAuth):
 
@@ -96,7 +106,7 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
 @router.patch("/{uuid}", response_model=UnitRead)
 def update(uuid: uuid_pkg.UUID, data: UnitUpdate, unit_service: UnitService = Depends()):
-    return UnitRead(**unit_service.update(uuid, data).dict())
+    return UnitRead(**unit_service.update(uuid, data).to_dict())
 
 
 @router.post("/send_command_to_input_base_topic/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
