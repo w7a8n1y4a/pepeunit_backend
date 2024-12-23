@@ -21,20 +21,50 @@ class AppErrors:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Validation Error: {}", error_code=2
         )
 
+        self.user_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="User Validation Error: {}", error_code=3
+        )
+
+        self.permission_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Permission Validation Error: {}",
+            error_code=4,
+        )
+
+        self.git_repo_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Git Repo Validation Error: {}",
+            error_code=5,
+        )
+
+        self.repo_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Repo Validation Error: {}", error_code=6
+        )
+
+        self.unit_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Unit Validation Error: {}", error_code=7
+        )
+
+        self.unit_node_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="UnitNode Validation Error: {}",
+            error_code=8,
+        )
+
         self.json_decode_error = Error(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="JSON Decode Error: {}", error_code=3
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="JSON Decode Error: {}", error_code=9
         )
 
         self.mqtt_error = Error(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="MQTT Error: {}", error_code=4
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="MQTT Error: {}", error_code=10
         )
 
         self.update_error = Error(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Update Error: {}", error_code=5
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Update Error: {}", error_code=11
         )
 
         self.cipher_error = Error(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Cipher Error: {}", error_code=6
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Cipher Error: {}", error_code=12
         )
 
 

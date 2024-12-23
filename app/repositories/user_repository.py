@@ -71,18 +71,18 @@ class UserRepository:
         uuid = str(uuid)
 
         if not is_valid_string_with_rules(login):
-            app_errors.validation_error.raise_exception('Login is not correct')
+            app_errors.user_error.raise_exception('Login is not correct')
 
         user_uuid = self.db.exec(select(User.uuid).where(User.login == login)).first()
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            app_errors.validation_error.raise_exception('Login is not unique')
+            app_errors.user_error.raise_exception('Login is not unique')
 
     @staticmethod
     def is_valid_password(password: str):
         if not is_valid_string_with_rules(password, settings.available_password_symbols, 8, 100):
-            app_errors.validation_error.raise_exception('Password is not correct')
+            app_errors.user_error.raise_exception('Password is not correct')
 
     def is_valid_telegram_chat_id(self, telegram_chat_id: str, uuid: Optional[uuid_pkg.UUID] = None):
         uuid = str(uuid)
@@ -90,4 +90,4 @@ class UserRepository:
         user_uuid = str(user_uuid) if user_uuid else user_uuid
 
         if (uuid is None and user_uuid) or (uuid and user_uuid != uuid and user_uuid is not None):
-            app_errors.validation_error.raise_exception('This Telegram User is already verified')
+            app_errors.user_error.raise_exception('This Telegram User is already verified')

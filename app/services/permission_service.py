@@ -35,7 +35,7 @@ class PermissionService:
         is_valid_object(agent)
 
         if self.access_service.permission_repository.check(new_permission):
-            app_errors.validation_error.raise_exception('Permission is exist')
+            app_errors.permission_error.raise_exception('Permission is exist')
 
         self.access_service.permission_repository.is_valid_agent_type(new_permission)
         self.access_service.permission_repository.is_valid_resource_type(new_permission)
