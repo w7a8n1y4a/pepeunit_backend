@@ -32,6 +32,13 @@ def update_unit_env(info: Info, uuid: uuid_pkg.UUID, env_json_str: str) -> NoneT
 
 
 @strawberry.mutation()
+def set_state_storage(info: Info, uuid: uuid_pkg.UUID, state: str) -> NoneType:
+    unit_service = get_unit_service(info)
+    unit_service.set_state_storage(uuid, state)
+    return NoneType()
+
+
+@strawberry.mutation()
 def send_command_to_input_base_topic(info: Info, uuid: uuid_pkg.UUID, command: BackendTopicCommand) -> NoneType:
     unit_service = get_unit_service(info)
     unit_service.command_to_input_base_topic(uuid, command)

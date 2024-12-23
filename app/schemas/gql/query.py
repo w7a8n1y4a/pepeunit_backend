@@ -23,6 +23,7 @@ Query = create_type(
         get_unit_env,
         get_target_version,
         get_unit_current_schema,
+        get_state_storage,
         get_units,
         get_unit_node,
         get_unit_nodes,

@@ -319,6 +319,27 @@ class UnitService:
 
         return f'{firmware_tar_path}.tgz'
 
+    def set_state_storage(self, uuid: uuid_pkg.UUID, state: str) -> None:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        is_valid_object(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
+
+        unit.cipher_state_storage = aes_encode(state)
+        self.unit_repository.update(unit.uuid, unit)
+
+    def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        is_valid_object(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
+
+        return aes_decode(unit.cipher_state_storage)
+
     def get_mqtt_auth(self, topic: str) -> None:
         self.access_service.access_check([], is_unit_available=True)
 

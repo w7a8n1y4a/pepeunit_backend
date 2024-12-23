@@ -33,6 +33,10 @@ class AppErrors:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Update Error: {}", error_code=5
         )
 
+        self.cipher_error = Error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="Cipher Error: {}", error_code=6
+        )
+
 
 app_errors = AppErrors()
 
