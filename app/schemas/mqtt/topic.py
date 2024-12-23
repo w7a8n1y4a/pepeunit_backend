@@ -21,7 +21,7 @@ from app.repositories.enum import (
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.mqtt.utils import get_topic_split
+from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
 from app.services.validators import is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
@@ -50,19 +50,18 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
             if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
-
                 try:
                     db = next(get_session())
                     unit_repository = UnitRepository(db)
 
-                    unit_state_dict = json.loads(payload.decode())
+                    unit_state_dict = get_only_reserved_keys(json.loads(payload.decode()))
 
                     unit = unit_repository.get(Unit(uuid=unit_uuid))
                     is_valid_object(unit)
 
-                    unit.unit_state_dict = str(payload.decode())
+                    unit.unit_state_dict = json.dumps(unit_state_dict)
 
-                    if not 'commit_version' in unit_state_dict:
+                    if not 'commit_version':
                         app_errors.mqtt_error.raise_exception('State dict has no commit_version key')
 
                     unit.current_commit_version = unit_state_dict['commit_version']

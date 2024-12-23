@@ -147,6 +147,21 @@ class StaticRepoFileName(str, enum.Enum):
 
 
 @strawberry.enum
+class ReservedStateKey(str, enum.Enum):
+    """
+    Reserved state Unit keys
+    """
+
+    IFCONFIG = 'ifconfig'
+    MILLIS = 'millis'
+    MEM_FREE = 'mem_free'
+    MEM_ALLOC = 'mem_alloc'
+    FREQ = 'freq'
+    STATVFS = 'statvfs'
+    COMMIT_VERSION = 'commit_version'
+
+
+@strawberry.enum
 class ReservedEnvVariableName(str, enum.Enum):
     """
     Reserved environment variable names in Unit
