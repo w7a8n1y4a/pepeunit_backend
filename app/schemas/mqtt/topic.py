@@ -22,7 +22,7 @@ from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
-from app.services.validators import is_valid_object, is_valid_uuid
+from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -54,7 +54,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     db = next(get_session())
                     unit_repository = UnitRepository(db)
 
-                    unit_state_dict = get_only_reserved_keys(json.loads(payload.decode()))
+                    unit_state_dict = get_only_reserved_keys(is_valid_json(payload.decode(), "hardware state"))
 
                     unit = unit_repository.get(Unit(uuid=unit_uuid))
                     is_valid_object(unit)

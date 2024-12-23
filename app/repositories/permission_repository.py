@@ -179,7 +179,7 @@ class PermissionRepository:
         entities.remove(PermissionEntities.REPO)
 
         if permission.agent_type not in entities:
-            app_errors.validation_error.raise_exception(
+            app_errors.permission_error.raise_exception(
                 'Agent type {} is invalid, available: {}'.format(permission.agent_type, ', '.join(entities))
             )
 
@@ -190,6 +190,6 @@ class PermissionRepository:
         entities.remove(PermissionEntities.USER)
 
         if permission.resource_type not in entities:
-            app_errors.validation_error.raise_exception(
+            app_errors.permission_error.raise_exception(
                 'Resource type {} is invalid, available: {}'.format(permission.resource_type, ', '.join(entities))
             )

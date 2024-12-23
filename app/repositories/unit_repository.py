@@ -143,11 +143,11 @@ class UnitRepository:
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 
         if not is_valid_string_with_rules(name):
-            app_errors.validation_error.raise_exception('Name is not correct')
+            app_errors.unit_error.raise_exception('Name is not correct')
 
         uuid = str(uuid)
         unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
         unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
 
         if (uuid is None and unit_uuid) or (uuid and unit_uuid != uuid and unit_uuid is not None):
-            app_errors.validation_error.raise_exception('Name is not unique')
+            app_errors.unit_error.raise_exception('Name is not unique')
