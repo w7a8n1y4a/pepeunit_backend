@@ -24,6 +24,7 @@ from app.repositories.enum import (
     PermissionEntities,
     ReservedInputBaseTopic,
     StaticRepoFileName,
+    UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
     UserRole,
 )
@@ -125,18 +126,12 @@ class UnitService:
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
 
-        result_unit = self.sync_state_unit_nodes_for_version(
-            result_unit,
-            repo,
-        )
+        result_unit = self.sync_state_unit_nodes_for_version(result_unit, repo)
 
-        try:
-            self.command_to_input_base_topic(
-                uuid=result_unit.uuid,
-                command=BackendTopicCommand.UPDATE,
-            )
-        except Exception as ex:
-            logging.info(ex)
+        self.command_to_input_base_topic(
+            uuid=result_unit.uuid,
+            command=BackendTopicCommand.UPDATE,
+        )
 
         return result_unit
 
@@ -383,11 +378,20 @@ class UnitService:
                     platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link
+            try:
+                publish_to_topic(
+                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{target_topic}",
+                    update_dict,
+                )
+                unit.firmware_update_error = None
+                unit.last_firmware_update_datetime = datetime.datetime.utcnow()
+                unit.firmware_update_status = UnitFirmwareUpdateStatus.REQUEST_SENT
+            except Exception as ex:
+                unit.firmware_update_error = ex.detail
+                unit.last_firmware_update_datetime = None
+                unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
 
-            publish_to_topic(
-                f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{target_topic}",
-                update_dict,
-            )
+            self.unit_repository.update(unit.uuid, unit)
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
