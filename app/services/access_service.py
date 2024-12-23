@@ -116,7 +116,11 @@ class AccessService:
 
     def access_creator_check(self, obj: Union[Repo, Unit, UnitNode, UnitNodeEdge]) -> None:
         if self.current_agent.uuid != obj.creator_uuid:
-            app_errors.no_access.raise_exception("Agent is not creator this entity - {}".format(obj.__class__.__name__))
+            app_errors.no_access.raise_exception(
+                "Agent {} is not creator this entity - {}.".format(
+                    self.current_agent.__class__.__name__, obj.__class__.__name__
+                )
+            )
 
     def access_unit_check(self, unit: Unit) -> None:
         if isinstance(self.current_agent, Unit) and unit.uuid != self.current_agent.uuid:

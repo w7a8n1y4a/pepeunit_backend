@@ -36,6 +36,7 @@ from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUp
 from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.gql.types.unit import UnitType
 from app.schemas.mqtt.utils import get_topic_split, publish_to_topic
+from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitRead, UnitUpdate
 from app.schemas.pydantic.unit_node import UnitNodeFilter
@@ -218,6 +219,19 @@ class UnitService:
         unit.cipher_env_dict = aes_encode(json.dumps(merged_env_dict))
         unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
+
+    def get_target_version(self, uuid: uuid_pkg.UUID) -> TargetVersionRead:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        is_valid_object(unit)
+
+        self.access_service.access_only_creator_and_target_unit(unit)
+
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        is_valid_object(repo)
+
+        target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
+        return TargetVersionRead(commit=target_commit, tag=target_tag)
 
     def get_current_schema(self, uuid: uuid_pkg.UUID) -> dict:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
