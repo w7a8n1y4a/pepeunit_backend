@@ -45,6 +45,7 @@ class UnitType(TypeInputMixin):
     repo_uuid: uuid_pkg.UUID
 
     cipher_env_dict: strawberry.Private[object]
+    cipher_state_storage: strawberry.Private[object]
     unit_state_dict: strawberry.Private[object]
 
     firmware_update_status: Optional[UnitFirmwareUpdateStatus] = None

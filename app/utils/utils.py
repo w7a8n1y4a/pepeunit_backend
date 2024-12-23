@@ -7,6 +7,7 @@ import time
 import pyaes
 
 from app import settings
+from app.configs.errors import app_errors
 
 
 def aes_encode(data: str, key: str = settings.encrypt_key) -> str:
@@ -15,6 +16,15 @@ def aes_encode(data: str, key: str = settings.encrypt_key) -> str:
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
     return: (base64 str - iv).(base64 str - encrypted data)
     """
+
+    len_content = len(data)
+    if len_content > settings.max_cipher_length:
+        app_errors.cipher_error.raise_exception(
+            'The encryption content is {} long, although only <= {} is allowed'.format(
+                len_content, settings.max_cipher_length
+            )
+        )
+
     key = base64.b64decode(key.encode())
     iv = os.urandom(16)
 
