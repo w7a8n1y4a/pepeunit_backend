@@ -25,12 +25,12 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 def create(data: UnitCreate, unit_service: UnitService = Depends()):
-    return UnitRead(**unit_service.create(data).dict())
+    return UnitRead(**unit_service.create(data).to_dict())
 
 
 @router.get("/{uuid}", response_model=UnitRead)
 def get(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
-    return UnitRead(**unit_service.get(uuid).dict())
+    return UnitRead(**unit_service.get(uuid).to_dict())
 
 
 @router.get("/env/{uuid}", response_model=str)
@@ -96,7 +96,7 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
 @router.patch("/{uuid}", response_model=UnitRead)
 def update(uuid: uuid_pkg.UUID, data: UnitUpdate, unit_service: UnitService = Depends()):
-    return UnitRead(**unit_service.update(uuid, data).dict())
+    return UnitRead(**unit_service.update(uuid, data).to_dict())
 
 
 @router.post("/send_command_to_input_base_topic/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

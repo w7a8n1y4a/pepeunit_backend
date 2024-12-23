@@ -7,14 +7,14 @@ from strawberry.types import Info
 from app.configs.gql import get_unit_service
 from app.schemas.gql.inputs.unit import UnitFilterInput
 from app.schemas.gql.types.repo import TargetVersionType
-from app.schemas.gql.types.unit import UnitsResultType, UnitType
+from app.schemas.gql.types.unit import UnitsResultType, UnitStateType, UnitType
 from app.schemas.gql.utils import has_selected_field
 
 
 @strawberry.field()
 def get_unit(uuid: uuid_pkg.UUID, info: Info) -> UnitType:
     unit_service = get_unit_service(info)
-    return UnitType(**unit_service.get(uuid).dict())
+    return unit_service.mapper_unit_to_unit_type((unit_service.get(uuid), []))
 
 
 @strawberry.field()

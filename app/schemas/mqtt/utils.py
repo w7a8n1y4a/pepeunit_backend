@@ -2,7 +2,7 @@ import json
 
 from app.configs.errors import app_errors
 from app.repositories.enum import ReservedStateKey
-from app.schemas.mqtt.state import StateUnitModel
+from app.schemas.pydantic.unit import UnitStateRead
 
 
 def get_topic_split(topic: str) -> tuple[str, ...]:
@@ -12,7 +12,7 @@ def get_topic_split(topic: str) -> tuple[str, ...]:
 def get_only_reserved_keys(input_dict: dict) -> dict:
     reserved_keys = {key.value for key in ReservedStateKey}
     filtered_dict = {key: value for key, value in input_dict.items() if key in reserved_keys}
-    return StateUnitModel(**filtered_dict).dict()
+    return UnitStateRead(**filtered_dict).dict()
 
 
 def publish_to_topic(topic: str, msg: dict or str) -> None:

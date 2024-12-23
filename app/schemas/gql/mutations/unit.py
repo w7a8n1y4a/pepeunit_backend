@@ -13,15 +13,15 @@ from app.schemas.gql.types.unit import UnitType
 @strawberry.mutation()
 def create_unit(info: Info, unit: UnitCreateInput) -> UnitType:
     unit_service = get_unit_service(info)
-    unit = unit_service.create(unit).dict()
-    return UnitType(**unit)
+    unit = unit_service.create(unit)
+    return unit_service.mapper_unit_to_unit_type((unit, []))
 
 
 @strawberry.mutation()
 def update_unit(info: Info, uuid: uuid_pkg.UUID, unit: UnitUpdateInput) -> UnitType:
     unit_service = get_unit_service(info)
-    unit = unit_service.update(uuid, unit).dict()
-    return UnitType(**unit)
+    unit = unit_service.update(uuid, unit)
+    return unit_service.mapper_unit_to_unit_type((unit, []))
 
 
 @strawberry.mutation()
