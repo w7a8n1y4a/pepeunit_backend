@@ -178,7 +178,6 @@ class GitRepoRepository:
                 return item
         return None
 
-    @timeit
     def get_target_repo_version(self, repo: Repo) -> tuple[str, Optional[str]]:
         self.is_valid_branch(repo, repo.default_branch)
 
@@ -210,7 +209,6 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
-    @timeit
     def get_target_unit_version(self, repo: Repo, unit: Unit) -> tuple[str, Optional[str]]:
 
         target_commit = None
