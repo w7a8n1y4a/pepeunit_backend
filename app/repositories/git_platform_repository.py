@@ -1,4 +1,3 @@
-import json
 from abc import ABC, abstractmethod
 
 import httpx
@@ -6,6 +5,7 @@ import httpx
 from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
+from app.services.validators import is_valid_json
 from app.utils.utils import aes_decode
 
 
@@ -16,7 +16,11 @@ class GitPlatformRepositoryABC(ABC):
         self.credentials = None
 
         if not repo.is_public_repository:
-            self.credentials = Credentials(**json.loads(aes_decode(repo.cipher_credentials_private_repository)))
+            self.credentials = Credentials(
+                **is_valid_json(
+                    aes_decode(repo.cipher_credentials_private_repository), "cipher creeds private repository"
+                )
+            )
 
     @abstractmethod
     def get_cloning_url(self) -> str:

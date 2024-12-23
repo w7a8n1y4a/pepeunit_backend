@@ -33,8 +33,8 @@ from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.unit_service import UnitService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
-from app.services.validators import is_emtpy_sequence, is_valid_object, is_valid_visibility_level
-from app.utils.utils import aes_decode, aes_encode, timeit
+from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
+from app.utils.utils import aes_encode
 
 
 class RepoService:
@@ -114,7 +114,7 @@ class RepoService:
 
         platforms = []
         if repo.is_compilable_repo and repo.releases_data:
-            releases = json.loads(repo.releases_data)
+            releases = is_valid_json(repo.releases_data, "releases for compile repo")
 
             if target_tag:
                 try:
