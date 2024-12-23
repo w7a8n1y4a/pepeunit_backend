@@ -83,7 +83,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         try:
             target_id = result_data.json()['id']
         except KeyError:
-            app_errors.validation_error.raise_exception('Invalid Credentials')
+            app_errors.git_repo_error.raise_exception('Invalid Credentials')
 
         return target_id
 

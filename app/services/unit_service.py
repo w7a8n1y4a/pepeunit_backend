@@ -509,9 +509,7 @@ class UnitService:
 
     def is_valid_no_auto_updated_unit(self, repo: Repo, data: Union[Unit, UnitCreate]):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
-            app_errors.validation_error.raise_exception(
-                'Unit updated manually requires branch and commit to be filled out'
-            )
+            app_errors.unit_error.raise_exception('Unit updated manually requires branch and commit to be filled out')
 
         # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
@@ -539,7 +537,7 @@ class UnitService:
     def is_valid_wbits(wbits: int):
         available_values_list = list(itertools.chain(range(-15, -8), range(9, 16), range(25, 32)))
         if wbits not in available_values_list:
-            app_errors.validation_error.raise_exception(
+            app_errors.unit_error.raise_exception(
                 'Wbits {} is not valid, available {}'.format(wbits, available_values_list)
             )
 
@@ -547,6 +545,6 @@ class UnitService:
     def is_valid_level(level: int):
         available_values_list = list(range(-1, 10))
         if level not in available_values_list:
-            app_errors.validation_error.raise_exception(
+            app_errors.unit_error.raise_exception(
                 'Level {} is not valid, available {}'.format(level, available_values_list)
             )

@@ -183,7 +183,7 @@ class UnitNodeService:
         new_edge.creator_uuid = self.access_service.current_agent.uuid
 
         if self.unit_node_edge_repository.check(new_edge):
-            app_errors.validation_error.raise_exception('Edge exist')
+            app_errors.unit_node_error.raise_exception('Edge exist')
 
         return self.unit_node_edge_repository.create(new_edge)
 
@@ -237,9 +237,9 @@ class UnitNodeService:
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.INPUT:
-            app_errors.validation_error.raise_exception('This Node {} is not Input'.format(unit_node.uuid))
+            app_errors.unit_node_error.raise_exception('This Node {} is not Input'.format(unit_node.uuid))
 
     @staticmethod
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
-            app_errors.validation_error.raise_exception('This Node {} is not Output'.format(unit_node.uuid))
+            app_errors.unit_node_error.raise_exception('This Node {} is not Output'.format(unit_node.uuid))
