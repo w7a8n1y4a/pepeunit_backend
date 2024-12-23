@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 
@@ -6,14 +7,22 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
 from app.configs.db import get_session
+from app.configs.errors import app_errors
 from app.configs.gql import get_unit_node_service
 from app.configs.sub_entities import InfoSubEntity
+from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import DestinationTopicType, GlobalPrefixTopic, ReservedOutputBaseTopic
+from app.repositories.enum import (
+    DestinationTopicType,
+    GlobalPrefixTopic,
+    ReservedOutputBaseTopic,
+    UnitFirmwareUpdateStatus,
+)
+from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_topic_split
-from app.services.utils import merge_two_dict_first_priority
-from app.services.validators import is_valid_uuid
+from app.services.validators import is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -41,28 +50,59 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
             if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
-                db = next(get_session())
-                unit_repository = UnitRepository(db)
 
-                unit_state_dict = json.loads(payload.decode())
+                try:
+                    db = next(get_session())
+                    unit_repository = UnitRepository(db)
 
-                current_unit = unit_repository.get(Unit(uuid=unit_uuid))
+                    unit_state_dict = json.loads(payload.decode())
 
-                new_unit_state = Unit(
-                    **merge_two_dict_first_priority(
-                        {
-                            'unit_state_dict': str(payload.decode()),
-                            'current_commit_version': unit_state_dict['commit_version'],
-                        },
-                        current_unit.dict(),
+                    unit = unit_repository.get(Unit(uuid=unit_uuid))
+                    is_valid_object(unit)
+
+                    unit.unit_state_dict = str(payload.decode())
+
+                    if not 'commit_version' in unit_state_dict:
+                        app_errors.mqtt_error.raise_exception('State dict has no commit_version key')
+
+                    unit.current_commit_version = unit_state_dict['commit_version']
+
+                    if unit.firmware_update_status == UnitFirmwareUpdateStatus.REQUEST_SENT:
+                        current_datetime = datetime.datetime.utcnow()
+
+                        repo_repository = RepoRepository(db)
+                        repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
+
+                        git_repo_repository = GitRepoRepository()
+                        target_commit, target_tag = git_repo_repository.get_target_unit_version(repo, unit)
+
+                        delta = (current_datetime - unit.last_firmware_update_datetime).total_seconds()
+                        if target_commit == unit.current_commit_version:
+                            unit.firmware_update_error = None
+                            unit.last_firmware_update_datetime = None
+                            unit.firmware_update_status = UnitFirmwareUpdateStatus.SUCCESS
+
+                        elif delta > settings.state_send_interval * 2:
+                            try:
+                                app_errors.update_error.raise_exception(
+                                    'Device firmware update time is twice as fast as {}s times'.format(
+                                        settings.state_send_interval
+                                    )
+                                )
+                            except Exception as ex:
+                                unit.firmware_update_error = ex.detail
+
+                            unit.last_firmware_update_datetime = None
+                            unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
+
+                    unit_repository.update(
+                        unit_uuid,
+                        unit,
                     )
-                )
-
-                unit_repository.update(
-                    unit_uuid,
-                    new_unit_state,
-                )
-                db.close()
+                    db.close()
+                except Exception as ex:
+                    logging.error(ex)
+                    db.close()
 
     elif len(topic_split) == 3:
         backend_domain, unit_node_uuid, *_ = topic_split

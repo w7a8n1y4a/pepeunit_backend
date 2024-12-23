@@ -72,6 +72,17 @@ class UnitNodeTypeEnum(str, enum.Enum):
 
 
 @strawberry.enum
+class UnitFirmwareUpdateStatus(str, enum.Enum):
+    """
+    Unit update status
+    """
+
+    REQUEST_SENT = 'RequestSent'
+    ERROR = 'Error'
+    SUCCESS = 'Success'
+
+
+@strawberry.enum
 class ReservedOutputBaseTopic(str, enum.Enum):
     """
     Booked output topics at Unit

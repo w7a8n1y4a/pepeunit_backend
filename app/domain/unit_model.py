@@ -45,6 +45,13 @@ class Unit(SQLModel, table=True):
     # cipher aes256 env Unit - only for creator
     cipher_env_dict: str = Field(nullable=True)
 
+    # status update firmware for unit
+    firmware_update_status: str = Field(nullable=True)
+    # error text when error update
+    firmware_update_error: str = Field(nullable=True)
+    # datetime last RequestSent to Unit
+    last_firmware_update_datetime: datetime = Field(nullable=True)
+
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
