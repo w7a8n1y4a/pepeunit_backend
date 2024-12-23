@@ -52,6 +52,11 @@ class CommitRead(BaseModel):
     tag: Optional[str] = None
 
 
+class TargetVersionRead(BaseModel):
+    commit: str
+    tag: Optional[str] = None
+
+
 class PlatformRead(BaseModel):
     name: str
     link: str

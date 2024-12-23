@@ -292,6 +292,10 @@ def test_get_firmware(database) -> None:
     with pytest.raises(fastapi.HTTPException):
         unit_service.get_unit_firmware_tgz(unit.uuid, 9, 13)
 
+    # check get target commit version
+    target_version = unit_service.get_target_version(unit.uuid)
+    assert target_version.commit != ''
+
 
 @pytest.mark.run(order=5)
 def test_run_infrastructure_contour(database) -> None:
