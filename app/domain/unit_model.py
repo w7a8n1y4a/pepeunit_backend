@@ -8,7 +8,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 from app.repositories.enum import VisibilityLevel
-from app.schemas.pydantic.unit import UnitStateRead
 
 
 class Unit(SQLModel, table=True):
@@ -47,6 +46,8 @@ class Unit(SQLModel, table=True):
     current_commit_version: str = Field(nullable=True)
     # cipher aes256 env Unit - only for creator
     cipher_env_dict: str = Field(nullable=True)
+    # cipher aes256 storage for unit state
+    cipher_state_storage: str = Field(nullable=True)
 
     # status update firmware for unit
     firmware_update_status: str = Field(nullable=True)
