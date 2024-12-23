@@ -21,6 +21,7 @@ Query = create_type(
         get_versions,
         get_unit,
         get_unit_env,
+        get_target_version,
         get_unit_current_schema,
         get_units,
         get_unit_node,

@@ -11,6 +11,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import BackendTopicCommand
+from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import MqttRead
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitMqttTokenAuth, UnitRead, UnitsResult, UnitUpdate
 from app.services.unit_service import UnitService
@@ -35,6 +36,11 @@ def get(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
 @router.get("/env/{uuid}", response_model=str)
 def get_env(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
     return json.dumps(unit_service.get_env(uuid))
+
+
+@router.get("/get_target_version/{uuid}", response_model=TargetVersionRead)
+def get_target_version(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()):
+    return unit_service.get_target_version(uuid)
 
 
 @router.get("/get_current_schema/{uuid}", response_model=str)

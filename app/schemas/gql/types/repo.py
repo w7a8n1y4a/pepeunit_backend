@@ -50,6 +50,12 @@ class CommitType(TypeInputMixin):
 
 
 @strawberry.type()
+class TargetVersionType(TypeInputMixin):
+    commit: str
+    tag: Optional[str] = None
+
+
+@strawberry.type()
 class PlatformType(TypeInputMixin):
     name: str
     link: str
