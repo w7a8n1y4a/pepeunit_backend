@@ -1,5 +1,4 @@
 import io
-import json
 import os
 import shutil
 import uuid as uuid_pkg
@@ -22,7 +21,6 @@ from app.repositories.git_platform_repository import (
 )
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json, is_valid_object
-from app.utils.utils import timeit
 
 
 class GitRepoRepository:
@@ -342,7 +340,7 @@ class GitRepoRepository:
         if repo.is_compilable_repo:
             is_valid_object(repo.releases_data)
 
-            releases = json.loads(repo.releases_data)
+            releases = is_valid_json(repo.releases_data, "releases for compile repo")
             target_commit, target_tag = self.get_target_unit_version(repo, unit)
 
             target_platforms = releases.get(target_tag)

@@ -3,7 +3,6 @@ import copy
 import datetime
 import itertools
 import json
-import logging
 import os
 import shutil
 import uuid as uuid_pkg
@@ -148,7 +147,7 @@ class UnitService:
         target_env_dict = self.git_repo_repository.get_env_dict(repo, target_version)
 
         if unit.cipher_env_dict:
-            current_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+            current_env_dict = is_valid_json(aes_decode(unit.cipher_env_dict), "cipher env")
 
             # create env with default pepeunit vars, and default repo vars
             gen_env_dict = self.gen_env_dict(unit.uuid)
@@ -195,7 +194,7 @@ class UnitService:
         env_dict = self.git_repo_repository.get_env_example(repo, target_commit)
 
         if unit.cipher_env_dict:
-            current_unit_env_dict = json.loads(aes_decode(unit.cipher_env_dict))
+            current_unit_env_dict = is_valid_json(aes_decode(unit.cipher_env_dict), "cipher env")
             env_dict = merge_two_dict_first_priority(current_unit_env_dict, env_dict)
 
         return env_dict
@@ -409,7 +408,7 @@ class UnitService:
                 update_dict['NEW_COMMIT_VERSION'] = target_version
 
                 if repo.is_compilable_repo:
-                    links = json.loads(repo.releases_data)[target_tag]
+                    links = is_valid_json(repo.releases_data, "releases for compile repo")[target_tag]
                     platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link

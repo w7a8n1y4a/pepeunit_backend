@@ -1,4 +1,3 @@
-import json
 import uuid as uuid_pkg
 from typing import Optional
 
@@ -21,7 +20,7 @@ from app.repositories.utils import (
     apply_restriction,
 )
 from app.schemas.pydantic.repo import Credentials, RepoCreate, RepoFilter, RepoUpdate, RepoVersionRead, RepoVersionsRead
-from app.services.validators import is_valid_string_with_rules, is_valid_uuid
+from app.services.validators import is_valid_json, is_valid_string_with_rules, is_valid_uuid
 from app.utils.utils import aes_decode
 
 
@@ -45,7 +44,11 @@ class RepoRepository:
         full_repo = self.db.get(Repo, repo.uuid)
         if not full_repo.cipher_credentials_private_repository:
             return None
-        return Credentials(**json.loads(aes_decode(full_repo.cipher_credentials_private_repository)))
+        return Credentials(
+            **is_valid_json(
+                aes_decode(full_repo.cipher_credentials_private_repository), "cipher creeds private repository"
+            )
+        )
 
     def get_all_count(self) -> int:
         return self.db.query(Repo).count()
