@@ -1,5 +1,7 @@
+import json
 import uuid as uuid_pkg
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
@@ -44,6 +46,8 @@ class Unit(SQLModel, table=True):
     current_commit_version: str = Field(nullable=True)
     # cipher aes256 env Unit - only for creator
     cipher_env_dict: str = Field(nullable=True)
+    # cipher aes256 storage for unit state
+    cipher_state_storage: str = Field(nullable=True)
 
     # status update firmware for unit
     firmware_update_status: str = Field(nullable=True)
@@ -58,3 +62,18 @@ class Unit(SQLModel, table=True):
     )
     # to Repo link
     repo_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE')))
+
+    @property
+    def unit_state(self) -> Optional[dict]:
+        if self.unit_state_dict:
+            try:
+                return json.loads(self.unit_state_dict)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
+        return None
+
+    def to_dict(self, include_unit_state: bool = True) -> dict:
+        base_dict = self.dict()
+        if include_unit_state:
+            base_dict["unit_state"] = self.unit_state
+        return base_dict

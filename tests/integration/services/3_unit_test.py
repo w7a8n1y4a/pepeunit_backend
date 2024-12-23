@@ -298,6 +298,28 @@ def test_get_firmware(database) -> None:
 
 
 @pytest.mark.run(order=5)
+def test_state_storage(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    target_unit = pytest.units[0]
+
+    # check decode encode storage
+    state = 'test'
+    unit_service.set_state_storage(target_unit.uuid, state)
+    db_state = unit_service.get_state_storage(target_unit.uuid)
+    assert state == db_state
+
+    # check cipher long data
+    with pytest.raises(fastapi.HTTPException):
+        state = 't' * (settings.max_cipher_length + 1)
+        unit_service.set_state_storage(target_unit.uuid, state)
+
+
+@pytest.mark.run(order=6)
 def test_run_infrastructure_contour(database) -> None:
 
     backend_screen_name = 'pepeunit_backend'
@@ -361,7 +383,7 @@ def test_run_infrastructure_contour(database) -> None:
         time.sleep(1)
 
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=7)
 def test_hand_update_firmware_unit(database) -> None:
 
     current_user = pytest.users[0]
@@ -461,7 +483,7 @@ def test_hand_update_firmware_unit(database) -> None:
     assert set_unit_new_commit(token, target_unit, target_version) == 200
 
 
-@pytest.mark.run(order=7)
+@pytest.mark.run(order=8)
 def test_repo_update_firmware_unit(database) -> None:
 
     def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
@@ -548,7 +570,7 @@ def test_repo_update_firmware_unit(database) -> None:
         inc += 1
 
 
-@pytest.mark.run(order=8)
+@pytest.mark.run(order=9)
 def test_get_many_unit(database) -> None:
 
     current_user = pytest.users[0]
