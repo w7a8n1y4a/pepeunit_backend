@@ -131,3 +131,11 @@ class UnitFilter:
 class UnitMqttTokenAuth(BaseModel):
     token: str
     topic: str
+
+
+class StateStorage(BaseModel):
+    state: str
+
+
+class EnvJsonString(BaseModel):
+    env_json_string: str

@@ -13,7 +13,16 @@ from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import BackendTopicCommand
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import MqttRead
-from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitMqttTokenAuth, UnitRead, UnitsResult, UnitUpdate
+from app.schemas.pydantic.unit import (
+    EnvJsonString,
+    StateStorage,
+    UnitCreate,
+    UnitFilter,
+    UnitMqttTokenAuth,
+    UnitRead,
+    UnitsResult,
+    UnitUpdate,
+)
 from app.services.unit_service import UnitService
 
 router = APIRouter()
@@ -79,8 +88,8 @@ def get_firmware_tgz(uuid: uuid_pkg.UUID, wbits: int = 9, level: int = 9, unit_s
 
 
 @router.post("/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def set_state_storage(uuid: uuid_pkg.UUID, state: str, unit_service: UnitService = Depends()):
-    return unit_service.set_state_storage(uuid, state)
+def set_state_storage(uuid: uuid_pkg.UUID, state: StateStorage, unit_service: UnitService = Depends()):
+    return unit_service.set_state_storage(uuid, state.state)
 
 
 @router.get("/get_state_storage/{uuid}", response_model=str)
@@ -117,8 +126,8 @@ def send_command_to_input_base_topic(
 
 
 @router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def set_env(uuid: uuid_pkg.UUID, env_json_str: str, unit_service: UnitService = Depends()):
-    return unit_service.set_env(uuid, env_json_str)
+def set_env(uuid: uuid_pkg.UUID, env_json_str: EnvJsonString, unit_service: UnitService = Depends()):
+    return unit_service.set_env(uuid, env_json_str.env_json_string)
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
