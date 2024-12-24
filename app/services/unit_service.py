@@ -326,7 +326,7 @@ class UnitService:
 
         self.access_service.access_only_creator_and_target_unit(unit)
 
-        unit.cipher_state_storage = aes_encode(state)
+        unit.cipher_state_storage = aes_encode(state) if state != '' else None
         self.unit_repository.update(unit.uuid, unit)
 
     def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:
@@ -337,7 +337,7 @@ class UnitService:
 
         self.access_service.access_only_creator_and_target_unit(unit)
 
-        return aes_decode(unit.cipher_state_storage)
+        return aes_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
 
     def get_mqtt_auth(self, topic: str) -> None:
         self.access_service.access_check([], is_unit_available=True)
