@@ -24,6 +24,14 @@ class UnitStateRead(BaseModel):
         annotations = cls.__annotations__
         for field, expected_type in annotations.items():
             value = values.get(field, None)
+            if isinstance(value, int):
+                try:
+                    value = float(value)
+                    values[field] = value
+                except (ValueError, TypeError):
+                    value = None
+                    values[field] = value
+
             if not isinstance(value, expected_type):
                 values[field] = [] if expected_type is list else None
         return values
