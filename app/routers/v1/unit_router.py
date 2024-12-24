@@ -78,7 +78,7 @@ def get_firmware_tgz(uuid: uuid_pkg.UUID, wbits: int = 9, level: int = 9, unit_s
     return FileResponse(tgz_filepath, background=BackgroundTask(cleanup))
 
 
-@router.get("/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def set_state_storage(uuid: uuid_pkg.UUID, state: str, unit_service: UnitService = Depends()):
     return unit_service.set_state_storage(uuid, state)
 
