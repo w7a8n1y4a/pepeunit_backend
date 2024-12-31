@@ -114,6 +114,12 @@ class UnitRepository:
             query = query.filter(Unit.creator_uuid == is_valid_uuid(filters.creator_uuid))
         if filters.repo_uuid:
             query = query.filter(Unit.repo_uuid == is_valid_uuid(filters.repo_uuid))
+
+        filters.repos_uuids = (
+            filters.repos_uuids.default if isinstance(filters.repos_uuids, Query) else filters.repos_uuids
+        )
+        if filters.repos_uuids:
+            query = query.filter(Unit.repo_uuid.in_([is_valid_uuid(item) for item in filters.repos_uuids]))
         if filters.is_auto_update_from_repo_unit is not None:
             query = query.filter(Unit.is_auto_update_from_repo_unit == filters.is_auto_update_from_repo_unit)
 
