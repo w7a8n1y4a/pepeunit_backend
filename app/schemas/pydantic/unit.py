@@ -105,6 +105,7 @@ class UnitFilter:
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
+    repos_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
     search_string: Optional[str] = None
 

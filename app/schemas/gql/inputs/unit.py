@@ -42,6 +42,7 @@ class UnitFilterInput(TypeInputMixin):
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
+    repos_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
 
     search_string: Optional[str] = None
 
