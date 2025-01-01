@@ -185,6 +185,8 @@ class UnitNodeService:
         if self.unit_node_edge_repository.check(new_edge):
             app_errors.unit_node_error.raise_exception('Edge exist')
 
+        self.access_service.create_permission(input_node, output_node)
+
         return self.unit_node_edge_repository.create(new_edge)
 
     def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[UnitNodeEdge]]:
