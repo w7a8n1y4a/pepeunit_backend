@@ -141,7 +141,7 @@ class UnitRepository:
         count, query = apply_offset_and_limit(query, filters)
 
         return count, (
-            [(item[0], item[1]) for item in query.all()]
+            [(item[0], item[1] if item[1] else []) for item in query.all()]
             if is_include_output_unit_nodes
             else [(item, []) for item in query.all()]
         )
