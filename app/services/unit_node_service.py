@@ -185,7 +185,8 @@ class UnitNodeService:
         if self.unit_node_edge_repository.check(new_edge):
             app_errors.unit_node_error.raise_exception('Edge exist')
 
-        self.access_service.create_permission(input_node, output_node)
+        self.access_service.create_permission(Unit(uuid=output_node.unit_uuid), input_node)
+        self.access_service.create_permission(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
 
         return self.unit_node_edge_repository.create(new_edge)
 
