@@ -5,6 +5,8 @@ from fastapi import Depends
 
 from app.configs.errors import app_errors
 from app.domain.permission_model import PermissionBaseType
+from app.domain.unit_model import Unit
+from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import UserRole
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
@@ -68,10 +70,22 @@ class PermissionService:
         is_valid_object(permission)
 
         base_permission = self.access_service.permission_repository.domain_to_base_type(permission)
+        agent = self.access_service.permission_repository.get_agent(base_permission)
+        resource = self.access_service.permission_repository.get_resource(base_permission)
 
         # available delete permission - creator and resource agent
-        if not base_permission.agent_uuid == self.access_service.current_agent.uuid:
-            resource = self.access_service.permission_repository.get_resource(base_permission)
+        if self.access_service.current_agent.uuid != agent.uuid:
             self.access_service.access_creator_check(resource)
+
+        if agent.uuid == resource.uuid:
+            app_errors.permission_error.raise_exception('A resource\'s access to itself cannot be removed')
+
+        if agent.uuid == resource.creator_uuid:
+            app_errors.permission_error.raise_exception(
+                'The creator of the resource cannot remove his access to the resource'
+            )
+
+        if isinstance(agent, Unit) and isinstance(resource, UnitNode) and resource.unit_uuid == agent.uuid:
+            app_errors.permission_error.raise_exception('You cannot remove a Unit\'s access to its child UnitNodes')
 
         return self.access_service.permission_repository.delete(permission)
