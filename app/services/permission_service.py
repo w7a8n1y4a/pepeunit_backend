@@ -28,6 +28,9 @@ class PermissionService:
 
         new_permission = PermissionBaseType(**data.dict())
 
+        self.access_service.permission_repository.is_valid_agent_type(new_permission)
+        self.access_service.permission_repository.is_valid_resource_type(new_permission)
+
         resource = self.access_service.permission_repository.get_resource(new_permission)
         is_valid_object(resource)
 
@@ -38,9 +41,6 @@ class PermissionService:
 
         if self.access_service.permission_repository.check(new_permission):
             app_errors.permission_error.raise_exception('Permission is exist')
-
-        self.access_service.permission_repository.is_valid_agent_type(new_permission)
-        self.access_service.permission_repository.is_valid_resource_type(new_permission)
 
         return self.access_service.permission_repository.create(new_permission)
 
