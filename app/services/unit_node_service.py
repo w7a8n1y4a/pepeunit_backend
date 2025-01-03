@@ -1,4 +1,5 @@
 import datetime
+import logging
 import uuid as uuid_pkg
 from typing import Union
 
@@ -188,11 +189,11 @@ class UnitNodeService:
         if self.unit_node_edge_repository.check(new_edge):
             app_errors.unit_node_error.raise_exception('Edge exist')
 
-        self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
-
         try:
+            self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
             self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
-        except HTTPException:
+        except HTTPException as ex:
+            logging.info(ex.detail)
             # multiple creation of edge, should not cause an error
             pass
 
@@ -222,14 +223,18 @@ class UnitNodeService:
         input_unit = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_input_uuid))
         is_valid_object(input_unit)
 
+        output_unit = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_output_uuid))
+        is_valid_object(output_unit)
+
         if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
             self.access_service.access_creator_check(input_unit)
         else:
             self.access_service.access_creator_check(unit_node_edge)
 
         try:
-            self.permission_service.delete(input_unit.unit_uuid, input_uuid, is_api=False)
-        except HTTPException:
+            self.permission_service.delete(output_unit.unit_uuid, input_uuid, is_api=False)
+        except HTTPException as ex:
+            logging.info(ex.detail)
             # At the time of deletion, the user may have already deleted access,
             # so there should be immunity to this error.
             pass
