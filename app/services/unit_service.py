@@ -40,6 +40,7 @@ from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitRead, UnitUpdate
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
+from app.services.permission_service import PermissionService
 from app.services.unit_node_service import UnitNodeService
 from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
@@ -53,6 +54,7 @@ class UnitService:
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         access_service: AccessService = Depends(),
+        permission_service: PermissionService = Depends(),
         unit_node_service: UnitNodeService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
@@ -60,6 +62,7 @@ class UnitService:
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
         self.access_service = access_service
+        self.permission_service = permission_service
         self.unit_node_service = unit_node_service
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
@@ -92,8 +95,8 @@ class UnitService:
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
-        self.access_service.create_permission(self.access_service.current_agent, unit)
-        self.access_service.create_permission(unit, unit)
+        self.permission_service.create_by_domains(self.access_service.current_agent, unit)
+        self.permission_service.create_by_domains(unit, unit)
 
         self.unit_node_service.bulk_create(schema_dict, unit, False)
 

@@ -2,7 +2,7 @@ import datetime
 import uuid as uuid_pkg
 from typing import Union
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from app.configs.errors import app_errors
 from app.domain.permission_model import PermissionBaseType
@@ -27,6 +27,7 @@ from app.schemas.pydantic.unit_node import (
     UnitNodeUpdate,
 )
 from app.services.access_service import AccessService
+from app.services.permission_service import PermissionService
 from app.services.utils import (
     get_topic_name,
     get_visibility_level_priority,
@@ -42,11 +43,13 @@ class UnitNodeService:
         unit_repository: UnitRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
+        permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
         self.unit_node_repository = unit_node_repository
         self.unit_node_edge_repository = unit_node_edge_repository
+        self.permission_service = permission_service
         self.access_service = access_service
 
     def get(self, uuid: uuid_pkg.UUID) -> UnitNode:
@@ -185,8 +188,13 @@ class UnitNodeService:
         if self.unit_node_edge_repository.check(new_edge):
             app_errors.unit_node_error.raise_exception('Edge exist')
 
-        self.access_service.create_permission(Unit(uuid=output_node.unit_uuid), input_node)
-        self.access_service.create_permission(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
+        self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
+
+        try:
+            self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
+        except HTTPException:
+            # multiple creation of edge, should not cause an error
+            pass
 
         return self.unit_node_edge_repository.create(new_edge)
 
@@ -218,6 +226,13 @@ class UnitNodeService:
             self.access_service.access_creator_check(input_unit)
         else:
             self.access_service.access_creator_check(unit_node_edge)
+
+        try:
+            self.permission_service.delete(input_unit.unit_uuid, input_uuid, is_api=False)
+        except HTTPException:
+            # At the time of deletion, the user may have already deleted access,
+            # so there should be immunity to this error.
+            pass
 
         return self.unit_node_edge_repository.delete(unit_node_edge.uuid)
 
