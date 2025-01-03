@@ -33,7 +33,6 @@ class PermissionRepository:
                 or_(
                     Permission.agent_user_uuid == agent_uuid,
                     Permission.agent_unit_uuid == agent_uuid,
-                    Permission.agent_unit_node_uuid == agent_uuid,
                 ),
                 or_(
                     Permission.resource_repo_uuid == resource_uuid,
@@ -60,8 +59,6 @@ class PermissionRepository:
             permission.agent_user_uuid = base_permission.agent_uuid
         elif agent_type is Unit:
             permission.agent_unit_uuid = base_permission.agent_uuid
-        elif agent_type is UnitNode:
-            permission.agent_unit_node_uuid = base_permission.agent_uuid
 
         resource_type = eval(base_permission.resource_type)
         if resource_type is Repo:
@@ -86,8 +83,6 @@ class PermissionRepository:
             base_permission.agent_uuid = permission.agent_user_uuid
         elif agent_type is Unit:
             base_permission.agent_uuid = permission.agent_unit_uuid
-        elif agent_type is UnitNode:
-            base_permission.agent_uuid = permission.agent_unit_node_uuid
 
         resource_type = eval(base_permission.resource_type)
         if resource_type is Repo:
@@ -117,7 +112,6 @@ class PermissionRepository:
         entities_dict = {
             PermissionEntities.USER: Permission.agent_user_uuid,
             PermissionEntities.UNIT: Permission.agent_unit_uuid,
-            PermissionEntities.UNIT_NODE: Permission.agent_unit_node_uuid,
         }
         return entities_dict[fld_type]
 
@@ -177,6 +171,7 @@ class PermissionRepository:
 
         entities = [item.value for item in PermissionEntities]
         entities.remove(PermissionEntities.REPO)
+        entities.remove(PermissionEntities.UNIT_NODE)
 
         if permission.agent_type not in entities:
             app_errors.permission_error.raise_exception(
