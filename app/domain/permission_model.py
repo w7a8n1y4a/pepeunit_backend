@@ -24,9 +24,6 @@ class Permission(SQLModel, table=True):
     agent_unit_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE'), nullable=True)
     )
-    agent_unit_node_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('units_nodes.uuid', ondelete='CASCADE'), nullable=True)
-    )
 
     # Repo, Unit, UnitNode
     resource_type: str = Field(nullable=False)

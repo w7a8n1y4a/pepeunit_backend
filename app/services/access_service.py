@@ -193,9 +193,7 @@ class AccessService:
 
         return token
 
-    def create_permission(
-        self, agent: Union[User, Unit, UnitNode], resource: Union[Repo, Unit, UnitNode]
-    ) -> PermissionBaseType:
+    def create_permission(self, agent: Union[User, Unit], resource: Union[Repo, Unit, UnitNode]) -> PermissionBaseType:
 
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
@@ -203,11 +201,14 @@ class AccessService:
         self.permission_repository.is_valid_agent_type(Permission(agent_type=agent_type))
         self.permission_repository.is_valid_resource_type(Permission(resource_type=resource_type))
 
-        return self.permission_repository.create(
-            PermissionBaseType(
-                agent_uuid=agent.uuid,
-                agent_type=agent_type,
-                resource_uuid=resource.uuid,
-                resource_type=resource_type,
-            )
+        new_permission = PermissionBaseType(
+            agent_uuid=agent.uuid,
+            agent_type=agent_type,
+            resource_uuid=resource.uuid,
+            resource_type=resource_type,
         )
+
+        if self.permission_repository.check(new_permission):
+            app_errors.permission_error.raise_exception('Permission is exist')
+
+        return self.permission_repository.create(new_permission)
