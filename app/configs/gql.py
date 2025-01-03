@@ -60,9 +60,10 @@ def get_repo_service(info: Info) -> RepoService:
 
     repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
+    permission_repository = PermissionRepository(db)
 
     access_service = get_access_service(info)(
-        permission_repository=PermissionRepository(db),
+        permission_repository=permission_repository,
         unit_repository=unit_repository,
         user_repository=UserRepository(db),
         jwt_token=jwt_token,
@@ -72,6 +73,11 @@ def get_repo_service(info: Info) -> RepoService:
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
         access_service=access_service,
+    )
+
+    permission_service = PermissionService(
+        access_service=access_service,
+        permission_repository=permission_repository,
     )
 
     return RepoService(
@@ -82,8 +88,10 @@ def get_repo_service(info: Info) -> RepoService:
             unit_repository=unit_repository,
             unit_node_repository=UnitNodeRepository(db),
             access_service=access_service,
+            permission_service=permission_service,
             unit_node_service=unit_node_service,
         ),
+        permission_service=permission_service,
         access_service=access_service,
     )
 
@@ -94,9 +102,10 @@ def get_unit_service(info: Info) -> UnitService:
 
     repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
+    permission_repository = PermissionRepository(db)
 
     access_service = get_access_service(info)(
-        permission_repository=PermissionRepository(db),
+        permission_repository=permission_repository,
         unit_repository=unit_repository,
         user_repository=UserRepository(db),
         jwt_token=jwt_token,
@@ -108,11 +117,17 @@ def get_unit_service(info: Info) -> UnitService:
         access_service=access_service,
     )
 
+    permission_service = PermissionService(
+        access_service=access_service,
+        permission_repository=permission_repository,
+    )
+
     return UnitService(
         repo_repository=repo_repository,
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
         access_service=access_service,
+        permission_service=permission_service,
         unit_node_service=unit_node_service,
     )
 
@@ -122,17 +137,26 @@ def get_unit_node_service(info: Info) -> UnitNodeService:
     jwt_token = info.context['jwt_token']
 
     unit_repository = UnitRepository(db)
+    permission_repository = PermissionRepository(db)
+
+    access_service = get_access_service(info)(
+        permission_repository=permission_repository,
+        unit_repository=unit_repository,
+        user_repository=UserRepository(db),
+        jwt_token=jwt_token,
+    )
+
+    permission_service = PermissionService(
+        access_service=access_service,
+        permission_repository=permission_repository,
+    )
 
     return UnitNodeService(
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        access_service=get_access_service(info)(
-            permission_repository=PermissionRepository(db),
-            unit_repository=unit_repository,
-            user_repository=UserRepository(db),
-            jwt_token=jwt_token,
-        ),
+        permission_service=permission_service,
+        access_service=access_service,
     )
 
 
@@ -170,4 +194,5 @@ def get_permission_service(info: Info) -> PermissionService:
             user_repository=UserRepository(db),
             jwt_token=jwt_token,
         ),
+        permission_repository=PermissionRepository(db),
     )
