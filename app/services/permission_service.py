@@ -5,9 +5,12 @@ from fastapi import Depends
 
 from app.configs.errors import app_errors
 from app.domain.permission_model import PermissionBaseType
+from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
+from app.domain.user_model import User
 from app.repositories.enum import UserRole
+from app.repositories.permission_repository import PermissionRepository
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
@@ -18,31 +21,52 @@ class PermissionService:
     def __init__(
         self,
         access_service: AccessService = Depends(),
+        permission_repository: PermissionRepository = Depends(),
     ) -> None:
         self.access_service = access_service
+        self.permission_repository = permission_repository
 
-    def create(self, data: Union[PermissionCreate, PermissionCreateInput]) -> PermissionBaseType:
+    def create(
+        self, data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType], is_api: bool = True
+    ) -> PermissionBaseType:
         is_valid_uuid(data.agent_uuid)
         is_valid_uuid(data.resource_uuid)
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
+        if is_api:
+            self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
         new_permission = PermissionBaseType(**data.dict())
 
-        self.access_service.permission_repository.is_valid_agent_type(new_permission)
-        self.access_service.permission_repository.is_valid_resource_type(new_permission)
+        self.permission_repository.is_valid_agent_type(new_permission)
+        self.permission_repository.is_valid_resource_type(new_permission)
 
-        resource = self.access_service.permission_repository.get_resource(new_permission)
+        resource = self.permission_repository.get_resource(new_permission)
         is_valid_object(resource)
 
-        self.access_service.access_creator_check(resource)
+        if is_api:
+            self.access_service.access_creator_check(resource)
 
-        agent = self.access_service.permission_repository.get_agent(new_permission)
+        agent = self.permission_repository.get_agent(new_permission)
         is_valid_object(agent)
 
-        if self.access_service.permission_repository.check(new_permission):
+        if self.permission_repository.check(new_permission):
             app_errors.permission_error.raise_exception('Permission is exist')
 
-        return self.access_service.permission_repository.create(new_permission)
+        return self.permission_repository.create(new_permission)
+
+    def create_by_domains(self, agent: Union[User, Unit], resource: Union[Repo, Unit, UnitNode]) -> PermissionBaseType:
+
+        agent_type = agent.__class__.__name__
+        resource_type = resource.__class__.__name__
+
+        new_permission = PermissionBaseType(
+            agent_uuid=agent.uuid,
+            agent_type=agent_type,
+            resource_uuid=resource.uuid,
+            resource_type=resource_type,
+        )
+
+        return self.create(new_permission, is_api=False)
 
     def get_resource_agents(
         self, filters: Union[PermissionFilter, PermissionFilterInput]
@@ -51,7 +75,7 @@ class PermissionService:
 
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        resource_entity = self.access_service.permission_repository.get_resource(
+        resource_entity = self.permission_repository.get_resource(
             PermissionBaseType(resource_uuid=filters.resource_uuid, resource_type=filters.resource_type)
         )
 
@@ -59,22 +83,21 @@ class PermissionService:
 
         self.access_service.access_creator_check(resource_entity)
 
-        return self.access_service.permission_repository.get_resource_agents(filters)
+        return self.permission_repository.get_resource_agents(filters)
 
-    def delete(self, agent_uuid: uuid_pkg.UUID, resource_uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+    def delete(self, agent_uuid: uuid_pkg.UUID, resource_uuid: uuid_pkg.UUID, is_api: bool = True) -> None:
+        if is_api:
+            self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
 
-        permission = self.access_service.permission_repository.get_by_uuid(
-            agent_uuid=agent_uuid, resource_uuid=resource_uuid
-        )
+        permission = self.permission_repository.get_by_uuid(agent_uuid=agent_uuid, resource_uuid=resource_uuid)
         is_valid_object(permission)
 
-        base_permission = self.access_service.permission_repository.domain_to_base_type(permission)
-        agent = self.access_service.permission_repository.get_agent(base_permission)
-        resource = self.access_service.permission_repository.get_resource(base_permission)
+        base_permission = self.permission_repository.domain_to_base_type(permission)
+        agent = self.permission_repository.get_agent(base_permission)
+        resource = self.permission_repository.get_resource(base_permission)
 
         # available delete permission - creator and resource agent
-        if self.access_service.current_agent.uuid != agent.uuid:
+        if is_api and self.access_service.current_agent.uuid != agent.uuid:
             self.access_service.access_creator_check(resource)
 
         if agent.uuid == resource.uuid:
@@ -88,4 +111,4 @@ class PermissionService:
         if isinstance(agent, Unit) and isinstance(resource, UnitNode) and resource.unit_uuid == agent.uuid:
             app_errors.permission_error.raise_exception('You cannot remove a Unit\'s access to its child UnitNodes')
 
-        return self.access_service.permission_repository.delete(permission)
+        return self.permission_repository.delete(permission)
