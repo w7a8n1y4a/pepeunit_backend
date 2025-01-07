@@ -40,3 +40,39 @@ deploy:image:dev:
     - docker rm $PROJ || echo $?
     - docker run -d --name=$PROJ -p 5401:5000 --restart=always -v /root/pepeunit/repo_cache:/app/repo_cache --env-file $ENV_FILE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
     - docker system prune -a -f
+    -
+
+build:image:release:
+  stage: build
+  tags:
+    - shell-build-runer
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "release" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
+  script:
+    - docker build -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG .
+    - docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+
+deploy:image:release:
+  stage: deploy
+  tags:
+    - shell-runer
+  variables:
+    PROJ: pepeunit-backend-release
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "release" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - echo $USER
+    - echo $PROJ
+    - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
+  script:
+    - docker pull $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker stop $PROJ || echo $?
+    - docker rm $PROJ || echo $?
+    - docker run -d --name=$PROJ -p 5402:5000 --restart=always -v /root/pepeunit/release/repo_cache:/app/repo_cache --env-file $ENV_FILE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker system prune -a -f
