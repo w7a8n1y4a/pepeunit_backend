@@ -73,5 +73,5 @@ deploy:image:release:
     - docker pull $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
     - docker stop $PROJ || echo $?
     - docker rm $PROJ || echo $?
-    - docker run -d --name=$PROJ -p 5402:5000 --restart=always -v /root/pepeunit/release/repo_cache:/app/repo_cache --env-file $ENV_FILE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker run -d --name=$PROJ -p 5402:5000 --restart=always -v /root/pepeunit/release/repo_cache:/app/repo_cache --env-file $ENV_FILE_RELEASE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
     - docker system prune -a -f
