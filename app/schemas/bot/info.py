@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
@@ -16,11 +18,17 @@ async def info_resolver(message: types.Message):
     root_data = Root()
 
     db = next(get_session())
-    metrics_service = get_metrics_service(
-        InfoSubEntity({'db': db, 'jwt_token': str(message.chat.id), 'is_bot_auth': True})
-    )
-    metrics = metrics_service.get_instance_metrics()
-    db.close()
+
+    try:
+        metrics_service = get_metrics_service(
+            InfoSubEntity({'db': db, 'jwt_token': str(message.chat.id), 'is_bot_auth': True})
+        )
+        metrics = metrics_service.get_instance_metrics()
+
+    except Exception as ex:
+        logging.error(ex)
+    finally:
+        db.close()
 
     documentation = (
         f'Current Version - {root_data.version}\n'

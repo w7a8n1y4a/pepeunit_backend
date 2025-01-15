@@ -85,9 +85,14 @@ async def _lifespan(_app: FastAPI):
     await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
 
     db = next(get_session())
-    repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-    repo_service.sync_local_repo_storage()
-    db.close()
+
+    try:
+        repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+        repo_service.sync_local_repo_storage()
+    except Exception as ex:
+        logging.error(ex)
+    finally:
+        db.close()
 
     yield
     await mqtt.mqtt_shutdown()
