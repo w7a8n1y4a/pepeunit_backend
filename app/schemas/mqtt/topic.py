@@ -50,8 +50,8 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
             if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
+                db = next(get_session())
                 try:
-                    db = next(get_session())
                     unit_repository = UnitRepository(db)
 
                     unit_state_dict = get_only_reserved_keys(is_valid_json(payload.decode(), "hardware state"))
@@ -98,9 +98,9 @@ async def message_to_topic(client, topic, payload, qos, properties):
                         unit_uuid,
                         unit,
                     )
-                    db.close()
                 except Exception as ex:
                     logging.error(ex)
+                finally:
                     db.close()
 
     elif len(topic_split) == 3:
@@ -114,11 +114,14 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if redis_topic_value != new_value:
             await KeyDBClient.async_set(str(unit_node_uuid), new_value)
-
             db = next(get_session())
-            unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-            unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
-            db.close()
+            try:
+                unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+                unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
+            except Exception as ex:
+                logging.error(ex)
+            finally:
+                db.close()
     else:
         pass
 
