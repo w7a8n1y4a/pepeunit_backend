@@ -503,6 +503,7 @@ class UnitService:
             'PEPEUNIT_URL': settings.backend_domain,
             'HTTP_TYPE': settings.http_type,
             'MQTT_URL': settings.mqtt_host,
+            'MQTT_PORT': settings.mqtt_port,
             'PEPEUNIT_TOKEN': self.generate_token(uuid),
             'SYNC_ENCRYPT_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),
             'SECRET_KEY': base64.b64encode(os.urandom(16)).decode('utf-8'),
