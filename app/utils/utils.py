@@ -5,6 +5,8 @@ import string
 import time
 
 import pyaes
+from pathspec import PathSpec
+from pathspec.patterns import GitWildMatchPattern
 
 from app import settings
 from app.configs.errors import app_errors
@@ -76,6 +78,24 @@ def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: 
 def generate_random_string(length=6):
     chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
     return ''.join(chars[c % len(chars)] for c in os.urandom(length))
+
+
+def clean_files_with_pepeignore(directory: str, pepe_ignore_path: str) -> None:
+    if not os.path.exists(pepe_ignore_path):
+        return
+
+    with open(pepe_ignore_path, 'r') as f:
+        pepeignore_rules = f.read().splitlines()
+
+    spec = PathSpec.from_lines(GitWildMatchPattern, pepeignore_rules)
+
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.relpath(os.path.join(root, file), directory)
+            if spec.match_file(file_path):
+                full_path = os.path.join(directory, file_path)
+                print(f"Deleting: {full_path}")
+                os.remove(full_path)
 
 
 def timeit(func):
