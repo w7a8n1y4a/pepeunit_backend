@@ -21,6 +21,7 @@ from app.repositories.git_platform_repository import (
 )
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json, is_valid_object
+from app.utils.utils import clean_files_with_pepeignore
 
 
 class GitRepoRepository:
@@ -58,24 +59,7 @@ class GitRepoRepository:
         tmp_git_repo.git.checkout(commit)
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
-
-        del_path_list = [
-            '.gitignore',
-            StaticRepoFileName.ENV_EXAMPLE,
-            '.git',
-            'docs',
-            'model' 'readme.md',
-            'README.md',
-            'LICENSE',
-        ]
-
-        for path in del_path_list:
-            merge_path = f'{tmp_git_repo_path}/{path}'
-
-            if os.path.isfile(merge_path):
-                os.remove(merge_path)
-            else:
-                shutil.rmtree(merge_path, ignore_errors=True)
+        clean_files_with_pepeignore(tmp_git_repo_path, f'{tmp_git_repo_path}/.pepeignore')
 
         return tmp_git_repo_path
 
