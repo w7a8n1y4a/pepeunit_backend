@@ -131,6 +131,7 @@ class UnitService:
         self.unit_node_service.command_to_input_base_topic(
             uuid=result_unit.uuid,
             command=BackendTopicCommand.UPDATE,
+            is_auto_update=True,
         )
 
         return result_unit

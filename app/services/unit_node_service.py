@@ -183,92 +183,6 @@ class UnitNodeService:
 
         return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
 
-    def create_node_edge(self, data: Union[UnitNodeEdgeCreate, UnitNodeEdgeCreateInput]) -> UnitNodeEdge:
-        data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
-        data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
-
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-
-        output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))
-        is_valid_object(output_node)
-        self.is_valid_output_unit_node(output_node)
-        self.access_service.visibility_check(output_node)
-
-        input_node = self.unit_node_repository.get(UnitNode(uuid=data.node_input_uuid))
-        is_valid_object(input_node)
-        self.is_valid_input_unit_node(input_node)
-        self.access_service.visibility_check(input_node)
-
-        new_edge = UnitNodeEdge(**data.dict())
-        new_edge.creator_uuid = self.access_service.current_agent.uuid
-
-        if self.unit_node_edge_repository.check(new_edge):
-            app_errors.unit_node_error.raise_exception('Edge exist')
-
-        try:
-            self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
-            self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
-        except HTTPException as ex:
-            logging.info(ex.detail)
-            # multiple creation of edge, should not cause an error
-            pass
-
-        unit_node_edge = self.unit_node_edge_repository.create(new_edge)
-
-        self.command_to_input_base_topic(
-            uuid=input_node.unit_uuid,
-            command=BackendTopicCommand.SCHEMA_UPDATE,
-        )
-
-        return unit_node_edge
-
-    def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[UnitNodeEdge]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
-
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
-
-        filters = UnitNodeFilter(unit_uuid=unit_uuid)
-
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
-            filters.visibility_level, restriction
-        )
-
-        count, unit_nodes = self.unit_node_repository.list(filters=filters, restriction=restriction)
-
-        return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
-
-    def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
-
-        unit_node_edge = self.unit_node_edge_repository.get_by_two_uuid(input_uuid, output_uuid)
-        is_valid_object(unit_node_edge)
-
-        input_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_input_uuid))
-        is_valid_object(input_node)
-
-        output_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_output_uuid))
-        is_valid_object(output_node)
-
-        if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
-            self.access_service.access_creator_check(input_node)
-        else:
-            self.access_service.access_creator_check(unit_node_edge)
-
-        try:
-            self.permission_service.delete(output_node.unit_uuid, input_uuid, is_api=False)
-        except HTTPException as ex:
-            logging.info(ex.detail)
-            # At the time of deletion, the user may have already deleted access,
-            # so there should be immunity to this error.
-            pass
-
-        self.unit_node_edge_repository.delete(unit_node_edge.uuid)
-
-        self.command_to_input_base_topic(
-            uuid=input_node.unit_uuid,
-            command=BackendTopicCommand.SCHEMA_UPDATE,
-        )
-
     def command_to_input_base_topic(
         self, uuid: uuid_pkg.UUID, command: BackendTopicCommand, is_auto_update: bool = False
     ) -> None:
@@ -322,7 +236,96 @@ class UnitNodeService:
                     unit.last_firmware_update_datetime = None
                     unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
 
-            self.unit_repository.update(unit.uuid, unit)
+            if command == BackendTopicCommand.UPDATE:
+                self.unit_repository.update(unit.uuid, unit)
+
+    def create_node_edge(self, data: Union[UnitNodeEdgeCreate, UnitNodeEdgeCreateInput]) -> UnitNodeEdge:
+        data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
+        data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
+
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
+        output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))
+        is_valid_object(output_node)
+        self.is_valid_output_unit_node(output_node)
+        self.access_service.visibility_check(output_node)
+
+        input_node = self.unit_node_repository.get(UnitNode(uuid=data.node_input_uuid))
+        is_valid_object(input_node)
+        self.is_valid_input_unit_node(input_node)
+        self.access_service.visibility_check(input_node)
+
+        new_edge = UnitNodeEdge(**data.dict())
+        new_edge.creator_uuid = self.access_service.current_agent.uuid
+
+        if self.unit_node_edge_repository.check(new_edge):
+            app_errors.unit_node_error.raise_exception('Edge exist')
+
+        try:
+            self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
+            self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
+        except HTTPException as ex:
+            logging.info(ex.detail)
+            # multiple creation of edge, should not cause an error
+            pass
+
+        unit_node_edge = self.unit_node_edge_repository.create(new_edge)
+
+        self.command_to_input_base_topic(
+            uuid=input_node.unit_uuid,
+            command=BackendTopicCommand.SCHEMA_UPDATE,
+            is_auto_update=True,
+        )
+
+        return unit_node_edge
+
+    def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[UnitNodeEdge]]:
+        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+
+        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
+
+        filters = UnitNodeFilter(unit_uuid=unit_uuid)
+
+        filters.visibility_level = self.access_service.get_available_visibility_levels(
+            filters.visibility_level, restriction
+        )
+
+        count, unit_nodes = self.unit_node_repository.list(filters=filters, restriction=restriction)
+
+        return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
+
+    def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
+        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+
+        unit_node_edge = self.unit_node_edge_repository.get_by_two_uuid(input_uuid, output_uuid)
+        is_valid_object(unit_node_edge)
+
+        input_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_input_uuid))
+        is_valid_object(input_node)
+
+        output_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_edge.node_output_uuid))
+        is_valid_object(output_node)
+
+        if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
+            self.access_service.access_creator_check(input_node)
+        else:
+            self.access_service.access_creator_check(unit_node_edge)
+
+        try:
+            self.permission_service.delete(output_node.unit_uuid, input_uuid, is_api=False)
+        except HTTPException as ex:
+            logging.info(ex.detail)
+            # At the time of deletion, the user may have already deleted access,
+            # so there should be immunity to this error.
+            pass
+
+        self.unit_node_edge_repository.delete(unit_node_edge.uuid)
+
+        self.command_to_input_base_topic(
+            uuid=input_node.unit_uuid,
+            command=BackendTopicCommand.SCHEMA_UPDATE,
+            is_auto_update=True,
+        )
 
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> tuple[int, list[UnitNode]]:
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
