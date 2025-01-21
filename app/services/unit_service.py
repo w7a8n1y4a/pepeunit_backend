@@ -19,11 +19,8 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.enum import (
     BackendTopicCommand,
     DestinationTopicType,
-    GlobalPrefixTopic,
     PermissionEntities,
-    ReservedInputBaseTopic,
     StaticRepoFileName,
-    UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
     UserRole,
 )
@@ -34,7 +31,7 @@ from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUpdateInput
 from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.gql.types.unit import UnitStateType, UnitType
-from app.schemas.mqtt.utils import get_topic_split, publish_to_topic
+from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitRead, UnitUpdate
@@ -131,7 +128,7 @@ class UnitService:
 
         result_unit = self.sync_state_unit_nodes_for_version(result_unit, repo)
 
-        self.command_to_input_base_topic(
+        self.unit_node_service.command_to_input_base_topic(
             uuid=result_unit.uuid,
             command=BackendTopicCommand.UPDATE,
         )
@@ -376,59 +373,6 @@ class UnitService:
                 )
         else:
             app_errors.mqtt_error.raise_exception('Only for Unit available topic communication')
-
-    def command_to_input_base_topic(
-        self, uuid: uuid_pkg.UUID, command: BackendTopicCommand, is_auto_update: bool = False
-    ) -> None:
-
-        if not is_auto_update:
-            self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-
-        unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
-
-        if not is_auto_update:
-            self.access_service.access_only_creator_and_target_unit(unit)
-
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
-
-        command_to_topic_dict = {
-            BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
-            BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE,
-            BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE,
-        }
-
-        target_topic = command_to_topic_dict[command] + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
-        if target_topic in schema_dict['input_base_topic']:
-
-            update_dict = {'COMMAND': command}
-
-            if command == BackendTopicCommand.UPDATE:
-                update_dict['NEW_COMMIT_VERSION'] = target_version
-
-                if repo.is_compilable_repo:
-                    links = is_valid_json(repo.releases_data, "releases for compile repo")[target_tag]
-                    platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
-
-                    update_dict['COMPILED_FIRMWARE_LINK'] = link
-            try:
-                publish_to_topic(
-                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{target_topic}",
-                    update_dict,
-                )
-                unit.firmware_update_error = None
-                unit.last_firmware_update_datetime = datetime.datetime.utcnow()
-                unit.firmware_update_status = UnitFirmwareUpdateStatus.REQUEST_SENT
-            except Exception as ex:
-                unit.firmware_update_error = ex.detail
-                unit.last_firmware_update_datetime = None
-                unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
-
-            self.unit_repository.update(unit.uuid, unit)
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
