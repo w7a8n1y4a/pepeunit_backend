@@ -197,6 +197,9 @@ class UnitService:
             current_unit_env_dict = is_valid_json(aes_decode(unit.cipher_env_dict), "cipher env")
             env_dict = merge_two_dict_first_priority(current_unit_env_dict, env_dict)
 
+        target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
+        env_dict['COMMIT_VERSION'] = target_commit
+
         return env_dict
 
     def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
@@ -212,6 +215,9 @@ class UnitService:
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
+
+        if 'COMMIT_VERSION' in merged_env_dict:
+            del merged_env_dict['COMMIT_VERSION']
 
         self.git_repo_repository.is_valid_env_file(repo, target_version, merged_env_dict)
 
