@@ -334,6 +334,7 @@ class UnitService:
         self.access_service.access_only_creator_and_target_unit(unit)
 
         unit.cipher_state_storage = aes_encode(state) if state != '' else None
+        unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
 
     def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:

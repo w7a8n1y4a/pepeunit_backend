@@ -30,6 +30,7 @@ class UnitNode(SQLModel, table=True):
 
     # last state topic - only for topics with prefix #/pepeunit
     state: str = Field(nullable=True)
+    last_update_datetime: datetime = Field(nullable=False)
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
