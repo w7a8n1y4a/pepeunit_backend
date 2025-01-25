@@ -110,6 +110,7 @@ class UnitNodeService:
                 )
 
                 unit_node.create_datetime = datetime.datetime.utcnow()
+                unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
 
                 for agent in [unit, self.access_service.current_agent]:
@@ -148,6 +149,7 @@ class UnitNodeService:
                 unit.visibility_level
             ):
                 unit_node.visibility_level = unit.visibility_level
+                unit_node.last_update_datetime = datetime.datetime.utcnow()
                 update_list.append(unit_node)
 
         self.unit_node_repository.bulk_save(update_list)
@@ -168,6 +170,8 @@ class UnitNodeService:
         )
         is_valid_visibility_level(self.unit_repository.get(Unit(uuid=update_unit_node.unit_uuid)), [update_unit_node])
 
+        update_unit_node.last_update_datetime = datetime.datetime.utcnow()
+
         return self.unit_node_repository.update(uuid, update_unit_node)
 
     def set_state_input(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
@@ -181,7 +185,9 @@ class UnitNodeService:
 
         publish_to_topic(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
 
-        return self.unit_node_repository.update(uuid, UnitNode(**data.dict()))
+        return self.unit_node_repository.update(
+            uuid, UnitNode(last_update_datetime=datetime.datetime.utcnow(), **data.dict())
+        )
 
     def command_to_input_base_topic(
         self, uuid: uuid_pkg.UUID, command: BackendTopicCommand, is_auto_update: bool = False
@@ -340,6 +346,7 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
         is_valid_object(unit_node)
         unit_node.state = state
+        unit_node.last_update_datetime = datetime.datetime.utcnow()
 
         return self.unit_node_repository.update(unit_node.uuid, unit_node)
 

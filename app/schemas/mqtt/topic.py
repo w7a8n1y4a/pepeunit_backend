@@ -94,6 +94,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
                             unit.last_firmware_update_datetime = None
                             unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
 
+                    unit.last_update_datetime = datetime.datetime.utcnow()
                     unit_repository.update(
                         unit_uuid,
                         unit,
