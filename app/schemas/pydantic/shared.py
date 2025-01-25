@@ -35,6 +35,7 @@ class UnitNodeRead(BaseModel):
 
     create_datetime: datetime
     state: Optional[str] = None
+    last_update_datetime: datetime
 
     unit_uuid: uuid_pkg.UUID
     creator_uuid: uuid_pkg.UUID
