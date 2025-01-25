@@ -53,6 +53,11 @@ class GitPlatformRepositoryABC(ABC):
         """Get release information -> {tag: [(name_package, download_link)]}"""
         pass
 
+    @abstractmethod
+    def get_repo_size(self) -> int:
+        """Get release information -> {tag: [(name_package, download_link)]}"""
+        pass
+
 
 class GitlabPlatformRepository(GitPlatformRepositoryABC):
     """For Gitlab"""
@@ -112,6 +117,26 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
 
         return result_dict
 
+    def get_repo_size(self) -> int:
+        repository_id = self._get_repository_id()
+
+        if self.credentials:
+            headers = {
+                'PRIVATE-TOKEN': self.credentials.pat_token,
+            }
+        else:
+            # BUG: gitlab (< 17.9) has no repository_size for user without role < REPORTER.
+            return 0
+
+        repo_data = httpx.get(url=f'{self._get_api_url()}{repository_id}?statistics=true', headers=headers)
+
+        try:
+            repo_size = repo_data.json()['statistics']['repository_size']
+        except KeyError:
+            app_errors.git_repo_error.raise_exception('Invalid Credentials')
+
+        return repo_size
+
 
 class GithubPlatformRepository(GitPlatformRepositoryABC):
     """For Github"""
@@ -148,3 +173,15 @@ class GithubPlatformRepository(GitPlatformRepositoryABC):
             result_dict[item['tag_name']] = assets_list
 
         return result_dict
+
+    def get_repo_size(self) -> int:
+        headers = {"Accept": "application/vnd.github.v3+json"}
+
+        repo_data = httpx.get(url=f'{self._get_api_url()}{self._get_repository_name()}', headers=headers)
+
+        try:
+            repo_size = repo_data.json()['size']
+        except KeyError:
+            app_errors.git_repo_error.raise_exception('Invalid Credentials')
+
+        return repo_size * 1024

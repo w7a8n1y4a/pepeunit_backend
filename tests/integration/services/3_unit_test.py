@@ -431,7 +431,6 @@ def test_hand_update_firmware_unit(database) -> None:
         commits = repo_service.get_branch_commits(
             repo.uuid, CommitFilter(repo_branch=repo.branches[0], only_tag=repo.is_only_tag_update)
         )
-        print(commits)
         target_version = commits[1].commit
         target_versions.append(target_version)
 
