@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from pathlib import Path
 
 import httpx
 
@@ -177,3 +178,7 @@ def set_emqx_auth_cache_ttl() -> None:
     assert response.status_code < 500, f'Error connect to {settings.mqtt_host}:{settings.mqtt_port}'
 
     logging.info(response.json())
+
+
+def get_directory_size(directory: str) -> int:
+    return sum(f.stat().st_size for f in Path(directory).rglob('*') if f.is_file())
