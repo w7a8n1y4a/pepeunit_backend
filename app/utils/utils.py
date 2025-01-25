@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import logging
 import os
 import string
 import time
@@ -94,7 +95,6 @@ def clean_files_with_pepeignore(directory: str, pepe_ignore_path: str) -> None:
             file_path = os.path.relpath(os.path.join(root, file), directory)
             if spec.match_file(file_path):
                 full_path = os.path.join(directory, file_path)
-                print(f"Deleting: {full_path}")
                 os.remove(full_path)
 
 
@@ -104,7 +104,7 @@ def timeit(func):
         result = func(*args, **kwargs)
         end_time = time.time()
         execution_time = end_time - start_time
-        print(f"Function '{func.__name__}' executed in {execution_time:.6f} seconds.")
+        logging.debug(f"Function '{func.__name__}' executed in {execution_time:.6f} seconds.")
         return result
 
     return wrapper

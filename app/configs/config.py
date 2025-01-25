@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     available_name_entity_symbols: str = string.ascii_letters + string.digits + '_-.'
     available_password_symbols: str = string.ascii_letters + string.digits + string.punctuation
     state_send_interval: int = 300
+    max_external_repo_size: int = 50
     max_cipher_length: int = 50000
 
     test_clear_data: bool = True
