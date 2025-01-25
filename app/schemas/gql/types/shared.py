@@ -24,6 +24,7 @@ class UnitNodeType(TypeInputMixin):
     is_rewritable_input: bool
 
     topic_name: str
+    last_update_datetime: datetime
 
     create_datetime: datetime
     state: Optional[str] = None
