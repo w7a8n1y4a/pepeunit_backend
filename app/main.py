@@ -20,6 +20,7 @@ from app.configs.utils import (
     set_http_emqx_auth_hook,
     set_redis_emqx_auth_hook,
 )
+from app.repositories.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
 from app.schemas.bot import *
 from app.schemas.gql.mutation import Mutation
@@ -41,7 +42,10 @@ async def _lifespan(_app: FastAPI):
     await KeyDBClient.async_wait_for_ready()
     await KeyDBClient.async_delete(settings.backend_token)
 
-    backend_topics = (f'{settings.backend_domain}/+/+/+/pepeunit', f'{settings.backend_domain}/+/pepeunit')
+    backend_topics = (
+        f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
+        f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
+    )
 
     async def hset_emqx_auth_keys(KeyDBClient, topic):
         await KeyDBClient.async_hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
@@ -79,8 +83,8 @@ async def _lifespan(_app: FastAPI):
         for k, v in access.items():
             logging.info(f'Redis set {k} access {v}')
 
-        mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+/pepeunit')
-        mqtt.client.subscribe(f'{settings.backend_domain}/+/pepeunit')
+        mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+        mqtt.client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
 
     await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
 
