@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     mqtt_keepalive: int
     mqtt_api_key: str
     mqtt_secret_key: str
+    mqtt_max_payload_size: int = 50000
 
     redis_url: str
     redis_mqtt_auth_url: str
