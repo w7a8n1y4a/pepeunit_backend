@@ -22,9 +22,6 @@ class UnitNodeSetStateInput(TypeInputMixin):
 class UnitNodeFilterInput(TypeInputMixin):
     uuids: Optional[list[uuid_pkg.UUID]] = tuple()
 
-    # get only input for this output node
-    output_uuid: Optional[uuid_pkg.UUID] = None
-
     unit_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
@@ -35,6 +32,9 @@ class UnitNodeFilterInput(TypeInputMixin):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    # get only input UnitNode linked with this output UnitNode
+    output_uuid: Optional[uuid_pkg.UUID] = None
 
 
 @strawberry.input()
