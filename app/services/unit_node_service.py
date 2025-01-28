@@ -269,10 +269,17 @@ class UnitNodeService:
 
         try:
             self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
+        except HTTPException:
+            pass
+
+        try:
+            self.permission_service.create_by_domains(Unit(uuid=input_node.unit_uuid), output_node)
+        except HTTPException:
+            pass
+
+        try:
             self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
-        except HTTPException as ex:
-            logging.info(ex.detail)
-            # multiple creation of edge, should not cause an error
+        except HTTPException:
             pass
 
         unit_node_edge = self.unit_node_edge_repository.create(new_edge)
