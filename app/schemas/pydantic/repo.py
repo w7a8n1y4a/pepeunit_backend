@@ -94,6 +94,7 @@ class RepoFilter:
     uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
+    creators_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
     search_string: Optional[str] = None
 
     is_public_repository: Optional[bool] = None
