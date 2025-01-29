@@ -11,6 +11,7 @@ from git.exc import GitCommandError
 
 from app import settings
 from app.configs.errors import app_errors
+from app.configs.utils import get_directory_size
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
@@ -21,6 +22,7 @@ from app.repositories.git_platform_repository import (
 )
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json, is_valid_object
+from app.utils.utils import clean_files_with_pepeignore
 
 
 class GitRepoRepository:
@@ -38,6 +40,9 @@ class GitRepoRepository:
         except FileNotFoundError:
             pass
 
+        external_repo_size = self.get_platform(repo).get_repo_size()
+        self.is_valid_repo_size(external_repo_size)
+
         try:
             # cloning repo by url
             git_repo = GitRepo.clone_from(
@@ -45,6 +50,9 @@ class GitRepoRepository:
             )
         except GitCommandError:
             app_errors.git_repo_error.raise_exception('No valid repo_url or credentials')
+
+        physic_repo_size = get_directory_size(repo_save_path)
+        self.is_valid_repo_size(physic_repo_size)
 
         # get all remotes branches to local repo
         for remote in git_repo.remotes:
@@ -58,24 +66,7 @@ class GitRepoRepository:
         tmp_git_repo.git.checkout(commit)
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
-
-        del_path_list = [
-            '.gitignore',
-            StaticRepoFileName.ENV_EXAMPLE,
-            '.git',
-            'docs',
-            'model' 'readme.md',
-            'README.md',
-            'LICENSE',
-        ]
-
-        for path in del_path_list:
-            merge_path = f'{tmp_git_repo_path}/{path}'
-
-            if os.path.isfile(merge_path):
-                os.remove(merge_path)
-            else:
-                shutil.rmtree(merge_path, ignore_errors=True)
+        clean_files_with_pepeignore(tmp_git_repo_path, f'{tmp_git_repo_path}/.pepeignore')
 
         return tmp_git_repo_path
 
@@ -353,3 +344,12 @@ class GitRepoRepository:
 
             else:
                 app_errors.git_repo_error.raise_exception('Target Tag has no platforms')
+
+    @staticmethod
+    def is_valid_repo_size(repo_size: int) -> None:
+        if repo_size < 0 or repo_size > settings.max_external_repo_size * 2**20:
+            app_errors.git_repo_error.raise_exception(
+                'No valid external repo size {} MB, max {} MB'.format(
+                    round(repo_size / 2**20, 2), settings.physic_repo_size
+                )
+            )

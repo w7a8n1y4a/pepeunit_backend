@@ -122,7 +122,7 @@ def update(uuid: uuid_pkg.UUID, data: UnitUpdate, unit_service: UnitService = De
 def send_command_to_input_base_topic(
     uuid: uuid_pkg.UUID, command: BackendTopicCommand, unit_service: UnitService = Depends()
 ):
-    return unit_service.command_to_input_base_topic(uuid, command)
+    return unit_service.unit_node_service.command_to_input_base_topic(uuid, command)
 
 
 @router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

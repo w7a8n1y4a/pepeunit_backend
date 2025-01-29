@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     mqtt_keepalive: int
     mqtt_api_key: str
     mqtt_secret_key: str
+    mqtt_max_payload_size: int = 50000
 
     redis_url: str
     redis_mqtt_auth_url: str
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
     available_name_entity_symbols: str = string.ascii_letters + string.digits + '_-.'
     available_password_symbols: str = string.ascii_letters + string.digits + string.punctuation
     state_send_interval: int = 300
+    max_external_repo_size: int = 50
     max_cipher_length: int = 50000
 
     test_clear_data: bool = True

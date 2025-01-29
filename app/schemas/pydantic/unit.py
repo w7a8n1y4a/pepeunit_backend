@@ -101,7 +101,6 @@ class UnitUpdate(BaseModel):
 @dataclass
 class UnitFilter:
     uuids: Optional[list[uuid_pkg.UUID]] = Query([])
-    unit_node_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     repo_uuid: Optional[uuid_pkg.UUID] = None
@@ -120,10 +119,12 @@ class UnitFilter:
     offset: Optional[int] = None
     limit: Optional[int] = None
 
-    # only with unitNodes requested
+    # Only with is_include_output_unit_nodes = True
     unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
-    # nly with unitNodes requested and unit_node_input_uuid == None
+    # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
     unit_node_type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])
+    # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
+    unit_node_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
     def dict(self):
         return self.__dict__

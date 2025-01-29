@@ -21,9 +21,6 @@ class UnitNodeSetState(BaseModel):
 class UnitNodeFilter:
     uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
-    # get only input for this output node
-    output_uuid: Optional[uuid_pkg.UUID] = None
-
     unit_uuid: Optional[uuid_pkg.UUID] = None
     search_string: Optional[str] = None
 
@@ -34,6 +31,9 @@ class UnitNodeFilter:
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    # get only input UnitNode linked with this output UnitNode
+    output_uuid: Optional[uuid_pkg.UUID] = None
 
     def dict(self):
         return self.__dict__

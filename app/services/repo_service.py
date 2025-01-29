@@ -258,7 +258,7 @@ class RepoService:
 
             try:
                 unit = self.unit_service.sync_state_unit_nodes_for_version(unit, repo)
-                self.unit_service.command_to_input_base_topic(
+                self.unit_service.unit_node_service.command_to_input_base_topic(
                     uuid=unit.uuid, command=BackendTopicCommand.UPDATE, is_auto_update=True
                 )
                 logging.info(f'Successfully update unit {unit.uuid}')

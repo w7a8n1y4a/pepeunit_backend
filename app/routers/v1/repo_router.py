@@ -29,11 +29,13 @@ router = APIRouter()
 @repeat_at(cron='0 * * * *')
 def automatic_update_repositories():
     db = next(get_session())
-
-    repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-    repo_service.bulk_update_repositories(is_auto_update=True)
-
-    db.close()
+    try:
+        repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+        repo_service.bulk_update_repositories(is_auto_update=True)
+    except Exception as ex:
+        logging.error(ex)
+    finally:
+        db.close()
 
 
 @router.post(

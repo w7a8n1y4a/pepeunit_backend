@@ -40,6 +40,12 @@ KeyDBClient.init_session(uri=settings.redis_url)
 @mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
 
+    payload_size = len(payload.decode())
+    if payload_size > settings.mqtt_max_payload_size:
+        app_errors.mqtt_error.raise_exception(
+            'Payload size is {}, limit is {}'.format(payload_size, settings.mqtt_max_payload_size)
+        )
+
     topic_split = get_topic_split(topic)
 
     if len(topic_split) == 5:
@@ -50,8 +56,8 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
             if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
+                db = next(get_session())
                 try:
-                    db = next(get_session())
                     unit_repository = UnitRepository(db)
 
                     unit_state_dict = get_only_reserved_keys(is_valid_json(payload.decode(), "hardware state"))
@@ -94,13 +100,14 @@ async def message_to_topic(client, topic, payload, qos, properties):
                             unit.last_firmware_update_datetime = None
                             unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
 
+                    unit.last_update_datetime = datetime.datetime.utcnow()
                     unit_repository.update(
                         unit_uuid,
                         unit,
                     )
-                    db.close()
                 except Exception as ex:
                     logging.error(ex)
+                finally:
                     db.close()
 
     elif len(topic_split) == 3:
@@ -114,11 +121,14 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if redis_topic_value != new_value:
             await KeyDBClient.async_set(str(unit_node_uuid), new_value)
-
             db = next(get_session())
-            unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-            unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
-            db.close()
+            try:
+                unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+                unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
+            except Exception as ex:
+                logging.error(ex)
+            finally:
+                db.close()
     else:
         pass
 

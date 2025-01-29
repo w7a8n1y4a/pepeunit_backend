@@ -1,10 +1,13 @@
 import base64
 import hashlib
+import logging
 import os
 import string
 import time
 
 import pyaes
+from pathspec import PathSpec
+from pathspec.patterns import GitWildMatchPattern
 
 from app import settings
 from app.configs.errors import app_errors
@@ -78,13 +81,30 @@ def generate_random_string(length=6):
     return ''.join(chars[c % len(chars)] for c in os.urandom(length))
 
 
+def clean_files_with_pepeignore(directory: str, pepe_ignore_path: str) -> None:
+    if not os.path.exists(pepe_ignore_path):
+        return
+
+    with open(pepe_ignore_path, 'r') as f:
+        pepeignore_rules = f.read().splitlines()
+
+    spec = PathSpec.from_lines(GitWildMatchPattern, pepeignore_rules)
+
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.relpath(os.path.join(root, file), directory)
+            if spec.match_file(file_path):
+                full_path = os.path.join(directory, file_path)
+                os.remove(full_path)
+
+
 def timeit(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         execution_time = end_time - start_time
-        print(f"Function '{func.__name__}' executed in {execution_time:.6f} seconds.")
+        logging.debug(f"Function '{func.__name__}' executed in {execution_time:.6f} seconds.")
         return result
 
     return wrapper
