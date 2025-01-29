@@ -97,6 +97,12 @@ class RepoRepository:
         if filters.uuids:
             query = query.filter(Repo.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
 
+        filters.creators_uuids = (
+            filters.creators_uuids.default if isinstance(filters.creators_uuids, Query) else filters.creators_uuids
+        )
+        if filters.creators_uuids:
+            query = query.filter(Repo.creator_uuid.in_([is_valid_uuid(item) for item in filters.creators_uuids]))
+
         if filters.creator_uuid:
             query = query.filter(Repo.creator_uuid == is_valid_uuid(filters.creator_uuid))
 
