@@ -145,8 +145,8 @@ class UnitNodeService:
 
         update_list = []
         for unit_node in unit_nodes:
-            if get_visibility_level_priority(unit_node.visibility_level) > get_visibility_level_priority(
-                unit.visibility_level
+            if get_visibility_level_priority(unit.visibility_level) > get_visibility_level_priority(
+                unit_node.visibility_level
             ):
                 unit_node.visibility_level = unit.visibility_level
                 unit_node.last_update_datetime = datetime.datetime.utcnow()
