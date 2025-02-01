@@ -29,7 +29,10 @@ class UserService:
 
         user = User(**data.dict())
 
-        user.role = UserRole.USER
+        # first user is Admin
+        user_count = self.user_repository.get_all_count()
+        user.role = UserRole.USER if user_count > 0 else UserRole.ADMIN
+
         user.status = UserStatus.UNVERIFIED
         user.create_datetime = datetime.datetime.utcnow()
 
