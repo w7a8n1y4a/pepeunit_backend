@@ -30,6 +30,14 @@ def is_valid_ip_address(domain: str) -> bool:
                 assert valid_list.count(True) == 4
 
                 return True
+        elif len(ip_address_and_port) == 1:
+
+            address = ip_address_and_port[0].split('.')
+            if len(address) == 4:
+                valid_list = [int(number) <= 255 and int(number) >= 0 for number in address]
+                assert valid_list.count(True) == 4
+
+                return True
 
     except ValueError:
         pass
