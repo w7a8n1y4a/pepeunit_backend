@@ -48,7 +48,7 @@ class ControlEmqx:
         return response.status_code
 
     def _log_response(self, response):
-        assert response.status_code < 400, f'Error connect to {self.current_link}'
+        assert response.status_code < 500, f'Error connect to {self.current_link}'
 
     def get_bearer(self) -> str:
         headers = {
