@@ -34,7 +34,7 @@ async def _lifespan(_app: FastAPI):
     control_emqx.set_redis_auth_hook()
     control_emqx.set_auth_cache_ttl()
 
-    KeyDBClient.init_session(uri=settings.redis_mqtt_auth_url)
+    KeyDBClient.init_session(uri=settings.mqtt_redis_auth_url)
 
     await KeyDBClient.async_wait_for_ready()
     await KeyDBClient.async_delete(settings.backend_token)
@@ -102,9 +102,9 @@ async def _lifespan(_app: FastAPI):
 app = FastAPI(
     title=settings.project_name,
     version=settings.version,
-    openapi_url=f'{settings.app_prefix}{settings.api_v1_prefix}/openapi.json',
-    docs_url=f'{settings.app_prefix}/docs',
-    debug=settings.debug,
+    openapi_url=f'{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/openapi.json',
+    docs_url=f'{settings.backend_app_prefix}/docs',
+    debug=settings.backend_debug,
     lifespan=_lifespan,
 )
 
@@ -119,23 +119,23 @@ graphql = GraphQLRouter(
 
 app.include_router(
     graphql,
-    prefix=f'{settings.app_prefix}/graphql',
+    prefix=f'{settings.backend_app_prefix}/graphql',
     include_in_schema=False,
 )
 
 
-@app.get(f'{settings.app_prefix}', response_model=Root, tags=['status'])
+@app.get(f'{settings.backend_app_prefix}', response_model=Root, tags=['status'])
 async def root():
     return Root()
 
 
-@app.post(f"{settings.app_prefix}{settings.api_v1_prefix}/bot")
+@app.post(f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot")
 async def bot_webhook(update: dict):
     telegram_update = types.Update(**update)
     await dp.feed_update(bot=bot, update=telegram_update)
 
 
-app.include_router(api_router, prefix=f'{settings.app_prefix}{settings.api_v1_prefix}')
+app.include_router(api_router, prefix=f'{settings.backend_app_prefix}{settings.backend_api_v1_prefix}')
 
 mqtt.init_app(app)
 

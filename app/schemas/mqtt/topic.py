@@ -87,11 +87,11 @@ async def message_to_topic(client, topic, payload, qos, properties):
                             unit.last_firmware_update_datetime = None
                             unit.firmware_update_status = UnitFirmwareUpdateStatus.SUCCESS
 
-                        elif delta > settings.state_send_interval * 2:
+                        elif delta > settings.backend_state_send_interval * 2:
                             try:
                                 app_errors.update_error.raise_exception(
                                     'Device firmware update time is twice as fast as {}s times'.format(
-                                        settings.state_send_interval
+                                        settings.backend_state_send_interval
                                     )
                                 )
                             except Exception as ex:

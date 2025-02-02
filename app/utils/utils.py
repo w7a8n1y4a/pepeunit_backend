@@ -13,7 +13,7 @@ from app import settings
 from app.configs.errors import app_errors
 
 
-def aes_encode(data: str, key: str = settings.encrypt_key) -> str:
+def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     """
     data: any python str
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
@@ -21,10 +21,10 @@ def aes_encode(data: str, key: str = settings.encrypt_key) -> str:
     """
 
     len_content = len(data)
-    if len_content > settings.max_cipher_length:
+    if len_content > settings.backend_max_cipher_length:
         app_errors.cipher_error.raise_exception(
             'The encryption content is {} long, although only <= {} is allowed'.format(
-                len_content, settings.max_cipher_length
+                len_content, settings.backend_max_cipher_length
             )
         )
 
@@ -39,7 +39,7 @@ def aes_encode(data: str, key: str = settings.encrypt_key) -> str:
     return f"{base64.b64encode(iv).decode('utf-8')}.{cipher}"
 
 
-def aes_decode(data: str, key: str = settings.encrypt_key) -> str:
+def aes_decode(data: str, key: str = settings.backend_encrypt_key) -> str:
     """
     data: (base64 str - iv).(base64 str - encrypted data)
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
@@ -60,7 +60,7 @@ def password_to_hash(password: str) -> (str, str):
     dynamic_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
 
     hashed_password = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), (dynamic_salt + settings.static_salt).encode('utf-8'), 100000
+        'sha256', password.encode('utf-8'), (dynamic_salt + settings.backend_static_salt).encode('utf-8'), 100000
     )
 
     return aes_encode(dynamic_salt), base64.b64encode(hashed_password).decode('utf-8')
@@ -70,7 +70,7 @@ def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: 
     dynamic_salt = aes_decode(cipher_dynamic_salt)
 
     hashed_password = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), (dynamic_salt + settings.static_salt).encode('utf-8'), 100000
+        'sha256', password.encode('utf-8'), (dynamic_salt + settings.backend_static_salt).encode('utf-8'), 100000
     )
 
     return hashed_password_db == base64.b64encode(hashed_password).decode('utf-8')
