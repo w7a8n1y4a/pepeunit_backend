@@ -82,7 +82,7 @@ class ControlEmqx:
         self._log_response(response)
 
     def set_redis_auth_hook(self) -> None:
-        redis_url = settings.redis_mqtt_auth_url
+        redis_url = settings.mqtt_redis_auth_url
 
         data = {
             "type": "redis",
@@ -122,7 +122,7 @@ class ControlEmqx:
             "pool_size": 8,
             "request_timeout": "30s",
             "ssl": {
-                "enable": settings.secure,
+                "enable": settings.backend_secure,
                 "versions": ["tlsv1.3", "tlsv1.2"],
                 "verify": "verify_none",
                 "reuse_sessions": True,

@@ -34,7 +34,7 @@ class GitRepoRepository:
         return platforms_dict[GitPlatform(repo.platform)](repo)
 
     def clone_remote_repo(self, repo: Repo) -> None:
-        repo_save_path = f'{settings.save_repo_path}/{repo.uuid}'
+        repo_save_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
         try:
             shutil.rmtree(repo_save_path)
         except FileNotFoundError:
@@ -72,7 +72,7 @@ class GitRepoRepository:
 
     @staticmethod
     def get_repo(repo: Repo) -> GitRepo:
-        return GitRepo(f'{settings.save_repo_path}/{repo.uuid}')
+        return GitRepo(f'{settings.backend_save_repo_path}/{repo.uuid}')
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
@@ -80,7 +80,7 @@ class GitRepoRepository:
 
     def get_tmp_repo(self, repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
         tmp_path = self.get_tmp_path(gen_uuid)
-        current_path = f'{settings.save_repo_path}/{repo.uuid}'
+        current_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
 
         shutil.copytree(current_path, tmp_path)
 
@@ -256,12 +256,12 @@ class GitRepoRepository:
 
     @staticmethod
     def get_current_repos() -> list[str]:
-        path = settings.save_repo_path
+        path = settings.backend_save_repo_path
         return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 
     @staticmethod
     def delete_repo(repo: Repo) -> None:
-        shutil.rmtree(f'{settings.save_repo_path}/{repo.uuid}', ignore_errors=True)
+        shutil.rmtree(f'{settings.backend_save_repo_path}/{repo.uuid}', ignore_errors=True)
         return None
 
     def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
@@ -347,7 +347,7 @@ class GitRepoRepository:
 
     @staticmethod
     def is_valid_repo_size(repo_size: int) -> None:
-        if repo_size < 0 or repo_size > settings.max_external_repo_size * 2**20:
+        if repo_size < 0 or repo_size > settings.backend_max_external_repo_size * 2**20:
             app_errors.git_repo_error.raise_exception(
                 'No valid external repo size {} MB, max {} MB'.format(
                     round(repo_size / 2**20, 2), settings.physic_repo_size
