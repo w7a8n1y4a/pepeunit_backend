@@ -69,6 +69,8 @@ class RepoService:
             repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.credentials.dict()))
 
         if repo.is_compilable_repo:
+            repo.is_auto_update_repo = True
+            repo.is_only_tag_update = True
             repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
         repo.create_datetime = datetime.datetime.utcnow()
