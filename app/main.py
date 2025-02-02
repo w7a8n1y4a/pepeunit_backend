@@ -10,15 +10,10 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
-from app import settings
+from app.configs.emqx import ControlEmqx
 from app.configs.gql import get_graphql_context, get_repo_service
 from app.configs.utils import (
-    check_emqx_state,
-    del_emqx_auth_hooks,
     is_valid_ip_address,
-    set_emqx_auth_cache_ttl,
-    set_http_emqx_auth_hook,
-    set_redis_emqx_auth_hook,
 )
 from app.repositories.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
@@ -31,11 +26,13 @@ from app.schemas.pydantic.shared import Root
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    check_emqx_state()
-    del_emqx_auth_hooks()
-    set_http_emqx_auth_hook()
-    set_redis_emqx_auth_hook()
-    set_emqx_auth_cache_ttl()
+    control_emqx = ControlEmqx()
+
+    control_emqx.delete_auth_hooks()
+    control_emqx.set_file_auth_hook()
+    control_emqx.set_redis_auth_hook()
+    control_emqx.set_http_auth_hook()
+    control_emqx.set_auth_cache_ttl()
 
     KeyDBClient.init_session(uri=settings.redis_mqtt_auth_url)
 

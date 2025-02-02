@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     mqtt_port: int
     mqtt_api_port: int = 18083
     mqtt_keepalive: int
-    mqtt_api_key: str
-    mqtt_secret_key: str
+    mqtt_username: str
+    mqtt_password: str
     mqtt_max_payload_size: int = 50000
 
     redis_url: str
