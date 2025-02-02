@@ -30,8 +30,8 @@ async def _lifespan(_app: FastAPI):
 
     control_emqx.delete_auth_hooks()
     control_emqx.set_file_auth_hook()
-    control_emqx.set_redis_auth_hook()
     control_emqx.set_http_auth_hook()
+    control_emqx.set_redis_auth_hook()
     control_emqx.set_auth_cache_ttl()
 
     KeyDBClient.init_session(uri=settings.redis_mqtt_auth_url)
