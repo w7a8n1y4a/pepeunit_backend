@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     telegram_token: str
     telegram_bot_link: str
 
-    save_repo_path: str
+    save_repo_path: str = 'repo_cache'
 
     mqtt_host: str
     mqtt_secure: bool = True
