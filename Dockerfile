@@ -8,7 +8,7 @@ ENV PYTHONFAULTHANDLER=1 \
 
 WORKDIR /app
 
-RUN apt update && apt install -y libpq-dev gcc curl cron python3-dev git && apt autoremove -y && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y curl cron git && apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
 COPY poetry.lock pyproject.toml /app/
