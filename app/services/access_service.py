@@ -44,7 +44,7 @@ class AccessService:
                 pass
             elif self.jwt_token is not None:
                 try:
-                    data = jwt.decode(self.jwt_token, settings.secret_key, algorithms=['HS256'])
+                    data = jwt.decode(self.jwt_token, settings.backend_secret_key, algorithms=['HS256'])
                 except jwt.exceptions.ExpiredSignatureError:
                     app_errors.no_access.raise_exception("Token expired")
                 except jwt.exceptions.InvalidTokenError:
@@ -173,11 +173,11 @@ class AccessService:
 
     @staticmethod
     def generate_user_token(user: User) -> str:
-        access_token_exp = datetime.utcnow() + timedelta(seconds=settings.auth_token_expiration)
+        access_token_exp = datetime.utcnow() + timedelta(seconds=settings.backend_auth_token_expiration)
 
         token = jwt.encode(
             {'uuid': str(user.uuid), 'type': AgentType.USER, 'exp': access_token_exp},
-            settings.secret_key,
+            settings.backend_secret_key,
             'HS256',
         )
 
@@ -187,7 +187,7 @@ class AccessService:
     def generate_unit_token(unit: Unit) -> str:
         token = jwt.encode(
             {'uuid': str(unit.uuid), 'type': AgentType.UNIT},
-            settings.secret_key,
+            settings.backend_secret_key,
             'HS256',
         )
 
