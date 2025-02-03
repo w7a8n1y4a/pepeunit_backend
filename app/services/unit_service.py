@@ -454,16 +454,16 @@ class UnitService:
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {
             ReservedEnvVariableName.PEPEUNIT_URL: settings.backend_domain,
-            ReservedEnvVariableName.HTTP_TYPE: settings.http_type,
-            ReservedEnvVariableName.PEPEUNIT_APP_PREFIX: settings.app_prefix,
-            ReservedEnvVariableName.PEPEUNIT_API_ACTUAL_PREFIX: settings.api_v1_prefix,
+            ReservedEnvVariableName.HTTP_TYPE: settings.backend_http_type,
+            ReservedEnvVariableName.PEPEUNIT_APP_PREFIX: settings.backend_app_prefix,
+            ReservedEnvVariableName.PEPEUNIT_API_ACTUAL_PREFIX: settings.backend_api_v1_prefix,
             ReservedEnvVariableName.MQTT_URL: settings.mqtt_host,
             ReservedEnvVariableName.MQTT_PORT: settings.mqtt_port,
             ReservedEnvVariableName.PEPEUNIT_TOKEN: self.generate_token(uuid),
             ReservedEnvVariableName.SYNC_ENCRYPT_KEY: base64.b64encode(os.urandom(16)).decode('utf-8'),
             ReservedEnvVariableName.SECRET_KEY: base64.b64encode(os.urandom(16)).decode('utf-8'),
             ReservedEnvVariableName.PING_INTERVAL: 30,
-            ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.state_send_interval,
+            ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.backend_state_send_interval,
         }
 
     def is_valid_no_auto_updated_unit(self, repo: Repo, data: Union[Unit, UnitCreate]):

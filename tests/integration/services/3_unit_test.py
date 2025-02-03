@@ -315,7 +315,7 @@ def test_state_storage(database) -> None:
 
     # check cipher long data
     with pytest.raises(fastapi.HTTPException):
-        state = 't' * (settings.max_cipher_length + 1)
+        state = 't' * (settings.backend_max_cipher_length + 1)
         unit_service.set_state_storage(target_unit.uuid, state)
 
 
