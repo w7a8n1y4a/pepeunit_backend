@@ -14,7 +14,7 @@ until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do
 done
 echo "PostgreSQL available."
 
-echo "Wiat check DB '$DB_NAME'..."
+echo "Wait check DB '$DB_NAME'..."
 until psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc \
       "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; do
   sleep 2
