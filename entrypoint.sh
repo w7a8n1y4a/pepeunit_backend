@@ -11,6 +11,7 @@ export PGPASSWORD="$DB_PASS"
 echo "Wait Ready PostgreSQL..."
 until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do
   sleep 2
+  echo "Wait Ready PostgreSQL..."
 done
 echo "PostgreSQL available."
 
@@ -18,6 +19,7 @@ echo "Wait check DB '$DB_NAME'..."
 until psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc \
       "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; do
   sleep 2
+  echo "Wait check DB '$DB_NAME'..."
 done
 echo "DB '$DB_NAME' Exist."
 
