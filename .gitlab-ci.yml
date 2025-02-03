@@ -5,6 +5,7 @@ variables:
 stages:
   - build
   - deploy
+  - tag
 
 build:image:dev:
   stage: build
@@ -75,3 +76,15 @@ deploy:image:release:
     - docker rm $PROJ || echo $?
     - docker run -d --name=$PROJ -p 5402:5000 --restart=always -v /root/pepeunit/release/repo_cache:/app/repo_cache --env-file $ENV_FILE_RELEASE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
     - docker system prune -a -f
+
+tag:
+  stage: tag
+  tags:
+    - shell-main-pc
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: on_success
+  script:
+    - docker build -t w7a8n1y4a/pepeunit-backend:$CI_COMMIT_TAG .
+    - docker push w7a8n1y4a/pepeunit-backend:$CI_COMMIT_TAG
+    - 'curl --request POST "https://git.pepemoss.com/api/v4/projects/${CI_PROJECT_ID}/releases" --header "PRIVATE-TOKEN: $CI_ACCESS_TOKEN" --data "name=Release Tag - $CI_COMMIT_TAG" --data "tag_name=$CI_COMMIT_TAG" --data "description=All builds on [Docker Hub](https://hub.docker.com/r/w7a8n1y4a/pepeunit-backend/tags) - $CI_COMMIT_TAG"'
