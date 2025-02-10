@@ -6,7 +6,7 @@ from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json
-from app.utils.utils import aes_decode
+from app.utils.utils import aes_gcm_decode
 
 
 class GitPlatformRepositoryABC(ABC):
@@ -18,7 +18,7 @@ class GitPlatformRepositoryABC(ABC):
         if not repo.is_public_repository:
             self.credentials = Credentials(
                 **is_valid_json(
-                    aes_decode(repo.cipher_credentials_private_repository), "cipher creeds private repository"
+                    aes_gcm_decode(repo.cipher_credentials_private_repository), "cipher creeds private repository"
                 )
             )
 
