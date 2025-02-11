@@ -35,7 +35,7 @@ from app.services.permission_service import PermissionService
 from app.services.unit_service import UnitService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
-from app.utils.utils import aes_encode
+from app.utils.utils import aes_gcm_encode
 
 
 class RepoService:
@@ -66,7 +66,7 @@ class RepoService:
         repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
         if not repo.is_public_repository:
-            repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.credentials.dict()))
+            repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.credentials.dict()))
 
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
@@ -193,7 +193,7 @@ class RepoService:
         self.access_service.access_creator_check(repo)
         self.repo_repository.is_private_repository(repo)
 
-        repo.cipher_credentials_private_repository = aes_encode(json.dumps(data.dict()))
+        repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.dict()))
 
         if repo.is_compilable_repo:
             repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))

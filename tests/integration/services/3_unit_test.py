@@ -16,7 +16,7 @@ from app.domain.repo_model import Repo
 from app.repositories.enum import StaticRepoFileName, VisibilityLevel
 from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
-from app.utils.utils import aes_encode
+from app.utils.utils import aes_gcm_encode
 from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
 
 
@@ -470,7 +470,7 @@ def test_hand_update_firmware_unit(database) -> None:
     logging.info(env_dict)
 
     update_unit = unit_service.get(target_unit.uuid)
-    update_unit.cipher_env_dict = aes_encode(json.dumps(env_dict))
+    update_unit.cipher_env_dict = aes_gcm_encode(json.dumps(env_dict))
 
     unit_service.unit_repository.update(target_unit.uuid, update_unit)
 

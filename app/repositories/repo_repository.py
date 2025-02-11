@@ -21,7 +21,7 @@ from app.repositories.utils import (
 )
 from app.schemas.pydantic.repo import Credentials, RepoCreate, RepoFilter, RepoUpdate, RepoVersionRead, RepoVersionsRead
 from app.services.validators import is_valid_json, is_valid_string_with_rules, is_valid_uuid
-from app.utils.utils import aes_decode
+from app.utils.utils import aes_gcm_decode
 
 
 class RepoRepository:
@@ -46,7 +46,7 @@ class RepoRepository:
             return None
         return Credentials(
             **is_valid_json(
-                aes_decode(full_repo.cipher_credentials_private_repository), "cipher creeds private repository"
+                aes_gcm_decode(full_repo.cipher_credentials_private_repository), "cipher creeds private repository"
             )
         )
 
