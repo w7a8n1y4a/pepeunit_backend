@@ -42,7 +42,7 @@ from app.services.permission_service import PermissionService
 from app.services.unit_node_service import UnitNodeService
 from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
-from app.utils.utils import aes_decode, aes_encode
+from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
 
 class UnitService:
@@ -149,7 +149,7 @@ class UnitService:
         target_env_dict = self.git_repo_repository.get_env_dict(repo, target_version)
 
         if unit.cipher_env_dict:
-            current_env_dict = is_valid_json(aes_decode(unit.cipher_env_dict), "cipher env")
+            current_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "cipher env")
 
             # create env with default pepeunit vars, and default repo vars
             gen_env_dict = self.gen_env_dict(unit.uuid)
@@ -159,7 +159,7 @@ class UnitService:
 
             self.git_repo_repository.is_valid_env_file(repo, target_version, new_env_dict)
 
-            unit.cipher_env_dict = aes_encode(json.dumps(new_env_dict))
+            unit.cipher_env_dict = aes_gcm_encode(json.dumps(new_env_dict))
 
             unit = self.unit_repository.update(unit.uuid, unit)
 
@@ -196,7 +196,7 @@ class UnitService:
         env_dict = self.git_repo_repository.get_env_example(repo, target_commit)
 
         if unit.cipher_env_dict:
-            current_unit_env_dict = is_valid_json(aes_decode(unit.cipher_env_dict), "cipher env")
+            current_unit_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "cipher env")
             env_dict = merge_two_dict_first_priority(current_unit_env_dict, env_dict)
 
         target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
@@ -223,7 +223,7 @@ class UnitService:
 
         self.git_repo_repository.is_valid_env_file(repo, target_version, merged_env_dict)
 
-        unit.cipher_env_dict = aes_encode(json.dumps(merged_env_dict))
+        unit.cipher_env_dict = aes_gcm_encode(json.dumps(merged_env_dict))
         unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
 
@@ -334,7 +334,7 @@ class UnitService:
 
         self.access_service.access_only_creator_and_target_unit(unit)
 
-        unit.cipher_state_storage = aes_encode(state) if state != '' else None
+        unit.cipher_state_storage = aes_gcm_encode(state) if state != '' else None
         unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
 
@@ -346,7 +346,7 @@ class UnitService:
 
         self.access_service.access_only_creator_and_target_unit(unit)
 
-        return aes_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
+        return aes_gcm_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
 
     def get_mqtt_auth(self, topic: str) -> None:
         self.access_service.access_check([], is_unit_available=True)
