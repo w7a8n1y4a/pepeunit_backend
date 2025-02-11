@@ -7,6 +7,7 @@ import uvicorn
 from aiokeydb import KeyDBClient
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
+from prometheus_fastapi_instrumentator import Instrumentator
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
@@ -134,6 +135,8 @@ async def bot_webhook(update: dict):
     telegram_update = types.Update(**update)
     await dp.feed_update(bot=bot, update=telegram_update)
 
+
+Instrumentator().instrument(app).expose(app, endpoint=f'{settings.backend_app_prefix}/metrics')
 
 app.include_router(api_router, prefix=f'{settings.backend_app_prefix}{settings.backend_api_v1_prefix}')
 
