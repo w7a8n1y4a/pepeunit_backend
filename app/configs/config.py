@@ -49,13 +49,18 @@ class Settings(BaseSettings):
     mqtt_secure: bool = True
     mqtt_port: int = 1883
     mqtt_api_port: int = 18083
+    mqtt_keepalive: int = 60
 
     mqtt_username: str
     mqtt_password: str
 
-    mqtt_keepalive: int = 60
-    mqtt_max_payload_size: int = 50000
     mqtt_redis_auth_url: str = 'redis://redis:6379/0'
+
+    mqtt_max_payload_size: int = 50000
+    mqtt_max_clients: int = 10000
+    mqtt_max_client_connection_rate: str = '20/s'
+    mqtt_client_max_bytes_rate: str = '1MB/s'
+    mqtt_client_max_messages_rate: str = '30/s'
 
     test_clear_data: bool = True
     test_private_repo_json: str = ''
