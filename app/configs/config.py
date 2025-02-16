@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     backend_app_prefix: str = '/pepeunit'
     backend_api_v1_prefix: str = '/api/v1'
 
+    backend_worker_count: int
+
     backend_domain: str
     backend_secure: bool = True
 
