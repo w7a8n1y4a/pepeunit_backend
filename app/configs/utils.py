@@ -1,3 +1,4 @@
+import fcntl
 from pathlib import Path
 
 from app import settings
@@ -44,3 +45,13 @@ def is_valid_ip_address(domain: str) -> bool:
 
 def get_directory_size(directory: str) -> int:
     return sum(f.stat().st_size for f in Path(directory).rglob('*') if f.is_file())
+
+
+def acquire_file_lock(file_lock: str):
+    lock_fd = open(file_lock, 'w')
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lock_fd
+    except BlockingIOError:
+        lock_fd.close()
+        return None

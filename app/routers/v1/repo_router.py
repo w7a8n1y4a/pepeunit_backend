@@ -8,6 +8,7 @@ from fastapi_utilities import repeat_at
 from app.configs.db import get_session
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
+from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
     CommitFilter,
     CommitRead,
@@ -28,14 +29,22 @@ router = APIRouter()
 @router.on_event('startup')
 @repeat_at(cron='0 * * * *')
 def automatic_update_repositories():
-    db = next(get_session())
-    try:
-        repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-        repo_service.bulk_update_repositories(is_auto_update=True)
-    except Exception as ex:
-        logging.error(ex)
-    finally:
-        db.close()
+    lock_fd = acquire_file_lock('tmp/update_repos.lock')
+
+    if lock_fd:
+        logging.info('Run update with lock')
+        db = next(get_session())
+        try:
+            repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+            repo_service.bulk_update_repositories(is_auto_update=True)
+        except Exception as ex:
+            logging.error(ex)
+        finally:
+            db.close()
+
+        lock_fd.close()
+    else:
+        logging.info('Skip update without lock')
 
 
 @router.post(

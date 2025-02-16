@@ -1,5 +1,4 @@
 import asyncio
-import fcntl
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -15,6 +14,7 @@ from strawberry.fastapi import GraphQLRouter
 from app.configs.emqx import ControlEmqx
 from app.configs.gql import get_graphql_context, get_repo_service
 from app.configs.utils import (
+    acquire_file_lock,
     is_valid_ip_address,
 )
 from app.repositories.enum import GlobalPrefixTopic
@@ -26,19 +26,9 @@ from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
 
 
-def acquire_file_lock():
-    lock_fd = open('tmp/init_lock.lock', 'w')
-    try:
-        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return lock_fd
-    except BlockingIOError:
-        lock_fd.close()
-        return None
-
-
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    lock_fd = acquire_file_lock()
+    lock_fd = acquire_file_lock('tmp/init_lock.lock')
 
     if lock_fd:
         logging.info('Start lock for startup')
