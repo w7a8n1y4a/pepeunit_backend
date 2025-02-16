@@ -56,11 +56,18 @@ class Settings(BaseSettings):
 
     mqtt_redis_auth_url: str = 'redis://redis:6379/0'
 
-    mqtt_max_payload_size: int = 50000
     mqtt_max_clients: int = 10000
     mqtt_max_client_connection_rate: str = '20/s'
-    mqtt_client_max_bytes_rate: str = '1MB/s'
+    mqtt_max_client_id_len: int = 512
+
     mqtt_client_max_messages_rate: str = '30/s'
+    mqtt_client_max_bytes_rate: str = '1MB/s'
+
+    mqtt_max_payload_size: int = 256
+    mqtt_max_qos: int = 2
+    mqtt_max_topic_levels: int = 5
+    mqtt_max_len_message_queue: int = 128
+    mqtt_max_topic_alias: int = 128
 
     test_clear_data: bool = True
     test_private_repo_json: str = ''
