@@ -32,8 +32,7 @@ gunicorn app.main:app \
     --access-logfile /dev/stdout \
     --error-logfile /dev/stderr \
     --timeout 300 \
-    --workers=1 \
-    --threads=2 \
+    --workers=$BACKEND_WORKER_COUNT \
     --worker-class uvicorn.workers.UvicornWorker \
     --worker-tmp-dir=/dev/shm \
     --preload \
