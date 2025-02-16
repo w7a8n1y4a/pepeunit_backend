@@ -191,3 +191,72 @@ class ControlEmqx:
         logging.info(f'Set settings for tcp listener')
         response = httpx.put(f'{self.current_link}/api/v5/listeners/tcp:default', json=data, headers=self.headers)
         self._log_response(response)
+
+    def set_global_mqtt_settings(self) -> None:
+        data = {
+            "durable_sessions": {
+                "enable": False,
+                "batch_size": 100,
+                "heartbeat_interval": "5000ms",
+                "idle_poll_interval": "10s",
+                "message_retention_period": "1d",
+                "session_gc_batch_size": 100,
+                "session_gc_interval": "10m",
+            },
+            "flapping_detect": {"enable": False, "ban_time": "5m", "max_count": 15, "window_time": "1m"},
+            "force_gc": {
+                "enable": True,
+                "bytes": "16MB",
+                "count": 16000,
+            },
+            "force_shutdown": {"enable": True, "max_heap_size": "32MB", "max_mailbox_size": 1000},
+            "mqtt": {
+                "max_clientid_len": settings.mqtt_max_client_id_len,
+                "max_topic_alias": settings.mqtt_max_topic_alias,
+                "max_qos_allowed": settings.mqtt_max_qos,
+                "max_mqueue_len": settings.mqtt_max_len_message_queue,
+                "max_topic_levels": settings.mqtt_max_topic_levels,
+                "max_packet_size": f'{settings.mqtt_max_payload_size}KB',
+                "session_expiry_interval": "2h",
+                "max_subscriptions": "infinity",
+                "exclusive_subscription": False,
+                "use_username_as_clientid": False,
+                "idle_timeout": "15s",
+                "mqueue_store_qos0": True,
+                "upgrade_qos": False,
+                "mqueue_priorities": "disabled",
+                "strict_mode": False,
+                "shared_subscription": True,
+                "server_keepalive": "disabled",
+                "wildcard_subscription": True,
+                "response_information": "",
+                "shared_subscription_initial_sticky_pick": "random",
+                "max_awaiting_rel": 100,
+                "peer_cert_as_username": "disabled",
+                "client_attrs_init": [],
+                "retry_interval": "infinity",
+                "retain_available": False,
+                "message_expiry_interval": "infinity",
+                "ignore_loop_deliver": False,
+                "clientid_override": "disabled",
+                "peer_cert_as_clientid": "disabled",
+                "mqueue_default_priority": "lowest",
+                "max_inflight": 32,
+                "keepalive_multiplier": 1.5,
+                "shared_subscription_strategy": "round_robin",
+                "keepalive_check_interval": "30s",
+                "await_rel_timeout": "300s",
+            },
+        }
+
+        logging.info(f'Set global mqtt settings')
+        response = httpx.put(f'{self.current_link}/api/v5/configs/global_zone', json=data, headers=self.headers)
+        self._log_response(response)
+
+        data = {
+            "enable": False,
+        }
+
+        logging.info(f'Disable retainer')
+        response = httpx.put(f'{self.current_link}/api/v5/mqtt/retainer', json=data, headers=self.headers)
+        self._log_response(response)
