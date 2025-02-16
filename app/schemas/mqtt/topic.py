@@ -41,9 +41,9 @@ KeyDBClient.init_session(uri=settings.redis_url)
 async def message_to_topic(client, topic, payload, qos, properties):
 
     payload_size = len(payload.decode())
-    if payload_size > settings.mqtt_max_payload_size:
+    if payload_size > settings.mqtt_max_payload_size * 1024:
         app_errors.mqtt_error.raise_exception(
-            'Payload size is {}, limit is {}'.format(payload_size, settings.mqtt_max_payload_size)
+            'Payload size is {}, limit is {} KB'.format(payload_size, settings.mqtt_max_payload_size)
         )
 
     topic_split = get_topic_split(topic)

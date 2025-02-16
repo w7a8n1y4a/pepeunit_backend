@@ -36,6 +36,7 @@ async def _lifespan(_app: FastAPI):
     control_emqx.set_auth_cache_ttl()
     control_emqx.disable_default_listeners()
     control_emqx.set_tcp_listener_settings()
+    control_emqx.set_global_mqtt_settings()
 
     KeyDBClient.init_session(uri=settings.mqtt_redis_auth_url)
 
