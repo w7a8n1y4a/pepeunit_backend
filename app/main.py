@@ -1,4 +1,5 @@
 import asyncio
+import fcntl
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -25,81 +26,103 @@ from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
 
 
+def acquire_file_lock():
+    lock_fd = open('tmp/init_lock.lock', 'w')
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lock_fd
+    except BlockingIOError:
+        lock_fd.close()
+        return None
+
+
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    control_emqx = ControlEmqx()
+    lock_fd = acquire_file_lock()
 
-    control_emqx.delete_auth_hooks()
-    control_emqx.set_file_auth_hook()
-    control_emqx.set_http_auth_hook()
-    control_emqx.set_redis_auth_hook()
-    control_emqx.set_auth_cache_ttl()
-    control_emqx.disable_default_listeners()
-    control_emqx.set_tcp_listener_settings()
-    control_emqx.set_global_mqtt_settings()
+    if lock_fd:
+        logging.info('Start lock for startup')
+        control_emqx = ControlEmqx()
 
-    KeyDBClient.init_session(uri=settings.mqtt_redis_auth_url)
+        control_emqx.delete_auth_hooks()
+        control_emqx.set_file_auth_hook()
+        control_emqx.set_http_auth_hook()
+        control_emqx.set_redis_auth_hook()
+        control_emqx.set_auth_cache_ttl()
+        control_emqx.disable_default_listeners()
+        control_emqx.set_tcp_listener_settings()
+        control_emqx.set_global_mqtt_settings()
 
-    await KeyDBClient.async_wait_for_ready()
-    await KeyDBClient.async_delete(settings.backend_token)
+        KeyDBClient.init_session(uri=settings.mqtt_redis_auth_url)
 
-    backend_topics = (
-        f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
-        f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
-    )
+        await KeyDBClient.async_wait_for_ready()
+        await KeyDBClient.async_delete(settings.backend_token)
 
-    async def hset_emqx_auth_keys(KeyDBClient, topic):
-        await KeyDBClient.async_hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
+        backend_topics = (
+            f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
+            f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
+        )
 
-    await asyncio.gather(*[hset_emqx_auth_keys(KeyDBClient, topic) for topic in backend_topics])
+        async def hset_emqx_auth_keys(KeyDBClient, topic):
+            await KeyDBClient.async_hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
 
-    async def run_polling_bot(dp, bot):
-        logging.info(f'Delete webhook before run polling')
-        await bot.delete_webhook()
+        await asyncio.gather(*[hset_emqx_auth_keys(KeyDBClient, topic) for topic in backend_topics])
 
-        logging.info(f'Run polling')
-        await dp.start_polling(bot)
+        async def run_polling_bot(dp, bot):
+            logging.info(f'Delete webhook before run polling')
+            await bot.delete_webhook()
 
-    if is_valid_ip_address(settings.backend_domain):
-        asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
+            logging.info(f'Run polling')
+            await dp.start_polling(bot)
 
-    logging.info(f'Get current TG bot webhook info')
+        if is_valid_ip_address(settings.backend_domain):
+            asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
 
-    if not is_valid_ip_address(settings.backend_domain):
-        webhook_url = f'{settings.backend_link_prefix_and_v1}/bot'
+        logging.info(f'Get current TG bot webhook info')
 
-        logging.info(f'Delete webhook before set new webhook')
-        await bot.delete_webhook()
+        if not is_valid_ip_address(settings.backend_domain):
+            webhook_url = f'{settings.backend_link_prefix_and_v1}/bot'
 
-        logging.info(f'Set new TG bot webhook url: {webhook_url}')
-        await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
+            logging.info(f'Delete webhook before set new webhook')
+            await bot.delete_webhook()
 
-        logging.info(f'Success set TG bot webhook url')
+            logging.info(f'Set new TG bot webhook url: {webhook_url}')
+            await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
 
-    async def run_mqtt_client(mqtt):
-        logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
-        await mqtt.mqtt_startup()
+            logging.info(f'Success set TG bot webhook url')
 
-        access = await KeyDBClient.async_hgetall(settings.backend_token)
-        for k, v in access.items():
-            logging.info(f'Redis set {k} access {v}')
+        async def run_mqtt_client(mqtt):
+            logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
+            await mqtt.mqtt_startup()
 
-        mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
-        mqtt.client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+            access = await KeyDBClient.async_hgetall(settings.backend_token)
+            for k, v in access.items():
+                logging.info(f'Redis set {k} access {v}')
 
-    await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
+            mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+            mqtt.client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
 
-    db = next(get_session())
+        await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
 
-    try:
-        repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-        repo_service.sync_local_repo_storage()
-    except Exception as ex:
-        logging.error(ex)
-    finally:
-        db.close()
+        db = next(get_session())
+
+        try:
+            repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+            repo_service.sync_local_repo_storage()
+        except Exception as ex:
+            logging.error(ex)
+        finally:
+            db.close()
+
+    else:
+        logging.info('Already Locked')
 
     yield
+
+    if lock_fd:
+        logging.info('Stop startup lock')
+        lock_fd.close()
+
     await mqtt.mqtt_shutdown()
 
 
