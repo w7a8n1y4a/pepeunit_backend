@@ -149,3 +149,46 @@ class ControlEmqx:
         logging.info(f'Set cache settings auth hook MQTT Broker')
         response = httpx.put(f'{self.current_link}/api/v5/authorization/settings', json=data, headers=self.headers)
         self._log_response(response)
+
+    def disable_default_listeners(self) -> None:
+        for source in ["ssl", "ws", "wss"]:
+            logging.info(f"Disable {source} listener MQTT Broker")
+            response = httpx.post(f'{self.current_link}/api/v5/listeners/{source}:default/stop', headers=self.headers)
+            self._log_response(response)
+
+    def set_tcp_listener_settings(self) -> None:
+        data = {
+            "acceptors": 16,
+            "access_rules": ["allow all"],
+            "bind": "0.0.0.0:1883",
+            "bytes_rate": "1MB/s",
+            "current_connections": 2,
+            "enable": True,
+            "enable_authn": True,
+            "id": "tcp:default",
+            "max_conn_rate": "20/s",
+            "max_connections": 10000,
+            "messages_rate": "30/s",
+            "mountpoint": "",
+            "proxy_protocol": False,
+            "proxy_protocol_timeout": "3s",
+            "running": True,
+            "tcp_options": {
+                "active_n": 100,
+                "backlog": 1024,
+                "buffer": "4KB",
+                "high_watermark": "1MB",
+                "keepalive": "none",
+                "nodelay": True,
+                "nolinger": False,
+                "reuseaddr": True,
+                "send_timeout": "15s",
+                "send_timeout_close": True,
+            },
+            "type": "tcp",
+            "zone": "default",
+        }
+
+        logging.info(f'Set settings for tcp listener')
+        response = httpx.put(f'{self.current_link}/api/v5/listeners/tcp:default', json=data, headers=self.headers)
+        self._log_response(response)
