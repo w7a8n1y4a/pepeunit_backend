@@ -42,8 +42,6 @@ async def message_to_topic(client, topic, payload, qos, properties):
     if not get_all_worker_pids(topic):
         return
 
-    print(topic)
-
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:
         app_errors.mqtt_error.raise_exception(
