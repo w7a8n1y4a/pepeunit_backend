@@ -21,7 +21,7 @@ from app.repositories.enum import (
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
+from app.schemas.mqtt.utils import get_all_worker_pids, get_only_reserved_keys, get_topic_split
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
@@ -39,6 +39,10 @@ KeyDBClient.init_session(uri=settings.redis_url)
 
 @mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
+    if not get_all_worker_pids(topic):
+        return
+
+    print(topic)
 
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:

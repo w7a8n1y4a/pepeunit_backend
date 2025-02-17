@@ -16,6 +16,7 @@ from app.configs.gql import get_graphql_context, get_repo_service
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
+    wait_for_file_unlock,
 )
 from app.repositories.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
@@ -28,12 +29,15 @@ from app.schemas.pydantic.shared import Root
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    lock_fd = acquire_file_lock('tmp/init_lock.lock')
+    FILE_INIT_LOCK = 'tmp/init_lock.lock'
+    FILE_MQTT_RUN_LOCK = 'tmp/mqtt_run_lock.lock'
 
-    if lock_fd:
-        logging.info('Start lock for startup')
+    init_lock = acquire_file_lock(FILE_INIT_LOCK)
+
+    if init_lock:
+        mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
+
         control_emqx = ControlEmqx()
-
         control_emqx.delete_auth_hooks()
         control_emqx.set_file_auth_hook()
         control_emqx.set_http_auth_hook()
@@ -81,19 +85,6 @@ async def _lifespan(_app: FastAPI):
 
             logging.info(f'Success set TG bot webhook url')
 
-        async def run_mqtt_client(mqtt):
-            logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
-            await mqtt.mqtt_startup()
-
-            access = await KeyDBClient.async_hgetall(settings.backend_token)
-            for k, v in access.items():
-                logging.info(f'Redis set {k} access {v}')
-
-            mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
-            mqtt.client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
-
-        await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
-
         db = next(get_session())
 
         try:
@@ -104,14 +95,27 @@ async def _lifespan(_app: FastAPI):
         finally:
             db.close()
 
-    else:
-        logging.info('Already Locked')
+        mqtt_run_lock.close()
+
+    async def run_mqtt_client(mqtt):
+        logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
+        await mqtt.mqtt_startup()
+
+        access = await KeyDBClient.async_hgetall(settings.backend_token)
+        for k, v in access.items():
+            logging.info(f'Redis set {k} access {v}')
+
+        mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+        mqtt.client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+
+    wait_for_file_unlock(FILE_MQTT_RUN_LOCK)
+
+    await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
 
     yield
 
-    if lock_fd:
-        logging.info('Stop startup lock')
-        lock_fd.close()
+    if init_lock:
+        init_lock.close()
 
     await mqtt.mqtt_shutdown()
 

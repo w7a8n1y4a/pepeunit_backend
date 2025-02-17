@@ -1,4 +1,7 @@
 import json
+import os
+
+import psutil
 
 from app.configs.errors import app_errors
 from app.repositories.enum import ReservedStateKey
@@ -26,3 +29,19 @@ def publish_to_topic(topic: str, msg: dict or str) -> None:
         )
     except Exception as ex:
         app_errors.mqtt_error.raise_exception('Error when publish message to topic {}: {}'.format(topic, ex))
+
+
+def get_all_worker_pids(topic_name: str):
+    current_pid = os.getpid()
+    parent_pid = os.getppid()
+    master_process = psutil.Process(parent_pid)
+    worker_pids = []
+    for p in master_process.children():
+        cmd = " ".join(p.cmdline()) if p.cmdline() else ""
+
+        if "resource_tracker" not in cmd:
+            worker_pids.append(p.pid)
+
+    worker_pids.sort()
+
+    return worker_pids.index(current_pid) == hash(topic_name) % len(worker_pids)
