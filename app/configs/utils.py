@@ -1,4 +1,5 @@
 import fcntl
+import time
 from pathlib import Path
 
 from app import settings
@@ -55,3 +56,12 @@ def acquire_file_lock(file_lock: str):
     except BlockingIOError:
         lock_fd.close()
         return None
+
+
+def wait_for_file_unlock(file_path, check_interval=1):
+    while True:
+        lock_fd = acquire_file_lock(file_path)
+        if lock_fd:
+            lock_fd.close()
+            return
+        time.sleep(check_interval)
