@@ -340,6 +340,8 @@ def test_run_infrastructure_contour(database) -> None:
             logging.info('No route to BACKEND_DOMAIN variable')
         except httpx.ConnectTimeout:
             logging.info('Connect timeout to BACKEND_DOMAIN variable')
+        except httpx.ReadTimeout:
+            logging.info('Read timeout to BACKEND_DOMAIN variable')
 
         if inc > 10:
             assert False
