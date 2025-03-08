@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     backend_state_send_interval: int = 60
     backend_max_external_repo_size: int = 50
     backend_max_cipher_length: int = 1_000_000
+    backend_min_topic_update_time: int = 60
 
     available_topic_symbols: str = string.ascii_letters + string.digits + '/_-'
     available_name_entity_symbols: str = string.ascii_letters + string.digits + '_-.'

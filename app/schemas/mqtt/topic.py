@@ -1,8 +1,8 @@
 import datetime
 import json
 import logging
+import time
 
-from aiokeydb import KeyDBClient
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
@@ -21,7 +21,7 @@ from app.repositories.enum import (
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.mqtt.utils import get_all_worker_pids, get_only_reserved_keys, get_topic_split
+from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
@@ -34,13 +34,11 @@ mqtt_config = MQTTConfig(
 
 mqtt = FastMQTT(config=mqtt_config)
 
-KeyDBClient.init_session(uri=settings.redis_url)
+cache_dict = {}
 
 
 @mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
-    if not get_all_worker_pids(topic):
-        return
 
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:
@@ -116,13 +114,13 @@ async def message_to_topic(client, topic, payload, qos, properties):
         backend_domain, unit_node_uuid, *_ = topic_split
         unit_node_uuid = is_valid_uuid(unit_node_uuid)
 
-        new_value = str(payload.decode())
+        last_time = cache_dict.get(str(unit_node_uuid), 0)
+        current_time = time.time()
 
-        await KeyDBClient.async_wait_for_ready()
-        redis_topic_value = await KeyDBClient.async_get(str(unit_node_uuid))
+        if (current_time - last_time) >= settings.backend_min_topic_update_time:
+            logging.info(f'{datetime.datetime.utcnow()} {unit_node_uuid}')
+            cache_dict[str(unit_node_uuid)] = current_time
 
-        if redis_topic_value != new_value:
-            await KeyDBClient.async_set(str(unit_node_uuid), new_value)
             db = next(get_session())
             try:
                 unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
