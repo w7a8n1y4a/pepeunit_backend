@@ -144,10 +144,6 @@ async def _lifespan(_app: FastAPI):
         for k, v in access.items():
             logging.info(f'Redis set {k} access {v}')
 
-        if init_lock:
-            mqtt.client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
-            mqtt.client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
-
     wait_for_file_unlock(FILE_MQTT_RUN_LOCK)
 
     await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')

@@ -24,8 +24,11 @@ done
 echo "DB '$DB_NAME' Exist."
 
 echo "Run migration..."
-
 alembic upgrade head
+
+echo "Del old lock files"
+rm -rf tmp/*.lock
+
 gunicorn app.main:app \
     --bind 0.0.0.0:5000 \
     --log-level 'warning' \

@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import logging
@@ -10,6 +11,7 @@ from app.configs.db import get_session
 from app.configs.errors import app_errors
 from app.configs.gql import get_unit_node_service
 from app.configs.sub_entities import InfoSubEntity
+from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.repositories.enum import (
@@ -35,6 +37,25 @@ mqtt_config = MQTTConfig(
 mqtt = FastMQTT(config=mqtt_config)
 
 cache_dict = {}
+
+
+@mqtt.on_connect()
+def connect(client, flags, rc, properties):
+    lock_fd = acquire_file_lock('tmp/mqtt_subscribe.lock')
+
+    time.sleep(2)
+
+    if lock_fd:
+        logging.info("MQTT subscriptions initialized in this worker")
+        client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+        client.subscribe(f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+    else:
+        logging.info("Another worker already subscribed to MQTT topics")
+
+    time.sleep(2)
+
+    if lock_fd:
+        lock_fd.close()
 
 
 @mqtt.on_message()
@@ -135,4 +156,13 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
 @mqtt.on_disconnect()
 def disconnect(client, packet, exc=None):
-    logging.info(f'Disconnect mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
+    logging.info(f'Disconnected from MQTT server: {settings.mqtt_host}:{settings.mqtt_port}')
+
+    async def reconnect():
+        await asyncio.sleep(5)
+        try:
+            await client.reconnect()
+        except Exception as e:
+            logging.error(f"Reconnect failed: {e}")
+
+    asyncio.create_task(reconnect())
