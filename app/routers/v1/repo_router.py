@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid as uuid_pkg
 from typing import Optional
 
@@ -31,6 +32,8 @@ router = APIRouter()
 def automatic_update_repositories():
     lock_fd = acquire_file_lock('tmp/update_repos.lock')
 
+    time.sleep(10)
+
     if lock_fd:
         logging.info('Run update with lock')
         db = next(get_session())
@@ -42,9 +45,11 @@ def automatic_update_repositories():
         finally:
             db.close()
 
-        lock_fd.close()
     else:
         logging.info('Skip update without lock')
+
+    if lock_fd:
+        lock_fd.close()
 
 
 @router.post(

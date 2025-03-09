@@ -52,8 +52,6 @@ def connect(client, flags, rc, properties):
     else:
         logging.info("Another worker already subscribed to MQTT topics")
 
-    time.sleep(2)
-
     if lock_fd:
         lock_fd.close()
 
