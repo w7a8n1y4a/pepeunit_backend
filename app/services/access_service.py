@@ -62,6 +62,12 @@ class AccessService:
                     agent = self.unit_repository.get(Unit(uuid=data['uuid']))
 
                 elif data.get('type') == AgentType.BACKEND:
+                    if data['domain'] != settings.backend_domain:
+                        app_errors.no_access.raise_exception(
+                            "The domain in the authorization token {} does not match the current domain {}".format(
+                                data['domain'], settings.backend_domain
+                            )
+                        )
                     agent = User(role=UserRole.BACKEND)
 
                 if not agent:

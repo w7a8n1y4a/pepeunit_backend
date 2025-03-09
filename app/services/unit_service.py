@@ -16,6 +16,7 @@ from app.configs.errors import app_errors
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
+from app.domain.user_model import User
 from app.repositories.enum import (
     BackendTopicCommand,
     DestinationTopicType,
@@ -349,14 +350,24 @@ class UnitService:
         return aes_gcm_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
 
     def get_mqtt_auth(self, topic: str) -> None:
-        self.access_service.access_check([], is_unit_available=True)
+        self.access_service.access_check([UserRole.BACKEND], is_unit_available=True)
 
-        if isinstance(self.access_service.current_agent, Unit):
+        if isinstance(self.access_service.current_agent, Unit) or (
+            isinstance(self.access_service.current_agent, User)
+            and self.access_service.current_agent.role == UserRole.BACKEND
+        ):
 
             struct_topic = get_topic_split(topic)
 
             len_struct = len(struct_topic)
             if len_struct == 5:
+
+                if (
+                    isinstance(self.access_service.current_agent, User)
+                    and self.access_service.current_agent.role == UserRole.BACKEND
+                ):
+                    return None
+
                 backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
                 unit_uuid = is_valid_uuid(unit_uuid)
 
