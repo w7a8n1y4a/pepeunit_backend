@@ -4,6 +4,7 @@ import jwt
 from dotenv import load_dotenv
 
 from app.configs.config import Settings
+from app.repositories.enum import AgentType
 
 load_dotenv()
 
@@ -18,7 +19,7 @@ settings.backend_link_prefix_and_v1 = settings.backend_link_prefix + settings.ba
 access_token_exp = datetime.utcnow() + timedelta(seconds=settings.backend_auth_token_expiration)
 
 jwt_token = jwt.encode(
-    {'domain': settings.backend_domain, 'exp': access_token_exp},
+    {'domain': settings.backend_domain, 'exp': access_token_exp, 'type': AgentType.BACKEND},
     settings.backend_secret_key,
     'HS256',
 )

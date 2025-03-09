@@ -50,15 +50,19 @@ class AccessService:
                 except jwt.exceptions.InvalidTokenError:
                     app_errors.no_access.raise_exception("Token is invalid")
 
-                if data['type'] == AgentType.USER:
+                agent = None
+                if data.get('type') == AgentType.USER:
                     agent = self.user_repository.get(User(uuid=data['uuid']))
                     if not agent:
                         app_errors.no_access.raise_exception("User not found")
 
                     if agent.status == UserStatus.BLOCKED:
                         app_errors.no_access.raise_exception("User is Blocked")
-                elif data['type'] == AgentType.UNIT:
+                elif data.get('type') == AgentType.UNIT:
                     agent = self.unit_repository.get(Unit(uuid=data['uuid']))
+
+                elif data.get('type') == AgentType.BACKEND:
+                    agent = User(role=UserRole.BACKEND)
 
                 if not agent:
                     app_errors.no_access.raise_exception("Agent not found")

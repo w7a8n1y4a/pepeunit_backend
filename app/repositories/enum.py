@@ -35,7 +35,10 @@ class UserRole(str, enum.Enum):
     Role User in Pepeunit
     """
 
-    BOT = 'Bot'  # special role for external users, not used in the database
+    # special role for external users, not used in the database
+    BOT = 'Bot'
+    # special role for backend auth
+    BACKEND = 'Backend'
     USER = 'User'
     ADMIN = 'Admin'
 
@@ -59,6 +62,7 @@ class AgentType(str, enum.Enum):
 
     USER = 'User'
     UNIT = 'Unit'
+    BACKEND = 'Backend'
 
 
 @strawberry.enum
