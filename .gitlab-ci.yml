@@ -56,7 +56,7 @@ load_test:image:dev:
   before_script:
     - echo "Waiting for the backend to be responsive..."
     - echo "Loading environment variables from $ENV_FILE"
-    - source $ENV_FILE
+    - export $(cat $ENV_FILE | xargs)
   script:
     - |
       for i in {1..30}; do
