@@ -70,8 +70,7 @@ load_test:image:dev:
       done
     - sleep 10
     - echo "Starting load test..."
-    - sudo -i
-    - cd /root/test/pepeunit_load_check
+    - cd ~/test/pepeunit_load_check
     - poetry run python load_test.py --url "https://$BACKEND_DOMAIN" --duration 60 --type mqtt --unit-count 40 --rps 100 --workers 4 --mqtt-admin $MQTT_USERNAME --mqtt-password $MQTT_PASSWORD
 
 build:image:release:
