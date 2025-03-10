@@ -4,7 +4,6 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from aiokeydb import KeyDBClient
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -13,6 +12,7 @@ from strawberry.fastapi import GraphQLRouter
 
 from app.configs.emqx import ControlEmqx
 from app.configs.gql import get_graphql_context, get_repo_service
+from app.configs.redis import get_redis_session
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
@@ -26,6 +26,11 @@ from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s - %(asctime)s - %(message)s",
+)
+
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
@@ -33,6 +38,8 @@ async def _lifespan(_app: FastAPI):
     FILE_MQTT_RUN_LOCK = 'tmp/mqtt_run_lock.lock'
 
     init_lock = acquire_file_lock(FILE_INIT_LOCK)
+
+    redis = await anext(get_redis_session())
 
     if init_lock:
         mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
@@ -47,20 +54,15 @@ async def _lifespan(_app: FastAPI):
         control_emqx.set_tcp_listener_settings()
         control_emqx.set_global_mqtt_settings()
 
-        KeyDBClient.init_session(uri=settings.mqtt_redis_auth_url)
-
-        await KeyDBClient.async_wait_for_ready()
-        await KeyDBClient.async_delete(settings.backend_token)
-
         backend_topics = (
             f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
             f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
         )
 
-        async def hset_emqx_auth_keys(KeyDBClient, topic):
-            await KeyDBClient.async_hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
+        async def hset_emqx_auth_keys(redis_client, topic):
+            await redis_client.hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
 
-        await asyncio.gather(*[hset_emqx_auth_keys(KeyDBClient, topic) for topic in backend_topics])
+        await asyncio.gather(*[hset_emqx_auth_keys(redis, topic) for topic in backend_topics])
 
         async def run_polling_bot(dp, bot):
             logging.info(f'Delete webhook before run polling')
@@ -136,17 +138,17 @@ async def _lifespan(_app: FastAPI):
                    """
         )
 
-    async def run_mqtt_client(mqtt):
+    async def run_mqtt_client(mqtt, redis_client):
         logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
         await mqtt.mqtt_startup()
 
-        access = await KeyDBClient.async_hgetall(settings.backend_token)
+        access = await redis_client.hgetall(settings.backend_token)
         for k, v in access.items():
             logging.info(f'Redis set {k} access {v}')
 
     wait_for_file_unlock(FILE_MQTT_RUN_LOCK)
 
-    await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt), name='run_mqtt_client')
+    await asyncio.get_event_loop().create_task(run_mqtt_client(mqtt, redis), name='run_mqtt_client')
 
     yield
 

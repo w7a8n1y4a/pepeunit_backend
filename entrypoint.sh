@@ -30,10 +30,13 @@ echo "Del old lock files"
 rm -rf tmp/*.lock
 
 gunicorn app.main:app \
-    -b 0.0.0.0:5000 \
-    --log-level 'info' \
-    -k uvicorn.workers.UvicornWorker \
-    --workers=$BACKEND_WORKER_COUNT \
-    --worker-tmp-dir=/dev/shm \
+    --bind 0.0.0.0:5000 \
+    --log-level info \
     --access-logfile /dev/stdout \
-    --error-logfile /dev/stderr
+    --error-logfile /dev/stderr \
+    --timeout 300 \
+    --workers=$BACKEND_WORKER_COUNT \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --worker-tmp-dir=/dev/shm \
+    --max-requests=1000 \
+    --max-requests-jitter=100
