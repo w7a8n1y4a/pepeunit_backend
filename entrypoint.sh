@@ -38,5 +38,3 @@ gunicorn app.main:app \
     --workers=$BACKEND_WORKER_COUNT \
     --worker-class uvicorn.workers.UvicornWorker \
     --worker-tmp-dir=/dev/shm \
-    --max-requests=1000 \
-    --max-requests-jitter=100
