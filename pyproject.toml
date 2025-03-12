@@ -41,6 +41,7 @@ paho-mqtt = "^2.1.0"
 prometheus-fastapi-instrumentator = "^7.0.2"
 cryptography = "^44.0.0"
 psutil = "^7.0.0"
+cachetools = "^5.5.2"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "3.8.0"

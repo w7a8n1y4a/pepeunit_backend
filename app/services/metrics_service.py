@@ -1,3 +1,4 @@
+from cachetools import TTLCache, cached
 from fastapi import Depends
 
 from app.repositories.enum import UserRole
@@ -8,6 +9,8 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.metrics import BaseMetricsRead
 from app.services.access_service import AccessService
+
+cache = TTLCache(maxsize=1, ttl=600)
 
 
 class MetricsService:
@@ -29,12 +32,21 @@ class MetricsService:
         self.access_service = access_service
 
     def get_instance_metrics(self) -> BaseMetricsRead:
+        cache_key = "instance_metrics"
+
+        if cache_key in cache:
+            return cache[cache_key]
+
         self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
 
-        return BaseMetricsRead(
+        metrics = BaseMetricsRead(
             user_count=self.user_repository.get_all_count(),
-            unit_count=self.unit_repository.get_all_count(),
             repo_count=self.repo_repository.get_all_count(),
+            unit_count=self.unit_repository.get_all_count(),
             unit_node_count=self.unit_node_repository.get_all_count(),
             unit_node_edge_count=self.unit_node_edge_repository.get_all_count(),
         )
+
+        cache[cache_key] = metrics
+
+        return metrics
