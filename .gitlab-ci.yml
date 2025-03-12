@@ -72,6 +72,7 @@ load_test:image:dev:
     - echo "Starting load test..."
     - cd ~/test/pepeunit_load_check
     - poetry run python load_test.py --url "https://$BACKEND_DOMAIN" --duration 120 --type mqtt --unit-count 40 --rps 100 --workers 4 --mqtt-admin $MQTT_USERNAME --mqtt-password $MQTT_PASSWORD
+    - poetry run locust -H "https://$BACKEND_DOMAIN" --headless -u 400 -r 10 --run-time 2m
 
 build:image:release:
   stage: build
