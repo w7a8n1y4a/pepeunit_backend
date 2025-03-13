@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     backend_app_prefix: str = '/pepeunit'
     backend_api_v1_prefix: str = '/api/v1'
 
-    backend_worker_count: int
+    backend_worker_count: int = 2
 
     backend_domain: str
     backend_secure: bool = True
@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     backend_state_send_interval: int = 60
     backend_max_external_repo_size: int = 50
     backend_max_cipher_length: int = 1_000_000
-    backend_min_topic_update_time: int = 60
+
+    backend_min_topic_update_time: int = 30
 
     available_topic_symbols: str = string.ascii_letters + string.digits + '/_-'
     available_name_entity_symbols: str = string.ascii_letters + string.digits + '_-.'
