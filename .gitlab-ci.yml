@@ -38,8 +38,7 @@ sonar:image:dev:
     - when: never
   script:
     - export PATH=$PATH:/usr/local/sonar-scanner-4.7.0.2747-linux/bin
-    - sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.login="$SONAR_TOKEN"  # Замените $SONAR_TOKEN на ваш токен
-
+    - docker run --rm -v "${CI_PROJECT_DIR}:${CI_PROJECT_DIR}" sonarsource/sonar-scanner-cli:11 sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.login="$SONAR_TOKEN"
 
 deploy:image:dev:
   stage: deploy
