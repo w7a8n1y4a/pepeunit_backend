@@ -37,8 +37,7 @@ sonar:image:dev:
       when: on_success
     - when: never
   script:
-    - export PATH=$PATH:/usr/local/sonar-scanner-4.7.0.2747-linux/bin
-    - docker run --rm -v "${CI_PROJECT_DIR}:${CI_PROJECT_DIR}" sonarsource/sonar-scanner-cli:11 sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.login="$SONAR_TOKEN"
+    - docker run --rm -v "${CI_PROJECT_DIR}:/usr/src" -e SONAR_HOST_URL="$SONAR_HOST_URL" -e SONAR_TOKEN="$SONAR_TOKEN" sonarsource/sonar-scanner-cli
 
 deploy:image:dev:
   stage: deploy
