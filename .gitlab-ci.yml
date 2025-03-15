@@ -37,6 +37,7 @@ sonar:image:dev:
       when: on_success
     - when: never
   script:
+    - export PATH=$PATH:/usr/local/sonar-scanner-4.7.0.2747-linux/bin
     - sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.login="$SONAR_TOKEN"  # Замените $SONAR_TOKEN на ваш токен
 
 
