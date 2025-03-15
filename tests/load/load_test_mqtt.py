@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 import math
 import multiprocessing
 import os
@@ -15,6 +16,8 @@ from app import settings
 from tests.load.src.dto.config import LoadTestConfig
 from tests.load.src.loaders.mqtt import MQTTLoadTest
 from tests.load.src.setup import MqttTestPreparation
+
+logging.basicConfig(level=logging.WARNING)
 
 
 def handler(signum, frame):
@@ -55,7 +58,7 @@ class LoadTester:
             while time.time() - start_time < duration:
                 time.sleep(1)
                 if not self.preparation.is_backend_subs():
-                    print(f'Backend crash on {round(time.time()-start_time, 2)} s')
+                    logging.warning(f'Backend crash on {round(time.time()-start_time, 2)} s')
 
                     terminate_all_children()
                     os.kill(os.getpid(), signal.SIGTERM)
@@ -79,12 +82,12 @@ class LoadTester:
 
                 check_backend_thread.join()
 
-                print(
+                logging.warning(
                     f'Backend sustained {round(sum(results)/self.config.duration, 2)} rps for {self.config.duration} seconds'
                 )
+
             except Exception as ex:
                 print(ex)
-                print('oi')
 
     def save_report(self, data):
         with open(self.report_path, 'w') as f:

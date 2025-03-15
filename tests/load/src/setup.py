@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 
 from tests.load.src.clients.rest_client import RestClient
@@ -54,6 +56,7 @@ class MqttTestPreparation:
 
         data = httpx.get(link, headers=headers)
 
-        print()
+        count = data.json()['meta']['count']
+        logging.warning(f'Count mqtt client with sub topics: {count}')
 
-        return data.json()['meta']['count'] == 1
+        return count >= 1

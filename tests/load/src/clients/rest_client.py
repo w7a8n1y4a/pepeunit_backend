@@ -6,8 +6,6 @@ import httpx
 
 from tests.load.src.dto.config import LoadTestConfig
 
-logging.basicConfig(level=logging.WARNING)
-
 
 class RestClient:
 
