@@ -75,6 +75,7 @@ class Settings(BaseSettings):
 
     test_integration_clear_data: bool = True
     test_integration_private_repo_json: str = ''
+    test_integration_run_backend: bool = False
 
     test_load_mqtt_duration: int = 120
     test_load_mqtt_unit_count: int = 40

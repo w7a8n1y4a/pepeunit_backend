@@ -326,32 +326,33 @@ def test_run_infrastructure_contour(database) -> None:
     backend_run_script = 'bash tests/entrypoint.sh'
 
     # run backend
-    if not check_screen_session_by_name(backend_screen_name):
+    if not check_screen_session_by_name(backend_screen_name) and settings.test_integration_run_backend:
         assert run_bash_script_on_screen_session(backend_screen_name, backend_run_script) == True
 
-    # waiting condition backend
-    code = 502
-    inc = 0
-    while code >= 500 and inc <= 10:
-        try:
-            r = httpx.get(settings.backend_link_prefix)
-            code = r.status_code
-        except httpx.ConnectError:
-            logging.info('No route to BACKEND_DOMAIN variable')
-        except httpx.ConnectTimeout:
-            logging.info('Connect timeout to BACKEND_DOMAIN variable')
-        except httpx.ReadTimeout:
-            logging.info('Read timeout to BACKEND_DOMAIN variable')
+    if settings.test_integration_run_backend:
+        # waiting condition backend
+        code = 502
+        inc = 0
+        while code >= 500 and inc <= 10:
+            try:
+                r = httpx.get(settings.backend_link_prefix)
+                code = r.status_code
+            except httpx.ConnectError:
+                logging.info('No route to BACKEND_DOMAIN variable')
+            except httpx.ConnectTimeout:
+                logging.info('Connect timeout to BACKEND_DOMAIN variable')
+            except httpx.ReadTimeout:
+                logging.info('Read timeout to BACKEND_DOMAIN variable')
 
-        if inc > 10:
-            assert False
+            if inc > 10:
+                assert False
 
-        time.sleep(3)
+            time.sleep(3)
 
-        inc += 1
+            inc += 1
 
-    # TODO: придумать как изменить проверку
-    time.sleep(10)
+        # TODO: придумать как изменить проверку
+        time.sleep(10)
 
     current_user = pytest.users[0]
     token = pytest.user_tokens_dict[current_user.uuid]
