@@ -1,13 +1,9 @@
 variables:
   DOCKER_IMAGE_TAG: $CI_PIPELINE_IID
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
-  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
-  GIT_DEPTH: "0"
-  SONAR_SCANNER_HOME: "/usr/local/sonar-scanner"
 
 stages:
   - build
-  - sonar
   - deploy
   - load-test
   - tag
@@ -25,17 +21,6 @@ build:image:dev:
   script:
     - docker build -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG .
     - docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
-
-sonar:image:dev:
-  stage: sonar
-  tags:
-    - shell-build-runer
-  rules:
-    - if: $CI_COMMIT_REF_NAME == "dev" && $CI_PIPELINE_SOURCE != "merge_request_event"
-      when: on_success
-    - when: never
-  script:
-    - docker run --rm -v "${CI_PROJECT_DIR}:/usr/src" -e SONAR_HOST_URL="$SONAR_HOST_URL" -e SONAR_TOKEN="$SONAR_TOKEN" sonarsource/sonar-scanner-cli
 
 deploy:image:dev:
   stage: deploy
