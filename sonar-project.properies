@@ -1,0 +1,2 @@
+sonar.projectKey=pepe_pepeunit_pepeunit_backend_c900df20-ebf4-4c96-b8a1-61931a95694a
+sonar.qualitygate.wait=true
