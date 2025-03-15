@@ -73,8 +73,20 @@ class Settings(BaseSettings):
     mqtt_max_len_message_queue: int = 128
     mqtt_max_topic_alias: int = 128
 
-    test_clear_data: bool = True
-    test_private_repo_json: str = ''
+    test_integration_clear_data: bool = True
+    test_integration_private_repo_json: str = ''
+
+    test_load_mqtt_duration: int = 120
+    test_load_mqtt_unit_count: int = 40
+    test_load_mqtt_rps: int = 100
+    test_load_mqtt_duplicate_count: int = 10
+    test_load_mqtt_message_size: int = 128
+    test_load_mqtt_workers: int = 10
+
+    locust_headless: bool = True
+    locust_users: int = 400
+    locust_run_time: int = 120
+    locust_spawn_rate: int = 10
 
     # calculated fields
     backend_http_type: str = 'https'

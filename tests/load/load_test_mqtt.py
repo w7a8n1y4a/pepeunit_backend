@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import hashlib
 import json
@@ -92,47 +91,21 @@ class LoadTester:
             json.dump(data, f)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Load testing CLI")
-    parser.add_argument(
-        "--duration", type=int, required=True, default=120, help="Test duration in seconds (default: 120)"
-    )
-
-    parser.add_argument("--unit-count", type=int, default=10, help="Number of units for MQTT test (default: 10)")
-    parser.add_argument("--rps", type=int, default=5, help="Requests per second (default: 5)")
-    parser.add_argument(
-        "--duplicate-count", type=int, default=10, help="Number of consecutive identical messages (default: 10)"
-    )
-    parser.add_argument(
-        "--message-size", type=int, default=128, help="Size of the message in characters (default: 128)"
-    )
-
-    parser.add_argument("--workers", type=int, default=1, help="Number of process multiprocessing (default: 1)")
-    parser.add_argument("--mqtt-admin", type=str, default='admin', help="Login admin mqtt EMQX default: admin)")
-    parser.add_argument(
-        "--mqtt-password", type=str, default='password', help="Login admin mqtt EMQX default: password)"
-    )
-
-    args = parser.parse_args()
-
+async def main():
     url = f'{settings.backend_http_type}://{settings.backend_domain}'
 
-    return LoadTestConfig(
+    config = LoadTestConfig(
         url=url,
-        duration=args.duration,
-        unit_count=args.unit_count,
-        rps=args.rps,
-        duplicate_count=args.duplicate_count,
-        message_size=args.message_size,
-        workers=args.workers,
-        mqtt_admin=args.mqtt_admin,
-        mqtt_password=args.mqtt_password,
+        duration=settings.test_load_mqtt_duration,
+        unit_count=settings.test_load_mqtt_unit_count,
+        rps=settings.test_load_mqtt_rps,
+        duplicate_count=settings.test_load_mqtt_duplicate_count,
+        message_size=settings.test_load_mqtt_message_size,
+        workers=settings.test_load_mqtt_workers,
+        mqtt_admin=settings.mqtt_username,
+        mqtt_password=settings.mqtt_password,
         test_hash=hashlib.md5(url.encode('utf-8')).hexdigest()[:10],
     )
-
-
-async def main():
-    config = parse_args()
 
     preparation = MqttTestPreparation(config)
     await preparation.setup()

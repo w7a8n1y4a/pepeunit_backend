@@ -50,9 +50,9 @@
 1. Войдите в окружение при помощи команды `poetry shell`
 1. Запуск `MQTT` теста:
     ```bash
-    python -m tests.load.load_test_mqtt --duration 120 --unit-count 40 --rps 100 --workers 10 --mqtt-admin "admin" --mqtt-password "password"
+    python -m tests.load.load_test_mqtt
     ```
 1. Запуск `GQL` и `REST` теста
     ```bash
-    locust -f tests/load/locustfile.py --headless -u 400 -r 10 --run-time 2m
+    locust -f tests/load/locustfile.py
     ```
