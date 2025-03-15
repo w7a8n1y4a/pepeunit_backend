@@ -1,0 +1,145 @@
+import asyncio
+import json
+import logging
+
+import httpx
+
+from tests.load.src.dto.config import LoadTestConfig
+
+
+class RestClient:
+
+    def __init__(self, config: LoadTestConfig):
+        self.config = config
+        self.headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
+
+        user = {"login": f"test_{self.config.test_hash}", "password": self.config.test_hash + "/"}
+
+        create_user_link = f'{self.config.url}/pepeunit/api/v1/users'
+        httpx.post(create_user_link, json=user, headers=self.headers)
+
+        user["credentials"] = user.pop("login")
+
+        auth_link = f'{self.config.url}/pepeunit/api/v1/users/auth'
+        self.token = httpx.post(auth_link, json=user, headers=self.headers).json()['token']
+        self.headers['x-auth-token'] = self.token
+
+    def get_repo(self):
+        repo = {
+            "visibility_level": "Public",
+            "name": f"test_{self.config.test_hash}",
+            "repo_url": "https://git.pepemoss.com/pepe/pepeunit/units/universal_load_unit.git",
+            "platform": "Gitlab",
+            "is_public_repository": True,
+            "is_compilable_repo": False,
+        }
+
+        repo_link = f'{self.config.url}/pepeunit/api/v1/repos'
+
+        response = httpx.post(repo_link, json=repo, headers=self.headers)
+
+        if response.status_code == 422:
+            repo_link += f"?search_string={repo['name']}"
+            response = httpx.get(repo_link, headers=self.headers)
+
+        response = response.json()
+        target_repo = response['repos'][0] if 'repos' in response else response
+
+        update_repo_link = f'{self.config.url}/pepeunit/api/v1/repos/{target_repo["uuid"]}'
+        httpx.patch(update_repo_link, json={'default_branch': target_repo['branches'][0]}, headers=self.headers)
+
+        return target_repo
+
+    async def del_units(self):
+        logging.warning('Run del old Units')
+        get_units = f'{self.config.url}/pepeunit/api/v1/units?search_string={self.config.test_hash}'
+        units = httpx.get(get_units, headers=self.headers).json()
+
+        if units['count'] > 0:
+            async with httpx.AsyncClient() as client:
+                unit_uuids = [unit['uuid'] for unit in units['units']]
+                await self.run_tasks_with_semaphore(client, unit_uuids, self.delete_unit)
+                logging.warning(f"Deleted {len(unit_uuids)} Units")
+
+    async def create_units(self, target_repo: dict):
+        logging.warning('Run create new Units')
+
+        unit_create_link = f'{self.config.url}/pepeunit/api/v1/units'
+        responses = []
+
+        async with httpx.AsyncClient() as client:
+            units = [
+                {
+                    "repo_uuid": target_repo['uuid'],
+                    "visibility_level": "Public",
+                    "name": f"test_{i}_{self.config.test_hash}",
+                    "is_auto_update_from_repo_unit": True,
+                }
+                for i in range(self.config.unit_count)
+            ]
+
+            await self.run_tasks_with_semaphore(client, units, self.post_request, unit_create_link, responses)
+
+        logging.warning(f'Created {len(responses)} Units')
+
+        return responses
+
+    def get_units(self):
+        logging.warning('Fetch all Units')
+        get_units = f'{self.config.url}/pepeunit/api/v1/units?is_include_output_unit_nodes=true&search_string={self.config.test_hash}'
+        return httpx.get(get_units, headers=self.headers).json()['units']
+
+    async def create_units_env(self, target_units: list[dict]):
+        logging.warning('Run create env Units')
+
+        async with httpx.AsyncClient() as client:
+            await self.run_tasks_with_semaphore(client, target_units, self.patch_unit_env)
+
+        logging.warning(f'Created {len(target_units)} env Units')
+
+    async def get_units_env(self, target_units: list[dict]):
+        logging.warning('Fetch env Units')
+
+        async with httpx.AsyncClient() as client:
+            updated_units = await self.run_tasks_with_semaphore(client, target_units, self.get_unit_env)
+
+        logging.warning(f'Fetched env for {len(target_units)} Units')
+        return updated_units
+
+    async def generation_units(self, target_repo: dict):
+        await self.del_units()
+        await self.create_units(target_repo)
+        created_units = self.get_units()
+        await self.create_units_env(created_units)
+        return await self.get_units_env(created_units)
+
+    async def run_tasks_with_semaphore(self, client, items, func, *args):
+        semaphore = asyncio.Semaphore(10)
+        tasks = [self.run_with_semaphore(semaphore, func, client, item, *args) for item in items]
+        return await asyncio.gather(*tasks)
+
+    async def run_with_semaphore(self, semaphore, func, client, item, *args):
+        async with semaphore:
+            return await func(client, item, *args)
+
+    async def delete_unit(self, client, unit_id):
+        delete_url = f'{self.config.url}/pepeunit/api/v1/units/{unit_id}'
+        await client.delete(delete_url, headers=self.headers)
+
+    async def post_request(self, client, unit, url, responses):
+        response = await client.post(url, json=unit, headers=self.headers)
+        responses.append(response.json())
+
+    async def patch_unit_env(self, client, unit):
+        unit_env_link = f'{self.config.url}/pepeunit/api/v1/units/env/{unit["uuid"]}'
+        payload = {"env_json_string": "{\"PING_INTERVAL\": 30}"}
+        return await client.patch(unit_env_link, json=payload, headers=self.headers)
+
+    async def get_unit_env(self, client, unit: dict):
+        unit_env_link = f'{self.config.url}/pepeunit/api/v1/units/env/{unit["uuid"]}'
+        response = await client.get(unit_env_link, headers=self.headers)
+        if response.status_code == 200:
+            unit['env'] = json.loads(json.loads(response.text))
+        else:
+            unit['env'] = None
+        return unit

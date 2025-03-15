@@ -43,3 +43,16 @@
 
 ## Интеграционное тестирование
 Запустить интеграционное тестирование можно командой - `pytest tests -v`
+
+## Нагрузочное тестирование
+
+0. Установите пакеты при помощи команды `poetry install --with load`
+1. Войдите в окружение при помощи команды `poetry shell`
+1. Запуск `MQTT` теста:
+    ```bash
+    python -m tests.load.load_test_mqtt
+    ```
+1. Запуск `GQL` и `REST` теста
+    ```bash
+    locust -f tests/load/locustfile.py
+    ```

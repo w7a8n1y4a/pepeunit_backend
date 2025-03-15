@@ -72,6 +72,13 @@ filter_files=true
 skip_glob = ["alembic/versions/*"]
 skip_gitignore = true
 
+[tool.poetry.group.load.dependencies]
+paho-mqtt = "^2.1.0"
+httpx = "^0.28.1"
+tqdm = "^4.67.1"
+psutil = "^7.0.0"
+locust = "^2.33.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
