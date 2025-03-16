@@ -19,7 +19,6 @@ from app.domain.user_model import User
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
 from tests.client.mqtt import MQTTClient
-from tests.integration.services.utils import check_screen_session_by_name, kill_screen_session
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()[:5]
 
@@ -45,20 +44,9 @@ def clear_database(database) -> None:
     clear all entity in database with test_hash in field
     """
 
-    # stop backend in screen
-    backend_screen_name = 'pepeunit_backend'
-    if check_screen_session_by_name(backend_screen_name):
-        kill_screen_session(backend_screen_name)
-
     # del units
     shutil.rmtree('tmp/test_units', ignore_errors=True)
     shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
-
-    # clear screen with units
-    units = database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).all()
-    for unit in units:
-        if check_screen_session_by_name(unit.name):
-            kill_screen_session(unit.name)
 
     database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).delete()
 
@@ -203,12 +191,10 @@ class ClientEmulatorThread(threading.Thread):
         asyncio.run(mqtt_client.run())
 
     def stop(self):
-        for future in self.clients:
-            future.cancel()
-        self.executor.shutdown(wait=True)
-
         self.running = False
         self.task_queue.put("STOP")
+
+        self.executor.shutdown(wait=True)
 
 
 @pytest.fixture(scope="session")

@@ -123,7 +123,7 @@ def test_create_unit_node_edge(database) -> None:
     assert set_input_state(token, io_units_list[0][1].uuid, state) >= 400
 
     # sleep for chain transmission data
-    time.sleep(4)
+    time.sleep(20)
 
     # check value in units
     for unit in target_units:

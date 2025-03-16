@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 import os
 import shutil
 import sys
@@ -43,6 +42,7 @@ class MQTTClient:
             print("Connected to MQTT Broker!")
         else:
             print(f"Failed to connect, return code {rc}\n")
+
         client.subscribe([(topic, 0) for topic in self.get_input_topics()])
 
     def on_subscribe(self, client, userdata, mid, granted_qos):
@@ -50,7 +50,6 @@ class MQTTClient:
 
     def on_message(self, client, userdata, msg):
         struct_topic = self.get_topic_split(msg.topic)
-        print(struct_topic)
 
         if len(struct_topic) == 5:
             backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
@@ -58,7 +57,7 @@ class MQTTClient:
             if destination == 'input_base_topic' and topic_name == 'update':
                 self.handle_update(msg)
             elif destination == 'input_base_topic' and topic_name == 'schema_update':
-                self.handle_schema_update()
+                self.handle_schema_update(client)
         elif len(struct_topic) == 3:
             self.handle_input_message(client, msg, struct_topic)
 
@@ -107,7 +106,7 @@ class MQTTClient:
         else:
             shutil.unpack_archive(filepath, extract_path, archive_format)
 
-    def handle_schema_update(self):
+    def handle_schema_update(self, client):
         headers = {'accept': 'application/json', 'x-auth-token': self.settings.PEPEUNIT_TOKEN.encode()}
         url = (
             f"{self.settings.HTTP_TYPE}://{self.settings.PEPEUNIT_URL}{self.settings.PEPEUNIT_APP_PREFIX}"
@@ -116,16 +115,14 @@ class MQTTClient:
         r = httpx.get(url=url, headers=headers)
         with open(f'tmp/test_units/{self.unit.uuid}/schema.json', 'w') as f:
             f.write(json.dumps(r.json(), indent=4))
-        logging.info("Schema is Updated")
-        logging.info("I'll be back")
-        os.execl(sys.executable, *([sys.executable] + sys.argv))
+
+        client.subscribe([(topic, 0) for topic in self.get_input_topics()])
 
     def handle_input_message(self, client, msg, struct_topic):
         schema_dict = self.get_unit_schema()
         topic_type, topic_name = self.search_topic_in_schema(schema_dict, struct_topic[1])
 
         if topic_type == 'input_topic' and topic_name == 'input/pepeunit':
-            print('Success load input state')
             value = msg.payload.decode()
             try:
                 value = int(value)
@@ -169,7 +166,8 @@ class MQTTClient:
 
     def get_unit_schema(self):
         with open(f"tmp/test_units/{self.unit.uuid}/schema.json", 'r') as f:
-            return json.loads(f.read())
+            data = json.loads(f.read())
+        return json.loads(data) if isinstance(data, str) else data
 
     def get_input_topics(self) -> list[str]:
         schema_dict = self.get_unit_schema()

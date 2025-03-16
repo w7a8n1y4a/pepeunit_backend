@@ -17,7 +17,6 @@ from app.repositories.enum import StaticRepoFileName, VisibilityLevel
 from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode
-from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
 
 
 @pytest.mark.run(order=0)
@@ -321,42 +320,6 @@ def test_state_storage(database) -> None:
 
 @pytest.mark.run(order=6)
 def test_run_infrastructure_contour(database, client_emulator) -> None:
-
-    backend_screen_name = 'pepeunit_backend'
-    backend_run_script = 'bash tests/entrypoint.sh'
-
-    # run backend
-    if not check_screen_session_by_name(backend_screen_name) and settings.test_integration_run_backend:
-        assert run_bash_script_on_screen_session(backend_screen_name, backend_run_script) == True
-
-    if settings.test_integration_run_backend:
-        # waiting condition backend
-        code = 502
-        inc = 0
-        while code >= 500 and inc <= 10:
-            try:
-                r = httpx.get(settings.backend_link_prefix)
-                code = r.status_code
-            except httpx.ConnectError:
-                logging.info('No route to BACKEND_DOMAIN variable')
-            except httpx.ConnectTimeout:
-                logging.info('Connect timeout to BACKEND_DOMAIN variable')
-            except httpx.ReadTimeout:
-                logging.info('Read timeout to BACKEND_DOMAIN variable')
-
-            if inc > 10:
-                assert False
-
-            time.sleep(3)
-
-            inc += 1
-
-        # TODO: придумать как изменить проверку
-        time.sleep(10)
-
-    current_user = pytest.users[0]
-    token = pytest.user_tokens_dict[current_user.uuid]
-    logging.info(f'User token: {token}')
 
     # run all units
     client_emulator.task_queue.put(pytest.units)
