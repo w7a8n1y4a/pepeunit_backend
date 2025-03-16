@@ -347,7 +347,7 @@ def test_hand_update_firmware_unit(database, client_emulator) -> None:
         if None not in data:
             break
 
-        time.sleep(5)
+        time.sleep(1)
 
         if inc > 10:
             assert False
@@ -390,7 +390,7 @@ def test_hand_update_firmware_unit(database, client_emulator) -> None:
         if data.count(target_versions[0]) == len(target_units):
             break
 
-        time.sleep(5)
+        time.sleep(1)
 
         if inc > 10:
             assert False
@@ -475,7 +475,7 @@ def test_repo_update_firmware_unit(database) -> None:
         if data == target_version:
             break
 
-        time.sleep(5)
+        time.sleep(1)
 
         if inc > 10:
             assert False
@@ -503,7 +503,7 @@ def test_repo_update_firmware_unit(database) -> None:
         if data[0] == target_version and data[1] == tags[0]['commit']:
             break
 
-        time.sleep(5)
+        time.sleep(2)
 
         if inc > 10:
             assert False

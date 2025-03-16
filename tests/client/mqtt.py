@@ -147,7 +147,7 @@ class MQTTClient:
                 topic = schema_dict['output_base_topic']['state/pepeunit'][0]
                 msg = self.get_unit_state()
                 self.client.publish(topic, msg)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.25)
 
     def get_unit_state(self):
         memeory_info = psutil.virtual_memory()
@@ -189,9 +189,7 @@ class MQTTClient:
         for topic in schema_dict['output_topic'][topic_name]:
             result = client.publish(topic, message)
 
-            if result[0] == 0:
-                print(f"Send `{message}` to topic `{topic}`")
-            else:
+            if result[0] != 0:
                 print(f"Failed to send message to topic {topic}")
 
     def search_topic_in_schema(self, schema_dict: dict, node_uuid: str) -> tuple[str, str]:
