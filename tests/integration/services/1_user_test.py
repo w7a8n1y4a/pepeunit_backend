@@ -1,4 +1,5 @@
 import logging
+import random
 
 import fastapi
 import pytest
@@ -88,7 +89,7 @@ async def test_verification_user(database) -> None:
         logging.info(code)
         codes_list.append(code)
 
-        await user_service.verification(str(inc * 1_000_000), code)
+        await user_service.verification(str(random.randint(1_000_000, 10_000_000)), code)
         assert user.status == UserStatus.VERIFIED
 
     # check del all verification codes in redis
