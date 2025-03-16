@@ -68,7 +68,6 @@ integration_test:image:dev:
           sleep 1
         fi
       done
-    - sleep 10
     - docker build -f DockerfileLoad -t pepeunit-integra-test .
     - docker run --rm --env-file $ENV_FILE pepeunit-integra-test pytest tests -v
     - docker container prune -f
@@ -98,9 +97,7 @@ load_test:image:dev:
           sleep 1
         fi
       done
-    - sleep 10
     - docker build -f DockerfileLoad -t pepeunit-load-test .
-    - docker run --rm --env-file $ENV_FILE pepeunit-load-test pytest tests -v
     - docker run --rm --env-file $ENV_FILE pepeunit-load-test python -m tests.load.load_test_mqtt
     - docker run --rm --env-file $ENV_FILE pepeunit-load-test locust -f tests/load/locustfile.py
     - docker container prune -f
