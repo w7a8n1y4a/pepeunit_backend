@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     mqtt_max_len_message_queue: int = 128
     mqtt_max_topic_alias: int = 128
 
-    test_integration_clear_data: bool = True
+    test_integration_clear_data: bool = False
     test_integration_private_repo_json: str = ''
     test_integration_run_backend: bool = False
 

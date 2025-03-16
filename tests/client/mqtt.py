@@ -86,12 +86,13 @@ class MQTTClient:
         if self.settings.COMMIT_VERSION != new_version:
             self.download_and_extract(pepe_url, new_version_path, 'tgz', headers)
 
-        shutil.copytree(new_version_path, './', dirs_exist_ok=True)
-        logging.info("I'll be back")
+        shutil.copytree(new_version_path, f'tmp/test_units/{self.unit.uuid}', dirs_exist_ok=True)
+
+        self.settings = self.get_settings()
 
     def download_and_extract(self, url, extract_path, archive_format, headers=None):
         r = httpx.get(url=url, headers=headers) if headers else httpx.get(url=url)
-        filepath = f'tmp/update.{archive_format}'
+        filepath = f'tmp/test_units/{self.unit.uuid}/update.{archive_format}'
         with open(filepath, 'wb') as f:
             f.write(r.content)
 
@@ -99,7 +100,7 @@ class MQTTClient:
             with open(filepath, 'rb') as f:
                 producer = zlib.decompressobj(wbits=9)
                 tar_data = producer.decompress(f.read()) + producer.flush()
-                tar_filepath = 'tmp/update.tar'
+                tar_filepath = f'tmp/test_units/{self.unit.uuid}/update.tar'
                 with open(tar_filepath, 'wb') as tar_file:
                     tar_file.write(tar_data)
                 shutil.unpack_archive(tar_filepath, extract_path, 'tar')
@@ -113,7 +114,7 @@ class MQTTClient:
             f"{self.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/get_current_schema/{self.unit.uuid}"
         )
         r = httpx.get(url=url, headers=headers)
-        with open('schema.json', 'w') as f:
+        with open(f'tmp/test_units/{self.unit.uuid}/schema.json', 'w') as f:
             f.write(json.dumps(r.json(), indent=4))
         logging.info("Schema is Updated")
         logging.info("I'll be back")
@@ -128,7 +129,7 @@ class MQTTClient:
             value = msg.payload.decode()
             try:
                 value = int(value)
-                with open('log.json', 'w') as f:
+                with open(f'tmp/test_units/{self.unit.uuid}/log.json', 'w') as f:
                     f.write(json.dumps({'value': value, 'input_topic': struct_topic}))
                 for topic in schema_dict['output_topic'].keys():
                     self.pub_output_topic_by_name(client, 'output/pepeunit', str(value))
