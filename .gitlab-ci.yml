@@ -45,15 +45,14 @@ deploy:image:dev:
     - docker system prune -a -f
 
 integration_test:image:dev:
-  stage: integration-test
+  stage: test
   tags:
     - shell-build-runer
   variables:
     PROJ: pepeunit-backend-dev
   rules:
     - if: $CI_COMMIT_REF_NAME == "dev" && $CI_PIPELINE_SOURCE != "merge_request_event"
-      when: on_success
-    - when: never
+      when: manual
   before_script:
     - echo "Waiting for the backend to be responsive..."
     - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
@@ -74,7 +73,7 @@ integration_test:image:dev:
     - docker rmi $(docker images -f "dangling=true" -q)
 
 load_test:image:dev:
-  stage: load-test
+  stage: test
   tags:
     - shell-build-runer
   variables:
