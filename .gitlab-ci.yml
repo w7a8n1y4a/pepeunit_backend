@@ -56,8 +56,7 @@ integration_test:image:dev:
     - when: never
   before_script:
     - echo "Waiting for the backend to be responsive..."
-    - echo "Loading environment variables from $ENV_FILE"
-    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' .env | cut -d '=' -f2)
+    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
@@ -87,8 +86,7 @@ load_test:image:dev:
     - when: never
   before_script:
     - echo "Waiting for the backend to be responsive..."
-    - echo "Loading environment variables from $ENV_FILE"
-    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' .env | cut -d '=' -f2)
+    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
