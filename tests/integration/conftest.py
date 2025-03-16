@@ -82,9 +82,12 @@ def test_repos() -> list[dict]:
     test_repos = []
     try:
         data = json.loads(settings.test_integration_private_repo_json)
-        test_repos.extend(data['data'])
+        if isinstance(data, str):
+            data = json.loads(data)
     except JSONDecodeError:
-        pass
+        assert False
+
+    test_repos.extend(data['data'])
 
     # add public repository
     test_repos.extend(
