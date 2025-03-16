@@ -5,7 +5,7 @@ variables:
 stages:
   - build
   - deploy
-  - integration_test
+  - integration-test
   - load-test
   - tag
 
@@ -45,7 +45,7 @@ deploy:image:dev:
     - docker system prune -a -f
 
 integration_test:image:dev:
-  stage: load-test
+  stage: integration-test
   tags:
     - shell-build-runer
   variables:
@@ -57,7 +57,7 @@ integration_test:image:dev:
   before_script:
     - echo "Waiting for the backend to be responsive..."
     - echo "Loading environment variables from $ENV_FILE"
-    - export $(cat $ENV_FILE | xargs)
+    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' .env | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
@@ -88,7 +88,7 @@ load_test:image:dev:
   before_script:
     - echo "Waiting for the backend to be responsive..."
     - echo "Loading environment variables from $ENV_FILE"
-    - export $(cat $ENV_FILE | xargs)
+    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' .env | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
