@@ -1,6 +1,10 @@
+import asyncio
 import hashlib
 import json
+import queue
 import shutil
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from json import JSONDecodeError
 
 import pytest
@@ -14,31 +18,18 @@ from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.repositories.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
-from tests.integration.services.utils import check_screen_session_by_name, kill_screen_session
+from tests.client.mqtt import MQTTClient
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()[:5]
 
 
 def pytest_configure():
-    # search hash for db
     pytest.test_hash = test_hash
-
-    # last - Admin, first - User: minimal 2 users
     pytest.users = []
-
-    # {uuid_user: jwt-token}: minimal 2 items
     pytest.user_tokens_dict = {}
-
-    # ['Private', 'Private', 'Public', 'Public', 'Public', 'Internal', 'Private'] : minimal 7 repo
     pytest.repos = []
-
-    # ['update check', ' bad env.json', 'hand public', 'hand internal', 'hand private', 'auto ', 'auto', 'auto']
     pytest.units = []
-
-    # only for one unit
     pytest.edges = []
-
-    # only save
     pytest.permissions = []
 
 
@@ -53,20 +44,9 @@ def clear_database(database) -> None:
     clear all entity in database with test_hash in field
     """
 
-    # stop backend in screen
-    backend_screen_name = 'pepeunit_backend'
-    if check_screen_session_by_name(backend_screen_name):
-        kill_screen_session(backend_screen_name)
-
     # del units
     shutil.rmtree('tmp/test_units', ignore_errors=True)
     shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
-
-    # clear screen with units
-    units = database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).all()
-    for unit in units:
-        if check_screen_session_by_name(unit.name):
-            kill_screen_session(unit.name)
 
     database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).delete()
 
@@ -102,9 +82,12 @@ def test_repos() -> list[dict]:
     test_repos = []
     try:
         data = json.loads(settings.test_integration_private_repo_json)
-        test_repos.extend(data['data'])
+        if isinstance(data, str):
+            data = json.loads(data)
     except JSONDecodeError:
-        pass
+        assert False
+
+    test_repos.extend(data['data'])
 
     # add public repository
     test_repos.extend(
@@ -174,3 +157,53 @@ def test_repos() -> list[dict]:
         }
         for inc, repo in enumerate(test_repos)
     ]
+
+
+class ClientEmulatorThread(threading.Thread):
+    units: int
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.task_queue = queue.Queue()
+        self.result_queue = queue.Queue()
+        self.running = True
+        self.executor = ThreadPoolExecutor(max_workers=10)
+        self.clients = []
+
+    def run(self):
+        while self.running:
+            try:
+                task = self.task_queue.get(timeout=1)
+
+                if isinstance(task, list):
+                    for unit in task:
+                        thread = threading.Thread(target=self.start_mqtt_client, args=(unit,), daemon=True)
+                        self.clients.append(thread)
+                        thread.start()
+
+                    self.result_queue.put({'run_client': [unit.uuid for unit in task]})
+                if task == "STOP":
+                    break
+
+                self.result_queue.put(task)
+            except queue.Empty:
+                pass
+
+    def start_mqtt_client(self, unit):
+        mqtt_client = MQTTClient(unit)
+        asyncio.run(mqtt_client.run())
+
+    def stop(self):
+        self.running = False
+        self.task_queue.put("STOP")
+
+        self.executor.shutdown(wait=True)
+
+
+@pytest.fixture(scope="session")
+def client_emulator():
+    emulator = ClientEmulatorThread()
+    emulator.start()
+    yield emulator
+    emulator.stop()
+    emulator.join()

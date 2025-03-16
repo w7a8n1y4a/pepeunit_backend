@@ -70,9 +70,11 @@ class GitRepoRepository:
 
         return tmp_git_repo_path
 
-    @staticmethod
-    def get_repo(repo: Repo) -> GitRepo:
-        return GitRepo(f'{settings.backend_save_repo_path}/{repo.uuid}')
+    def get_repo(self, repo: Repo) -> GitRepo:
+        repo_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
+        if not os.path.exists(repo_path):
+            self.clone_remote_repo(repo)
+        return GitRepo(repo_path)
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:

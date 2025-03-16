@@ -182,6 +182,9 @@ class GithubPlatformRepository(GitPlatformRepositoryABC):
         try:
             repo_size = repo_data.json()['size']
         except KeyError:
-            app_errors.git_repo_error.raise_exception('Invalid Credentials')
+            if repo_data.status_code == 403:
+                app_errors.git_repo_error.raise_exception('Rate limit external API')
+            else:
+                app_errors.git_repo_error.raise_exception('Invalid Credentials')
 
         return repo_size * 1024

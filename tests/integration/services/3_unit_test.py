@@ -17,7 +17,6 @@ from app.repositories.enum import StaticRepoFileName, VisibilityLevel
 from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode
-from tests.integration.services.utils import check_screen_session_by_name, run_bash_script_on_screen_session
 
 
 @pytest.mark.run(order=0)
@@ -320,73 +319,14 @@ def test_state_storage(database) -> None:
 
 
 @pytest.mark.run(order=6)
-def test_run_infrastructure_contour(database) -> None:
+def test_run_infrastructure_contour(database, client_emulator) -> None:
 
-    backend_screen_name = 'pepeunit_backend'
-    backend_run_script = 'bash tests/entrypoint.sh'
-
-    # run backend
-    if not check_screen_session_by_name(backend_screen_name):
-        assert run_bash_script_on_screen_session(backend_screen_name, backend_run_script) == True
-
-    # waiting condition backend
-    code = 502
-    inc = 0
-    while code >= 500 and inc <= 10:
-        try:
-            r = httpx.get(settings.backend_link_prefix)
-            code = r.status_code
-        except httpx.ConnectError:
-            logging.info('No route to BACKEND_DOMAIN variable')
-        except httpx.ConnectTimeout:
-            logging.info('Connect timeout to BACKEND_DOMAIN variable')
-        except httpx.ReadTimeout:
-            logging.info('Read timeout to BACKEND_DOMAIN variable')
-
-        if inc > 10:
-            assert False
-
-        time.sleep(3)
-
-        inc += 1
-
-    # TODO: придумать как изменить проверку
-    time.sleep(10)
-
-    current_user = pytest.users[0]
-    token = pytest.user_tokens_dict[current_user.uuid]
-    logging.info(f'User token: {token}')
-
-    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': token}))
-
-    # run units in screen
-    for inc, unit in enumerate(pytest.units):
-
-        logging.info(unit.uuid)
-
-        unit_screen_name = unit.name
-        if inc == 8:
-            # only for compile
-
-            target_repo = repo_service.repo_repository.get(Repo(uuid=unit.repo_uuid))
-            target_version, target_tag = repo_service.git_repo_repository.get_target_unit_version(target_repo, unit)
-
-            links = json.loads(target_repo.releases_data)[target_tag]
-            platform, link = repo_service.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
-
-            unit_script = f'cd tmp/test_units/{unit.uuid} && curl {link} --output test.zip && unzip test.zip -d test && cp -r test/* ./ && bash entrypoint.sh'
-
-        else:
-            unit_script = f'cd tmp/test_units/{unit.uuid} && bash entrypoint.sh'
-
-        if not check_screen_session_by_name(unit_screen_name):
-            assert run_bash_script_on_screen_session(unit_screen_name, unit_script) == True
-
-        time.sleep(1)
+    # run all units
+    client_emulator.task_queue.put(pytest.units)
 
 
 @pytest.mark.run(order=7)
-def test_hand_update_firmware_unit(database) -> None:
+def test_hand_update_firmware_unit(database, client_emulator) -> None:
 
     current_user = pytest.users[0]
     token = pytest.user_tokens_dict[current_user.uuid]
@@ -407,7 +347,7 @@ def test_hand_update_firmware_unit(database) -> None:
         if None not in data:
             break
 
-        time.sleep(5)
+        time.sleep(1)
 
         if inc > 10:
             assert False
@@ -450,7 +390,7 @@ def test_hand_update_firmware_unit(database) -> None:
         if data.count(target_versions[0]) == len(target_units):
             break
 
-        time.sleep(5)
+        time.sleep(1)
 
         if inc > 10:
             assert False
@@ -535,7 +475,7 @@ def test_repo_update_firmware_unit(database) -> None:
         if data == target_version:
             break
 
-        time.sleep(5)
+        time.sleep(1)
 
         if inc > 10:
             assert False
@@ -563,7 +503,7 @@ def test_repo_update_firmware_unit(database) -> None:
         if data[0] == target_version and data[1] == tags[0]['commit']:
             break
 
-        time.sleep(5)
+        time.sleep(2)
 
         if inc > 10:
             assert False
