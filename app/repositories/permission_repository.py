@@ -6,7 +6,7 @@ from sqlalchemy import or_
 from sqlmodel import Session
 
 from app.configs.db import get_session
-from app.configs.errors import app_errors
+from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -174,7 +174,7 @@ class PermissionRepository:
         entities.remove(PermissionEntities.UNIT_NODE)
 
         if permission.agent_type not in entities:
-            app_errors.permission_error.raise_exception(
+            raise CustomPermissionError(
                 'Agent type {} is invalid, available: {}'.format(permission.agent_type, ', '.join(entities))
             )
 
@@ -185,6 +185,6 @@ class PermissionRepository:
         entities.remove(PermissionEntities.USER)
 
         if permission.resource_type not in entities:
-            app_errors.permission_error.raise_exception(
+            raise CustomPermissionError(
                 'Resource type {} is invalid, available: {}'.format(permission.resource_type, ', '.join(entities))
             )

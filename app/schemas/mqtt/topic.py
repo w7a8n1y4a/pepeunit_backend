@@ -8,7 +8,7 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.errors import app_errors
+from app.configs.errors import MqttError, UpdateError
 from app.configs.gql import get_unit_node_service
 from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import acquire_file_lock
@@ -61,9 +61,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:
-        app_errors.mqtt_error.raise_exception(
-            'Payload size is {}, limit is {} KB'.format(payload_size, settings.mqtt_max_payload_size)
-        )
+        raise MqttError('Payload size is {}, limit is {} KB'.format(payload_size, settings.mqtt_max_payload_size))
 
     topic_split = get_topic_split(topic)
 
@@ -87,7 +85,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     unit.unit_state_dict = json.dumps(unit_state_dict)
 
                     if not 'commit_version':
-                        app_errors.mqtt_error.raise_exception('State dict has no commit_version key')
+                        raise MqttError('State dict has no commit_version key')
 
                     unit.current_commit_version = unit_state_dict['commit_version']
 
@@ -108,7 +106,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
                         elif delta > settings.backend_state_send_interval * 2:
                             try:
-                                app_errors.update_error.raise_exception(
+                                raise UpdateError(
                                     'Device firmware update time is twice as fast as {}s times'.format(
                                         settings.backend_state_send_interval
                                     )

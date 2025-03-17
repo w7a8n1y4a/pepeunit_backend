@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from typing import Optional, Sequence, Union
 
 from app import settings
-from app.configs.errors import app_errors
+from app.configs.errors import CustomJSONDecodeError, NoAccessError, ValidationError
 from app.domain.user_model import User
 from app.services.utils import get_visibility_level_priority
 from app.utils.utils import check_password
@@ -12,24 +12,24 @@ from app.utils.utils import check_password
 
 def is_valid_object(obj: any) -> None:
     if not obj:
-        app_errors.validation_error.raise_exception('The object does not exist')
+        raise ValidationError('The object does not exist')
 
 
 def is_emtpy_sequence(obj: Sequence):
     if len(obj) != 0:
-        app_errors.validation_error.raise_exception('The array was expected to be empty, but it turned out to be full')
+        raise ValidationError('The array was expected to be empty, but it turned out to be full')
 
 
 def is_valid_password(password: str, user: User) -> None:
     if not check_password(password, user.hashed_password, user.cipher_dynamic_salt):
-        app_errors.no_access.raise_exception("Password hash mismatched")
+        raise NoAccessError("Password hash mismatched")
 
 
 def is_valid_json(json_str: str, name: str) -> dict:
     try:
         return json.loads(json_str)
     except JSONDecodeError:
-        app_errors.json_decode_error.raise_exception('Data {} is invalid'.format(name))
+        raise CustomJSONDecodeError('Data {} is invalid'.format(name))
 
 
 def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
@@ -40,7 +40,7 @@ def is_valid_uuid(uuid: Union[str, uuid_pkg.UUID]) -> uuid_pkg.UUID:
     try:
         return uuid_pkg.UUID(uuid)
     except ValueError:
-        app_errors.validation_error.raise_exception('This {} string is not UUID'.format(uuid))
+        raise ValidationError('This {} string is not UUID'.format(uuid))
 
 
 def is_valid_string_with_rules(
@@ -66,7 +66,7 @@ def is_valid_visibility_level(parent_obj: any, child_objs: list) -> None:
         if get_visibility_level_priority(parent_obj.visibility_level) > get_visibility_level_priority(
             child_obj.visibility_level
         ):
-            app_errors.validation_error.raise_exception(
+            raise ValidationError(
                 'The visibility level of the parent object {} is lower than that of the child object {}'.format(
                     parent_obj.__class__.__name__,
                     child_obj.__class__.__name__,

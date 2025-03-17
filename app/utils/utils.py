@@ -11,7 +11,7 @@ from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
 from app import settings
-from app.configs.errors import app_errors
+from app.configs.errors import CipherError
 
 
 def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
@@ -23,7 +23,7 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
 
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
-        app_errors.cipher_error.raise_exception(
+        raise CipherError(
             'The encryption content is {} long, although only <= {} is allowed'.format(
                 len_content, settings.backend_max_cipher_length
             )
@@ -65,7 +65,7 @@ def aes_gcm_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     """
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
-        app_errors.cipher_error.raise_exception(
+        raise CipherError(
             f'The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed'
         )
 

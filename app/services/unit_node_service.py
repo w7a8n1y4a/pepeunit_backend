@@ -6,7 +6,7 @@ from typing import Union
 from fastapi import Depends, HTTPException
 
 from app import settings
-from app.configs.errors import app_errors
+from app.configs.errors import UnitNodeError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -265,7 +265,7 @@ class UnitNodeService:
         new_edge.creator_uuid = self.access_service.current_agent.uuid
 
         if self.unit_node_edge_repository.check(new_edge):
-            app_errors.unit_node_error.raise_exception('Edge exist')
+            raise UnitNodeError('Edge exist')
 
         try:
             self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
@@ -360,9 +360,9 @@ class UnitNodeService:
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.INPUT:
-            app_errors.unit_node_error.raise_exception('This Node {} is not Input'.format(unit_node.uuid))
+            raise UnitNodeError('This Node {} is not Input'.format(unit_node.uuid))
 
     @staticmethod
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
-            app_errors.unit_node_error.raise_exception('This Node {} is not Output'.format(unit_node.uuid))
+            raise UnitNodeError('This Node {} is not Output'.format(unit_node.uuid))
