@@ -4,13 +4,17 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi_mqtt import FastMQTT, MQTTConfig
 from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app.configs.emqx import ControlEmqx
+from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context, get_repo_service
 from app.configs.redis import get_redis_session
 from app.configs.utils import (
@@ -92,8 +96,8 @@ async def _lifespan(_app: FastAPI):
         try:
             repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
             repo_service.sync_local_repo_storage()
-        except Exception as ex:
-            logging.error(ex)
+        except Exception as e:
+            logging.error(e)
         finally:
             db.close()
 
@@ -171,6 +175,20 @@ async def _lifespan(_app: FastAPI):
     await mqtt.mqtt_shutdown()
 
 
+class CustomExceptionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await call_next(request)
+            return response
+        except CustomException as e:
+            return JSONResponse(
+                status_code=e.status_code,
+                content={"detail": e.message},
+            )
+        except StarletteHTTPException as e:
+            return await super().dispatch(request, call_next)
+
+
 app = FastAPI(
     title=settings.project_name,
     version=settings.version,
@@ -180,6 +198,7 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 
+app.add_middleware(CustomExceptionMiddleware)
 
 schema = Schema(query=Query, mutation=Mutation)
 graphql = GraphQLRouter(

@@ -12,7 +12,7 @@ from typing import List, Union
 from fastapi import Depends
 
 from app import settings
-from app.configs.errors import app_errors
+from app.configs.errors import MqttError, NoAccessError, UnitError
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
@@ -373,9 +373,9 @@ class UnitService:
 
                 if destination in [DestinationTopicType.INPUT_BASE_TOPIC, DestinationTopicType.OUTPUT_BASE_TOPIC]:
                     if self.access_service.current_agent.uuid != unit_uuid:
-                        app_errors.no_access.raise_exception('Available only for a docked Unit')
+                        raise NoAccessError('Available only for a docked Unit')
                 else:
-                    app_errors.no_access.raise_exception(
+                    raise NoAccessError(
                         'Topic destination {} is invalid, available {}'.format(destination, list(DestinationTopicType))
                     )
 
@@ -388,11 +388,9 @@ class UnitService:
 
                 self.access_service.visibility_check(unit_node)
             else:
-                app_errors.mqtt_error.raise_exception(
-                    'Topic struct is invalid, len {}, available - [2, 3]'.format(len_struct)
-                )
+                raise MqttError('Topic struct is invalid, len {}, available - [2, 3]'.format(len_struct))
         else:
-            app_errors.mqtt_error.raise_exception('Only for Unit available topic communication')
+            raise MqttError('Only for Unit available topic communication')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
@@ -479,7 +477,7 @@ class UnitService:
 
     def is_valid_no_auto_updated_unit(self, repo: Repo, data: Union[Unit, UnitCreate]):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
-            app_errors.unit_error.raise_exception('Unit updated manually requires branch and commit to be filled out')
+            raise UnitError('Unit updated manually requires branch and commit to be filled out')
 
         # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
@@ -507,14 +505,10 @@ class UnitService:
     def is_valid_wbits(wbits: int):
         available_values_list = list(itertools.chain(range(-15, -8), range(9, 16), range(25, 32)))
         if wbits not in available_values_list:
-            app_errors.unit_error.raise_exception(
-                'Wbits {} is not valid, available {}'.format(wbits, available_values_list)
-            )
+            raise UnitError('Wbits {} is not valid, available {}'.format(wbits, available_values_list))
 
     @staticmethod
     def is_valid_level(level: int):
         available_values_list = list(range(-1, 10))
         if level not in available_values_list:
-            app_errors.unit_error.raise_exception(
-                'Level {} is not valid, available {}'.format(level, available_values_list)
-            )
+            raise UnitError('Level {} is not valid, available {}'.format(level, available_values_list))

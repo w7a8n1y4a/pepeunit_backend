@@ -1,10 +1,10 @@
 import logging
 import random
 
-import fastapi
 import pytest
 
 from app import settings
+from app.configs.errors import NoAccessError, UserError, ValidationError
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
 from app.configs.sub_entities import InfoSubEntity
@@ -29,7 +29,7 @@ def test_create_user(test_users, database, clear_database) -> None:
     pytest.users = new_users
 
     # check create with exist user login
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UserError):
         user_service.create(UserCreate(**test_users[0]))
 
     # set admin role for last user
@@ -50,12 +50,12 @@ def test_get_auth_token_user(test_users, database) -> None:
         )
 
     # get token with invalid password
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(NoAccessError):
         # get token with invalid password
         user_service.get_token(UserAuth(credentials=pytest.users[0].login, password='invalid password'))
 
     # get token with invalid login
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         user_service.get_token(
             UserAuth(credentials=pytest.users[-1].login + 'invalid', password=test_users[-1]['password'])
         )
@@ -65,7 +65,7 @@ def test_get_auth_token_user(test_users, database) -> None:
 async def test_verification_user(database) -> None:
 
     # check invalid code
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         user_service = get_user_service(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
@@ -116,7 +116,7 @@ def test_block_unblock_user(database) -> None:
         assert user.status == UserStatus.VERIFIED
 
     # block without admin role
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(NoAccessError):
         user_service = get_user_service(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
@@ -126,7 +126,7 @@ def test_block_unblock_user(database) -> None:
         assert user.status == UserStatus.BLOCKED
 
     # unblock without admin role
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(NoAccessError):
         user_service = get_user_service(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
@@ -152,7 +152,7 @@ def test_update_user(database) -> None:
     assert new_login == current_user.login
 
     # check change login on exist
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UserError):
         current_user = pytest.users[-1]
         user_service = get_user_service(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})

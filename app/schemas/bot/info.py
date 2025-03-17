@@ -25,8 +25,8 @@ async def info_resolver(message: types.Message):
         )
         metrics = metrics_service.get_instance_metrics()
 
-    except Exception as ex:
-        logging.error(ex)
+    except Exception as e:
+        logging.error(e)
     finally:
         db.close()
 

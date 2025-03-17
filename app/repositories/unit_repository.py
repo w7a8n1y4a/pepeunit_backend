@@ -8,7 +8,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
-from app.configs.errors import app_errors
+from app.configs.errors import UnitError
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
@@ -148,11 +148,11 @@ class UnitRepository:
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 
         if not is_valid_string_with_rules(name):
-            app_errors.unit_error.raise_exception('Name is not correct')
+            raise UnitError('Name is not correct')
 
         uuid = str(uuid)
         unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
         unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
 
         if (uuid is None and unit_uuid) or (uuid and unit_uuid != uuid and unit_uuid is not None):
-            app_errors.unit_error.raise_exception('Name is not unique')
+            raise UnitError('Name is not unique')

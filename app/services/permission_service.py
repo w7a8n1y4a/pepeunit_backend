@@ -3,7 +3,7 @@ from typing import Union
 
 from fastapi import Depends
 
-from app.configs.errors import app_errors
+from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -50,7 +50,7 @@ class PermissionService:
         is_valid_object(agent)
 
         if self.permission_repository.check(new_permission):
-            app_errors.permission_error.raise_exception('Permission is exist')
+            raise CustomPermissionError('Permission is exist')
 
         return self.permission_repository.create(new_permission)
 
@@ -101,14 +101,12 @@ class PermissionService:
             self.access_service.access_creator_check(resource)
 
         if agent.uuid == resource.uuid:
-            app_errors.permission_error.raise_exception('A resource\'s access to itself cannot be removed')
+            raise CustomPermissionError('A resource\'s access to itself cannot be removed')
 
         if agent.uuid == resource.creator_uuid:
-            app_errors.permission_error.raise_exception(
-                'The creator of the resource cannot remove his access to the resource'
-            )
+            raise CustomPermissionError('The creator of the resource cannot remove his access to the resource')
 
         if isinstance(agent, Unit) and isinstance(resource, UnitNode) and resource.unit_uuid == agent.uuid:
-            app_errors.permission_error.raise_exception('You cannot remove a Unit\'s access to its child UnitNodes')
+            raise CustomPermissionError('You cannot remove a Unit\'s access to its child UnitNodes')
 
         return self.permission_repository.delete(permission)

@@ -1,6 +1,6 @@
 import json
 
-from app.configs.errors import app_errors
+from app.configs.errors import MqttError
 from app.repositories.enum import ReservedStateKey
 from app.schemas.pydantic.unit import UnitStateRead
 
@@ -21,8 +21,6 @@ def publish_to_topic(topic: str, msg: dict or str) -> None:
     try:
         mqtt.publish(topic, json.dumps(msg) if isinstance(msg, dict) else msg)
     except AttributeError:
-        app_errors.mqtt_error.raise_exception(
-            'Error when publish message to topic {}: {}'.format(topic, 'Backend MQTT session is invalid')
-        )
-    except Exception as ex:
-        app_errors.mqtt_error.raise_exception('Error when publish message to topic {}: {}'.format(topic, ex))
+        raise MqttError('Error when publish message to topic {}: {}'.format(topic, 'Backend MQTT session is invalid'))
+    except Exception as e:
+        raise MqttError('Error when publish message to topic {}: {}'.format(topic, e))

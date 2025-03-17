@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import httpx
 
-from app.configs.errors import app_errors
+from app.configs.errors import GitRepoError
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json
@@ -88,7 +88,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         try:
             target_id = result_data.json()['id']
         except KeyError:
-            app_errors.git_repo_error.raise_exception('Invalid Credentials')
+            raise GitRepoError('Invalid Credentials')
 
         return target_id
 
@@ -133,7 +133,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         try:
             repo_size = repo_data.json()['statistics']['repository_size']
         except KeyError:
-            app_errors.git_repo_error.raise_exception('Invalid Credentials')
+            raise GitRepoError('Invalid Credentials')
 
         return repo_size
 
@@ -183,8 +183,8 @@ class GithubPlatformRepository(GitPlatformRepositoryABC):
             repo_size = repo_data.json()['size']
         except KeyError:
             if repo_data.status_code == 403:
-                app_errors.git_repo_error.raise_exception('Rate limit external API')
+                raise GitRepoError('Rate limit external API')
             else:
-                app_errors.git_repo_error.raise_exception('Invalid Credentials')
+                raise GitRepoError('Invalid Credentials')
 
         return repo_size * 1024
