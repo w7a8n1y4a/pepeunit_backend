@@ -40,8 +40,8 @@ def automatic_update_repositories():
         try:
             repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
             repo_service.bulk_update_repositories(is_auto_update=True)
-        except Exception as ex:
-            logging.error(ex)
+        except Exception as e:
+            logging.error(e)
         finally:
             db.close()
 

@@ -111,8 +111,8 @@ async def message_to_topic(client, topic, payload, qos, properties):
                                         settings.backend_state_send_interval
                                     )
                                 )
-                            except Exception as ex:
-                                unit.firmware_update_error = ex.detail
+                            except UpdateError as e:
+                                unit.firmware_update_error = e.message
 
                             unit.last_firmware_update_datetime = None
                             unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
@@ -122,8 +122,8 @@ async def message_to_topic(client, topic, payload, qos, properties):
                         unit_uuid,
                         unit,
                     )
-                except Exception as ex:
-                    logging.error(ex)
+                except Exception as e:
+                    logging.error(e)
                 finally:
                     db.close()
 
@@ -142,8 +142,8 @@ async def message_to_topic(client, topic, payload, qos, properties):
             try:
                 unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
                 unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
-            except Exception as ex:
-                logging.error(ex)
+            except Exception as e:
+                logging.error(e)
             finally:
                 db.close()
     else:

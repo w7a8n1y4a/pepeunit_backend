@@ -265,8 +265,8 @@ class RepoService:
                 )
                 logging.info(f'Successfully update unit {unit.uuid}')
                 count_success_update += 1
-            except Exception as ex:
-                logging.warning(f'Failed update unit {unit.uuid} {ex}')
+            except Exception as e:
+                logging.warning(f'Failed update unit {unit.uuid} {e}')
                 count_error_update += 1
 
         result = {

@@ -96,8 +96,8 @@ async def _lifespan(_app: FastAPI):
         try:
             repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
             repo_service.sync_local_repo_storage()
-        except Exception as ex:
-            logging.error(ex)
+        except Exception as e:
+            logging.error(e)
         finally:
             db.close()
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
+from app.configs.errors import UnitError
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode

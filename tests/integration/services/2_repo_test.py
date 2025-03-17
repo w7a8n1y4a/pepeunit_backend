@@ -1,8 +1,8 @@
 import logging
 
-import fastapi
 import pytest
 
+from app.configs.errors import GitRepoError, RepoError
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
@@ -33,11 +33,11 @@ def test_create_repo(test_repos, database) -> None:
     pytest.repos = new_repos
 
     # check create repo with exist name
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(RepoError):
         repo_service.create(RepoCreate(**test_repos[0]))
 
     # check create repo with bad link
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(RepoError):
         bad_link_repo = RepoCreate(**test_repos[0])
         bad_link_repo.name += 'test'
         bad_link_repo.repo_url += 't'
@@ -45,7 +45,7 @@ def test_create_repo(test_repos, database) -> None:
         repo_service.create(bad_link_repo)
 
     # check create repo with bad credentials
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(RepoError):
         bad_credentials_repo = RepoCreate(**test_repos[0])
         bad_credentials_repo.name += 'test'
         bad_credentials_repo.repo_url += 't'
@@ -85,7 +85,7 @@ def test_update_repo(database) -> None:
     assert new_repo_name == update_repo.name
 
     # check change name when name is exist
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(RepoError):
         repo_service.update(pytest.repos[0].uuid, RepoUpdate(name=pytest.repos[1].name))
 
     # check change repo auto update to hand update
@@ -148,7 +148,7 @@ def test_get_commits_repo(database) -> None:
     assert '7b5804d4e945f87d0925c0480706a2c88320fce2' == branch_commits[-1].commit
 
     # check get commits for bad branch
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(GitRepoError):
         repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0] + 'test'))
 
 
@@ -201,11 +201,11 @@ def test_update_credentials_repo(test_repos, database) -> None:
         logging.info(repo.uuid)
 
         # change to invalid credentials
-        with pytest.raises(fastapi.HTTPException):
+        with pytest.raises(GitRepoError):
             repo_service.update_credentials(repo.uuid, Credentials(username='test', pat_token='test'))
 
         # check update local repo with bad credentials
-        with pytest.raises(fastapi.HTTPException):
+        with pytest.raises(GitRepoError):
             repo_service.update_local_repo(repo.uuid)
 
         # change credentials to normal
@@ -230,7 +230,7 @@ def test_update_default_branch_repo(database) -> None:
             repo_service.update(repo.uuid, RepoUpdate(default_branch=full_repo.branches[0]))
 
     # set bad default branch
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(GitRepoError):
         full_repo = repo_service.get(pytest.repos[-1].uuid)
         repo_service.update(repo.uuid, RepoUpdate(default_branch=full_repo.branches[0] + 't'))
 

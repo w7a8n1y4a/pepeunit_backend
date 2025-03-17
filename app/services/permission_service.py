@@ -3,6 +3,7 @@ from typing import Union
 
 from fastapi import Depends
 
+from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit

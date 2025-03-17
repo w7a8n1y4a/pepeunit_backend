@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import httpx
 
+from app.configs.errors import GitRepoError
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json

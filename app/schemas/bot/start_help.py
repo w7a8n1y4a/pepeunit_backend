@@ -42,8 +42,8 @@ async def start_help_resolver(message: types.Message):
                     else:
                         text = 'There is no such code'
                 await message.answer(text, parse_mode='Markdown')
-        except Exception as ex:
-            logging.error(ex)
+        except Exception as e:
+            logging.error(e)
         finally:
             db.close()
 

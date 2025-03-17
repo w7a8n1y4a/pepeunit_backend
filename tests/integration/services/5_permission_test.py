@@ -1,8 +1,8 @@
 import uuid as uuid_pkg
 
-import fastapi
 import pytest
 
+from app.configs.errors import ValidationError
 from app.configs.gql import get_permission_service
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import PermissionEntities
@@ -32,7 +32,7 @@ def test_create_permission(database) -> None:
     pytest.permissions.append(new_permission)
 
     # check invalid agent
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         unit_permission_service.create(
             PermissionCreate(
                 agent_uuid=target_agent.uuid,
@@ -43,7 +43,7 @@ def test_create_permission(database) -> None:
         )
 
     # check invalid resource
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         unit_permission_service.create(
             PermissionCreate(
                 agent_uuid=target_agent.uuid,
@@ -72,7 +72,7 @@ def test_get_permission(database) -> None:
     assert len(target_agents) == 3
 
     # check get invalid resource agents
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         unit_permission_service.get_resource_agents(
             PermissionFilter(resource_uuid=target_resource.uuid, resource_type=PermissionEntities.USER)
         )
@@ -92,5 +92,5 @@ def test_delete_permission(database) -> None:
     unit_permission_service.delete(target_permission.agent_uuid, target_permission.resource_uuid)
 
     # check del invalid permission
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         unit_permission_service.delete(uuid_pkg.uuid4(), uuid_pkg.uuid4())

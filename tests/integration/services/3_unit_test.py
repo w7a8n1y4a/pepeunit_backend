@@ -5,11 +5,18 @@ import shutil
 import time
 import zlib
 
-import fastapi
 import httpx
 import pytest
 
 from app import settings
+from app.configs.errors import (
+    CipherError,
+    CustomJSONDecodeError,
+    GitRepoError,
+    NoAccessError,
+    UnitError,
+    ValidationError,
+)
 from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
@@ -65,7 +72,7 @@ def test_create_unit(database) -> None:
     pytest.units = new_units
 
     # check create unit with exist name
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UnitError):
 
         test_repo = pytest.repos[-1]
 
@@ -86,7 +93,7 @@ def test_create_unit(database) -> None:
     target_repo.default_branch = None
     repo_service.repo_repository.update(pytest.repos[0].uuid, target_repo)
 
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(GitRepoError):
         test_repo = pytest.repos[0]
 
         unit_service.create(
@@ -99,7 +106,7 @@ def test_create_unit(database) -> None:
         )
 
     # check create without env_example and schema_example.json
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(GitRepoError):
         test_repo = pytest.repos[1]
 
         unit_service.create(
@@ -121,7 +128,7 @@ def test_delete_repo_with_unit(database) -> None:
     )
 
     # test del repo with Unit
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         repo_service.delete(pytest.repos[-1].uuid)
 
 
@@ -146,7 +153,7 @@ def test_update_unit(database) -> None:
     unit_service.update(test_unit.uuid, UnitUpdate(name=test_unit.name))
 
     # check change name when name is exist
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UnitError):
         unit_service.update(pytest.units[0].uuid, UnitUpdate(name=pytest.units[1].name))
 
     # check change visibility
@@ -162,7 +169,7 @@ def test_update_unit(database) -> None:
     assert update_unit.visibility_level == VisibilityLevel.PUBLIC
 
     # check set not auto update without commit and branch
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UnitError):
         unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=False))
 
     # check set hand update
@@ -190,7 +197,7 @@ def test_update_unit(database) -> None:
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(NoAccessError):
         unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
 
 
@@ -210,7 +217,7 @@ def test_env_unit(database) -> None:
     assert count > 0
 
     # check set invalid variable
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(GitRepoError):
         unit_service.set_env(target_unit.uuid, json.dumps({'test': ''}))
 
     # set valid env variable for Units
@@ -284,11 +291,11 @@ def test_get_firmware(database) -> None:
         os.remove(item)
 
     # check gen firmware with bad wbits
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UnitError):
         unit_service.get_unit_firmware_tgz(unit.uuid, 35, 9)
 
     # check gen firmware with bad level
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UnitError):
         unit_service.get_unit_firmware_tgz(unit.uuid, 9, 13)
 
     # check get target commit version
@@ -313,7 +320,7 @@ def test_state_storage(database) -> None:
     assert state == db_state
 
     # check cipher long data
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(CipherError):
         state = 't' * (settings.backend_max_cipher_length + 1)
         unit_service.set_state_storage(target_unit.uuid, state)
 

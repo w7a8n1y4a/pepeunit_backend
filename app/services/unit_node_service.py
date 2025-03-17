@@ -6,7 +6,7 @@ from typing import Union
 from fastapi import Depends, HTTPException
 
 from app import settings
-from app.configs.errors import UnitNodeError
+from app.configs.errors import MqttError, UnitNodeError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -236,9 +236,9 @@ class UnitNodeService:
                     unit.firmware_update_error = None
                     unit.last_firmware_update_datetime = datetime.datetime.utcnow()
                     unit.firmware_update_status = UnitFirmwareUpdateStatus.REQUEST_SENT
-            except Exception as ex:
+            except MqttError as e:
                 if command == BackendTopicCommand.UPDATE:
-                    unit.firmware_update_error = ex.detail
+                    unit.firmware_update_error = e.message
                     unit.last_firmware_update_datetime = None
                     unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
 

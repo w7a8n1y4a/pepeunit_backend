@@ -86,8 +86,8 @@ class LoadTester:
                     f'Backend sustained {round(sum(results)/self.config.duration, 2)} rps for {self.config.duration} seconds'
                 )
 
-            except Exception as ex:
-                print(ex)
+            except Exception as e:
+                print(e)
 
     def save_report(self, data):
         with open(self.report_path, 'w') as f:

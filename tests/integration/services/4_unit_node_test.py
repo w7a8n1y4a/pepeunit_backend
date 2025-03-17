@@ -4,11 +4,11 @@ import os
 import time
 import uuid as uuid_pkg
 
-import fastapi
 import httpx
 import pytest
 
 from app import settings
+from app.configs.errors import UnitNodeError, ValidationError
 from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
@@ -49,7 +49,7 @@ def test_update_unit_node(database) -> None:
     )
 
     # check update is_rewritable_input for output
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(UnitNodeError):
         update_unit_node = unit_node_service.update(output_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
 
 
@@ -209,7 +209,7 @@ def test_delete_unit_node_edge(database) -> None:
     unit_node_service.delete_node_edge(target_edge.node_input_uuid, target_edge.node_output_uuid)
 
     # check del with invalid del
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         unit_node_service.delete_node_edge(uuid_pkg.uuid4(), uuid_pkg.uuid4())
 
 
@@ -240,7 +240,7 @@ def test_delete_unit(database) -> None:
 
     # check del Unit
     unit_service.delete(target_unit.uuid)
-    with pytest.raises(fastapi.HTTPException):
+    with pytest.raises(ValidationError):
         unit_service.get(target_unit.uuid)
 
 
