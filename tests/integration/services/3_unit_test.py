@@ -11,7 +11,6 @@ import pytest
 from app import settings
 from app.configs.errors import (
     CipherError,
-    CustomJSONDecodeError,
     GitRepoError,
     NoAccessError,
     UnitError,
