@@ -18,7 +18,7 @@ class Agent(BaseModel, ABC):
     role: Optional[UserRole] = None
 
 
-class AgentUser(BaseModel, Agent, User):
+class AgentUser(Agent, User, BaseModel):
     type: AgentType = AgentType.USER
 
     @property
@@ -26,18 +26,21 @@ class AgentUser(BaseModel, Agent, User):
         return self.login
 
 
-class AgentUnit(BaseModel, Agent, Unit):
+class AgentUnit(Agent, Unit, BaseModel):
     type: AgentType = AgentType.UNIT
+    status: AgentStatus = AgentStatus.VERIFIED
 
 
-class AgentBot(BaseModel, Agent):
+class AgentBot(Agent, BaseModel):
     uuid: uuid_pkg.UUID = uuid_pkg.uuid4()
     name: str = 'bot'
+    status: AgentStatus = AgentStatus.UNVERIFIED
     type: AgentType = AgentType.BOT
 
 
-class AgentBackend(BaseModel, Agent):
+class AgentBackend(Agent, BaseModel):
     type: AgentType = AgentType.BACKEND
+    status: AgentStatus = AgentStatus.VERIFIED
 
     @property
     def uuid(self) -> uuid_pkg.UUID:

@@ -74,7 +74,7 @@ class UnitNodeService:
     def get(self, uuid: uuid_pkg.UUID) -> UnitNode:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
-        self.access_service.visibility_check(unit_node)
+        self.access_service.authorization.check_visibility(unit_node)
 
         is_valid_object(unit_node)
         return unit_node
@@ -183,7 +183,7 @@ class UnitNodeService:
         is_valid_object(unit_node)
         self.is_valid_input_unit_node(unit_node)
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.UNIT_TO_INPUT_NODE])
-        self.access_service.visibility_check(unit_node)
+        self.access_service.authorization.check_visibility(unit_node)
 
         publish_to_topic(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
 
@@ -256,12 +256,12 @@ class UnitNodeService:
         output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))
         is_valid_object(output_node)
         self.is_valid_output_unit_node(output_node)
-        self.access_service.visibility_check(output_node)
+        self.access_service.authorization.check_visibility(output_node)
 
         input_node = self.unit_node_repository.get(UnitNode(uuid=data.node_input_uuid))
         is_valid_object(input_node)
         self.is_valid_input_unit_node(input_node)
-        self.access_service.visibility_check(input_node)
+        self.access_service.authorization.check_visibility(input_node)
 
         new_edge = UnitNodeEdge(**data.dict())
         new_edge.creator_uuid = self.access_service.current_agent.uuid
@@ -297,11 +297,11 @@ class UnitNodeService:
     def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[UnitNodeEdge]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
 
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
 
         filters = UnitNodeFilter(unit_uuid=unit_uuid)
 
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
 
@@ -344,8 +344,8 @@ class UnitNodeService:
 
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> tuple[int, list[UnitNode]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
 

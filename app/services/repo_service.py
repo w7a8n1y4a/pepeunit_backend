@@ -79,7 +79,7 @@ class RepoService:
         repo = self.repo_repository.create(repo)
 
         self.git_repo_repository.clone_remote_repo(repo)
-        self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent), repo)
+        self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), repo)
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -87,7 +87,7 @@ class RepoService:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        self.access_service.visibility_check(repo)
+        self.access_service.authorization.check_visibility(repo)
         return self.mapper_repo_to_repo_read(repo)
 
     def get_branch_commits(
@@ -97,7 +97,7 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        self.access_service.visibility_check(repo)
+        self.access_service.authorization.check_visibility(repo)
 
         self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
 
@@ -115,7 +115,7 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        self.access_service.visibility_check(repo)
+        self.access_service.authorization.check_visibility(repo)
 
         platforms = []
         if repo.is_compilable_repo and repo.releases_data:
@@ -142,7 +142,7 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
-        self.access_service.visibility_check(repo)
+        self.access_service.authorization.check_visibility(repo)
 
         return self.repo_repository.get_versions(repo)
 
@@ -342,9 +342,9 @@ class RepoService:
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> tuple[int, list[RepoRead]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.REPO)
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.REPO)
 
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
 

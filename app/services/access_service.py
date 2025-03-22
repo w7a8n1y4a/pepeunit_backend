@@ -1,13 +1,6 @@
-import uuid as uuid_pkg
-from typing import Optional
-
 from fastapi import Depends
 
-from app.configs.errors import NoAccessError
-from app.domain.permission_model import PermissionBaseType
-from app.domain.unit_model import Unit
 from app.dto.agent.abc import Agent
-from app.repositories.enum import PermissionEntities, UserRole, VisibilityLevel
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
@@ -35,54 +28,3 @@ class AccessService:
         ).create()
         self.current_agent = self.auth.get_current_agent()
         self.authorization = AuthorizationService(permission_repository, self.current_agent)
-
-    def visibility_check(self, check_entity):
-        """
-        For single entities, defines access by visibility
-        """
-
-        if check_entity.visibility_level == VisibilityLevel.PUBLIC:
-            pass
-        elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
-            if not (isinstance(self.current_agent, Unit) or self.current_agent.role in [UserRole.USER, UserRole.ADMIN]):
-                raise NoAccessError("Internal visibility level is not allowed")
-        elif check_entity.visibility_level == VisibilityLevel.PRIVATE:
-            permission_check = PermissionBaseType(
-                agent_type=self.current_agent.__class__.__name__,
-                agent_uuid=self.current_agent.uuid,
-                resource_type=check_entity.__class__.__name__,
-                resource_uuid=check_entity.uuid,
-            )
-            if not self.permission_repository.check(permission_check):
-                raise NoAccessError("Private visibility level is not allowed")
-
-    def get_available_visibility_levels(
-        self, levels: list[str], restriction: list[str] = None
-    ) -> list[VisibilityLevel]:
-        """
-        Prohibits all external users from getting information about internal entities and cuts off
-        Private entities if the agent does not have any records about them
-        """
-
-        if not isinstance(self.current_agent, Unit) and self.current_agent.role == UserRole.BOT:
-            return [VisibilityLevel.PUBLIC]
-        else:
-            if restriction:
-                return levels
-            else:
-                return [VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]
-
-    def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[uuid_pkg]:
-        """
-        Allows to get the uuid of all entities to which the agent has access
-        """
-        return [
-            item.resource_uuid
-            for item in self.permission_repository.get_agent_resources(
-                PermissionBaseType(
-                    agent_type=self.current_agent.__class__.__name__,
-                    agent_uuid=self.current_agent.uuid,
-                    resource_type=resource_type,
-                )
-            )
-        ]

@@ -112,7 +112,7 @@ class UnitService:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
-        self.access_service.visibility_check(unit)
+        self.access_service.authorization.check_visibility(unit)
         return unit
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[UnitUpdate, UnitUpdateInput]) -> Unit:
@@ -389,7 +389,7 @@ class UnitService:
                 unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
                 is_valid_object(unit_node)
 
-                self.access_service.visibility_check(unit_node)
+                self.access_service.authorization.check_visibility(unit_node)
             else:
                 raise MqttError('Topic struct is invalid, len {}, available - [2, 3]'.format(len_struct))
         else:
@@ -409,9 +409,9 @@ class UnitService:
         self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.UNIT)
 
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
         return self.unit_repository.list(
@@ -461,7 +461,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        return generate_agent_token(AgentUser(**unit.dict()))
+        return generate_agent_token(AgentUnit(**unit.dict()))
 
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {
