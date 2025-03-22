@@ -1,20 +1,17 @@
 import uuid as uuid_pkg
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Optional
 
 import jwt
-from fastapi import Depends, params
+from fastapi import Depends
 
 from app import settings
 from app.configs.errors import NoAccessError
-from app.domain.permission_model import Permission, PermissionBaseType
-from app.domain.repo_model import Repo
+from app.domain.permission_model import PermissionBaseType
 from app.domain.unit_model import Unit
-from app.domain.unit_node_edge_model import UnitNodeEdge
-from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.agent.abc import Agent
-from app.repositories.enum import AgentType, PermissionEntities, UserRole, UserStatus, VisibilityLevel
+from app.repositories.enum import AgentType, PermissionEntities, UserRole, VisibilityLevel
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
@@ -54,32 +51,6 @@ class AccessService:
                 raise NoAccessError("The resource is not available for the current Unit")
         else:
             raise NoAccessError("Agent unavailable")
-
-    def access_creator_check(self, obj: Union[Repo, Unit, UnitNode, UnitNodeEdge]) -> None:
-        if self.current_agent.uuid != obj.creator_uuid:
-            raise NoAccessError(
-                "Agent {} is not creator this entity - {}.".format(
-                    self.current_agent.__class__.__name__, obj.__class__.__name__
-                )
-            )
-
-    def access_unit_check(self, unit: Unit) -> None:
-        if isinstance(self.current_agent, Unit) and unit.uuid != self.current_agent.uuid:
-            raise NoAccessError("The unit requesting the information does not have access to it")
-
-    def access_only_creator_and_target_unit(self, unit: Unit):
-        if isinstance(self.current_agent, User):
-            self.access_creator_check(unit)
-        self.access_unit_check(unit)
-
-    def check_access_unit_to_input_node(self, unit_node: UnitNode) -> None:
-        """
-        Checks that the Unit has access to set the value of the Input UnitNode
-        """
-        if isinstance(self.current_agent, Unit) and not unit_node.is_rewritable_input:
-            raise NoAccessError(
-                'This UnitNode topic can only be edited by a User, set is_rewritable_input=True for available'
-            )
 
     def visibility_check(self, check_entity):
         """

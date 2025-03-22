@@ -182,7 +182,7 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
         self.is_valid_input_unit_node(unit_node)
-        self.access_service.check_access_unit_to_input_node(unit_node)
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.UNIT_TO_INPUT_NODE])
         self.access_service.visibility_check(unit_node)
 
         publish_to_topic(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
