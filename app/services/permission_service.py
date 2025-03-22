@@ -9,7 +9,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import OwnershipType, UserRole
+from app.repositories.enum import AgentType, OwnershipType
 from app.repositories.permission_repository import PermissionRepository
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
@@ -33,7 +33,7 @@ class PermissionService:
         is_valid_uuid(data.resource_uuid)
 
         if is_api:
-            self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+            self.access_service.authorization.check_access([AgentType.USER])
 
         new_permission = PermissionBaseType(**data.dict())
 
@@ -73,7 +73,7 @@ class PermissionService:
     ) -> tuple[int, list[PermissionBaseType]]:
         is_valid_uuid(filters.resource_uuid)
 
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         resource_entity = self.permission_repository.get_resource(
             PermissionBaseType(resource_uuid=filters.resource_uuid, resource_type=filters.resource_type)
@@ -87,7 +87,7 @@ class PermissionService:
 
     def delete(self, agent_uuid: uuid_pkg.UUID, resource_uuid: uuid_pkg.UUID, is_api: bool = True) -> None:
         if is_api:
-            self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+            self.access_service.authorization.check_access([AgentType.USER])
 
         permission = self.permission_repository.get_by_uuid(agent_uuid=agent_uuid, resource_uuid=resource_uuid)
         is_valid_object(permission)

@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
-from app.repositories.enum import BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
+from app.repositories.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
@@ -57,7 +57,7 @@ class RepoService:
         self.access_service = access_service
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         self.repo_repository.is_valid_name(data.name)
         self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
@@ -84,7 +84,7 @@ class RepoService:
         return self.mapper_repo_to_repo_read(repo)
 
     def get(self, uuid: uuid_pkg.UUID) -> RepoRead:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
         self.access_service.visibility_check(repo)
@@ -93,7 +93,7 @@ class RepoService:
     def get_branch_commits(
         self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]
     ) -> list[CommitRead]:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -111,7 +111,7 @@ class RepoService:
         self, uuid: uuid_pkg.UUID, target_commit: Optional[str] = None, target_tag: Optional[str] = None
     ) -> list[tuple[str, str]]:
 
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -138,7 +138,7 @@ class RepoService:
         return platforms
 
     def get_versions(self, uuid: uuid_pkg.UUID) -> RepoVersionsRead:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -147,7 +147,7 @@ class RepoService:
         return self.repo_repository.get_versions(repo)
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -186,7 +186,7 @@ class RepoService:
         return self.mapper_repo_to_repo_read(repo)
 
     def update_credentials(self, uuid: uuid_pkg.UUID, data: Union[Credentials, CredentialsInput]) -> RepoRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -207,7 +207,7 @@ class RepoService:
         return self.mapper_repo_to_repo_read(repo)
 
     def update_default_branch(self, uuid: uuid_pkg.UUID, default_branch: str) -> RepoRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -222,7 +222,7 @@ class RepoService:
         return self.mapper_repo_to_repo_read(repo)
 
     def update_local_repo(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -241,7 +241,7 @@ class RepoService:
     def update_units_firmware(self, uuid: uuid_pkg.UUID, is_auto_update: bool = False) -> None:
 
         if not is_auto_update:
-            self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+            self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -280,7 +280,7 @@ class RepoService:
 
     def bulk_update_repositories(self, is_auto_update: bool = False) -> None:
         if not is_auto_update:
-            self.access_service.access_check([UserRole.ADMIN])
+            self.access_service.authorization.check_access([AgentType.USER], [UserRole.ADMIN])
 
         threading.Thread(target=self._process_bulk_update_repositories, daemon=True).start()
 
@@ -325,7 +325,7 @@ class RepoService:
         logging.info('end sync local repo storage')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -341,7 +341,7 @@ class RepoService:
         return None
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> tuple[int, list[RepoRead]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.ADMIN, UserRole.USER])
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.REPO)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(

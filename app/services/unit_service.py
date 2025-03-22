@@ -27,7 +27,6 @@ from app.repositories.enum import (
     ReservedEnvVariableName,
     StaticRepoFileName,
     UnitNodeTypeEnum,
-    UserRole,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
@@ -68,7 +67,7 @@ class UnitService:
         self.unit_node_service = unit_node_service
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
         self.unit_repository.is_valid_name(data.name)
 
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
@@ -105,14 +104,14 @@ class UnitService:
         return unit_deepcopy
 
     def get(self, uuid: uuid_pkg.UUID) -> Unit:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
         self.access_service.visibility_check(unit)
         return unit
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[UnitUpdate, UnitUpdateInput]) -> Unit:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
@@ -189,7 +188,7 @@ class UnitService:
         return self.unit_repository.update(unit.uuid, unit)
 
     def get_env(self, uuid: uuid_pkg.UUID) -> dict:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -209,7 +208,7 @@ class UnitService:
         return env_dict
 
     def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         env_dict = is_valid_json(env_json_str, StaticRepoFileName.ENV)
         unit = self.unit_repository.get(Unit(uuid=uuid))
@@ -232,7 +231,7 @@ class UnitService:
         self.unit_repository.update(unit.uuid, unit)
 
     def get_target_version(self, uuid: uuid_pkg.UUID) -> TargetVersionRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
@@ -245,7 +244,7 @@ class UnitService:
         return TargetVersionRead(commit=target_commit, tag=target_tag)
 
     def get_current_schema(self, uuid: uuid_pkg.UUID) -> dict:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
@@ -258,7 +257,7 @@ class UnitService:
         return self.generate_current_schema(unit, repo, target_version)
 
     def get_unit_firmware(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -331,7 +330,7 @@ class UnitService:
         return f'{firmware_tar_path}.tgz'
 
     def set_state_storage(self, uuid: uuid_pkg.UUID, state: str) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
@@ -343,7 +342,7 @@ class UnitService:
         self.unit_repository.update(unit.uuid, unit)
 
     def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
@@ -353,7 +352,7 @@ class UnitService:
         return aes_gcm_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
 
     def get_mqtt_auth(self, topic: str) -> None:
-        self.access_service.access_check([UserRole.BACKEND], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BACKEND, AgentType.UNIT])
 
         if isinstance(self.access_service.current_agent, AgentUnit) or (
             isinstance(self.access_service.current_agent, AgentBackend)
@@ -392,7 +391,7 @@ class UnitService:
             raise MqttError('Only for Unit available topic communication')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
@@ -404,7 +403,7 @@ class UnitService:
     def list(
         self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
         restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
 
         filters.visibility_level = self.access_service.get_available_visibility_levels(

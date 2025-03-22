@@ -1,12 +1,13 @@
 import uuid as uuid_pkg
 from abc import ABC
+from typing import Optional
 
 from pydantic import BaseModel
 
 from app import AgentType
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.repositories.enum import AgentStatus
+from app.repositories.enum import AgentStatus, UserRole
 
 
 class Agent(BaseModel, ABC):
@@ -14,6 +15,7 @@ class Agent(BaseModel, ABC):
     name: str
     type: AgentType
     status: AgentStatus
+    role: Optional[UserRole] = None
 
 
 class AgentUser(BaseModel, Agent, User):
