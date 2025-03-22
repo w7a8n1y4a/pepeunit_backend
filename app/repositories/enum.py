@@ -60,9 +60,21 @@ class AgentType(str, enum.Enum):
     Agent type in the Pepeunit system
     """
 
+    BOT = 'Bot'
     USER = 'User'
     UNIT = 'Unit'
     BACKEND = 'Backend'
+
+
+@strawberry.enum
+class AgentStatus(str, enum.Enum):
+    """
+    Status User in Pepeunit
+    """
+
+    UNVERIFIED = 'Unverified'
+    VERIFIED = 'Verified'
+    BLOCKED = 'Blocked'
 
 
 @strawberry.enum
