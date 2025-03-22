@@ -78,6 +78,17 @@ class AgentStatus(str, enum.Enum):
 
 
 @strawberry.enum
+class OwnershipType(str, enum.Enum):
+    """
+    Ownership rules type
+    """
+
+    CREATOR = 'Creator'
+    UNIT = 'Unit'
+    UNIT_TO_INPUT_NODE = 'UnitToInputNode'
+
+
+@strawberry.enum
 class UnitNodeTypeEnum(str, enum.Enum):
     """
     UnitNode types for database
