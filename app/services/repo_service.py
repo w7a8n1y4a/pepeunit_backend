@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
-from app.repositories.enum import BackendTopicCommand, PermissionEntities, UserRole
+from app.repositories.enum import BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
@@ -152,7 +152,7 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.access_creator_check(repo)
+        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         if data.name:
             self.repo_repository.is_valid_name(data.name, uuid)
@@ -191,7 +191,7 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.access_creator_check(repo)
+        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
         self.repo_repository.is_private_repository(repo)
 
         repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.dict()))
@@ -212,7 +212,7 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.access_creator_check(repo)
+        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
         self.git_repo_repository.is_valid_branch(repo, default_branch)
 
         repo.default_branch = default_branch
@@ -227,7 +227,7 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.access_creator_check(repo)
+        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         if repo.is_compilable_repo:
             repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
@@ -247,7 +247,7 @@ class RepoService:
         is_valid_object(repo)
 
         if not is_auto_update:
-            self.access_service.access_creator_check(repo)
+            self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         count, units = self.unit_repository.list(UnitFilter(repo_uuid=repo.uuid, is_auto_update_from_repo_unit=True))
 
@@ -330,7 +330,7 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.access_creator_check(repo)
+        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         count, unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)

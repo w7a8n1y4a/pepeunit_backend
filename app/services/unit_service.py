@@ -22,6 +22,7 @@ from app.repositories.enum import (
     AgentType,
     BackendTopicCommand,
     DestinationTopicType,
+    OwnershipType,
     PermissionEntities,
     ReservedEnvVariableName,
     StaticRepoFileName,
@@ -115,7 +116,7 @@ class UnitService:
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
-        self.access_service.access_creator_check(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
         unit_update = Unit(**merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit.dict()))
         self.unit_repository.is_valid_name(unit_update.name, uuid)
@@ -213,7 +214,7 @@ class UnitService:
         env_dict = is_valid_json(env_json_str, StaticRepoFileName.ENV)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.access_creator_check(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
         gen_env_dict = self.gen_env_dict(unit.uuid)
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
@@ -396,7 +397,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        self.access_service.access_creator_check(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
         return self.unit_repository.delete(unit)
 

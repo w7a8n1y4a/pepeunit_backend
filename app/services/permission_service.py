@@ -9,7 +9,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import UserRole
+from app.repositories.enum import OwnershipType, UserRole
 from app.repositories.permission_repository import PermissionRepository
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
@@ -44,7 +44,7 @@ class PermissionService:
         is_valid_object(resource)
 
         if is_api:
-            self.access_service.access_creator_check(resource)
+            self.access_service.authorization.check_ownership(resource, [[OwnershipType.CREATOR]])
 
         agent = self.permission_repository.get_agent(new_permission)
         is_valid_object(agent)
@@ -81,7 +81,7 @@ class PermissionService:
 
         is_valid_object(resource_entity)
 
-        self.access_service.access_creator_check(resource_entity)
+        self.access_service.authorization.check_ownership(resource_entity, [[OwnershipType.CREATOR]])
 
         return self.permission_repository.get_resource_agents(filters)
 
@@ -98,7 +98,7 @@ class PermissionService:
 
         # available delete permission - creator and resource agent
         if is_api and self.access_service.current_agent.uuid != agent.uuid:
-            self.access_service.access_creator_check(resource)
+            self.access_service.authorization.check_ownership(resource, [[OwnershipType.CREATOR]])
 
         if agent.uuid == resource.uuid:
             raise CustomPermissionError('A resource\'s access to itself cannot be removed')

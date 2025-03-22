@@ -17,6 +17,7 @@ from app.repositories.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    OwnershipType,
     PermissionEntities,
     ReservedInputBaseTopic,
     UnitFirmwareUpdateStatus,
@@ -161,7 +162,7 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
-        self.access_service.access_creator_check(unit_node)
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
 
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_node(unit_node)
@@ -321,9 +322,9 @@ class UnitNodeService:
         is_valid_object(output_node)
 
         if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
-            self.access_service.access_creator_check(input_node)
+            self.access_service.authorization.check_ownership(input_node, [OwnershipType.CREATOR])
         else:
-            self.access_service.access_creator_check(unit_node_edge)
+            self.access_service.authorization.check_ownership(unit_node_edge, [OwnershipType.CREATOR])
 
         try:
             self.permission_service.delete(output_node.unit_uuid, input_uuid, is_api=False)
