@@ -7,7 +7,7 @@ from fastapi import Query
 from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import BaseModel
 
-from app.repositories.enum import GitPlatform, OrderByDate, VisibilityLevel
+from app.dto.enum import GitPlatform, OrderByDate, VisibilityLevel
 
 
 class RepoRead(BaseModel):

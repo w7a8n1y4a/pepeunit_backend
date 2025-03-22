@@ -6,7 +6,7 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
-from app.repositories.enum import PermissionEntities
+from app.dto.enum import PermissionEntities
 
 
 class Permission(SQLModel, table=True):

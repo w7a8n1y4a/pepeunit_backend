@@ -1,7 +1,7 @@
 from cachetools import TTLCache
 from fastapi import Depends
 
-from app.repositories.enum import AgentType
+from app.dto.enum import AgentType
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository

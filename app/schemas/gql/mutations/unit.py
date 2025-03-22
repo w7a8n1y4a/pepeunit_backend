@@ -4,7 +4,7 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_unit_service
-from app.repositories.enum import BackendTopicCommand
+from app.dto.enum import BackendTopicCommand
 from app.schemas.gql.inputs.unit import UnitCreateInput, UnitUpdateInput
 from app.schemas.gql.types.shared import NoneType
 from app.schemas.gql.types.unit import UnitType

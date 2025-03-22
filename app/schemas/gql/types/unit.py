@@ -5,7 +5,7 @@ from typing import Optional
 import strawberry
 from strawberry import field
 
-from app.repositories.enum import UnitFirmwareUpdateStatus, VisibilityLevel
+from app.dto.enum import UnitFirmwareUpdateStatus, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 from app.schemas.gql.types.shared import UnitNodeType
 

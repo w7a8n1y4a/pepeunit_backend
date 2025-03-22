@@ -6,7 +6,7 @@ from app.domain.permission_model import PermissionBaseType
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.dto.agent.abc import Agent
-from app.repositories.enum import AgentType, OwnershipType, PermissionEntities, UserRole, VisibilityLevel
+from app.dto.enum import AgentType, OwnershipType, PermissionEntities, UserRole, VisibilityLevel
 from app.repositories.permission_repository import PermissionRepository
 
 
@@ -64,9 +64,6 @@ class AuthorizationService:
                 raise NoAccessError("Private visibility level is not allowed")
 
     def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[uuid_pkg]:
-        """
-        Allows to get the uuid of all entities to which the agent has access
-        """
         return [
             item.resource_uuid
             for item in self.permission_repo.get_agent_resources(
@@ -81,12 +78,7 @@ class AuthorizationService:
     def get_available_visibility_levels(
         self, levels: list[str], restriction: list[str] = None
     ) -> list[VisibilityLevel]:
-        """
-        Prohibits all external users from getting information about internal entities and cuts off
-        Private entities if the agent does not have any records about them
-        """
-
-        if not isinstance(self.current_agent, Unit) and self.current_agent.role == UserRole.BOT:
+        if self.current_agent.type == AgentType.BOT:
             return [VisibilityLevel.PUBLIC]
         else:
             if restriction:

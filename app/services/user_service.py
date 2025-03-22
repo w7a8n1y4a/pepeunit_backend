@@ -8,7 +8,7 @@ from app import settings
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentUser
-from app.repositories.enum import AgentType, UserRole, UserStatus
+from app.dto.enum import AgentType, UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate

@@ -9,7 +9,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import AgentType, OwnershipType
+from app.dto.enum import AgentType, OwnershipType
 from app.repositories.permission_repository import PermissionRepository
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter

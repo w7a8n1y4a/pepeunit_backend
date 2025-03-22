@@ -4,7 +4,7 @@ import jwt
 from dotenv import load_dotenv
 
 from app.configs.config import Settings
-from app.repositories.enum import AgentType
+from app.dto.enum import AgentType
 
 load_dotenv()
 

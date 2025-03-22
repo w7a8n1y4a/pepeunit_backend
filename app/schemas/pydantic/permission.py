@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.repositories.enum import PermissionEntities
+from app.dto.enum import PermissionEntities
 
 
 class PermissionRead(BaseModel):

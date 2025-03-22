@@ -10,7 +10,7 @@ from app.configs.db import get_session
 from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import GitPlatform
+from app.dto.enum import GitPlatform
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,

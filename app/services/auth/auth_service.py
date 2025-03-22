@@ -8,7 +8,7 @@ from app.configs.errors import NoAccessError
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.dto.agent.abc import Agent, AgentBackend, AgentBot, AgentUnit, AgentUser
-from app.repositories.enum import AgentStatus, AgentType, UserStatus
+from app.dto.enum import AgentStatus, AgentType, UserStatus
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 

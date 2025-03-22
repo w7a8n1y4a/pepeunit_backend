@@ -12,7 +12,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import PermissionEntities
+from app.dto.enum import PermissionEntities
 from app.repositories.utils import apply_offset_and_limit
 from app.schemas.pydantic.permission import PermissionFilter
 

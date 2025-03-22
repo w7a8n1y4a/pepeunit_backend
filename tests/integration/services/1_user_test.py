@@ -8,7 +8,7 @@ from app.configs.errors import NoAccessError, UserError, ValidationError
 from app.configs.gql import get_user_service
 from app.configs.redis import get_redis_session
 from app.configs.sub_entities import InfoSubEntity
-from app.repositories.enum import UserRole, UserStatus
+from app.dto.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
 

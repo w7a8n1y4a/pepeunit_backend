@@ -14,7 +14,7 @@ from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import (
+from app.dto.enum import (
     DestinationTopicType,
     GlobalPrefixTopic,
     ReservedOutputBaseTopic,

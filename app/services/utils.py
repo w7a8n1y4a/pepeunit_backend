@@ -7,7 +7,7 @@ from fastapi.security import APIKeyHeader
 
 from app import settings
 from app.dto.agent.abc import Agent
-from app.repositories.enum import GlobalPrefixTopic, VisibilityLevel
+from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
 
 def token_depends(

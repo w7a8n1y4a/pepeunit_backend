@@ -4,7 +4,7 @@ from datetime import datetime
 import strawberry
 from strawberry import field
 
-from app.repositories.enum import UserRole, UserStatus
+from app.dto.enum import UserRole, UserStatus
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 

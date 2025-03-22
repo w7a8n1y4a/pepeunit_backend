@@ -22,7 +22,7 @@ from app.configs.utils import (
     is_valid_ip_address,
     wait_for_file_unlock,
 )
-from app.repositories.enum import GlobalPrefixTopic
+from app.dto.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
 from app.schemas.bot import *
 from app.schemas.gql.mutation import Mutation

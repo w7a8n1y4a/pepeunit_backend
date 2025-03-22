@@ -13,7 +13,7 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import (
+from app.dto.enum import (
     AgentType,
     BackendTopicCommand,
     DestinationTopicType,

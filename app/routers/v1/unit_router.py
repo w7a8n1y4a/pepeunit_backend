@@ -10,7 +10,7 @@ from starlette.responses import FileResponse
 from app.configs.db import get_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.repositories.enum import BackendTopicCommand
+from app.dto.enum import BackendTopicCommand
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import MqttRead
 from app.schemas.pydantic.unit import (

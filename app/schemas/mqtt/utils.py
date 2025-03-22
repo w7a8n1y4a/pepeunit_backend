@@ -1,7 +1,7 @@
 import json
 
 from app.configs.errors import MqttError
-from app.repositories.enum import ReservedStateKey
+from app.dto.enum import ReservedStateKey
 from app.schemas.pydantic.unit import UnitStateRead
 
 

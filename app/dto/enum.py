@@ -35,10 +35,6 @@ class UserRole(str, enum.Enum):
     Role User in Pepeunit
     """
 
-    # special role for external users, not used in the database
-    BOT = 'Bot'
-    # special role for backend auth
-    BACKEND = 'Backend'
     USER = 'User'
     ADMIN = 'Admin'
 

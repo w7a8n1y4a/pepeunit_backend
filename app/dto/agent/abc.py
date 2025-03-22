@@ -4,10 +4,9 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app import AgentType
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.repositories.enum import AgentStatus, UserRole
+from app.dto.enum import AgentStatus, AgentType, UserRole
 
 
 class Agent(BaseModel, ABC):

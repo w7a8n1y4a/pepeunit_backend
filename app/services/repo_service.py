@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
-from app.repositories.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
+from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository

@@ -5,7 +5,7 @@ import pytest
 from app.configs.errors import ValidationError
 from app.configs.gql import get_permission_service
 from app.configs.sub_entities import InfoSubEntity
-from app.repositories.enum import PermissionEntities
+from app.dto.enum import PermissionEntities
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 
 
