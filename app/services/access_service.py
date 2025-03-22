@@ -34,23 +34,11 @@ class AccessService:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
         self.permission_repository = permission_repository
-        self.auth = AuthServiceFactory(self.unit_repository, self.user_repository, jwt_token).create()
+        self.auth = AuthServiceFactory(
+            self.unit_repository, self.user_repository, jwt_token, self._is_bot_auth
+        ).create()
         self.current_agent = self.auth.get_current_agent()
         self.authorization = AuthorizationService(permission_repository, self.current_agent)
-
-    def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
-        """
-        Checks the available roles for each of the agent types
-        """
-
-        if isinstance(self.current_agent, User):
-            if self.current_agent.role not in [role.value for role in available_user_role]:
-                raise NoAccessError("The current user role is not in the list of available roles")
-        elif isinstance(self.current_agent, Unit):
-            if not is_unit_available:
-                raise NoAccessError("The resource is not available for the current Unit")
-        else:
-            raise NoAccessError("Agent unavailable")
 
     def visibility_check(self, check_entity):
         """

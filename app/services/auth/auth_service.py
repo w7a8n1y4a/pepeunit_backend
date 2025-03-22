@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 import jwt
-from fastapi import Depends
 
 from app import settings
 from app.configs.errors import NoAccessError
@@ -12,7 +11,6 @@ from app.dto.agent.abc import Agent, AgentBackend, AgentBot, AgentUnit, AgentUse
 from app.repositories.enum import AgentStatus, AgentType, UserStatus
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
-from app.services.utils import token_depends
 
 
 class AuthService(ABC):
@@ -115,20 +113,16 @@ class TgBotAuthService(AuthService):
 
 
 class AuthServiceFactory:
-    _is_bot_auth = False
-
     def __init__(
-        self,
-        unit_repo: UnitRepository = Depends(),
-        user_repo: UserRepository = Depends(),
-        jwt_token: str = Depends(token_depends),
+        self, unit_repo: UnitRepository, user_repo: UserRepository, jwt_token: str, is_bot_auth: bool = False
     ) -> None:
         self.user_repository = user_repo
         self.unit_repository = unit_repo
         self.jwt_token = jwt_token
+        self.is_bot_auth = is_bot_auth
 
     def create(self) -> AuthService:
-        if self._is_bot_auth:
+        if self.is_bot_auth:
             return TgBotAuthService(self.user_repository, self.unit_repository, self.jwt_token)
         else:
             return JwtAuthService(self.user_repository, self.unit_repository, self.jwt_token)
