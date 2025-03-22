@@ -19,10 +19,6 @@ class AuthService(ABC):
     def get_current_agent(self) -> Agent:
         pass
 
-    @staticmethod
-    def generate_agent_token(agent: Agent) -> str:
-        return jwt.encode({"uuid": str(agent.uuid), "type": agent.type}, settings.backend_secret_key, "HS256")
-
 
 class JwtAuthService(AuthService):
 

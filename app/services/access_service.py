@@ -1,17 +1,13 @@
 import uuid as uuid_pkg
-from datetime import datetime, timedelta
 from typing import Optional
 
-import jwt
 from fastapi import Depends
 
-from app import settings
 from app.configs.errors import NoAccessError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.unit_model import Unit
-from app.domain.user_model import User
 from app.dto.agent.abc import Agent
-from app.repositories.enum import AgentType, PermissionEntities, UserRole, VisibilityLevel
+from app.repositories.enum import PermissionEntities, UserRole, VisibilityLevel
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
@@ -90,25 +86,3 @@ class AccessService:
                 )
             )
         ]
-
-    @staticmethod
-    def generate_user_token(user: User) -> str:
-        access_token_exp = datetime.utcnow() + timedelta(seconds=settings.backend_auth_token_expiration)
-
-        token = jwt.encode(
-            {'uuid': str(user.uuid), 'type': AgentType.USER, 'exp': access_token_exp},
-            settings.backend_secret_key,
-            'HS256',
-        )
-
-        return token
-
-    @staticmethod
-    def generate_unit_token(unit: Unit) -> str:
-        token = jwt.encode(
-            {'uuid': str(unit.uuid), 'type': AgentType.UNIT},
-            settings.backend_secret_key,
-            'HS256',
-        )
-
-        return token

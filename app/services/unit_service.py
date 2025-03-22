@@ -17,7 +17,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.dto.agent.abc import AgentBackend, AgentUnit
+from app.dto.agent.abc import AgentBackend, AgentUnit, AgentUser
 from app.repositories.enum import (
     AgentType,
     BackendTopicCommand,
@@ -43,7 +43,12 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.unit_node_service import UnitNodeService
-from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
+from app.services.utils import (
+    generate_agent_token,
+    get_topic_name,
+    merge_two_dict_first_priority,
+    remove_none_value_dict,
+)
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
@@ -456,7 +461,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        return self.access_service.generate_unit_token(unit)
+        return generate_agent_token(AgentUser(**unit.dict()))
 
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {
