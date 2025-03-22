@@ -17,7 +17,9 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
+from app.dto.agent.abc import AgentBackend, AgentUnit
 from app.repositories.enum import (
+    AgentType,
     BackendTopicCommand,
     DestinationTopicType,
     PermissionEntities,
@@ -94,7 +96,7 @@ class UnitService:
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
-        self.permission_service.create_by_domains(self.access_service.current_agent, unit)
+        self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), unit)
         self.permission_service.create_by_domains(unit, unit)
 
         self.unit_node_service.bulk_create(schema_dict, unit, False)
@@ -352,9 +354,8 @@ class UnitService:
     def get_mqtt_auth(self, topic: str) -> None:
         self.access_service.access_check([UserRole.BACKEND], is_unit_available=True)
 
-        if isinstance(self.access_service.current_agent, Unit) or (
-            isinstance(self.access_service.current_agent, User)
-            and self.access_service.current_agent.role == UserRole.BACKEND
+        if isinstance(self.access_service.current_agent, AgentUnit) or (
+            isinstance(self.access_service.current_agent, AgentBackend)
         ):
 
             struct_topic = get_topic_split(topic)
@@ -362,10 +363,7 @@ class UnitService:
             len_struct = len(struct_topic)
             if len_struct == 5:
 
-                if (
-                    isinstance(self.access_service.current_agent, User)
-                    and self.access_service.current_agent.role == UserRole.BACKEND
-                ):
+                if isinstance(self.access_service.current_agent, AgentBackend):
                     return None
 
                 backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic

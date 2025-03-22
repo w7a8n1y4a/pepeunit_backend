@@ -12,6 +12,7 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.domain.user_model import User
 from app.repositories.enum import (
     BackendTopicCommand,
     DestinationTopicType,
@@ -113,7 +114,7 @@ class UnitNodeService:
                 unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
 
-                for agent in [unit, self.access_service.current_agent]:
+                for agent in [unit, User(uuid=self.access_service.current_agent.uuid)]:
                     agents_default_permission_list.append(
                         PermissionBaseType(
                             agent_uuid=agent.uuid,

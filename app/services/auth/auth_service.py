@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import jwt
 from fastapi import Depends
@@ -29,9 +30,9 @@ class JwtAuthService(AuthService):
 
     def __init__(
         self,
-        user_repo: UserRepository = Depends(),
-        unit_repo: UnitRepository = Depends(),
-        jwt_token: str = Depends(token_depends),
+        user_repo: UserRepository,
+        unit_repo: UnitRepository,
+        jwt_token: Optional[str],
     ):
         self.user_repo = user_repo
         self.unit_repo = unit_repo
@@ -54,13 +55,16 @@ class JwtAuthService(AuthService):
         return self._get_agent_from_token(data)
 
     def _get_agent_from_token(self, data):
+        agent = None
         if data.get("type") == AgentType.USER:
             user = self.user_repo.get(User(uuid=data["uuid"]))
-            agent = AgentUser(**user.dict())
+            if user:
+                agent = AgentUser(**user.dict())
 
         elif data.get("type") == AgentType.UNIT:
             unit = self.unit_repo.get(Unit(uuid=data["uuid"]))
-            agent = AgentUnit(**unit.dict())
+            if unit:
+                agent = AgentUnit(**unit.dict())
 
         elif data.get("type") == AgentType.BACKEND:
             agent = AgentBackend(name=data['domain'], status=AgentStatus.VERIFIED)
@@ -81,9 +85,9 @@ class TgBotAuthService(AuthService):
 
     def __init__(
         self,
-        user_repo: UserRepository = Depends(),
-        unit_repo: UnitRepository = Depends(),
-        telegram_chat_id: str = Depends(token_depends),
+        user_repo: UserRepository,
+        unit_repo: UnitRepository,
+        telegram_chat_id: Optional[str],
     ):
         self.user_repo = user_repo
         self.unit_repo = unit_repo
@@ -108,3 +112,23 @@ class TgBotAuthService(AuthService):
 
     def get_current_agent(self) -> Agent:
         return self.current_agent
+
+
+class AuthServiceFactory:
+    _is_bot_auth = False
+
+    def __init__(
+        self,
+        unit_repo: UnitRepository = Depends(),
+        user_repo: UserRepository = Depends(),
+        jwt_token: str = Depends(token_depends),
+    ) -> None:
+        self.user_repository = user_repo
+        self.unit_repository = unit_repo
+        self.jwt_token = jwt_token
+
+    def create(self) -> AuthService:
+        if self._is_bot_auth:
+            return TgBotAuthService(self.user_repository, self.unit_repository, self.jwt_token)
+        else:
+            return JwtAuthService(self.user_repository, self.unit_repository, self.jwt_token)

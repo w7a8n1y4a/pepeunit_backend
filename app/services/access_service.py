@@ -13,16 +13,17 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
+from app.dto.agent.abc import Agent
 from app.repositories.enum import AgentType, PermissionEntities, UserRole, UserStatus, VisibilityLevel
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
+from app.services.auth.auth_service import AuthServiceFactory
 from app.services.utils import token_depends
 
 
 class AccessService:
-    jwt_token: Optional[str] = None
-    current_agent: Optional[Union[User, Unit]] = None
+    current_agent: Agent
     _is_bot_auth = False
 
     def __init__(
@@ -35,60 +36,8 @@ class AccessService:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
         self.permission_repository = permission_repository
-        self.jwt_token = jwt_token
-        self.token_required()
-
-    def token_required(self):
-        if not self._is_bot_auth:
-            if isinstance(self.jwt_token, params.Depends):
-                pass
-            elif self.jwt_token is not None:
-                try:
-                    data = jwt.decode(self.jwt_token, settings.backend_secret_key, algorithms=['HS256'])
-                except jwt.exceptions.ExpiredSignatureError:
-                    raise NoAccessError("Token expired")
-                except jwt.exceptions.InvalidTokenError:
-                    raise NoAccessError("Token is invalid")
-
-                agent = None
-                if data.get('type') == AgentType.USER:
-                    agent = self.user_repository.get(User(uuid=data['uuid']))
-                    if not agent:
-                        raise NoAccessError("User not found")
-
-                    if agent.status == UserStatus.BLOCKED:
-                        raise NoAccessError("User is Blocked")
-                elif data.get('type') == AgentType.UNIT:
-                    agent = self.unit_repository.get(Unit(uuid=data['uuid']))
-
-                elif data.get('type') == AgentType.BACKEND:
-                    if data['domain'] != settings.backend_domain:
-                        raise NoAccessError(
-                            "The domain in the authorization token {} does not match the current domain {}".format(
-                                data['domain'], settings.backend_domain
-                            )
-                        )
-                    agent = User(role=UserRole.BACKEND)
-
-                if not agent:
-                    raise NoAccessError("Agent not found")
-
-                self.current_agent = agent
-            else:
-                self.current_agent = User(role=UserRole.BOT)
-
-        else:
-            if self.jwt_token:
-                agent = self.user_repository.get_user_by_credentials(self.jwt_token)
-                if not agent:
-                    raise NoAccessError("User not found")
-
-                if agent.status == UserStatus.BLOCKED:
-                    raise NoAccessError("User is Blocked")
-
-                self.current_agent = agent
-            else:
-                self.current_agent = User(role=UserRole.BOT)
+        self.auth_service = AuthServiceFactory(self.unit_repository, self.user_repository, jwt_token).create()
+        self.current_agent = self.auth_service.get_current_agent()
 
     def access_check(self, available_user_role: list[UserRole], is_unit_available: bool = False):
         """

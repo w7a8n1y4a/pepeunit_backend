@@ -8,6 +8,7 @@ from typing import Optional, Union
 from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
+from app.domain.user_model import User
 from app.repositories.enum import BackendTopicCommand, PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
@@ -78,7 +79,7 @@ class RepoService:
         repo = self.repo_repository.create(repo)
 
         self.git_repo_repository.clone_remote_repo(repo)
-        self.permission_service.create_by_domains(self.access_service.current_agent, repo)
+        self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent), repo)
 
         return self.mapper_repo_to_repo_read(repo)
 
