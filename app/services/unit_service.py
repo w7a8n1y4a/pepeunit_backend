@@ -193,7 +193,7 @@ class UnitService:
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
@@ -236,7 +236,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         is_valid_object(repo)
@@ -250,7 +250,7 @@ class UnitService:
 
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
@@ -262,7 +262,7 @@ class UnitService:
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
@@ -336,7 +336,7 @@ class UnitService:
 
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         unit.cipher_state_storage = aes_gcm_encode(state) if state != '' else None
         unit.last_update_datetime = datetime.datetime.utcnow()
@@ -348,7 +348,7 @@ class UnitService:
 
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         return aes_gcm_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
 

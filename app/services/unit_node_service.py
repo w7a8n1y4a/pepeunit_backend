@@ -202,7 +202,7 @@ class UnitNodeService:
         is_valid_object(unit)
 
         if not is_auto_update:
-            self.access_service.access_only_creator_and_target_unit(unit)
+            self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
