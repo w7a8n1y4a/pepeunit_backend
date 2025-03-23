@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import settings
 from app.configs.errors import NoAccessError
@@ -44,7 +44,6 @@ class Agent(ABC, BaseModel):
 
 
 class AgentUser(Agent, User):
-    name: str
     type: AgentType = AgentType.USER
 
     def __init__(self, **data):
@@ -65,10 +64,8 @@ class AgentBot(Agent):
 
 
 class AgentBackend(Agent):
+    uuid: Optional[uuid_pkg.UUID] = Field(
+        default_factory=lambda: uuid_pkg.uuid5(uuid_pkg.NAMESPACE_DNS, settings.backend_domain)
+    )
     type: AgentType = AgentType.BACKEND
     status: AgentStatus = AgentStatus.VERIFIED
-
-    @property
-    def uuid(self) -> uuid_pkg.UUID:
-        namespace = uuid_pkg.NAMESPACE_DNS
-        return uuid_pkg.uuid5(namespace, self.name)

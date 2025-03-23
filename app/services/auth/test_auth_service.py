@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import jwt
 import pytest
@@ -10,8 +10,6 @@ from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentBackend, AgentBot, AgentUnit, AgentUser
 from app.dto.enum import AgentStatus, AgentType
-from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
 from app.services.auth.auth_service import JwtAuthService, TgBotAuthService
 
 
