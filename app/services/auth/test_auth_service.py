@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import jwt
 import pytest
@@ -10,7 +10,9 @@ from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentBackend, AgentBot, AgentUnit, AgentUser
 from app.dto.enum import AgentStatus, AgentType
-from app.services.auth.auth_service import JwtAuthService
+from app.repositories.unit_repository import UnitRepository
+from app.repositories.user_repository import UserRepository
+from app.services.auth.auth_service import JwtAuthService, TgBotAuthService
 
 
 @pytest.fixture
@@ -146,3 +148,62 @@ def test_no_token_provided(mock_repos):
 
     assert isinstance(agent, AgentBot)
     assert agent.status == AgentStatus.UNVERIFIED
+
+
+def test_init_with_telegram_chat_id(mock_repos):
+    user_repo, unit_repo = mock_repos
+    telegram_chat_id = "12345"
+    user_uuid = uuid_pkg.uuid4()
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
+    user_repo.get_user_by_credentials.return_value = user
+
+    auth_service = TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
+
+    assert auth_service.telegram_chat_id == telegram_chat_id
+    assert isinstance(auth_service.current_agent, AgentUser)
+    user_repo.get_user_by_credentials.assert_called_once_with(telegram_chat_id)
+
+
+def test_init_without_telegram_chat_id(mock_repos):
+    user_repo, unit_repo = mock_repos
+    telegram_chat_id = None
+
+    auth_service = TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
+
+    assert auth_service.telegram_chat_id is None
+    assert isinstance(auth_service.current_agent, AgentBot)
+    user_repo.get_user_by_credentials.assert_not_called()
+
+
+def test_get_agent_by_chat_id_user_not_found(mock_repos):
+    user_repo, unit_repo = mock_repos
+    telegram_chat_id = "12345"
+    user_repo.get_user_by_credentials.return_value = None
+
+    with pytest.raises(NoAccessError, match="User not found"):
+        TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
+
+
+def test_get_agent_by_chat_id_user_blocked(mock_repos):
+    user_repo, unit_repo = mock_repos
+    telegram_chat_id = "12345"
+    user_uuid = uuid_pkg.uuid4()
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.BLOCKED)
+    user_repo.get_user_by_credentials.return_value = user
+
+    with pytest.raises(NoAccessError, match="User is Blocked"):
+        TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
+
+
+def test_get_current_agent(mock_repos):
+    user_repo, unit_repo = mock_repos
+    telegram_chat_id = "12345"
+    user_uuid = uuid_pkg.uuid4()
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
+    user_repo.get_user_by_credentials.return_value = user
+    auth_service = TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
+
+    current_agent = auth_service.get_current_agent()
+
+    assert isinstance(current_agent, AgentUser)
+    assert current_agent.status == AgentStatus.VERIFIED

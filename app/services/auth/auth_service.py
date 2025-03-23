@@ -97,9 +97,10 @@ class TgBotAuthService(AuthService):
     def _get_agent_by_chat_id(self):
 
         user = self.user_repo.get_user_by_credentials(self.telegram_chat_id)
-        agent = AgentUser(**user.dict())
 
-        if not agent:
+        if user:
+            agent = AgentUser(**user.dict())
+        else:
             raise NoAccessError("User not found")
 
         if agent.status == AgentStatus.BLOCKED:
