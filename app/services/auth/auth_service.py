@@ -8,7 +8,7 @@ from app.configs.errors import NoAccessError
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.dto.agent.abc import Agent, AgentBackend, AgentBot, AgentUnit, AgentUser
-from app.dto.enum import AgentStatus, AgentType, UserStatus
+from app.dto.enum import AgentStatus, AgentType
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 
@@ -99,7 +99,7 @@ class TgBotAuthService(AuthService):
         if not agent:
             raise NoAccessError("User not found")
 
-        if agent.status == UserStatus.BLOCKED:
+        if agent.status == AgentStatus.BLOCKED:
             raise NoAccessError("User is Blocked")
 
         return agent
