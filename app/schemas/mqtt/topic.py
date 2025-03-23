@@ -14,6 +14,7 @@ from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
+from app.dto.agent.abc import AgentBackend
 from app.dto.enum import (
     DestinationTopicType,
     GlobalPrefixTopic,
@@ -30,7 +31,7 @@ mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
     port=settings.mqtt_port,
     keepalive=settings.mqtt_keepalive,
-    username=settings.backend_token,
+    username=AgentBackend(name=settings.backend_domain).generate_agent_token(),
     password='',
 )
 

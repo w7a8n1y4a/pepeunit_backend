@@ -13,7 +13,6 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
 from app.services.access_service import AccessService
-from app.services.utils import generate_agent_token
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import generate_random_string, password_to_hash
 
@@ -54,7 +53,7 @@ class UserService:
         is_valid_object(user)
         is_valid_password(data.password, user)
 
-        return generate_agent_token(AgentUser(**user.dict()))
+        return AgentUser(**user.dict()).generate_agent_token()
 
     def update(self, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.authorization.check_access([AgentType.USER])

@@ -44,7 +44,6 @@ from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.unit_node_service import UnitNodeService
 from app.services.utils import (
-    generate_agent_token,
     get_topic_name,
     merge_two_dict_first_priority,
     remove_none_value_dict,
@@ -461,7 +460,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        return generate_agent_token(AgentUnit(**unit.dict()))
+        return AgentUnit(**unit.dict()).generate_agent_token()
 
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {

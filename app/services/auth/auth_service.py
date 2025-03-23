@@ -49,16 +49,19 @@ class JwtAuthService(AuthService):
         return self._get_agent_from_token(data)
 
     def _get_agent_from_token(self, data):
-        agent = None
         if data.get("type") == AgentType.USER:
             user = self.user_repo.get(User(uuid=data["uuid"]))
             if user:
                 agent = AgentUser(**user.dict())
+            else:
+                raise NoAccessError("User not found")
 
         elif data.get("type") == AgentType.UNIT:
             unit = self.unit_repo.get(Unit(uuid=data["uuid"]))
             if unit:
                 agent = AgentUnit(**unit.dict())
+            else:
+                raise NoAccessError("Unit not found")
 
         elif data.get("type") == AgentType.BACKEND:
             agent = AgentBackend(name=data['domain'], status=AgentStatus.VERIFIED)

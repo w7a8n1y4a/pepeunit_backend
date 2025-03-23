@@ -1,12 +1,10 @@
 import uuid as uuid_pkg
 from typing import Annotated
 
-import jwt
 from fastapi import Depends
 from fastapi.security import APIKeyHeader
 
 from app import settings
-from app.dto.agent.abc import Agent
 from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
 
@@ -14,10 +12,6 @@ def token_depends(
     jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None
 ):
     return jwt_token
-
-
-def generate_agent_token(agent: Agent) -> str:
-    return jwt.encode({"uuid": str(agent.uuid), "type": agent.type}, settings.backend_secret_key, "HS256")
 
 
 def merge_two_dict_first_priority(first: dict, two: dict) -> dict:
