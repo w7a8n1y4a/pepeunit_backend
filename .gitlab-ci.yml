@@ -57,7 +57,7 @@ unit_test:image:dev:
     - docker build -f DockerfileLoad -t pepeunit-unit-test .
     - docker run --rm --env-file $ENV_FILE pepeunit-unit-test pytest app -v
     - docker container prune -f
-    - docker rmi $(docker images -f "dangling=true" -q)
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
 integration_test:image:dev:
   stage: test
@@ -86,7 +86,7 @@ integration_test:image:dev:
     - docker build -f DockerfileLoad -t pepeunit-integra-test .
     - docker run --rm --env-file $ENV_FILE pepeunit-integra-test pytest tests -v
     - docker container prune -f
-    - docker rmi $(docker images -f "dangling=true" -q)
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
 load_test:image:dev:
   stage: test
@@ -116,7 +116,7 @@ load_test:image:dev:
     - docker run --rm --env-file $ENV_FILE pepeunit-load-test python -m tests.load.load_test_mqtt
     - docker run --rm --env-file $ENV_FILE pepeunit-load-test locust -f tests/load/locustfile.py
     - docker container prune -f
-    - docker rmi $(docker images -f "dangling=true" -q)
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
 build:image:release:
   stage: build
