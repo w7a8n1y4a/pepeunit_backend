@@ -12,15 +12,17 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
-from app.repositories.enum import (
+from app.domain.user_model import User
+from app.dto.enum import (
+    AgentType,
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    OwnershipType,
     PermissionEntities,
     ReservedInputBaseTopic,
     UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
-    UserRole,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
@@ -70,9 +72,9 @@ class UnitNodeService:
         self.access_service = access_service
 
     def get(self, uuid: uuid_pkg.UUID) -> UnitNode:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
-        self.access_service.visibility_check(unit_node)
+        self.access_service.authorization.check_visibility(unit_node)
 
         is_valid_object(unit_node)
         return unit_node
@@ -113,7 +115,7 @@ class UnitNodeService:
                 unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
 
-                for agent in [unit, self.access_service.current_agent]:
+                for agent in [unit, User(uuid=self.access_service.current_agent.uuid)]:
                     agents_default_permission_list.append(
                         PermissionBaseType(
                             agent_uuid=agent.uuid,
@@ -155,12 +157,12 @@ class UnitNodeService:
         self.unit_node_repository.bulk_save(update_list)
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
-        self.access_service.access_creator_check(unit_node)
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
 
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_node(unit_node)
@@ -175,13 +177,13 @@ class UnitNodeService:
         return self.unit_node_repository.update(uuid, update_unit_node)
 
     def set_state_input(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeSetState, UnitNodeSetStateInput]) -> UnitNode:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
         self.is_valid_input_unit_node(unit_node)
-        self.access_service.check_access_unit_to_input_node(unit_node)
-        self.access_service.visibility_check(unit_node)
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.UNIT_TO_INPUT_NODE])
+        self.access_service.authorization.check_visibility(unit_node)
 
         publish_to_topic(get_topic_name(unit_node.uuid, unit_node.topic_name), data.state)
 
@@ -194,13 +196,13 @@ class UnitNodeService:
     ) -> None:
 
         if not is_auto_update:
-            self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+            self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
         if not is_auto_update:
-            self.access_service.access_only_creator_and_target_unit(unit)
+            self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
@@ -249,17 +251,17 @@ class UnitNodeService:
         data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
         data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
 
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         output_node = self.unit_node_repository.get(UnitNode(uuid=data.node_output_uuid))
         is_valid_object(output_node)
         self.is_valid_output_unit_node(output_node)
-        self.access_service.visibility_check(output_node)
+        self.access_service.authorization.check_visibility(output_node)
 
         input_node = self.unit_node_repository.get(UnitNode(uuid=data.node_input_uuid))
         is_valid_object(input_node)
         self.is_valid_input_unit_node(input_node)
-        self.access_service.visibility_check(input_node)
+        self.access_service.authorization.check_visibility(input_node)
 
         new_edge = UnitNodeEdge(**data.dict())
         new_edge.creator_uuid = self.access_service.current_agent.uuid
@@ -293,13 +295,13 @@ class UnitNodeService:
         return unit_node_edge
 
     def get_unit_node_edges(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[UnitNodeEdge]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
 
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
 
         filters = UnitNodeFilter(unit_uuid=unit_uuid)
 
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
 
@@ -308,7 +310,7 @@ class UnitNodeService:
         return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         unit_node_edge = self.unit_node_edge_repository.get_by_two_uuid(input_uuid, output_uuid)
         is_valid_object(unit_node_edge)
@@ -320,9 +322,9 @@ class UnitNodeService:
         is_valid_object(output_node)
 
         if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
-            self.access_service.access_creator_check(input_node)
+            self.access_service.authorization.check_ownership(input_node, [OwnershipType.CREATOR])
         else:
-            self.access_service.access_creator_check(unit_node_edge)
+            self.access_service.authorization.check_ownership(unit_node_edge, [OwnershipType.CREATOR])
 
         try:
             self.permission_service.delete(output_node.unit_uuid, input_uuid, is_api=False)
@@ -341,9 +343,9 @@ class UnitNodeService:
         )
 
     def list(self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]) -> tuple[int, list[UnitNode]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.UNIT_NODE)
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
 

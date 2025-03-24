@@ -11,7 +11,7 @@ from app import settings
 from app.configs.errors import UnitNodeError, ValidationError
 from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.unit_node import (
     UnitNodeEdgeCreate,
     UnitNodeFilter,

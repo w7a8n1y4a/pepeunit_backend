@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app import settings
-from app.repositories.enum import UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 
 
 class Root(BaseModel):

@@ -14,7 +14,7 @@ from app.configs.errors import GitRepoError
 from app.configs.utils import get_directory_size
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
-from app.repositories.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
+from app.dto.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
 from app.repositories.git_platform_repository import (
     GithubPlatformRepository,
     GitlabPlatformRepository,

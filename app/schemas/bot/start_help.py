@@ -11,7 +11,7 @@ from app.configs.bot import bot, dp
 from app.configs.db import get_session
 from app.configs.gql import get_user_service
 from app.configs.sub_entities import InfoSubEntity
-from app.repositories.enum import CommandNames
+from app.dto.enum import CommandNames
 from app.repositories.user_repository import UserRepository
 
 

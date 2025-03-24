@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.repositories.enum import OrderByDate, UserRole, UserStatus
+from app.dto.enum import OrderByDate, UserRole, UserStatus
 
 
 class UserRead(BaseModel):

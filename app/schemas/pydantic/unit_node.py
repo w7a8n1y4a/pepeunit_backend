@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.repositories.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import OrderByDate, UnitNodeTypeEnum, VisibilityLevel
 
 
 class UnitNodeUpdate(BaseModel):

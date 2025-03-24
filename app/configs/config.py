@@ -90,7 +90,6 @@ class Settings(BaseSettings):
 
     # calculated fields
     backend_http_type: str = 'https'
-    backend_token: str = ''
 
     backend_link: str = ''
     backend_link_prefix: str = ''

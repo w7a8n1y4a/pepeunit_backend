@@ -4,7 +4,7 @@ from fastapi import params
 from sqlalchemy import asc, desc
 from sqlmodel import and_, or_
 
-from app.repositories.enum import OrderByDate, VisibilityLevel
+from app.dto.enum import OrderByDate, VisibilityLevel
 
 
 def apply_ilike_search_string(query, filters, fields: list):

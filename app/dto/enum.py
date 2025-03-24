@@ -35,10 +35,6 @@ class UserRole(str, enum.Enum):
     Role User in Pepeunit
     """
 
-    # special role for external users, not used in the database
-    BOT = 'Bot'
-    # special role for backend auth
-    BACKEND = 'Backend'
     USER = 'User'
     ADMIN = 'Admin'
 
@@ -60,9 +56,32 @@ class AgentType(str, enum.Enum):
     Agent type in the Pepeunit system
     """
 
+    BOT = 'Bot'
     USER = 'User'
     UNIT = 'Unit'
     BACKEND = 'Backend'
+
+
+@strawberry.enum
+class AgentStatus(str, enum.Enum):
+    """
+    Status User in Pepeunit
+    """
+
+    UNVERIFIED = 'Unverified'
+    VERIFIED = 'Verified'
+    BLOCKED = 'Blocked'
+
+
+@strawberry.enum
+class OwnershipType(str, enum.Enum):
+    """
+    Ownership rules type
+    """
+
+    CREATOR = 'Creator'
+    UNIT = 'Unit'
+    UNIT_TO_INPUT_NODE = 'UnitToInputNode'
 
 
 @strawberry.enum

@@ -22,7 +22,8 @@ from app.configs.utils import (
     is_valid_ip_address,
     wait_for_file_unlock,
 )
-from app.repositories.enum import GlobalPrefixTopic
+from app.dto.agent.abc import AgentBackend
+from app.dto.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
 from app.schemas.bot import *
 from app.schemas.gql.mutation import Mutation
@@ -64,7 +65,8 @@ async def _lifespan(_app: FastAPI):
         )
 
         async def hset_emqx_auth_keys(redis_client, topic):
-            await redis_client.hset(f'mqtt_acl:{settings.backend_token}', topic, 'all')
+            token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+            await redis_client.hset(f'mqtt_acl:{token}', topic, 'all')
 
         await asyncio.gather(*[hset_emqx_auth_keys(redis, topic) for topic in backend_topics])
 
@@ -159,7 +161,8 @@ async def _lifespan(_app: FastAPI):
         logging.info(f'Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}')
         await mqtt.mqtt_startup()
 
-        access = await redis_client.hgetall(settings.backend_token)
+        token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+        access = await redis_client.hgetall(token)
         for k, v in access.items():
             logging.info(f'Redis set {k} access {v}')
 

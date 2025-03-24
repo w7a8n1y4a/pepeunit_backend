@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 import strawberry
 from strawberry import field
 
-from app.repositories.enum import PermissionEntities
+from app.dto.enum import PermissionEntities
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 

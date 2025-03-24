@@ -19,7 +19,7 @@ from app.configs.errors import (
 from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
-from app.repositories.enum import StaticRepoFileName, VisibilityLevel
+from app.dto.enum import StaticRepoFileName, VisibilityLevel
 from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode

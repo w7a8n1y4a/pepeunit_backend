@@ -1,7 +1,7 @@
-from cachetools import TTLCache, cached
+from cachetools import TTLCache
 from fastapi import Depends
 
-from app.repositories.enum import UserRole
+from app.dto.enum import AgentType
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -37,7 +37,7 @@ class MetricsService:
         if cache_key in cache:
             return cache[cache_key]
 
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
 
         metrics = BaseMetricsRead(
             user_count=self.user_repository.get_all_count(),

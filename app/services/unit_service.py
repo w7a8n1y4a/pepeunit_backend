@@ -17,14 +17,16 @@ from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.repositories.enum import (
+from app.dto.agent.abc import AgentBackend, AgentUnit
+from app.dto.enum import (
+    AgentType,
     BackendTopicCommand,
     DestinationTopicType,
+    OwnershipType,
     PermissionEntities,
     ReservedEnvVariableName,
     StaticRepoFileName,
     UnitNodeTypeEnum,
-    UserRole,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
@@ -41,7 +43,11 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.unit_node_service import UnitNodeService
-from app.services.utils import get_topic_name, merge_two_dict_first_priority, remove_none_value_dict
+from app.services.utils import (
+    get_topic_name,
+    merge_two_dict_first_priority,
+    remove_none_value_dict,
+)
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
@@ -65,7 +71,7 @@ class UnitService:
         self.unit_node_service = unit_node_service
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
         self.unit_repository.is_valid_name(data.name)
 
         repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
@@ -94,7 +100,7 @@ class UnitService:
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 
-        self.permission_service.create_by_domains(self.access_service.current_agent, unit)
+        self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), unit)
         self.permission_service.create_by_domains(unit, unit)
 
         self.unit_node_service.bulk_create(schema_dict, unit, False)
@@ -102,18 +108,18 @@ class UnitService:
         return unit_deepcopy
 
     def get(self, uuid: uuid_pkg.UUID) -> Unit:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
-        self.access_service.visibility_check(unit)
+        self.access_service.authorization.check_visibility(unit)
         return unit
 
     def update(self, uuid: uuid_pkg.UUID, data: Union[UnitUpdate, UnitUpdateInput]) -> Unit:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
-        self.access_service.access_creator_check(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
         unit_update = Unit(**merge_two_dict_first_priority(remove_none_value_dict(data.dict()), unit.dict()))
         self.unit_repository.is_valid_name(unit_update.name, uuid)
@@ -186,11 +192,11 @@ class UnitService:
         return self.unit_repository.update(unit.uuid, unit)
 
     def get_env(self, uuid: uuid_pkg.UUID) -> dict:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
@@ -206,12 +212,12 @@ class UnitService:
         return env_dict
 
     def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         env_dict = is_valid_json(env_json_str, StaticRepoFileName.ENV)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.access_creator_check(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
         gen_env_dict = self.gen_env_dict(unit.uuid)
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
@@ -229,11 +235,11 @@ class UnitService:
         self.unit_repository.update(unit.uuid, unit)
 
     def get_target_version(self, uuid: uuid_pkg.UUID) -> TargetVersionRead:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         is_valid_object(repo)
@@ -242,12 +248,12 @@ class UnitService:
         return TargetVersionRead(commit=target_commit, tag=target_tag)
 
     def get_current_schema(self, uuid: uuid_pkg.UUID) -> dict:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
@@ -255,11 +261,11 @@ class UnitService:
         return self.generate_current_schema(unit, repo, target_version)
 
     def get_unit_firmware(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         target_version = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
@@ -328,33 +334,32 @@ class UnitService:
         return f'{firmware_tar_path}.tgz'
 
     def set_state_storage(self, uuid: uuid_pkg.UUID, state: str) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         unit.cipher_state_storage = aes_gcm_encode(state) if state != '' else None
         unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
 
     def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
 
-        self.access_service.access_only_creator_and_target_unit(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         return aes_gcm_decode(unit.cipher_state_storage) if unit.cipher_state_storage else ''
 
     def get_mqtt_auth(self, topic: str) -> None:
-        self.access_service.access_check([UserRole.BACKEND], is_unit_available=True)
+        self.access_service.authorization.check_access([AgentType.BACKEND, AgentType.UNIT])
 
-        if isinstance(self.access_service.current_agent, Unit) or (
-            isinstance(self.access_service.current_agent, User)
-            and self.access_service.current_agent.role == UserRole.BACKEND
+        if isinstance(self.access_service.current_agent, AgentUnit) or (
+            isinstance(self.access_service.current_agent, AgentBackend)
         ):
 
             struct_topic = get_topic_split(topic)
@@ -362,10 +367,7 @@ class UnitService:
             len_struct = len(struct_topic)
             if len_struct == 5:
 
-                if (
-                    isinstance(self.access_service.current_agent, User)
-                    and self.access_service.current_agent.role == UserRole.BACKEND
-                ):
+                if isinstance(self.access_service.current_agent, AgentBackend):
                     return None
 
                 backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
@@ -386,29 +388,29 @@ class UnitService:
                 unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
                 is_valid_object(unit_node)
 
-                self.access_service.visibility_check(unit_node)
+                self.access_service.authorization.check_visibility(unit_node)
             else:
                 raise MqttError('Topic struct is invalid, len {}, available - [2, 3]'.format(len_struct))
         else:
             raise MqttError('Only for Unit available topic communication')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        self.access_service.access_creator_check(unit)
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
         return self.unit_repository.delete(unit)
 
     def list(
         self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
-        self.access_service.access_check([UserRole.BOT, UserRole.USER, UserRole.ADMIN], is_unit_available=True)
-        restriction = self.access_service.access_restriction(resource_type=PermissionEntities.UNIT)
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
+        restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.UNIT)
 
-        filters.visibility_level = self.access_service.get_available_visibility_levels(
+        filters.visibility_level = self.access_service.authorization.get_available_visibility_levels(
             filters.visibility_level, restriction
         )
         return self.unit_repository.list(
@@ -458,7 +460,7 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        return self.access_service.generate_unit_token(unit)
+        return AgentUnit(**unit.dict()).generate_agent_token()
 
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {

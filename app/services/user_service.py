@@ -1,4 +1,3 @@
-import copy
 import datetime
 import uuid as uuid_pkg
 from typing import Union
@@ -8,7 +7,8 @@ from fastapi import Depends
 from app import settings
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
-from app.repositories.enum import UserRole, UserStatus
+from app.dto.agent.abc import AgentUser
+from app.dto.enum import AgentType, UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
@@ -23,7 +23,7 @@ class UserService:
         self.access_service = access_service
 
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
-        self.access_service.access_check([UserRole.BOT])
+        self.access_service.authorization.check_access([AgentType.BOT])
         self.user_repository.is_valid_login(data.login)
         self.user_repository.is_valid_password(data.password)
 
@@ -41,22 +41,22 @@ class UserService:
         return self.user_repository.create(user)
 
     def get(self, uuid: uuid_pkg.UUID) -> User:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
         return user
 
     def get_token(self, data: Union[UserAuth, UserAuthInput]) -> str:
-        self.access_service.access_check([UserRole.BOT])
+        self.access_service.authorization.check_access([AgentType.BOT])
 
         user = self.user_repository.get_user_by_credentials(data.credentials)
         is_valid_object(user)
         is_valid_password(data.password, user)
 
-        return self.access_service.generate_user_token(user)
+        return AgentUser(**user.dict()).generate_agent_token()
 
     def update(self, data: Union[UserUpdate, UserUpdateInput]) -> User:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
         user = self.user_repository.get(User(uuid=self.access_service.current_agent.uuid))
         is_valid_object(user)
 
@@ -71,7 +71,7 @@ class UserService:
         return self.user_repository.update(user.uuid, user)
 
     async def generate_verification_link(self) -> str:
-        self.access_service.access_check([UserRole.USER, UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER])
         redis = await anext(get_redis_session())
 
         code = generate_random_string(8)
@@ -95,11 +95,11 @@ class UserService:
         )
 
     def block(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER], [UserRole.ADMIN])
         self.user_repository.update(uuid, User(status=UserStatus.BLOCKED))
 
     def unblock(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.access_check([UserRole.ADMIN])
+        self.access_service.authorization.check_access([AgentType.USER], [UserRole.ADMIN])
 
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
@@ -109,5 +109,5 @@ class UserService:
         self.user_repository.update(uuid, User(status=status))
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> tuple[int, list[User]]:
-        self.access_service.access_check([UserRole.ADMIN, UserRole.USER])
+        self.access_service.authorization.check_access([AgentType.USER])
         return self.user_repository.list(filters)
