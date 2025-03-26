@@ -37,6 +37,8 @@ logging.basicConfig(
     format="%(levelname)s - %(asctime)s - %(message)s",
 )
 
+recreate_directory(settings.prometheus_multiproc_dir)
+
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
@@ -48,7 +50,6 @@ async def _lifespan(_app: FastAPI):
     redis = await anext(get_redis_session())
 
     if init_lock:
-        recreate_directory(settings.prometheus_multiproc_dir)
 
         mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
 
