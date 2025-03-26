@@ -10,3 +10,4 @@ tmp
 .ropeproject
 connections.json
 .nvim
+prometheus_metrics
