@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     telegram_token: str
     telegram_bot_link: str
 
+    prometheus_multiproc_dir: str = './prometheus_metrics'
+
     redis_url: str = 'redis://redis:6379/0'
 
     mqtt_host: str
