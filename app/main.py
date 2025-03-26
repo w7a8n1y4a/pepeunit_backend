@@ -20,6 +20,7 @@ from app.configs.redis import get_redis_session
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
+    recreate_directory,
     wait_for_file_unlock,
 )
 from app.dto.agent.abc import AgentBackend
@@ -47,6 +48,8 @@ async def _lifespan(_app: FastAPI):
     redis = await anext(get_redis_session())
 
     if init_lock:
+        recreate_directory(settings.prometheus_multiproc_dir)
+
         mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
 
         control_emqx = ControlEmqx()

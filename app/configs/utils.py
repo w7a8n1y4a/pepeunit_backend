@@ -1,4 +1,6 @@
 import fcntl
+import os
+import shutil
 import time
 from pathlib import Path
 
@@ -65,3 +67,10 @@ def wait_for_file_unlock(file_path, check_interval=1):
             lock_fd.close()
             return
         time.sleep(check_interval)
+
+
+def recreate_directory(dir_path):
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path, ignore_errors=True)
+
+    os.makedirs(dir_path)
