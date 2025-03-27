@@ -1,6 +1,6 @@
 # Pepeunit Backend
 
-## [Документация](https://git.pepemoss.com/pepe/pepeunit/pepeunit.git) Pepeunit
+## [Репозиторий документации](https://git.pepemoss.com/pepe/pepeunit/pepeunit.git) Pepeunit
 
 ## Внешние зависимости
 1. `Telegram Bot` и его `Api Key`
@@ -9,11 +9,23 @@
 4. `Redis`
 
 ## Основные этапы развёртывания
-0. Установите пакеты при помощи команды `poetry install`
-1. Войдите в окружение при помощи команды `poetry shell`
+0. Установите пакеты при помощи команды:
+   ```bash
+   poetry install
+   ```
+1. Войдите в окружение при помощи команды:
+   ```bash
+   poetry shell
+   ```
 1. Настройте `.env` файл по образцу `.env_example`
-1. Выполните миграцию в БД `alembic upgrade head` - требуется только при первом запуске
-1. Запустите Бэкенд приложение командой - `uvicorn app.main:app --host 0.0.0.0 --port 5000`
+1. Выполните миграцию в БД, требуется только при первом запуске и добавлении новых миграций:
+   ```bash
+   alembic upgrade head
+   ```
+1. Запустите `Backend` приложение командой:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 5000
+   ```
 
 ## Что произойдёт в момент запуска приложения ?
 0. Проверка cоединения с `EMQX MQTT Broker` и его настройка
@@ -35,22 +47,41 @@
 ## Поддержание формата кода
 1. Установите `.pre-commit-config.yaml` на основе `.pre-commit-config.example.yaml`
 2. Теперь при каждом коммите у вас будет происходить проверка через `black` и `isort`
-3. В случае, если нужно запустить вручную - `pre-commit run --all-files`
+3. В случае, если нужно запустить вручную
+   ```bash
+   pre-commit run --all-files
+   ```
 
 ## Миграции базы данных
-1. Создание новой миграции `alembic revision -m 'best_revision_name'`
-1. Применение новой миграции `alembic upgrade head`
+1. Создание новой миграции:
+   ```bash
+   alembic revision -m 'best_revision_name'
+   ```
+1. Применение новой миграции:
+      ```bash
+   alembic upgrade head
+   ```   
 
 ## Unit тестирование
-Запустить unit тестирование можно командой - `pytest app -v`
+Запустить unit тестирование можно командой:
+```bash
+pytest app -v
+```
 
 ## Интеграционное тестирование
-Запустить интеграционное тестирование можно командой - `pytest tests -v`
+Запустить интеграционное тестирование можно командой ниже. [Подробнее о настройке теста на странице документации](https://pepeunit.com/tests/integration-test.html#запуск)
+```bash
+pytest tests -v
+```
+
 
 ## Нагрузочное тестирование
 
-0. Установите пакеты при помощи команды `poetry install --with load`
-1. Войдите в окружение при помощи команды `poetry shell`
+0. Установка дополнительных пакетов:
+   ```bash
+   poetry install --with load
+   ```
+1. [Подробнее о настройке тестов на странице документации](https://pepeunit.com/tests/load-test.html)
 1. Запуск `MQTT` теста:
     ```bash
     python -m tests.load.load_test_mqtt
