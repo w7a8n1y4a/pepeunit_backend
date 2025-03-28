@@ -68,7 +68,7 @@ class AuthorizationService:
             item.resource_uuid
             for item in self.permission_repo.get_agent_resources(
                 PermissionBaseType(
-                    agent_type=self.current_agent.type,
+                    agent_type=AgentType.USER if self.current_agent.type == AgentType.BOT else self.current_agent.type,
                     agent_uuid=self.current_agent.uuid,
                     resource_type=resource_type,
                 )
