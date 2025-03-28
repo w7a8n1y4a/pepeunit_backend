@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pepeunit-backend"
-version = "0.3.0"
+version = "0.4.0"
 description = "Pepeunit - Federated IoT Platform"
 authors = ["Ivan Serebrennikov <admin@silberworks.com>"]
 license = "AGPL v3 License"
