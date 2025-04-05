@@ -72,5 +72,7 @@ def wait_for_file_unlock(file_path, check_interval=1):
 def recreate_directory(dir_path):
     if os.path.exists(dir_path):
         shutil.rmtree(dir_path, ignore_errors=True)
-
-    os.makedirs(dir_path)
+    try:
+        os.makedirs(dir_path)
+    except FileExistsError:
+        pass

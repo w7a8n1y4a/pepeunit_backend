@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     backend_save_repo_path: str = 'repo_cache'
 
     sqlalchemy_database_url: str
+    clickhouse_database_url: str
 
     backend_secret_key: str
     backend_encrypt_key: str
@@ -98,3 +99,5 @@ class Settings(BaseSettings):
     backend_link_prefix_and_v1: str = ''
 
     mqtt_http_type: str = 'https'
+
+    clickhouse_connection: None = None

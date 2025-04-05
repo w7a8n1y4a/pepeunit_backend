@@ -4,6 +4,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
+from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI, Request
 from fastapi_mqtt import FastMQTT, MQTTConfig
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -52,6 +53,19 @@ async def _lifespan(_app: FastAPI):
     if init_lock:
 
         mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
+
+        clickhouse_cluster = ClickhouseCluster(
+            settings.clickhouse_connection.host,
+            settings.clickhouse_connection.user,
+            settings.clickhouse_connection.password,
+        )
+        clickhouse_cluster.migrate(
+            settings.clickhouse_connection.database,
+            './clickhouse/migrations',
+            cluster_name=None,
+            create_db_if_no_exists=True,
+            multi_statement=True,
+        )
 
         control_emqx = ControlEmqx()
         control_emqx.delete_auth_hooks()
