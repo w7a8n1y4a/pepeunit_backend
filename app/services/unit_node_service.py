@@ -214,6 +214,7 @@ class UnitNodeService:
             BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
             BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE,
             BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE,
+            BackendTopicCommand.LOG_SYNC: ReservedInputBaseTopic.LOG_SYNC,
         }
 
         target_topic = command_to_topic_dict[command] + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
