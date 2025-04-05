@@ -3,10 +3,12 @@ import datetime
 import json
 import logging
 import time
+import uuid
 
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
+from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.configs.errors import MqttError, UpdateError
 from app.configs.gql import get_unit_node_service
@@ -15,6 +17,7 @@ from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.dto.agent.abc import AgentBackend
+from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     DestinationTopicType,
     GlobalPrefixTopic,
@@ -23,6 +26,7 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
@@ -127,6 +131,56 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     logging.error(e)
                 finally:
                     db.close()
+
+            if topic_name == ReservedOutputBaseTopic.LOG + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
+                client = next(get_clickhouse_client())
+                db = next(get_session())
+
+                try:
+                    unit_repository = UnitRepository(db)
+                    unit_log_repository = UnitLogRepository(client)
+
+                    log_data = is_valid_json(payload.decode(), "unit hardware log")
+
+                    unit = unit_repository.get(Unit(uuid=unit_uuid))
+                    is_valid_object(unit)
+
+                    if isinstance(log_data, list):
+                        unit_log_repository.bulk_create(
+                            [
+                                UnitLog(
+                                    uuid=uuid.uuid4(),
+                                    level=item['level'].capitalize(),
+                                    unit_uuid=unit.uuid,
+                                    text=item['text'],
+                                    create_datetime=datetime.datetime.utcnow(),
+                                )
+                                for item in log_data
+                            ]
+                        )
+
+                    elif isinstance(log_data, dict):
+                        unit_log_repository.create(
+                            UnitLog(
+                                uuid=uuid.uuid4(),
+                                level=log_data['level'].capitalize(),
+                                unit_uuid=unit.uuid,
+                                text=log_data['text'],
+                                create_datetime=datetime.datetime.utcnow(),
+                            )
+                        )
+
+                    unit.last_update_datetime = datetime.datetime.utcnow()
+                    unit_repository.update(
+                        unit_uuid,
+                        unit,
+                    )
+
+                except Exception as e:
+                    logging.error(e)
+                finally:
+                    db.close()
+                    client.disconnect()
 
     elif len(topic_split) == 3:
         backend_domain, unit_node_uuid, *_ = topic_split
