@@ -45,5 +45,5 @@ settings.mqtt_http_type = 'https' if settings.mqtt_secure else 'http'
 settings.backend_link = f'{settings.backend_http_type}://{settings.backend_domain}'
 settings.backend_link_prefix = settings.backend_link + settings.backend_app_prefix
 settings.backend_link_prefix_and_v1 = settings.backend_link_prefix + settings.backend_api_v1_prefix
-
-settings.clickhouse_connection = ClickHouseConnectionParams.from_connection_string(settings.clickhouse_database_url)
+if settings.clickhouse_database_url:
+    settings.clickhouse_connection = ClickHouseConnectionParams.from_connection_string(settings.clickhouse_database_url)

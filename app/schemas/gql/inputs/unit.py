@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from app.dto.enum import OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import LogLevel, OrderByDate, OrderByText, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -62,3 +62,15 @@ class UnitFilterInput(TypeInputMixin):
     unit_node_type: Optional[list[UnitNodeTypeEnum]] = tuple([item for item in UnitNodeTypeEnum])
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
     unit_node_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+
+
+@strawberry.input()
+class UnitLogFilterInput(TypeInputMixin):
+    uuid: uuid_pkg.UUID
+
+    level: Optional[list[LogLevel]] = tuple([item for item in LogLevel])
+
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
