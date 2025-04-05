@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel, root_validator
 
-from app.dto.enum import OrderByDate, OrderByText, UnitFirmwareUpdateStatus, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import LogLevel, OrderByDate, OrderByText, UnitFirmwareUpdateStatus, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -141,3 +141,18 @@ class StateStorage(BaseModel):
 
 class EnvJsonString(BaseModel):
     env_json_string: str
+
+
+@dataclass
+class UnitLogFilter:
+    uuid: uuid_pkg.UUID
+
+    level: Optional[list[str]] = Query([item.value for item in LogLevel])
+
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__

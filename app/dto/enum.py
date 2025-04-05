@@ -112,6 +112,7 @@ class ReservedOutputBaseTopic(str, enum.Enum):
     """
 
     STATE = 'state'
+    LOG = 'log'
 
 
 @strawberry.enum
@@ -123,6 +124,7 @@ class BackendTopicCommand(str, enum.Enum):
     UPDATE = 'Update'
     ENV_UPDATE = 'EnvUpdate'
     SCHEMA_UPDATE = 'SchemaUpdate'
+    LOG_SYNC = 'LogSync'
 
 
 @strawberry.enum
@@ -235,3 +237,16 @@ class GitPlatform(str, enum.Enum):
 
     GITLAB = 'Gitlab'
     GITHUB = 'Github'
+
+
+@strawberry.enum
+class LogLevel(str, enum.Enum):
+    """
+    Types of log levels
+    """
+
+    DEBUG = 'Debug'
+    INFO = 'Info'
+    WARNING = 'Warning'
+    ERROR = 'Error'
+    CRITICAL = 'Critical'
