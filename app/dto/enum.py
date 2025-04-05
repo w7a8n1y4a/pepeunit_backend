@@ -136,6 +136,7 @@ class ReservedInputBaseTopic(str, enum.Enum):
     UPDATE = 'update'
     ENV_UPDATE = 'env_update'
     SCHEMA_UPDATE = 'schema_update'
+    LOG_SYNC = 'log_sync'
 
 
 @strawberry.enum
