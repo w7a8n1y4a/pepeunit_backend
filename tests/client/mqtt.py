@@ -90,7 +90,6 @@ class DualLogger:
     def _send_mqtt(self, client, log_entry):
         try:
             topic = self.mqtt_client.unit_file_manager.schema['output_base_topic']['log/pepeunit'][0]
-            print(topic)
             client.publish(topic, json.dumps(log_entry))
         except Exception as e:
             print(f"Ошибка при отправке в MQTT: {e}")
@@ -319,13 +318,15 @@ class MQTTClient:
     def on_connect(self, client, userdata, flags, rc) -> None:
         if rc == 0:
             print("Connected to MQTT Broker!")
+            self.dual_logger.log(LogLevel.INFO, 'Connected to MQTT Broker!', client)
         else:
-            print(f"Failed to connect, return code {rc}\n")
+            self.dual_logger.log(LogLevel.CRITICAL, f"Failed to connect, return code {rc}\n")
 
         client.subscribe([(topic, 0) for topic in self.unit_file_manager.get_input_topics()])
 
     def on_subscribe(self, client, userdata, mid, granted_qos) -> None:
         print("Subscribed: " + str(mid) + " " + str(granted_qos))
+        self.dual_logger.log(LogLevel.INFO, "Subscribed: " + str(mid) + " " + str(granted_qos), client)
 
     def get_system_state(self) -> dict:
         memory_info = psutil.virtual_memory()
@@ -361,22 +362,26 @@ class MQTTClient:
 
     def publish_to_output_topic(self, topic_name: str, message: str) -> None:
         if topic_name not in self.unit_file_manager.schema['output_topic']:
+            self.dual_logger.log(LogLevel.CRITICAL, f'Topic {topic_name} not found in schema')
             raise KeyError(f'Topic {topic_name} not found in schema')
 
         for topic in self.unit_file_manager.schema['output_topic'][topic_name]:
             result = self.client.publish(topic, message)
             if result[0] != 0:
-                print(f"Failed to send message to topic {topic}")
+                self.dual_logger.log(LogLevel.ERROR, f"Failed to send message to topic {topic}", self.client)
 
     @staticmethod
     def get_topic_split(topic: str) -> tuple:
         return tuple(topic.split('/'))
 
     async def run(self) -> None:
-        await self.connect_mqtt()
-        self.client.loop_start()
-        await self.publish_messages()
-        self.client.loop_stop()
+        try:
+            await self.connect_mqtt()
+            self.client.loop_start()
+            await self.publish_messages()
+            self.client.loop_stop()
+        except Exception as e:
+            self.dual_logger.log(LogLevel.CRITICAL, f'Exception: {e}')
 
 
 if __name__ == '__main__':
