@@ -12,7 +12,26 @@ import httpx
 import psutil
 from paho.mqtt import client as mqtt_client
 
-from tests.client.config import BaseConfig
+
+class Settings:
+    PEPEUNIT_URL = ''
+    PEPEUNIT_APP_PREFIX = ''
+    PEPEUNIT_API_ACTUAL_PREFIX = ''
+    HTTP_TYPE = ''
+    MQTT_URL = ''
+    MQTT_PORT = 1883
+    PEPEUNIT_TOKEN = ''
+    SYNC_ENCRYPT_KEY = ''
+    SECRET_KEY = ''
+    COMMIT_VERSION = ''
+    PING_INTERVAL = 30
+    STATE_SEND_INTERVAL = 300
+    DELAY_PUB_MSG = 1
+    PUBLISH_LOG_LEVEL = 'Warning'
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
 class LogLevel(enum.Enum):
@@ -105,50 +124,33 @@ class FileManager:
             shutil.unpack_archive(file_path, extract_path, archive_format)
 
 
-class Downloader:
-    @staticmethod
-    async def download_file(url: str, file_path: str, headers: dict = None) -> None:
-        async with httpx.AsyncClient() as client:
-            r = await client.get(url=url, headers=headers)
-            with open(file_path, 'wb') as f:
-                f.write(r.content)
+class UnitFileManager(FileManager):
 
-
-class UnitStateManager:
-    @staticmethod
-    def get_system_state(commit_version: str) -> dict:
-        memory_info = psutil.virtual_memory()
-        return {
-            'millis': round(time.time() * 1000),
-            'mem_free': memory_info.available,
-            'mem_alloc': memory_info.total - memory_info.available,
-            'freq': psutil.cpu_freq().current,
-            'commit_version': commit_version,
-        }
-
-
-class SchemaManager:
     def __init__(self, unit_uuid: str):
         self.unit_uuid = unit_uuid
+        self.schema = self.read_json_file(f'tmp/test_units/{self.unit_uuid}/schema.json')
+        self.settings = Settings(**FileManager.read_json_file(f"tmp/test_units/{self.unit_uuid}/env.json"))
 
-    def get_schema(self) -> dict:
-        schema_data = FileManager.read_json_file(f"tmp/test_units/{self.unit_uuid}/schema.json")
-        return json.loads(schema_data) if isinstance(schema_data, str) else schema_data
+    def update_schema(self, schema_dict: dict) -> None:
+        self.schema = schema_dict
+        self.write_json_file(f'tmp/test_units/{self.unit_uuid}/schema.json', schema_dict)
+
+    def update_env(self, env_dict: dict) -> None:
+        self.settings = Settings(**env_dict)
+        self.write_json_file(f'tmp/test_units/{self.unit_uuid}/env.json', env_dict)
 
     def get_input_topics(self) -> list[str]:
-        schema_dict = self.get_schema()
         input_topics = []
-        for topic_type in schema_dict.keys():
+        for topic_type in self.schema.keys():
             if 'input' in topic_type:
-                for topic in schema_dict[topic_type].keys():
-                    input_topics.extend(schema_dict[topic_type][topic])
+                for topic in self.schema[topic_type].keys():
+                    input_topics.extend(self.schema[topic_type][topic])
         return input_topics
 
     def search_topic_in_schema(self, node_uuid: str) -> tuple[str, str]:
-        schema_dict = self.get_schema()
-        for topic_type in schema_dict.keys():
-            for topic_name in schema_dict[topic_type].keys():
-                for topic in schema_dict[topic_type][topic_name]:
+        for topic_type in self.schema.keys():
+            for topic_name in self.schema[topic_type].keys():
+                for topic in self.schema[topic_type][topic_name]:
                     if node_uuid in topic:
                         return topic_type, topic_name
         raise ValueError(f"Topic with node_uuid {node_uuid} not found in schema")
@@ -165,6 +167,13 @@ class MQTTMessageHandler:
             self._handle_structured_message(client, msg, struct_topic)
         elif len(struct_topic) == 3:
             self._handle_input_message(client, msg, struct_topic)
+
+    @staticmethod
+    async def download_file(url: str, file_path: str, headers: dict = None) -> None:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(url=url, headers=headers)
+            with open(file_path, 'wb') as f:
+                f.write(r.content)
 
     def _handle_structured_message(self, client, msg, struct_topic) -> None:
         _, destination, unit_uuid, topic_name, *_ = struct_topic
@@ -188,67 +197,61 @@ class MQTTMessageHandler:
         if 'COMPILED_FIRMWARE_LINK' in update_dict:
             self._download_and_process_update(update_dict['COMPILED_FIRMWARE_LINK'], new_version_path, 'zip')
 
-        if self.mqtt_client.settings.COMMIT_VERSION != new_version:
+        if self.mqtt_client.unit_file_manager.settings.COMMIT_VERSION != new_version:
             self._download_and_process_update(
                 self._get_pepeunit_firmware_url(), new_version_path, 'tgz', self._get_auth_headers()
             )
 
         FileManager.copy_update_files(new_version_path, f'tmp/test_units/{self.mqtt_client.unit.uuid}')
-        self.mqtt_client.settings = self.mqtt_client.get_settings()
 
     def _download_and_process_update(
         self, url: str, extract_path: str, archive_format: str, headers: dict = None
     ) -> None:
         file_path = f'tmp/test_units/{self.mqtt_client.unit.uuid}/update.{archive_format}'
-        asyncio.run(Downloader.download_file(url, file_path, headers))
+        asyncio.run(self.download_file(url, file_path, headers))
         FileManager.extract_archive(file_path, extract_path, archive_format)
 
     def _get_pepeunit_firmware_url(self) -> str:
         wbits = 9
         level = 9
         return (
-            f"{self.mqtt_client.settings.HTTP_TYPE}://{self.mqtt_client.settings.PEPEUNIT_URL}"
-            f"{self.mqtt_client.settings.PEPEUNIT_APP_PREFIX}"
-            f"{self.mqtt_client.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/firmware/tgz/{self.mqtt_client.unit.uuid}"
+            f"{self.mqtt_client.unit_file_manager.settings.HTTP_TYPE}://{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_URL}"
+            f"{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_APP_PREFIX}"
+            f"{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/firmware/tgz/{self.mqtt_client.unit.uuid}"
             f"?wbits={wbits}&level={level}"
         )
 
     def _get_auth_headers(self) -> dict:
-        return {'accept': 'application/json', 'x-auth-token': self.mqtt_client.settings.PEPEUNIT_TOKEN.encode()}
+        return {
+            'accept': 'application/json',
+            'x-auth-token': self.mqtt_client.unit_file_manager.settings.PEPEUNIT_TOKEN.encode(),
+        }
 
     def _handle_schema_update(self, client) -> None:
         headers = self._get_auth_headers()
         url = (
-            f"{self.mqtt_client.settings.HTTP_TYPE}://{self.mqtt_client.settings.PEPEUNIT_URL}"
-            f"{self.mqtt_client.settings.PEPEUNIT_APP_PREFIX}"
-            f"{self.mqtt_client.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/get_current_schema/{self.mqtt_client.unit.uuid}"
+            f"{self.mqtt_client.unit_file_manager.settings.HTTP_TYPE}://{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_URL}"
+            f"{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_APP_PREFIX}"
+            f"{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/get_current_schema/{self.mqtt_client.unit.uuid}"
         )
 
-        async def update_schema():
-            async with httpx.AsyncClient() as http_client:
-                r = await http_client.get(url=url, headers=headers)
-                FileManager.write_json_file(f'tmp/test_units/{self.mqtt_client.unit.uuid}/schema.json', r.json())
-                client.subscribe([(topic, 0) for topic in self.mqtt_client.schema_manager.get_input_topics()])
-
-        asyncio.run(update_schema())
+        result = httpx.get(url, headers=headers)
+        self.mqtt_client.unit_file_manager.update_schema(result.json())
+        client.subscribe([(topic, 0) for topic in self.mqtt_client.unit_file_manager.get_input_topics()])
 
     def _handle_env_update(self) -> None:
         headers = self._get_auth_headers()
         url = (
-            f"{self.mqtt_client.settings.HTTP_TYPE}://{self.mqtt_client.settings.PEPEUNIT_URL}"
-            f"{self.mqtt_client.settings.PEPEUNIT_APP_PREFIX}"
-            f"{self.mqtt_client.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/env/{self.mqtt_client.unit.uuid}"
+            f"{self.mqtt_client.unit_file_manager.settings.HTTP_TYPE}://{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_URL}"
+            f"{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_APP_PREFIX}"
+            f"{self.mqtt_client.unit_file_manager.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/env/{self.mqtt_client.unit.uuid}"
         )
 
-        async def update_env():
-            async with httpx.AsyncClient() as http_client:
-                r = await http_client.get(url=url, headers=headers)
-                FileManager.write_json_file(f'tmp/test_units/{self.mqtt_client.unit.uuid}/env.json', r.json())
-
-        asyncio.run(update_env(self.mqtt_client.get_settings()))
+        result = httpx.get(url, headers=headers)
+        self.mqtt_client.unit_file_manager.update_env(result.json())
 
     def _handle_log_sync(self, client) -> None:
-        schema_dict = SchemaManager(self.mqtt_client.unit.uuid).get_schema()
+        schema_dict = self.mqtt_client.unit_file_manager.schema
         topic = schema_dict['output_base_topic']['log/pepeunit'][0]
 
         try:
@@ -260,7 +263,7 @@ class MQTTMessageHandler:
 
     def _handle_input_message(self, client, msg, struct_topic) -> None:
         try:
-            topic_type, topic_name = self.mqtt_client.schema_manager.search_topic_in_schema(struct_topic[1])
+            topic_type, topic_name = self.mqtt_client.unit_file_manager.search_topic_in_schema(struct_topic[1])
 
             if topic_type == 'input_topic' and topic_name == 'input/pepeunit':
                 value = msg.payload.decode()
@@ -281,22 +284,18 @@ class MQTTClient:
     def __init__(self, unit):
         self.client = None
         self.unit = unit
-        self.settings = self.get_settings()
-        self.schema_manager = SchemaManager(self.unit.uuid)
+        self.unit_file_manager = UnitFileManager(unit_uuid=unit.uuid)
         self.message_handler = MQTTMessageHandler(self)
-
-    def get_settings(self) -> BaseConfig:
-        return BaseConfig(**FileManager.read_json_file(f"tmp/test_units/{self.unit.uuid}/env.json"))
 
     async def connect_mqtt(self) -> mqtt_client.Client:
         self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, str(uuid.uuid4()))
 
-        self.client.username_pw_set(self.settings.PEPEUNIT_TOKEN, '')
+        self.client.username_pw_set(self.unit_file_manager.settings.PEPEUNIT_TOKEN, '')
         self.client.on_connect = self.on_connect
         self.client.on_subscribe = self.on_subscribe
         self.client.on_message = self.message_handler.handle_message
 
-        self.client.connect(self.settings.MQTT_URL, self.settings.MQTT_PORT)
+        self.client.connect(self.unit_file_manager.settings.MQTT_URL, self.unit_file_manager.settings.MQTT_PORT)
         return self.client
 
     def on_connect(self, client, userdata, flags, rc) -> None:
@@ -305,33 +304,48 @@ class MQTTClient:
         else:
             print(f"Failed to connect, return code {rc}\n")
 
-        client.subscribe([(topic, 0) for topic in self.schema_manager.get_input_topics()])
+        client.subscribe([(topic, 0) for topic in self.unit_file_manager.get_input_topics()])
 
     def on_subscribe(self, client, userdata, mid, granted_qos) -> None:
         print("Subscribed: " + str(mid) + " " + str(granted_qos))
 
+    @staticmethod
+    def get_system_state(commit_version: str) -> dict:
+        memory_info = psutil.virtual_memory()
+        return {
+            'millis': round(time.time() * 1000),
+            'mem_free': memory_info.available,
+            'mem_alloc': memory_info.total - memory_info.available,
+            'freq': psutil.cpu_freq().current,
+            'commit_version': commit_version,
+        }
+
     async def publish_messages(self) -> None:
         msg_count = 1
-        schema_dict = self.schema_manager.get_schema()
+        schema_dict = self.unit_file_manager.schema
 
         while True:
             current_time = time.time()
 
-            if (current_time - self.settings.DELAY_PUB_MSG) >= self.settings.DELAY_PUB_MSG:
+            if (
+                current_time - self.unit_file_manager.settings.DELAY_PUB_MSG
+            ) >= self.unit_file_manager.settings.DELAY_PUB_MSG:
                 for topic in schema_dict['output_topic'].keys():
                     msg = f"messages: {msg_count // 10}"
                     self.publish_to_output_topic(topic, msg)
                 msg_count += 1
 
-            if (current_time - self.settings.STATE_SEND_INTERVAL) >= self.settings.STATE_SEND_INTERVAL:
+            if (
+                current_time - self.unit_file_manager.settings.STATE_SEND_INTERVAL
+            ) >= self.unit_file_manager.settings.STATE_SEND_INTERVAL:
                 topic = schema_dict['output_base_topic']['state/pepeunit'][0]
-                msg = json.dumps(UnitStateManager.get_system_state(self.settings.COMMIT_VERSION))
+                msg = json.dumps(self.get_system_state(self.unit_file_manager.settings.COMMIT_VERSION))
                 self.client.publish(topic, msg)
 
             await asyncio.sleep(0.25)
 
     def publish_to_output_topic(self, topic_name: str, message: str) -> None:
-        schema_dict = self.schema_manager.get_schema()
+        schema_dict = self.unit_file_manager.schema
 
         if topic_name not in schema_dict['output_topic']:
             raise KeyError(f'Topic {topic_name} not found in schema')
