@@ -7,11 +7,11 @@ import sys
 import time
 import uuid
 import zlib
-from xml.etree.ElementTree import indent
+from collections import namedtuple
 
 import httpx
 import psutil
-from paho.mqtt import client as mqtt_client
+from paho.mqtt import client as paho_mqtt_client
 
 
 class Settings:
@@ -28,7 +28,7 @@ class Settings:
     PING_INTERVAL = 30
     STATE_SEND_INTERVAL = 300
     DELAY_PUB_MSG = 1
-    PUBLISH_LOG_LEVEL = 'Warning'
+    PUBLISH_LOG_LEVEL = 'Debug'
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -60,7 +60,7 @@ class DualLogger:
         self.publish_level = publish_level
         self.log_file = f'tmp/test_units/{self.unit_uuid}/log.json'
 
-    def log(self, level: LogLevel, message: str, client: mqtt_client.Client = None):
+    def log(self, level: LogLevel, message: str, client: paho_mqtt_client.Client = None):
 
         log_entry = {'level': level.value, 'text': message}
 
@@ -305,8 +305,8 @@ class MQTTClient:
         self.dual_logger = DualLogger(self, LogLevel(self.unit_file_manager.settings.PUBLISH_LOG_LEVEL), self.unit.uuid)
         self.message_handler = MQTTMessageHandler(self)
 
-    async def connect_mqtt(self) -> mqtt_client.Client:
-        self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, str(uuid.uuid4()))
+    async def connect_mqtt(self) -> paho_mqtt_client.Client:
+        self.client = paho_mqtt_client.Client(paho_mqtt_client.CallbackAPIVersion.VERSION1, str(uuid.uuid4()))
 
         self.client.username_pw_set(self.unit_file_manager.settings.PEPEUNIT_TOKEN, '')
         self.client.on_connect = self.on_connect
@@ -377,3 +377,11 @@ class MQTTClient:
         self.client.loop_start()
         await self.publish_messages()
         self.client.loop_stop()
+
+
+if __name__ == '__main__':
+    UnitType = namedtuple('Unit', ['uuid'])
+    test_unit = UnitType(uuid='d0701385-07ca-4cac-8077-0be91b89727a')
+
+    mqtt_client = MQTTClient(test_unit)
+    asyncio.run(mqtt_client.run())
