@@ -7,6 +7,7 @@ import sys
 import time
 import uuid
 import zlib
+from xml.etree.ElementTree import indent
 
 import httpx
 import psutil
@@ -53,44 +54,51 @@ class LogLevel(enum.Enum):
 
 
 class DualLogger:
-    def __init__(self, unit, client: mqtt_client.Client, publish_level: LogLevel = LogLevel.WARNING):
-        self.unit = unit
-        self.client = client
+    def __init__(self, mqtt_client: 'MQTTClient', publish_level: LogLevel, unit_uuid: str):
+        self.unit_uuid = unit_uuid
+        self.mqtt_client = mqtt_client
         self.publish_level = publish_level
-        self.log_file = f'tmp/test_units/{self.unit.uuid}/log.json'
+        self.log_file = f'tmp/test_units/{self.unit_uuid}/log.json'
 
-    def log(self, level: LogLevel, message: str):
+    def log(self, level: LogLevel, message: str, client: mqtt_client.Client = None):
 
         log_entry = {'level': level.value, 'text': message}
 
         self._write_to_file(log_entry)
 
-        if level.get_int_level() >= self.publish_level.get_int_level():
-            self._send_mqtt(log_entry)
+        if client and level.get_int_level() >= self.publish_level.get_int_level():
+            self._send_mqtt(client, log_entry)
 
     def _write_to_file(self, log_entry):
+
         try:
+            if not os.path.exists(self.log_file):
+                with open(self.log_file, 'w') as f:
+                    f.write(json.dumps([]))
+
             with open(self.log_file, 'r') as f:
                 logs = json.loads(f.read())
 
             logs.append(log_entry)
 
             with open(self.log_file, 'w') as f:
-                json.dumps(logs, indent=4)
+                f.write(json.dumps(logs, indent=4))
 
         except Exception as e:
-            pass
+            print(f"Ошибка записи в файлы при сохранении в log.json: {e}")
 
-    def _send_mqtt(self, log_entry):
+    def _send_mqtt(self, client, log_entry):
         try:
-            self.client.publish(self.mqtt_topic, json.dumps(log_entry))
+            topic = self.mqtt_client.unit_file_manager.schema['output_base_topic']['log/pepeunit'][0]
+            print(topic)
+            client.publish(topic, json.dumps(log_entry))
         except Exception as e:
             print(f"Ошибка при отправке в MQTT: {e}")
 
 
 class FileManager:
     @staticmethod
-    def read_json_file(file_path: str) -> dict:
+    def read_json_file(file_path: str) -> dict or list:
         with open(file_path, 'r') as f:
             return json.loads(f.read())
 
@@ -139,6 +147,9 @@ class UnitFileManager(FileManager):
         self.settings = Settings(**env_dict)
         self.write_json_file(f'tmp/test_units/{self.unit_uuid}/env.json', env_dict)
 
+    def update_env_from_file(self) -> None:
+        self.settings = Settings(**FileManager.read_json_file(f"tmp/test_units/{self.unit_uuid}/env.json"))
+
     def get_input_topics(self) -> list[str]:
         input_topics = []
         for topic_type in self.schema.keys():
@@ -154,6 +165,9 @@ class UnitFileManager(FileManager):
                     if node_uuid in topic:
                         return topic_type, topic_name
         raise ValueError(f"Topic with node_uuid {node_uuid} not found in schema")
+
+    def get_log_file(self) -> list:
+        return self.read_json_file(f'tmp/test_units/{self.unit_uuid}/log.json')
 
 
 class MQTTMessageHandler:
@@ -179,6 +193,9 @@ class MQTTMessageHandler:
         _, destination, unit_uuid, topic_name, *_ = struct_topic
 
         if destination == 'input_base_topic':
+
+            self.mqtt_client.dual_logger.log(LogLevel.INFO, f'Unit {unit_uuid} get msg from topic {topic_name}', client)
+
             if topic_name == 'update':
                 self._handle_update(msg)
             elif topic_name == 'env_update':
@@ -203,6 +220,7 @@ class MQTTMessageHandler:
             )
 
         FileManager.copy_update_files(new_version_path, f'tmp/test_units/{self.mqtt_client.unit.uuid}')
+        self.mqtt_client.unit_file_manager.update_env_from_file()
 
     def _download_and_process_update(
         self, url: str, extract_path: str, archive_format: str, headers: dict = None
@@ -236,7 +254,7 @@ class MQTTMessageHandler:
         )
 
         result = httpx.get(url, headers=headers)
-        self.mqtt_client.unit_file_manager.update_schema(result.json())
+        self.mqtt_client.unit_file_manager.update_schema(json.loads(result.json()))
         client.subscribe([(topic, 0) for topic in self.mqtt_client.unit_file_manager.get_input_topics()])
 
     def _handle_env_update(self) -> None:
@@ -248,14 +266,13 @@ class MQTTMessageHandler:
         )
 
         result = httpx.get(url, headers=headers)
-        self.mqtt_client.unit_file_manager.update_env(result.json())
+        self.mqtt_client.unit_file_manager.update_env(json.loads(result.json()))
 
     def _handle_log_sync(self, client) -> None:
-        schema_dict = self.mqtt_client.unit_file_manager.schema
-        topic = schema_dict['output_base_topic']['log/pepeunit'][0]
+        topic = self.mqtt_client.unit_file_manager.schema['output_base_topic']['log/pepeunit'][0]
 
         try:
-            msg = json.dumps(FileManager.read_json_file(f'tmp/test_units/{self.mqtt_client.unit.uuid}/log.json'))
+            msg = json.dumps(self.mqtt_client.unit_file_manager.get_log_file(), indent=4)
         except Exception as e:
             msg = json.dumps({'level': 'Debug', 'message': str(e)})
 
@@ -285,6 +302,7 @@ class MQTTClient:
         self.client = None
         self.unit = unit
         self.unit_file_manager = UnitFileManager(unit_uuid=unit.uuid)
+        self.dual_logger = DualLogger(self, LogLevel(self.unit_file_manager.settings.PUBLISH_LOG_LEVEL), self.unit.uuid)
         self.message_handler = MQTTMessageHandler(self)
 
     async def connect_mqtt(self) -> mqtt_client.Client:
@@ -309,28 +327,25 @@ class MQTTClient:
     def on_subscribe(self, client, userdata, mid, granted_qos) -> None:
         print("Subscribed: " + str(mid) + " " + str(granted_qos))
 
-    @staticmethod
-    def get_system_state(commit_version: str) -> dict:
+    def get_system_state(self) -> dict:
         memory_info = psutil.virtual_memory()
         return {
             'millis': round(time.time() * 1000),
             'mem_free': memory_info.available,
             'mem_alloc': memory_info.total - memory_info.available,
             'freq': psutil.cpu_freq().current,
-            'commit_version': commit_version,
+            'commit_version': self.unit_file_manager.settings.COMMIT_VERSION,
         }
 
     async def publish_messages(self) -> None:
         msg_count = 1
-        schema_dict = self.unit_file_manager.schema
-
         while True:
             current_time = time.time()
 
             if (
                 current_time - self.unit_file_manager.settings.DELAY_PUB_MSG
             ) >= self.unit_file_manager.settings.DELAY_PUB_MSG:
-                for topic in schema_dict['output_topic'].keys():
+                for topic in self.unit_file_manager.schema['output_topic'].keys():
                     msg = f"messages: {msg_count // 10}"
                     self.publish_to_output_topic(topic, msg)
                 msg_count += 1
@@ -338,19 +353,17 @@ class MQTTClient:
             if (
                 current_time - self.unit_file_manager.settings.STATE_SEND_INTERVAL
             ) >= self.unit_file_manager.settings.STATE_SEND_INTERVAL:
-                topic = schema_dict['output_base_topic']['state/pepeunit'][0]
-                msg = json.dumps(self.get_system_state(self.unit_file_manager.settings.COMMIT_VERSION))
+                topic = self.unit_file_manager.schema['output_base_topic']['state/pepeunit'][0]
+                msg = json.dumps(self.get_system_state())
                 self.client.publish(topic, msg)
 
             await asyncio.sleep(0.25)
 
     def publish_to_output_topic(self, topic_name: str, message: str) -> None:
-        schema_dict = self.unit_file_manager.schema
-
-        if topic_name not in schema_dict['output_topic']:
+        if topic_name not in self.unit_file_manager.schema['output_topic']:
             raise KeyError(f'Topic {topic_name} not found in schema')
 
-        for topic in schema_dict['output_topic'][topic_name]:
+        for topic in self.unit_file_manager.schema['output_topic'][topic_name]:
             result = self.client.publish(topic, message)
             if result[0] != 0:
                 print(f"Failed to send message to topic {topic}")
