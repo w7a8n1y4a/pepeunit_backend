@@ -1,4 +1,5 @@
 import asyncio
+import enum
 import json
 import os
 import shutil
@@ -12,6 +13,60 @@ import psutil
 from paho.mqtt import client as mqtt_client
 
 from tests.client.config import BaseConfig
+
+
+class LogLevel(enum.Enum):
+    DEBUG = 'Debug'
+    INFO = 'Info'
+    WARNING = 'Warning'
+    ERROR = 'Error'
+    CRITICAL = 'Critical'
+
+    def get_int_level(self) -> int:
+        level_mapping = {
+            LogLevel.DEBUG: 0,
+            LogLevel.INFO: 1,
+            LogLevel.WARNING: 2,
+            LogLevel.ERROR: 3,
+            LogLevel.CRITICAL: 4,
+        }
+        return level_mapping[self]
+
+
+class DualLogger:
+    def __init__(self, unit, client: mqtt_client.Client, publish_level: LogLevel = LogLevel.WARNING):
+        self.unit = unit
+        self.client = client
+        self.publish_level = publish_level
+        self.log_file = f'tmp/test_units/{self.unit.uuid}/log.json'
+
+    def log(self, level: LogLevel, message: str):
+
+        log_entry = {'level': level.value, 'text': message}
+
+        self._write_to_file(log_entry)
+
+        if level.get_int_level() >= self.publish_level.get_int_level():
+            self._send_mqtt(log_entry)
+
+    def _write_to_file(self, log_entry):
+        try:
+            with open(self.log_file, 'r') as f:
+                logs = json.loads(f.read())
+
+            logs.append(log_entry)
+
+            with open(self.log_file, 'w') as f:
+                json.dumps(logs, indent=4)
+
+        except Exception as e:
+            pass
+
+    def _send_mqtt(self, log_entry):
+        try:
+            self.client.publish(self.mqtt_topic, json.dumps(log_entry))
+        except Exception as e:
+            print(f"Ошибка при отправке в MQTT: {e}")
 
 
 class FileManager:
@@ -117,8 +172,12 @@ class MQTTMessageHandler:
         if destination == 'input_base_topic':
             if topic_name == 'update':
                 self._handle_update(msg)
+            elif topic_name == 'env_update':
+                self._handle_env_update()
             elif topic_name == 'schema_update':
                 self._handle_schema_update(client)
+            elif topic_name == 'log_sync':
+                self._handle_log_sync(client)
 
     def _handle_update(self, msg) -> None:
         update_dict = json.loads(msg.payload.decode())
@@ -173,6 +232,32 @@ class MQTTMessageHandler:
 
         asyncio.run(update_schema())
 
+    def _handle_env_update(self) -> None:
+        headers = self._get_auth_headers()
+        url = (
+            f"{self.mqtt_client.settings.HTTP_TYPE}://{self.mqtt_client.settings.PEPEUNIT_URL}"
+            f"{self.mqtt_client.settings.PEPEUNIT_APP_PREFIX}"
+            f"{self.mqtt_client.settings.PEPEUNIT_API_ACTUAL_PREFIX}/units/env/{self.mqtt_client.unit.uuid}"
+        )
+
+        async def update_env():
+            async with httpx.AsyncClient() as http_client:
+                r = await http_client.get(url=url, headers=headers)
+                FileManager.write_json_file(f'tmp/test_units/{self.mqtt_client.unit.uuid}/env.json', r.json())
+
+        asyncio.run(update_env(self.mqtt_client.get_settings()))
+
+    def _handle_log_sync(self, client) -> None:
+        schema_dict = SchemaManager(self.mqtt_client.unit.uuid).get_schema()
+        topic = schema_dict['output_base_topic']['log/pepeunit'][0]
+
+        try:
+            msg = json.dumps(FileManager.read_json_file(f'tmp/test_units/{self.mqtt_client.unit.uuid}/log.json'))
+        except Exception as e:
+            msg = json.dumps({'level': 'Debug', 'message': str(e)})
+
+        client.publish(topic, msg)
+
     def _handle_input_message(self, client, msg, struct_topic) -> None:
         try:
             topic_type, topic_name = self.mqtt_client.schema_manager.search_topic_in_schema(struct_topic[1])
@@ -182,7 +267,7 @@ class MQTTMessageHandler:
                 try:
                     value = int(value)
                     FileManager.write_json_file(
-                        f'tmp/test_units/{self.mqtt_client.unit.uuid}/log.json',
+                        f'tmp/test_units/{self.mqtt_client.unit.uuid}/log_state.json',
                         {'value': value, 'input_topic': struct_topic},
                     )
                     self.mqtt_client.publish_to_output_topic('output/pepeunit', str(value))
