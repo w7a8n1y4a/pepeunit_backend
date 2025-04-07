@@ -129,7 +129,7 @@ def test_create_unit_node_edge(database) -> None:
     for unit in target_units:
         logging.info(unit.uuid)
 
-        filepath = f'tmp/test_units/{unit.uuid}/log.json'
+        filepath = f'tmp/test_units/{unit.uuid}/log_state.json'
 
         assert os.path.exists(filepath)
 
