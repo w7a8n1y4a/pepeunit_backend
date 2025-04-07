@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import enum
 import json
 import os
@@ -62,7 +63,7 @@ class DualLogger:
 
     def log(self, level: LogLevel, message: str, client: paho_mqtt_client.Client = None):
 
-        log_entry = {'level': level.value, 'text': message}
+        log_entry = {'level': level.value, 'text': message, 'create_datetime': datetime.datetime.utcnow().isoformat()}
 
         self._write_to_file(log_entry)
 
@@ -386,7 +387,7 @@ class MQTTClient:
 
 if __name__ == '__main__':
     UnitType = namedtuple('Unit', ['uuid'])
-    test_unit = UnitType(uuid='d0701385-07ca-4cac-8077-0be91b89727a')
+    test_unit = UnitType(uuid='d30e186a-57de-4ce9-abd8-71a4ea72abfe')
 
     mqtt_client = MQTTClient(test_unit)
     asyncio.run(mqtt_client.run())

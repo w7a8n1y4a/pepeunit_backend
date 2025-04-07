@@ -53,8 +53,6 @@ class UnitLogRepository:
         if filters.offset:
             query += f" offset %(offset)s"
 
-        print(query)
-
         unit_logs = self.orm.get_many(
             query,
             {
@@ -66,48 +64,3 @@ class UnitLogRepository:
         )
 
         return len(unit_logs), unit_logs
-
-
-if __name__ == '__main__':
-
-    test = UnitLogRepository(next(get_clickhouse_client()))
-
-    two = test.create(
-        UnitLog(
-            uuid=uuid_pkg.uuid4(),
-            level=LogLevel.INFO,
-            unit_uuid=uuid_pkg.uuid4(),
-            text='test data',
-            create_datetime=datetime.utcnow(),
-        )
-    )
-
-    print(two)
-
-    unit_uuid = uuid_pkg.uuid4()
-
-    two = test.bulk_create(
-        [
-            UnitLog(
-                uuid=uuid_pkg.uuid4(),
-                level=LogLevel.INFO,
-                unit_uuid=unit_uuid,
-                text='test data',
-                create_datetime=datetime.utcnow() - timedelta(hours=23, minutes=item),
-            )
-            for item in range(20)
-        ]
-    )
-
-    print(two)
-
-    print(test.get(uuid='46aac02a-747c-4d61-b9be-4f9c823c2a91'))
-
-    data = test.list(
-        UnitLogFilter(uuid=unit_uuid, order_by_create_date=OrderByDate.desc, level=[LogLevel.DEBUG], limit=10, offset=1)
-    )
-
-    print(data)
-
-    for item in data[1]:
-        print(item.create_datetime)

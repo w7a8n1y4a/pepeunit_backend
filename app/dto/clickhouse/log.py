@@ -13,3 +13,4 @@ class UnitLog(BaseModel, ClickHouseBaseMixin):
     unit_uuid: uuid_pkg.UUID
     text: str
     create_datetime: datetime
+    expiration_datetime: datetime
