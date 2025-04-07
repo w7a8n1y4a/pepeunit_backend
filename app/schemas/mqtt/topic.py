@@ -145,30 +145,29 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     unit = unit_repository.get(Unit(uuid=unit_uuid))
                     is_valid_object(unit)
 
-                    if isinstance(log_data, list):
-                        unit_log_repository.bulk_create(
-                            [
-                                UnitLog(
-                                    uuid=uuid.uuid4(),
-                                    level=item['level'].capitalize(),
-                                    unit_uuid=unit.uuid,
-                                    text=item['text'],
-                                    create_datetime=datetime.datetime.utcnow(),
-                                )
-                                for item in log_data
-                            ]
-                        )
+                    if isinstance(log_data, dict):
+                        log_data = [log_data]
 
-                    elif isinstance(log_data, dict):
-                        unit_log_repository.create(
+                    server_datetime = datetime.datetime.utcnow()
+
+                    unit_log_repository.bulk_create(
+                        [
                             UnitLog(
                                 uuid=uuid.uuid4(),
-                                level=log_data['level'].capitalize(),
+                                level=item['level'].capitalize(),
                                 unit_uuid=unit.uuid,
-                                text=log_data['text'],
-                                create_datetime=datetime.datetime.utcnow(),
+                                text=item['text'],
+                                create_datetime=(
+                                    item['create_datetime']
+                                    if item.get('create_datetime')
+                                    else server_datetime + datetime.timedelta(seconds=inc)
+                                ),
+                                expiration_datetime=datetime.datetime.utcnow()
+                                + datetime.timedelta(seconds=settings.backend_unit_log_expiration),
                             )
-                        )
+                            for inc, item in enumerate(log_data)
+                        ]
+                    )
 
                     unit.last_update_datetime = datetime.datetime.utcnow()
                     unit_repository.update(
