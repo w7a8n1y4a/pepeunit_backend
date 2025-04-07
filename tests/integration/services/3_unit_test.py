@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from app import settings
+from app.configs.clickhouse import get_clickhouse_client
 from app.configs.errors import (
     CipherError,
     GitRepoError,
@@ -19,9 +20,11 @@ from app.configs.errors import (
 from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
-from app.dto.enum import StaticRepoFileName, VisibilityLevel
+from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
+from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
-from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitUpdate
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
+from app.services import unit_service
 from app.utils.utils import aes_gcm_encode
 
 
@@ -518,6 +521,102 @@ def test_repo_update_firmware_unit(database) -> None:
 
 
 @pytest.mark.run(order=9)
+def test_env_update_command(database) -> None:
+
+    def set_command(token: str, unit, command: BackendTopicCommand) -> int:
+        headers = {'accept': 'application/json', 'x-auth-token': token}
+
+        url = f'{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.post(url=url, headers=headers)
+
+        return r.status_code
+
+    current_user = pytest.users[0]
+    token = pytest.user_tokens_dict[current_user.uuid]
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    target_unit = pytest.units[-2]
+    logging.info(target_unit.uuid)
+
+    # set new variable for unit
+    current_env = unit_service.get_env(target_unit.uuid)
+    current_env['PUBLISH_LOG_LEVEL'] = 'Info'
+    unit_service.set_env(target_unit.uuid, json.dumps(current_env))
+
+    # send command update env on unit
+    assert set_command(token, target_unit, BackendTopicCommand.ENV_UPDATE) < 400
+
+    # check unit emulation save new env.json to file
+    inc = 0
+    filepath = f'tmp/test_units/{target_unit.uuid}/env.json'
+    while True:
+
+        with open(filepath, 'r') as f:
+            env_dict = json.loads(f.read())
+
+            if env_dict['PUBLISH_LOG_LEVEL'] == 'Info':
+                break
+
+        time.sleep(2)
+
+        if inc > 10:
+            assert False
+
+        inc += 1
+
+
+@pytest.mark.run(order=10)
+def test_log_sync_command(database) -> None:
+
+    def set_command(token: str, unit, command: BackendTopicCommand) -> int:
+        headers = {'accept': 'application/json', 'x-auth-token': token}
+
+        url = f'{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.post(url=url, headers=headers)
+
+        return r.status_code
+
+    current_user = pytest.users[0]
+    token = pytest.user_tokens_dict[current_user.uuid]
+
+    client = next(get_clickhouse_client())
+    try:
+        unit_log_repository = UnitLogRepository(client)
+
+        target_unit = pytest.units[-3]
+        logging.info(target_unit.uuid)
+
+        # send command log sync on unit
+        assert set_command(token, target_unit, BackendTopicCommand.LOG_SYNC) < 400
+
+        # check log in clickhouse with level < default - Warning
+        inc = 0
+        while True:
+
+            count, logs = unit_log_repository.list(UnitLogFilter(uuid=target_unit.uuid, level=['Info']))
+
+            logging.info(count)
+
+            if count:
+                break
+
+            time.sleep(2)
+
+            if inc > 10:
+                assert False
+
+            inc += 1
+    finally:
+        client.disconnect()
+
+
+@pytest.mark.run(order=11)
 def test_get_many_unit(database) -> None:
 
     current_user = pytest.users[0]
