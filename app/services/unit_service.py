@@ -18,6 +18,7 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentBackend, AgentUnit
+from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     AgentType,
     BackendTopicCommand,
@@ -30,15 +31,16 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitUpdateInput
+from app.schemas.gql.inputs.unit import UnitCreateInput, UnitFilterInput, UnitLogFilterInput, UnitUpdateInput
 from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.gql.types.unit import UnitStateType, UnitType
 from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import UnitNodeRead
-from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitRead, UnitUpdate
+from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitRead, UnitUpdate
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
@@ -58,6 +60,7 @@ class UnitService:
         unit_repository: UnitRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
+        unit_log_repository: UnitLogRepository = Depends(),
         access_service: AccessService = Depends(),
         permission_service: PermissionService = Depends(),
         unit_node_service: UnitNodeService = Depends(),
@@ -66,6 +69,7 @@ class UnitService:
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
+        self.unit_log_repository = unit_log_repository
         self.access_service = access_service
         self.permission_service = permission_service
         self.unit_node_service = unit_node_service
@@ -416,6 +420,16 @@ class UnitService:
         return self.unit_repository.list(
             filters, restriction=restriction, is_include_output_unit_nodes=is_include_output_unit_nodes
         )
+
+    def log_list(self, filters: Union[UnitLogFilter, UnitLogFilterInput]) -> tuple[int, List[UnitLog]]:
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+
+        unit = self.unit_repository.get(Unit(uuid=filters.uuid))
+        is_valid_object(unit)
+
+        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
+
+        return self.unit_log_repository.list(filters)
 
     def generate_current_schema(self, unit: Unit, repo: Repo, target_version: str) -> dict:
 

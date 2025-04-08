@@ -38,11 +38,17 @@ class UnitLogRepository:
     def list(self, filters: Union[UnitLogFilter, UnitLogFilterInput]) -> tuple[int, list[UnitLog]]:
 
         query = f"select {UnitLog.get_keys()} from unit_logs where unit_uuid = %(uuid)s"
+        count_query = f"select count() as count from unit_logs where unit_uuid = %(uuid)s"
 
         if filters.level:
             filters.level = filters.level.default if isinstance(filters.level, Query) else filters.level
             data = ', '.join([f"'{item}'" for item in filters.level])
-            query += f' AND level in ({data})'
+            level_append = f' AND level in ({data})'
+
+            query += level_append
+            count_query += level_append
+
+        count = self.client.execute(count_query, {'uuid': filters.uuid})
 
         if filters.order_by_create_date:
             query += f" order by create_datetime {filters.order_by_create_date.value}"
@@ -63,4 +69,4 @@ class UnitLogRepository:
             UnitLog,
         )
 
-        return len(unit_logs), unit_logs
+        return count[0][0], unit_logs

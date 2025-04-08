@@ -2,9 +2,11 @@ from fastapi import Depends
 from sqlmodel import Session
 from strawberry.types import Info
 
+from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -56,6 +58,7 @@ def get_user_service(info: Info) -> UserService:
 
 def get_repo_service(info: Info) -> RepoService:
     db = info.context['db']
+    client = next(get_clickhouse_client())
     jwt_token = info.context['jwt_token']
 
     repo_repository = RepoRepository(db)
@@ -90,6 +93,7 @@ def get_repo_service(info: Info) -> RepoService:
             repo_repository=repo_repository,
             unit_repository=unit_repository,
             unit_node_repository=UnitNodeRepository(db),
+            unit_log_repository=UnitLogRepository(client),
             access_service=access_service,
             permission_service=permission_service,
             unit_node_service=unit_node_service,
@@ -101,6 +105,7 @@ def get_repo_service(info: Info) -> RepoService:
 
 def get_unit_service(info: Info) -> UnitService:
     db = info.context['db']
+    client = next(get_clickhouse_client())
     jwt_token = info.context['jwt_token']
 
     repo_repository = RepoRepository(db)
@@ -132,6 +137,7 @@ def get_unit_service(info: Info) -> UnitService:
         repo_repository=repo_repository,
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
+        unit_log_repository=UnitLogRepository(client),
         access_service=access_service,
         permission_service=permission_service,
         unit_node_service=unit_node_service,
