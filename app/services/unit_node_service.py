@@ -26,6 +26,7 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -59,6 +60,7 @@ class UnitNodeService:
         unit_repository: UnitRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
+        unit_log_repository: UnitLogRepository = Depends(),
         unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
@@ -67,6 +69,7 @@ class UnitNodeService:
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
+        self.unit_log_repository = unit_log_repository
         self.unit_node_edge_repository = unit_node_edge_repository
         self.permission_service = permission_service
         self.access_service = access_service
@@ -230,6 +233,10 @@ class UnitNodeService:
                     platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link
+
+            if command == BackendTopicCommand.LOG_SYNC:
+                self.unit_log_repository.delete(unit.uuid)
+
             try:
                 publish_to_topic(
                     f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{target_topic}",
