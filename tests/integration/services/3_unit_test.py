@@ -636,3 +636,24 @@ def test_get_many_unit(database) -> None:
         )
     )
     assert len(units) == 2
+
+
+@pytest.mark.run(order=12)
+def test_get_unit_logs(database) -> None:
+
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(
+        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
+    )
+
+    target_unit = pytest.units[-3]
+
+    # check many get with all filters
+    count, units = unit_service.log_list(
+        UnitLogFilter(
+            uuid=target_unit.uuid,
+            offset=0,
+            limit=1_000_000,
+        )
+    )
+    assert len(units) > 0
