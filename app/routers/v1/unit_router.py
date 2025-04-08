@@ -18,6 +18,9 @@ from app.schemas.pydantic.unit import (
     StateStorage,
     UnitCreate,
     UnitFilter,
+    UnitLogFilter,
+    UnitLogRead,
+    UnitLogsResult,
     UnitMqttTokenAuth,
     UnitRead,
     UnitsResult,
@@ -143,3 +146,12 @@ def get_units(
 ):
     count, units = unit_service.list(filters, is_include_output_unit_nodes)
     return UnitsResult(count=count, units=[unit_service.mapper_unit_to_unit_read(unit) for unit in units])
+
+
+@router.get("/log_list/", response_model=UnitLogsResult)
+def get_unit_logs(
+    filters: UnitLogFilter = Depends(UnitLogFilter),
+    unit_service: UnitService = Depends(),
+):
+    count, unit_logs = unit_service.log_list(filters)
+    return UnitLogsResult(count=count, unit_logs=[UnitLogRead(**unit_log.dict()) for unit_log in unit_logs])

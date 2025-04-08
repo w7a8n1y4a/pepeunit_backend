@@ -5,7 +5,7 @@ from typing import Optional
 import strawberry
 from strawberry import field
 
-from app.dto.enum import UnitFirmwareUpdateStatus, VisibilityLevel
+from app.dto.enum import LogLevel, UnitFirmwareUpdateStatus, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 from app.schemas.gql.types.shared import UnitNodeType
 
@@ -60,3 +60,19 @@ class UnitType(TypeInputMixin):
 class UnitsResultType(TypeInputMixin):
     count: int
     units: list[UnitType] = field(default_factory=list)
+
+
+@strawberry.type()
+class UnitLogType(TypeInputMixin):
+    uuid: uuid_pkg.UUID
+    level: LogLevel
+    unit_uuid: uuid_pkg.UUID
+    text: str
+    create_datetime: datetime
+    expiration_datetime: datetime
+
+
+@strawberry.type()
+class UnitLogsResultType(TypeInputMixin):
+    count: int
+    unit_logs: list[UnitLogType]

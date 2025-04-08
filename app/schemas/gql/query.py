@@ -25,6 +25,7 @@ Query = create_type(
         get_unit_current_schema,
         get_state_storage,
         get_units,
+        get_unit_logs,
         get_unit_node,
         get_unit_nodes,
         get_base_metrics,

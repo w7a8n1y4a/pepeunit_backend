@@ -5,9 +5,9 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_unit_service
-from app.schemas.gql.inputs.unit import UnitFilterInput
+from app.schemas.gql.inputs.unit import UnitFilterInput, UnitLogFilterInput
 from app.schemas.gql.types.repo import TargetVersionType
-from app.schemas.gql.types.unit import UnitsResultType, UnitStateType, UnitType
+from app.schemas.gql.types.unit import UnitLogsResultType, UnitLogType, UnitsResultType, UnitStateType, UnitType
 from app.schemas.gql.utils import has_selected_field
 
 
@@ -46,3 +46,10 @@ def get_units(filters: UnitFilterInput, info: Info) -> UnitsResultType:
     unit_service = get_unit_service(info)
     count, units = unit_service.list(filters, has_selected_field(info.selected_fields, 'unitNodes'))
     return UnitsResultType(count=count, units=[unit_service.mapper_unit_to_unit_type(unit) for unit in units])
+
+
+@strawberry.field()
+def get_unit_logs(filters: UnitLogFilterInput, info: Info) -> UnitLogsResultType:
+    unit_service = get_unit_service(info)
+    count, unit_logs = unit_service.log_list(filters)
+    return UnitLogsResultType(count=count, unit_logs=[UnitLogType(**unit_log.dict()) for unit_log in unit_logs])

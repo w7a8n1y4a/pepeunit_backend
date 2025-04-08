@@ -72,6 +72,20 @@ class UnitsResult(BaseModel):
     units: list[UnitRead]
 
 
+class UnitLogRead(BaseModel):
+    uuid: uuid_pkg.UUID
+    level: LogLevel
+    unit_uuid: uuid_pkg.UUID
+    text: str
+    create_datetime: datetime
+    expiration_datetime: datetime
+
+
+class UnitLogsResult(BaseModel):
+    count: int
+    unit_logs: list[UnitLogRead]
+
+
 class UnitCreate(BaseModel):
     repo_uuid: uuid_pkg.UUID
 
