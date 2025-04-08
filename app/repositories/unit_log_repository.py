@@ -35,6 +35,10 @@ class UnitLogRepository:
             f"select {UnitLog.get_keys()} from unit_logs where uuid = %(uuid)s", {'uuid': uuid}, UnitLog
         )
 
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
+        query = f"delete from unit_logs where uuid = %(uuid)s"
+        self.client.execute(query, {'uuid': uuid})
+
     def list(self, filters: Union[UnitLogFilter, UnitLogFilterInput]) -> tuple[int, list[UnitLog]]:
 
         query = f"select {UnitLog.get_keys()} from unit_logs where unit_uuid = %(uuid)s"
