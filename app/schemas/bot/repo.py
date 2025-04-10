@@ -126,7 +126,7 @@ async def handle_buttons_handler(callback: types.CallbackQuery):
         ],
         [
             InlineKeyboardButton(text=f'Back', callback_data=f'repo_page_{old_page}'),
-            InlineKeyboardButton(text=f'Browser', url=f'{settings.backend_domain}/repo/{repo.uuid}'),
+            InlineKeyboardButton(text=f'Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
         ],
     ]
 
