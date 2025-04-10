@@ -214,6 +214,7 @@ class CommandNames(str, enum.Enum):
 
     START = 'start'
     HELP = 'help'
+    REPO = 'repo'
     INFO = 'info'
     VERIFICATION = 'verification'
 

@@ -1,21 +1,22 @@
 import logging
 
-from aiogram import types
+from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from fastapi import HTTPException
 
 from app import settings
-from app.configs.bot import bot, dp
 from app.configs.db import get_session
 from app.configs.gql import get_user_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
 from app.repositories.user_repository import UserRepository
 
+base_router = Router()
 
-@dp.message(Command(CommandNames.START, CommandNames.HELP))
+
+@base_router.message(Command(CommandNames.START, CommandNames.HELP))
 async def start_help_resolver(message: types.Message):
     args = message.text.split()
     code = args[1] if len(args) == 2 else None

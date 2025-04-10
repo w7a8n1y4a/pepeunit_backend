@@ -1,19 +1,20 @@
 import logging
 
-from aiogram import types
+from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.configs.bot import bot, dp
 from app.configs.db import get_session
 from app.configs.gql import get_metrics_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
 from app.schemas.pydantic.shared import Root
 
+info_router = Router()
 
-@dp.message(Command(CommandNames.INFO))
+
+@info_router.message(Command(CommandNames.INFO))
 async def info_resolver(message: types.Message):
     root_data = Root()
 
@@ -48,6 +49,7 @@ async def info_resolver(message: types.Message):
     buttons = [
         InlineKeyboardButton(text='Swagger', url=root_data.swagger),
         InlineKeyboardButton(text='Graphql', url=root_data.graphql),
+        InlineKeyboardButton(text='Grafana', url=root_data.grafana),
     ]
     builder = InlineKeyboardBuilder()
     for button in buttons:

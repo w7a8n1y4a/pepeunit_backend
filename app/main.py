@@ -1,12 +1,12 @@
 import asyncio
 import logging
-import time
 from contextlib import asynccontextmanager
 
 import uvicorn
+from aiogram import Bot, Dispatcher, types
+from aiogram.fsm.storage.memory import MemoryStorage
 from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI, Request
-from fastapi_mqtt import FastMQTT, MQTTConfig
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,10 +14,13 @@ from starlette.responses import JSONResponse
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
+from app import settings
+from app.configs.db import get_session
 from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context, get_repo_service
 from app.configs.redis import get_redis_session
+from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
@@ -27,7 +30,10 @@ from app.configs.utils import (
 from app.dto.agent.abc import AgentBackend
 from app.dto.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
-from app.schemas.bot import *
+from app.schemas.bot.error import error_router
+from app.schemas.bot.info import info_router
+from app.schemas.bot.repo import repo_router
+from app.schemas.bot.start_help import base_router
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
@@ -93,7 +99,7 @@ async def _lifespan(_app: FastAPI):
             await bot.delete_webhook()
 
             logging.info(f'Run polling')
-            await dp.start_polling(bot)
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
         if is_valid_ip_address(settings.backend_domain):
             asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
@@ -107,7 +113,9 @@ async def _lifespan(_app: FastAPI):
             await bot.delete_webhook()
 
             logging.info(f'Set new TG bot webhook url: {webhook_url}')
-            await bot.set_webhook(url=webhook_url, drop_pending_updates=True)
+            await bot.set_webhook(
+                url=webhook_url, drop_pending_updates=True, allowed_updates=dp.resolve_used_update_types()
+            )
 
             logging.info(f'Success set TG bot webhook url')
 
@@ -239,6 +247,17 @@ app.include_router(
 @app.get(f'{settings.backend_app_prefix}', response_model=Root, tags=['status'])
 async def root():
     return Root()
+
+
+storage = MemoryStorage()
+bot = Bot(token=settings.telegram_token)
+dp = Dispatcher(bot=bot)
+
+
+dp.include_router(info_router)
+dp.include_router(base_router)
+dp.include_router(error_router)
+dp.include_router(repo_router)
 
 
 @app.post(f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot")
