@@ -7,6 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app import settings
 from app.configs.db import get_session
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
@@ -42,7 +43,8 @@ def build_repos_keyboard(repos: list, current_page: int, total_pages: int) -> In
     for repo in repos:
         builder.row(
             InlineKeyboardButton(
-                text=f"{repo.name} {repo.visibility_level.capitalize()}", callback_data=f"repo_{repo.uuid}"
+                text=f"{repo.name} {repo.visibility_level.capitalize()}",
+                callback_data=f"repo_{repo.uuid}_{current_page}",
             )
         )
 
@@ -102,7 +104,85 @@ async def handle_noop(callback: types.CallbackQuery):
 
 
 @repo_router.callback_query(F.data.startswith('repo_'))
-@flags.callback_answer(text="Thanks", cache_time=30)
 async def handle_buttons_handler(callback: types.CallbackQuery):
     repo_uuid = UUID(callback.data.split('_')[1])
-    await callback.message.answer(f'Выбран репозиторий с UUID: {repo_uuid}')
+    old_page = callback.data.split('_')[2]
+
+    db = next(get_session())
+    try:
+        repo_service = get_repo_service(
+            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+        )
+
+        repo = repo_service.get(repo_uuid)
+
+    finally:
+        db.close()
+
+    keyboard = [
+        [
+            InlineKeyboardButton(text=f'Update Local Repo', callback_data=f'local_update_{repo.uuid}'),
+            InlineKeyboardButton(text=f'Update Related Unit', callback_data=f'related_unit_{repo.uuid}'),
+        ],
+        [
+            InlineKeyboardButton(text=f'Back', callback_data=f'repo_page_{old_page}'),
+            InlineKeyboardButton(text=f'Browser', url=f'{settings.backend_domain}/repo/{repo.uuid}'),
+        ],
+    ]
+
+    await callback.answer()
+    await callback.message.edit_text(
+        f'{repo.name} {repo.visibility_level.capitalize()}', reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+    )
+
+
+@repo_router.callback_query(F.data.startswith('local_update'))
+async def local_update_handler(callback: types.CallbackQuery):
+    repo_uuid = UUID(callback.data.split('_')[-1])
+    print(repo_uuid)
+
+    db = next(get_session())
+    try:
+        repo_service = get_repo_service(
+            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+        )
+
+        repo_service.update_local_repo(repo_uuid)
+
+    except Exception as e:
+        print(e)
+        await callback.answer()
+        await callback.message.answer(e.message)
+        return
+
+    finally:
+        db.close()
+
+    await callback.answer()
+    await callback.message.answer('Local repository update successfully started')
+
+
+@repo_router.callback_query(F.data.startswith('related_unit'))
+async def local_update_handler(callback: types.CallbackQuery):
+    repo_uuid = UUID(callback.data.split('_')[-1])
+    print(repo_uuid)
+
+    db = next(get_session())
+    try:
+        repo_service = get_repo_service(
+            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+        )
+
+        repo_service.update_units_firmware(repo_uuid)
+
+    except Exception as e:
+        print(e)
+        await callback.answer()
+        await callback.message.answer(e.message)
+        return
+
+    finally:
+        db.close()
+
+    await callback.answer()
+    await callback.message.answer('Linked Unit update has started successfully')
