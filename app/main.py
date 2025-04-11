@@ -251,7 +251,7 @@ async def root():
 
 storage = MemoryStorage()
 bot = Bot(token=settings.telegram_token)
-dp = Dispatcher(bot=bot)
+dp = Dispatcher(bot=bot, storage=storage)
 
 
 dp.include_router(info_router)
