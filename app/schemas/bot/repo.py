@@ -64,7 +64,6 @@ async def get_repos_page(filters: RepoFilters, chat_id: str) -> tuple[list, int]
 def build_repos_keyboard(repos: list, filters: RepoFilters, total_pages: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    # Repositories list
     for repo in repos:
         builder.row(
             InlineKeyboardButton(
@@ -73,7 +72,6 @@ def build_repos_keyboard(repos: list, filters: RepoFilters, total_pages: int) ->
             )
         )
 
-    # Filters row
     filter_buttons = [
         InlineKeyboardButton(text="🔍 Search", callback_data="repo_search"),
         InlineKeyboardButton(
@@ -91,7 +89,6 @@ def build_repos_keyboard(repos: list, filters: RepoFilters, total_pages: int) ->
     ]
     builder.row(*filter_visibility_buttons)
 
-    # Pagination
     if total_pages > 1:
         pagination_row = []
         if filters.page > 1:
@@ -113,16 +110,17 @@ async def show_repos(message: Union[types.Message, types.CallbackQuery], filters
     repos, total_pages = await get_repos_page(filters, str(chat_id))
 
     if not repos:
-        text = "No repositories found"
-        if filters.search_string:
-            text += f" for query '{filters.search_string}'"
+        text = "No repos found"
+
         if isinstance(message, types.Message):
             await message.answer(text)
         else:
             await message.message.edit_text(text)
+
         return
 
     keyboard = build_repos_keyboard(repos, filters, total_pages)
+
     text = "Repos"
     if filters.search_string:
         text += f" - {filters.search_string}"
