@@ -139,6 +139,49 @@ async def repo_resolver(message: types.Message, state: FSMContext):
     await show_repos(message, filters)
 
 
+@repo_router.callback_query(F.data.startswith('local_update_'))
+async def local_update_handler(callback: types.CallbackQuery):
+    logging.info('test')
+    repo_uuid = UUID(callback.data.split('_')[-1])
+
+    db = next(get_session())
+    try:
+        repo_service = get_repo_service(
+            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+        )
+        repo_service.update_local_repo(repo_uuid)
+    except Exception as e:
+        await callback.answer(parse_mode='Markdown')
+        await callback.message.answer(e.message, parse_mode='Markdown')
+        return
+    finally:
+        db.close()
+
+    await callback.answer(parse_mode='Markdown')
+    await callback.message.answer('Local repository update successfully started', parse_mode='Markdown')
+
+
+@repo_router.callback_query(F.data.startswith('related_unit_'))
+async def related_unit_handler(callback: types.CallbackQuery):
+    repo_uuid = UUID(callback.data.split('_')[-1])
+
+    db = next(get_session())
+    try:
+        repo_service = get_repo_service(
+            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+        )
+        repo_service.update_units_firmware(repo_uuid)
+    except Exception as e:
+        await callback.answer(parse_mode='Markdown')
+        await callback.message.answer(e.message, parse_mode='Markdown')
+        return
+    finally:
+        db.close()
+
+    await callback.answer(parse_mode='Markdown')
+    await callback.message.answer('Linked Unit update has started successfully', parse_mode='Markdown')
+
+
 @repo_router.callback_query(F.data == "repo_search")
 async def search_repo(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
@@ -273,45 +316,3 @@ async def back_to_list(callback: types.CallbackQuery, state: FSMContext):
         await show_repos(callback, filters.previous_filters)
     else:
         await show_repos(callback, RepoFilters())
-
-
-@repo_router.callback_query(F.data.startswith('local_update_'))
-async def local_update_handler(callback: types.CallbackQuery):
-    repo_uuid = UUID(callback.data.split('_')[-1])
-
-    db = next(get_session())
-    try:
-        repo_service = get_repo_service(
-            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-        )
-        repo_service.update_local_repo(repo_uuid)
-    except Exception as e:
-        await callback.answer(parse_mode='Markdown')
-        await callback.message.answer(str(e), parse_mode='Markdown')
-        return
-    finally:
-        db.close()
-
-    await callback.answer(parse_mode='Markdown')
-    await callback.message.answer('Local repository update successfully started', parse_mode='Markdown')
-
-
-@repo_router.callback_query(F.data.startswith('related_unit_'))
-async def related_unit_handler(callback: types.CallbackQuery):
-    repo_uuid = UUID(callback.data.split('_')[-1])
-
-    db = next(get_session())
-    try:
-        repo_service = get_repo_service(
-            InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-        )
-        repo_service.update_units_firmware(repo_uuid)
-    except Exception as e:
-        await callback.answer(parse_mode='Markdown')
-        await callback.message.answer(parse_mode='Markdown')
-        return
-    finally:
-        db.close()
-
-    await callback.answer(parse_mode='Markdown')
-    await callback.message.answer('Linked Unit update has started successfully', parse_mode='Markdown')
