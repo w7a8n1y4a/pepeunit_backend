@@ -55,6 +55,6 @@ async def info_resolver(message: types.Message):
     for button in buttons:
         builder.row(button)
 
-    builder.adjust(2)
+    builder.adjust(3)
 
     await message.answer(documentation, reply_markup=builder.as_markup(), parse_mode='Markdown')

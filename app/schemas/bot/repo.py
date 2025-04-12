@@ -64,14 +64,6 @@ async def get_repos_page(filters: RepoFilters, chat_id: str) -> tuple[list, int]
 def build_repos_keyboard(repos: list, filters: RepoFilters, total_pages: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    for repo in repos:
-        builder.row(
-            InlineKeyboardButton(
-                text=f"{repo.name} {repo.visibility_level.capitalize()}",
-                callback_data=f"repo_{repo.uuid}_{filters.page}",
-            )
-        )
-
     filter_buttons = [
         InlineKeyboardButton(text="🔍 Search", callback_data="repo_search"),
         InlineKeyboardButton(
@@ -88,6 +80,14 @@ def build_repos_keyboard(repos: list, filters: RepoFilters, total_pages: int) ->
         for item in VisibilityLevel
     ]
     builder.row(*filter_visibility_buttons)
+
+    for repo in repos:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{repo.name} - {repo.visibility_level.capitalize()}",
+                callback_data=f"repo_{repo.uuid}_{filters.page}",
+            )
+        )
 
     if total_pages > 1:
         pagination_row = []
@@ -113,22 +113,22 @@ async def show_repos(message: Union[types.Message, types.CallbackQuery], filters
         text = "No repos found"
 
         if isinstance(message, types.Message):
-            await message.answer(text)
+            await message.answer(text, parse_mode='Markdown')
         else:
-            await message.message.edit_text(text)
+            await message.message.edit_text(text, parse_mode='Markdown')
 
         return
 
     keyboard = build_repos_keyboard(repos, filters, total_pages)
 
-    text = "Repos"
+    text = "*Repos*"
     if filters.search_string:
         text += f" - {filters.search_string}"
 
     if isinstance(message, types.Message):
-        await message.answer(text, reply_markup=keyboard)
+        await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
     else:
-        await message.message.edit_text(text, reply_markup=keyboard)
+        await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @repo_router.message(Command(CommandNames.REPO))
@@ -141,7 +141,7 @@ async def repo_resolver(message: types.Message, state: FSMContext):
 
 @repo_router.callback_query(F.data == "repo_search")
 async def search_repo(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text("Please enter search query:")
+    await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
     await state.set_state(RepoStates.waiting_for_search)
 
 
@@ -201,17 +201,20 @@ async def change_page(callback: types.CallbackQuery, state: FSMContext):
 
 @repo_router.callback_query(F.data == "noop")
 async def handle_noop(callback: types.CallbackQuery):
-    await callback.answer()
+    await callback.answer(parse_mode='Markdown')
 
 
-@repo_router.callback_query(F.data.startswith("repo_") and ~F.data.startswith("repo_page_"))
+@repo_router.callback_query(F.data.startswith("repo_") and ~F.data.startswith("repo_back"))
 async def handle_repo_click(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     filters: RepoFilters = data.get("current_filters", RepoFilters())
 
-    # Save current filters as previous
-    repo_uuid = UUID(callback.data.split('_')[1])
-    current_page = int(callback.data.split('_')[2])
+    try:
+        repo_uuid = UUID(callback.data.split('_')[1])
+        current_page = int(callback.data.split('_')[2])
+    except Exception as e:
+        await callback.answer(parse_mode='Markdown')
+        return
 
     filters.page = current_page
     new_filters = RepoFilters(previous_filters=filters)
@@ -223,8 +226,25 @@ async def handle_repo_click(callback: types.CallbackQuery, state: FSMContext):
             InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
         )
         repo = repo_service.get(repo_uuid)
+
+        versions = None
+        try:
+            versions = repo_service.get_versions(repo_uuid)
+        except Exception as e:
+            pass
+
     finally:
         db.close()
+
+    text = f'Repo - *{repo.name}* - {repo.visibility_level.capitalize()}'
+
+    if versions and versions.unit_count:
+        text += f'\n\nUnits - {versions.unit_count}\n'
+
+        for inc, version in enumerate(versions.versions):
+            version_name = version.tag if version.tag else version.commit[:8]
+
+            text += f'\n{inc}. *{version_name}* - {version.unit_count} Unit'
 
     keyboard = [
         [
@@ -238,9 +258,9 @@ async def handle_repo_click(callback: types.CallbackQuery, state: FSMContext):
     ]
 
     await callback.message.edit_text(
-        f'{repo.name} {repo.visibility_level.capitalize()}', reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard)
+        text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
     )
-    await callback.answer()
+    await callback.answer(parse_mode='Markdown')
 
 
 @repo_router.callback_query(F.data == 'repo_back')
@@ -266,14 +286,14 @@ async def local_update_handler(callback: types.CallbackQuery):
         )
         repo_service.update_local_repo(repo_uuid)
     except Exception as e:
-        await callback.answer()
-        await callback.message.answer(str(e))
+        await callback.answer(parse_mode='Markdown')
+        await callback.message.answer(str(e), parse_mode='Markdown')
         return
     finally:
         db.close()
 
-    await callback.answer()
-    await callback.message.answer('Local repository update successfully started')
+    await callback.answer(parse_mode='Markdown')
+    await callback.message.answer('Local repository update successfully started', parse_mode='Markdown')
 
 
 @repo_router.callback_query(F.data.startswith('related_unit_'))
@@ -287,11 +307,11 @@ async def related_unit_handler(callback: types.CallbackQuery):
         )
         repo_service.update_units_firmware(repo_uuid)
     except Exception as e:
-        await callback.answer()
-        await callback.message.answer(str(e))
+        await callback.answer(parse_mode='Markdown')
+        await callback.message.answer(parse_mode='Markdown')
         return
     finally:
         db.close()
 
-    await callback.answer()
-    await callback.message.answer('Linked Unit update has started successfully')
+    await callback.answer(parse_mode='Markdown')
+    await callback.message.answer('Linked Unit update has started successfully', parse_mode='Markdown')
