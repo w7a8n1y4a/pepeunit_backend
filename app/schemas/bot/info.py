@@ -9,6 +9,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_metrics_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
+from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.shared import Root
 
 info_router = Router()
@@ -31,25 +32,28 @@ async def info_resolver(message: types.Message):
     finally:
         db.close()
 
-    documentation = (
-        f'Current Version - {root_data.version}\n'
-        '\n'
-        '*Metrics*\n'
-        f'User count - {metrics.user_count}'
-        '\n'
-        f'Repo count - {metrics.repo_count}'
-        '\n'
-        f'Unit count - {metrics.unit_count}'
-        '\n'
-        f'UnitNode count - {metrics.unit_node_count}'
-        '\n'
-        f'UnitNodeEdge count - {metrics.unit_node_edge_count}'
-    )
+    table = [['Type', 'Count']]
+
+    metrics_dict = {
+        'User': metrics.user_count,
+        'Repo': metrics.repo_count,
+        'Unit': metrics.unit_count,
+        'UnitNode': metrics.unit_node_count,
+        'UnitNodeEdge': metrics.unit_node_edge_count,
+    }
+
+    for k, v in metrics_dict.items():
+        table.append([k, v])
+
+    text = f'\n```text' '\n' f'Backend Version - {root_data.version}\n\n'
+    text += make_monospace_table_with_title(table, 'Instance Stats')
+    text += '```'
 
     buttons = [
         InlineKeyboardButton(text='Swagger', url=root_data.swagger),
         InlineKeyboardButton(text='Graphql', url=root_data.graphql),
         InlineKeyboardButton(text='Grafana', url=root_data.grafana),
+        InlineKeyboardButton(text='Documentation', url='https://pepeunit.com'),
     ]
     builder = InlineKeyboardBuilder()
     for button in buttons:
@@ -57,4 +61,4 @@ async def info_resolver(message: types.Message):
 
     builder.adjust(3)
 
-    await message.answer(documentation, reply_markup=builder.as_markup(), parse_mode='Markdown')
+    await message.answer(text, reply_markup=builder.as_markup(), parse_mode='Markdown')

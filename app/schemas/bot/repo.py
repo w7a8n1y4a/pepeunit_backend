@@ -16,6 +16,7 @@ from app.configs.db import get_session
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames, VisibilityLevel
+from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.repo import RepoFilter
 
 repo_router = Router()
@@ -282,12 +283,16 @@ async def handle_repo_click(callback: types.CallbackQuery, state: FSMContext):
     text = f'Repo - *{repo.name}* - {repo.visibility_level.capitalize()}'
 
     if versions and versions.unit_count:
-        text += f'\n\nUnits - {versions.unit_count}\n'
+        text += f'\n```text\nTotal Units this Repo - {versions.unit_count}\n\n'
+
+        table = [['№', 'Version', 'Unit Count']]
 
         for inc, version in enumerate(versions.versions):
-            version_name = version.tag if version.tag else version.commit[:8]
+            table.append([inc, version.tag if version.tag else version.commit[:6], version.unit_count])
 
-            text += f'\n{inc}. *{version_name}* - {version.unit_count} Unit'
+        text += make_monospace_table_with_title(table, 'Version distribution')
+
+        text += '```'
 
     keyboard = [
         [
