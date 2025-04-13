@@ -1,19 +1,22 @@
 import logging
 
-from aiogram import types
+from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.configs.bot import bot, dp
+from app import settings
 from app.configs.db import get_session
 from app.configs.gql import get_metrics_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
+from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.shared import Root
 
+info_router = Router()
 
-@dp.message(Command(CommandNames.INFO))
+
+@info_router.message(Command(CommandNames.INFO))
 async def info_resolver(message: types.Message):
     root_data = Root()
 
@@ -30,29 +33,37 @@ async def info_resolver(message: types.Message):
     finally:
         db.close()
 
-    documentation = (
-        f'Current Version - {root_data.version}\n'
-        '\n'
-        '*Metrics*\n'
-        f'User count - {metrics.user_count}'
-        '\n'
-        f'Repo count - {metrics.repo_count}'
-        '\n'
-        f'Unit count - {metrics.unit_count}'
-        '\n'
-        f'UnitNode count - {metrics.unit_node_count}'
-        '\n'
-        f'UnitNodeEdge count - {metrics.unit_node_edge_count}'
-    )
+    table = [['Type', 'Count']]
+
+    metrics_dict = {
+        'User': metrics.user_count,
+        'Repo': metrics.repo_count,
+        'Unit': metrics.unit_count,
+        'UnitNode': metrics.unit_node_count,
+        'UnitNodeEdge': metrics.unit_node_edge_count,
+    }
+
+    for k, v in metrics_dict.items():
+        table.append([k, v])
+
+    text = f'\n```text' '\n' f'Backend Version - {root_data.version}\n\n'
+    text += make_monospace_table_with_title(table, 'Instance Stats')
+    text += '```'
+
+    buttons = [
+        InlineKeyboardButton(text='Frontend', url=settings.backend_link),
+        InlineKeyboardButton(text='Documentation', url='https://pepeunit.com'),
+    ]
+    builder = InlineKeyboardBuilder()
+
+    builder.add(*buttons)
 
     buttons = [
         InlineKeyboardButton(text='Swagger', url=root_data.swagger),
         InlineKeyboardButton(text='Graphql', url=root_data.graphql),
+        InlineKeyboardButton(text='Grafana', url=root_data.grafana),
     ]
-    builder = InlineKeyboardBuilder()
-    for button in buttons:
-        builder.row(button)
 
-    builder.adjust(2)
+    builder.row(*buttons)
 
-    await message.answer(documentation, reply_markup=builder.as_markup(), parse_mode='Markdown')
+    await message.answer(text, reply_markup=builder.as_markup(), parse_mode='Markdown')
