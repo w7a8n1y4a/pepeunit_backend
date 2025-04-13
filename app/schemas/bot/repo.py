@@ -20,7 +20,6 @@ from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.repo import RepoFilter
 
 repo_router = Router()
-ITEMS_PER_PAGE = 7
 
 
 class RepoStates(StatesGroup):
@@ -45,14 +44,14 @@ async def get_repos_page(filters: RepoFilters, chat_id: str) -> tuple[list, int]
 
         count, repos = repo_service.list(
             RepoFilter(
-                offset=(filters.page - 1) * ITEMS_PER_PAGE,
-                limit=ITEMS_PER_PAGE,
+                offset=(filters.page - 1) * settings.telegram_items_per_page,
+                limit=settings.telegram_items_per_page,
                 visibility_level=filters.visibility_levels or None,
                 creator_uuid=repo_service.access_service.current_agent.uuid if filters.is_only_my_repo else None,
                 search_string=filters.search_string,
             )
         )
-        total_pages = (count + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+        total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         return repos, total_pages
     except Exception as e:
@@ -142,7 +141,6 @@ async def repo_resolver(message: types.Message, state: FSMContext):
 
 @repo_router.callback_query(F.data.startswith('local_update_'))
 async def local_update_handler(callback: types.CallbackQuery):
-    logging.info('test')
     repo_uuid = UUID(callback.data.split('_')[-1])
 
     db = next(get_session())
