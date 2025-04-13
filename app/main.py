@@ -175,7 +175,7 @@ async def _lifespan(_app: FastAPI):
                    
      v{settings.version} - {settings.license}
      Federated IoT Platform
-     Front: {settings.backend_http_type}://{settings.backend_domain}
+     Front: {settings.backend_link}
      REST:  {settings.backend_link_prefix}/docs
      GQL:   {settings.backend_link_prefix}/graphql
      TG:    {settings.telegram_bot_link}

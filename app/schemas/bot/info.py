@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app import settings
 from app.configs.db import get_session
 from app.configs.gql import get_metrics_service
 from app.configs.sub_entities import InfoSubEntity
@@ -50,15 +51,19 @@ async def info_resolver(message: types.Message):
     text += '```'
 
     buttons = [
-        InlineKeyboardButton(text='Swagger', url=root_data.swagger),
-        InlineKeyboardButton(text='Graphql', url=root_data.graphql),
-        InlineKeyboardButton(text='Grafana', url=root_data.grafana),
+        InlineKeyboardButton(text='Frontend', url=settings.backend_link),
         InlineKeyboardButton(text='Documentation', url='https://pepeunit.com'),
     ]
     builder = InlineKeyboardBuilder()
-    for button in buttons:
-        builder.row(button)
 
-    builder.adjust(3)
+    builder.add(*buttons)
+
+    buttons = [
+        InlineKeyboardButton(text='Swagger', url=root_data.swagger),
+        InlineKeyboardButton(text='Graphql', url=root_data.graphql),
+        InlineKeyboardButton(text='Grafana', url=root_data.grafana),
+    ]
+
+    builder.row(*buttons)
 
     await message.answer(text, reply_markup=builder.as_markup(), parse_mode='Markdown')
