@@ -32,8 +32,9 @@ from app.dto.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
-from app.schemas.bot.repo import repo_router
+from app.schemas.bot.repo_bot_router import RepoBotRouter
 from app.schemas.bot.start_help import base_router
+from app.schemas.bot.unit_bot_router import UnitBotRouter
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
@@ -256,8 +257,9 @@ dp = Dispatcher(bot=bot, storage=storage)
 
 dp.include_router(info_router)
 dp.include_router(base_router)
+dp.include_router(RepoBotRouter().router)
+dp.include_router(UnitBotRouter().router)
 dp.include_router(error_router)
-dp.include_router(repo_router)
 
 
 @app.post(f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot")

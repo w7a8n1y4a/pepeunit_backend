@@ -1,0 +1,195 @@
+import logging
+from typing import Union
+from uuid import UUID
+
+from aiogram import types
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from app import settings
+from app.configs.db import get_session
+from app.configs.gql import get_repo_service, get_unit_service
+from app.configs.sub_entities import InfoSubEntity
+from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
+from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitStates
+from app.schemas.pydantic.unit import UnitFilter
+
+
+class UnitBotRouter(BaseBotRouter):
+    def __init__(self):
+        entity_name = EntityNames.UNIT
+
+        super().__init__(entity_name=entity_name, states_group=UnitStates)
+        self.router.message(Command(CommandNames.UNIT))(self.unit_resolver)
+
+    async def unit_resolver(self, message: types.Message, state: FSMContext):
+        await state.set_state(None)
+        filters = BaseBotFilters()
+        await state.update_data(current_filters=filters)
+        await self.show_entities(message, filters)
+
+    async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
+        chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
+
+        units, total_pages = await self.get_entities_page(filters, str(chat_id))
+
+        if not units:
+            text = "No units found"
+
+            if isinstance(message, types.Message):
+                await message.answer(text, parse_mode='Markdown')
+            else:
+                await message.message.edit_text(text, parse_mode='Markdown')
+
+            return
+
+        keyboard = self.build_entities_keyboard(units, filters, total_pages)
+
+        text = "*Units*"
+        if filters.search_string:
+            text += f" - `{filters.search_string}`"
+
+        if isinstance(message, types.Message):
+            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
+        else:
+            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+
+    async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
+        db = next(get_session())
+        try:
+            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
+
+            count, units = unit_service.list(
+                UnitFilter(
+                    offset=(filters.page - 1) * settings.telegram_items_per_page,
+                    limit=settings.telegram_items_per_page,
+                    visibility_level=filters.visibility_levels or None,
+                    creator_uuid=unit_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
+                    search_string=filters.search_string,
+                )
+            )
+
+            total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
+
+        except Exception as e:
+            logging.error(f"Error getting units: {e}")
+            units, total_pages = [], 0
+        finally:
+            db.close()
+
+        return units, total_pages
+
+    def build_entities_keyboard(
+        self, entities: list, filters: BaseBotFilters, total_pages: int
+    ) -> InlineKeyboardMarkup:
+        builder = InlineKeyboardBuilder()
+
+        filter_buttons = [
+            InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search"),
+            InlineKeyboardButton(
+                text=("🟢 " if filters.is_only_my_entity else "🔴 ") + 'My units',
+                callback_data=f"{self.entity_name}_toggle_mine",
+            ),
+        ]
+        builder.row(*filter_buttons)
+
+        filter_visibility_buttons = [
+            InlineKeyboardButton(
+                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
+                callback_data=f"{self.entity_name}_toggle_" + item.value,
+            )
+            for item in VisibilityLevel
+        ]
+        builder.row(*filter_visibility_buttons)
+
+        for unit, nodes in entities:
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"{unit.name} - {unit.visibility_level}",
+                    callback_data=f"{self.entity_name}_uuid_{unit.uuid}_{filters.page}",
+                )
+            )
+
+        if total_pages > 1:
+            pagination_row = []
+            if filters.page > 1:
+                pagination_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"{self.entity_name}_prev_page"))
+
+            pagination_row.append(InlineKeyboardButton(text=f"{filters.page}/{total_pages}", callback_data="noop"))
+
+            if filters.page < total_pages:
+                pagination_row.append(InlineKeyboardButton(text="➡️", callback_data=f"{self.entity_name}_next_page"))
+            builder.row(*pagination_row)
+
+        return builder.as_markup()
+
+    async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
+        data = await state.get_data()
+        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+
+        try:
+            unit_uuid = UUID(callback.data.split('_')[-2])
+            current_page = int(callback.data.split('_')[-1])
+        except Exception as e:
+            await callback.answer(parse_mode='Markdown')
+            return
+
+        filters.page = current_page
+        new_filters = BaseBotFilters(previous_filters=filters)
+        await state.update_data(current_filters=new_filters)
+
+        db = next(get_session())
+        try:
+            unit_service = get_unit_service(
+                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+            )
+            unit = unit_service.get(unit_uuid)
+
+        finally:
+            db.close()
+
+        text = f'Unit - *{unit.name}* - {unit.visibility_level}'
+
+        keyboard = [
+            [
+                InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
+            ],
+        ]
+
+        await callback.message.edit_text(
+            text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
+        )
+        await callback.answer(parse_mode='Markdown')
+
+    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+
+        *_, decrees_type, repo_uuid = callback.data.split('_')
+        repo_uuid = UUID(repo_uuid)
+
+        db = next(get_session())
+        try:
+            repo_service = get_repo_service(
+                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+            )
+
+            text = ''
+            match decrees_type:
+                case DecreesNames.LOCAL_UPDATE:
+                    text = 'Local repository update successfully started'
+                    repo_service.update_local_repo(repo_uuid)
+                case DecreesNames.RELATED_UNIT:
+                    text = 'Linked Unit update has started successfully'
+                    repo_service.update_units_firmware(repo_uuid)
+
+        except Exception as e:
+            await callback.answer(parse_mode='Markdown')
+            await callback.message.answer(e.message, parse_mode='Markdown')
+            return
+        finally:
+            db.close()
+
+        await callback.answer(parse_mode='Markdown')
+        await callback.message.answer(text, parse_mode='Markdown')
