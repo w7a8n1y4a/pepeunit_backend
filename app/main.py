@@ -34,6 +34,7 @@ from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
 from app.schemas.bot.repo_bot_router import RepoBotRouter
 from app.schemas.bot.start_help import base_router
+from app.schemas.bot.unit_bot_router import UnitBotRouter
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
@@ -257,6 +258,7 @@ dp = Dispatcher(bot=bot, storage=storage)
 dp.include_router(info_router)
 dp.include_router(base_router)
 dp.include_router(RepoBotRouter().router)
+dp.include_router(UnitBotRouter().router)
 dp.include_router(error_router)
 
 

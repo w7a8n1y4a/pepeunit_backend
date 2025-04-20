@@ -10,21 +10,21 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_repo_service
+from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
-from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
-from app.schemas.bot.utils import make_monospace_table_with_title
-from app.schemas.pydantic.repo import RepoFilter
+from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitStates
+from app.schemas.pydantic.unit import UnitFilter
 
 
-class RepoBotRouter(BaseBotRouter):
+class UnitBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.REPO
-        super().__init__(entity_name=entity_name, states_group=RepoStates)
-        self.router.message(Command(CommandNames.REPO))(self.repo_resolver)
+        entity_name = EntityNames.UNIT
 
-    async def repo_resolver(self, message: types.Message, state: FSMContext):
+        super().__init__(entity_name=entity_name, states_group=UnitStates)
+        self.router.message(Command(CommandNames.UNIT))(self.unit_resolver)
+
+    async def unit_resolver(self, message: types.Message, state: FSMContext):
         await state.set_state(None)
         filters = BaseBotFilters()
         await state.update_data(current_filters=filters)
@@ -33,10 +33,10 @@ class RepoBotRouter(BaseBotRouter):
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
 
-        repos, total_pages = await self.get_entities_page(filters, str(chat_id))
+        units, total_pages = await self.get_entities_page(filters, str(chat_id))
 
-        if not repos:
-            text = "No repos found"
+        if not units:
+            text = "No units found"
 
             if isinstance(message, types.Message):
                 await message.answer(text, parse_mode='Markdown')
@@ -45,9 +45,9 @@ class RepoBotRouter(BaseBotRouter):
 
             return
 
-        keyboard = self.build_entities_keyboard(repos, filters, total_pages)
+        keyboard = self.build_entities_keyboard(units, filters, total_pages)
 
-        text = "*Repos*"
+        text = "*Units*"
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
@@ -59,14 +59,14 @@ class RepoBotRouter(BaseBotRouter):
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
         try:
-            repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
+            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
 
-            count, repos = repo_service.list(
-                RepoFilter(
+            count, units = unit_service.list(
+                UnitFilter(
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
                     visibility_level=filters.visibility_levels or None,
-                    creator_uuid=repo_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
+                    creator_uuid=unit_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
                     search_string=filters.search_string,
                 )
             )
@@ -74,12 +74,12 @@ class RepoBotRouter(BaseBotRouter):
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         except Exception as e:
-            logging.error(f"Error getting repos: {e}")
-            repos, total_pages = [], 0
+            logging.error(f"Error getting units: {e}")
+            units, total_pages = [], 0
         finally:
             db.close()
 
-        return repos, total_pages
+        return units, total_pages
 
     def build_entities_keyboard(
         self, entities: list, filters: BaseBotFilters, total_pages: int
@@ -89,7 +89,7 @@ class RepoBotRouter(BaseBotRouter):
         filter_buttons = [
             InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search"),
             InlineKeyboardButton(
-                text=("🟢 " if filters.is_only_my_entity else "🔴 ") + 'My repos',
+                text=("🟢 " if filters.is_only_my_entity else "🔴 ") + 'My units',
                 callback_data=f"{self.entity_name}_toggle_mine",
             ),
         ]
@@ -104,11 +104,11 @@ class RepoBotRouter(BaseBotRouter):
         ]
         builder.row(*filter_visibility_buttons)
 
-        for repo in entities:
+        for unit, nodes in entities:
             builder.row(
                 InlineKeyboardButton(
-                    text=f"{repo.name} - {repo.visibility_level}",
-                    callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
+                    text=f"{unit.name} - {unit.visibility_level}",
+                    callback_data=f"{self.entity_name}_uuid_{unit.uuid}_{filters.page}",
                 )
             )
 
@@ -130,7 +130,7 @@ class RepoBotRouter(BaseBotRouter):
         filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
 
         try:
-            repo_uuid = UUID(callback.data.split('_')[-2])
+            unit_uuid = UUID(callback.data.split('_')[-2])
             current_page = int(callback.data.split('_')[-1])
         except Exception as e:
             await callback.answer(parse_mode='Markdown')
@@ -142,48 +142,20 @@ class RepoBotRouter(BaseBotRouter):
 
         db = next(get_session())
         try:
-            repo_service = get_repo_service(
+            unit_service = get_unit_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
-            repo = repo_service.get(repo_uuid)
-
-            versions = None
-            try:
-                versions = repo_service.get_versions(repo_uuid)
-            except Exception as e:
-                pass
+            unit = unit_service.get(unit_uuid)
 
         finally:
             db.close()
 
-        text = f'Repo - *{repo.name}* - {repo.visibility_level}'
-
-        if versions and versions.unit_count:
-            text += f'\n```text\nTotal Units this Repo - {versions.unit_count}\n\n'
-
-            table = [['№', 'Version', 'Unit Count']]
-
-            for inc, version in enumerate(versions.versions):
-                table.append([inc, version.tag if version.tag else version.commit[:6], version.unit_count])
-
-            text += make_monospace_table_with_title(table, 'Version distribution')
-
-            text += '```'
+        text = f'Unit - *{unit.name}* - {unit.visibility_level}'
 
         keyboard = [
             [
-                InlineKeyboardButton(
-                    text='Update Local Repo',
-                    callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
-                ),
-                InlineKeyboardButton(
-                    text='Update Related Unit',
-                    callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
-                ),
-            ],
-            [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
-                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
+                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
             ],
         ]
 

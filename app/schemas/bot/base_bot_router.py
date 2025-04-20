@@ -11,7 +11,11 @@ from pydantic import BaseModel
 from app.dto.enum import EntityNames, VisibilityLevel
 
 
-class EntityStates(StatesGroup):
+class RepoStates(StatesGroup):
+    waiting_for_search = State()
+
+
+class UnitStates(StatesGroup):
     waiting_for_search = State()
 
 
@@ -27,9 +31,10 @@ class BaseBotFilters(BaseModel):
 
 
 class BaseBotRouter(ABC):
-    def __init__(self, entity_name: EntityNames):
+    def __init__(self, entity_name: EntityNames, states_group: type[StatesGroup]):
         self.router = Router()
         self.entity_name: EntityNames = entity_name
+        self.states_group = states_group
         self._register_default_handlers()
 
     @abstractmethod
@@ -54,10 +59,6 @@ class BaseBotRouter(ABC):
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
         pass
 
-    @abstractmethod
-    async def process_search(self, message: types.Message, state: FSMContext) -> None:
-        pass
-
     async def handle_back(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
         filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
@@ -70,13 +71,16 @@ class BaseBotRouter(ABC):
 
     def _register_default_handlers(self):
         self.router.callback_query(F.data == "noop")(self.handle_noop)
-        self.router.callback_query(F.data.in_(["prev_page", "next_page"]))(self.handle_pagination)
+        self.router.callback_query(F.data.in_([f"{self.entity_name}_prev_page", f"{self.entity_name}_next_page"]))(
+            self.handle_pagination
+        )
         self.router.callback_query(F.data == f"{self.entity_name}_back")(self.handle_back)
         self.router.callback_query(F.data == f"{self.entity_name}_search")(self.handle_search)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(self.toggle_filter)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(self.handle_entity_click)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_decrees_"))(self.handle_entity_decrees)
-        self.router.message(EntityStates.waiting_for_search)(self.process_search)
+        if self.states_group in (RepoStates, UnitStates):
+            self.router.message(self.states_group.waiting_for_search)(self.process_search)
 
     @staticmethod
     async def handle_noop(callback: types.CallbackQuery):
@@ -86,19 +90,22 @@ class BaseBotRouter(ABC):
         data = await state.get_data()
         filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
 
-        if callback.data == "prev_page" and filters.page > 1:
+        if callback.data == f"{self.entity_name}_prev_page" and filters.page > 1:
             filters.page -= 1
 
-        elif callback.data == "next_page":
+        elif callback.data == f"{self.entity_name}_next_page":
             filters.page += 1
 
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)
 
-    @staticmethod
-    async def handle_search(callback: types.CallbackQuery, state: FSMContext):
-        await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
-        await state.set_state(EntityStates.waiting_for_search)
+    async def handle_search(self, callback: types.CallbackQuery, state: FSMContext):
+
+        if self.states_group in (RepoStates, UnitStates):
+            await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
+            await state.set_state(self.states_group.waiting_for_search)
+        else:
+            await callback.message.edit_text("Command not available for this entity", parse_mode='Markdown')
 
     async def toggle_filter(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
@@ -116,3 +123,12 @@ class BaseBotRouter(ABC):
 
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)
+
+    async def process_search(self, message: types.Message, state: FSMContext):
+        data = await state.get_data()
+        current_filters = data.get("current_filters", BaseBotFilters())
+
+        filters = BaseBotFilters(search_string=message.text, previous_filters=current_filters)
+        await state.update_data(current_filters=filters)
+        await state.set_state(None)
+        await self.show_entities(message, filters)
