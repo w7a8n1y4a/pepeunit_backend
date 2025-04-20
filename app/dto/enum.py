@@ -215,8 +215,30 @@ class CommandNames(str, enum.Enum):
     START = 'start'
     HELP = 'help'
     REPO = 'repo'
+    UNIT = 'unit'
     INFO = 'info'
     VERIFICATION = 'verification'
+
+
+@strawberry.enum
+class EntityNames(str, enum.Enum):
+    """
+    Commands supported by the bot
+    """
+
+    REPO = 'Repo'
+    UNIT = 'Unit'
+    UNIT_LOG = 'UnitLog'
+
+
+@strawberry.enum
+class DecreesNames(str, enum.Enum):
+    """
+    Commands supported by the bot
+    """
+
+    RELATED_UNIT = 'RelatedUnit'
+    LOCAL_UPDATE = 'LocalUpdate'
 
 
 @strawberry.enum

@@ -1,0 +1,118 @@
+from abc import ABC, abstractmethod
+from typing import Optional, Union
+
+from aiogram import F, Router, types
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import InlineKeyboardMarkup
+from fastapi import Query
+from pydantic import BaseModel
+
+from app.dto.enum import EntityNames, VisibilityLevel
+
+
+class EntityStates(StatesGroup):
+    waiting_for_search = State()
+
+
+class BaseBotFilters(BaseModel):
+    page: int = 1
+    visibility_levels: list[str] = Query([item.value for item in VisibilityLevel])
+    is_only_my_entity: bool = False
+    search_string: Optional[str] = None
+    previous_filters: Optional["BaseBotFilters"] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class BaseBotRouter(ABC):
+    def __init__(self, entity_name: EntityNames):
+        self.router = Router()
+        self.entity_name: EntityNames = entity_name
+        self._register_default_handlers()
+
+    @abstractmethod
+    async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
+        pass
+
+    @abstractmethod
+    async def get_entities_page(self, filters, chat_id: str) -> tuple[list, int]:
+        pass
+
+    @abstractmethod
+    def build_entities_keyboard(
+        self, entities: list, filters: BaseBotFilters, total_pages: int
+    ) -> InlineKeyboardMarkup:
+        pass
+
+    @abstractmethod
+    async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
+        pass
+
+    @abstractmethod
+    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+        pass
+
+    @abstractmethod
+    async def process_search(self, message: types.Message, state: FSMContext) -> None:
+        pass
+
+    async def handle_back(self, callback: types.CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+
+        if filters.previous_filters:
+            await state.update_data(current_filters=filters.previous_filters)
+            await self.show_entities(callback, filters.previous_filters)
+        else:
+            await self.show_entities(callback, BaseBotFilters())
+
+    def _register_default_handlers(self):
+        self.router.callback_query(F.data == "noop")(self.handle_noop)
+        self.router.callback_query(F.data.in_(["prev_page", "next_page"]))(self.handle_pagination)
+        self.router.callback_query(F.data == f"{self.entity_name}_back")(self.handle_back)
+        self.router.callback_query(F.data == f"{self.entity_name}_search")(self.handle_search)
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(self.toggle_filter)
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(self.handle_entity_click)
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_decrees_"))(self.handle_entity_decrees)
+        self.router.message(EntityStates.waiting_for_search)(self.process_search)
+
+    @staticmethod
+    async def handle_noop(callback: types.CallbackQuery):
+        await callback.answer(parse_mode='Markdown')
+
+    async def handle_pagination(self, callback: types.CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+
+        if callback.data == "prev_page" and filters.page > 1:
+            filters.page -= 1
+
+        elif callback.data == "next_page":
+            filters.page += 1
+
+        await state.update_data(current_filters=filters)
+        await self.show_entities(callback, filters)
+
+    @staticmethod
+    async def handle_search(callback: types.CallbackQuery, state: FSMContext):
+        await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
+        await state.set_state(EntityStates.waiting_for_search)
+
+    async def toggle_filter(self, callback: types.CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+
+        *_, target = callback.data.split('_')
+
+        if target == 'mine':
+            filters.is_only_my_entity = not filters.is_only_my_entity
+        else:
+            if target in filters.visibility_levels:
+                filters.visibility_levels.remove(target)
+            else:
+                filters.visibility_levels.append(target)
+
+        await state.update_data(current_filters=filters)
+        await self.show_entities(callback, filters)
