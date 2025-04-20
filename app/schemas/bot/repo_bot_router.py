@@ -49,7 +49,7 @@ class RepoBotRouter(BaseBotRouter):
 
         text = "*Repos*"
         if filters.search_string:
-            text += f" - {filters.search_string}"
+            text += f" - `{filters.search_string}`"
 
         if isinstance(message, types.Message):
             await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
