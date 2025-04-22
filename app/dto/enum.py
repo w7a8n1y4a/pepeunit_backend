@@ -239,6 +239,7 @@ class DecreesNames(str, enum.Enum):
 
     RELATED_UNIT = 'RelatedUnit'
     LOCAL_UPDATE = 'LocalUpdate'
+    GET_ENV = 'GetEnv'
 
 
 @strawberry.enum
