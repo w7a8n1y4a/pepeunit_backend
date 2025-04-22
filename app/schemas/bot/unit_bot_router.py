@@ -1,6 +1,5 @@
 import json
 import logging
-import math
 from typing import Union
 from uuid import UUID
 
@@ -12,7 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
+from app.configs.gql import get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import (
     BackendTopicCommand,
@@ -21,6 +20,7 @@ from app.dto.enum import (
     EntityNames,
     GlobalPrefixTopic,
     ReservedInputBaseTopic,
+    UnitFirmwareUpdateStatus,
     VisibilityLevel,
 )
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitStates
@@ -186,10 +186,29 @@ class UnitBotRouter(BaseBotRouter):
             current_version = unit.current_commit_version[:8] if unit.current_commit_version else None
             target_version = target_version.commit[:8] if target_version.commit else None
 
-            table = [['Update', 'Current', 'Target'], [unit.firmware_update_status, current_version, target_version]]
+            if not unit.firmware_update_status and current_version == target_version:
+                status = UnitFirmwareUpdateStatus.SUCCESS
+            elif not unit.firmware_update_status and current_version != target_version:
+                status = 'Need'
+            elif not target_version and not current_version:
+                status = 'No Data'
+            else:
+                status = unit.firmware_update_status
+
+            table = [['Update', 'Current', 'Target'], [status, current_version, target_version]]
 
             text += f'\n```text\n'
             text += make_monospace_table_with_title(table, 'Version')
+
+            if unit.firmware_update_status == UnitFirmwareUpdateStatus.REQUEST_SENT:
+                text += '\n'
+                table = [[unit.last_firmware_update_datetime.strftime("%Y-%m-%d %H:%M:%S")]]
+                text += make_monospace_table_with_title(table, 'Request Time')
+
+            if unit.firmware_update_status == UnitFirmwareUpdateStatus.ERROR and unit.firmware_update_error:
+                text += '\n'
+                text += make_monospace_table_with_title([[unit.firmware_update_error]], 'Update Error')
+
             text += '```'
 
         if unit.unit_state:
