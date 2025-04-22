@@ -1,4 +1,6 @@
+import json
 import logging
+import math
 from typing import Union
 from uuid import UUID
 
@@ -14,6 +16,13 @@ from app.configs.gql import get_repo_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitStates
+from app.schemas.bot.utils import (
+    byte_converter,
+    calculate_flash_mem,
+    format_millis,
+    make_monospace_table_with_title,
+    reformat_table,
+)
 from app.schemas.pydantic.unit import UnitFilter
 
 
@@ -145,19 +154,98 @@ class UnitBotRouter(BaseBotRouter):
             unit_service = get_unit_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
-            unit = unit_service.get(unit_uuid)
+            unit = unit_service.mapper_unit_to_unit_type((unit_service.get(unit_uuid), []))
+
+            try:
+                target_version = unit_service.get_target_version(unit_uuid)
+            except Exception:
+                target_version = None
+
+            is_creator = unit_service.access_service.current_agent.uuid == unit.creator_uuid
 
         finally:
             db.close()
 
         text = f'Unit - *{unit.name}* - {unit.visibility_level}'
 
-        keyboard = [
+        if target_version:
+
+            current_version = unit.current_commit_version[:8] if unit.current_commit_version else None
+            target_version = target_version.commit[:8] if target_version.commit else None
+
+            table = [['Update', 'Current', 'Target'], [unit.firmware_update_status, current_version, target_version]]
+
+            text += f'\n```text\n'
+            text += make_monospace_table_with_title(table, 'Version')
+            text += '```'
+
+        if unit.unit_state:
+            table = []
+            if len(unit.unit_state.ifconfig) == 4:
+
+                table.extend(
+                    [
+                        ['IP', unit.unit_state.ifconfig[0]],
+                        ['Sub', unit.unit_state.ifconfig[1]],
+                        ['Gate', unit.unit_state.ifconfig[2]],
+                        ['DNS', unit.unit_state.ifconfig[3]],
+                    ]
+                )
+
+            if unit.unit_state.mem_alloc or unit.unit_state.mem_free or unit.unit_state.freq or unit.unit_state.millis:
+                if unit.unit_state.freq:
+                    table.append(['Freq', round(unit.unit_state.freq, 1)])
+
+                if unit.unit_state.millis:
+                    table.append(['Up', format_millis(unit.unit_state.millis)])
+
+                if unit.unit_state.mem_alloc:
+                    table.append(['Alloc RAM', byte_converter(unit.unit_state.mem_alloc)])
+
+                if unit.unit_state.mem_free:
+                    table.append(['Free RAM', byte_converter(unit.unit_state.mem_free)])
+
+                while len(table) % 4 != 0:
+                    table.append([None, None])
+
+            if len(unit.unit_state.statvfs) == 10:
+                total, free, used = calculate_flash_mem(unit.unit_state.statvfs)
+
+                table.extend(
+                    [
+                        ['Total', byte_converter(round(total, 0))],
+                        ['Free', byte_converter(round(free, 0))],
+                        ['Used', byte_converter(round(used, 0))],
+                        [None, None],
+                    ]
+                )
+
+            new_table = reformat_table(table)
+
+            text += f'\n```text\n'
+            text += make_monospace_table_with_title(new_table, 'Unit State')
+            text += '```'
+
+        keyboard = []
+
+        if is_creator:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        text='Get Env',
+                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.GET_ENV}_{unit.uuid}',
+                    ),
+                ]
+            )
+
+        keyboard.extend(
             [
-                InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
-                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
-            ],
-        ]
+                [
+                    InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                    InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
+                ],
+            ]
+        )
 
         await callback.message.edit_text(
             text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
@@ -166,23 +254,21 @@ class UnitBotRouter(BaseBotRouter):
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
 
-        *_, decrees_type, repo_uuid = callback.data.split('_')
-        repo_uuid = UUID(repo_uuid)
+        *_, decrees_type, unit_uuid = callback.data.split('_')
+        unit_uuid = UUID(unit_uuid)
 
         db = next(get_session())
         try:
-            repo_service = get_repo_service(
+            unit_service = get_unit_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
 
             text = ''
             match decrees_type:
-                case DecreesNames.LOCAL_UPDATE:
-                    text = 'Local repository update successfully started'
-                    repo_service.update_local_repo(repo_uuid)
-                case DecreesNames.RELATED_UNIT:
-                    text = 'Linked Unit update has started successfully'
-                    repo_service.update_units_firmware(repo_uuid)
+                case DecreesNames.GET_ENV:
+                    text += f'\n```json\n'
+                    text += json.dumps(unit_service.get_env(unit_uuid), indent=4)
+                    text += '```'
 
         except Exception as e:
             await callback.answer(parse_mode='Markdown')
