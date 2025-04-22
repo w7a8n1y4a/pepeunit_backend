@@ -1,13 +1,16 @@
 import asyncio
+import json
 import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
 from aiogram import Bot, Dispatcher, types
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.base import DefaultKeyBuilder
+from aiogram.fsm.storage.redis import RedisStorage
 from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -250,8 +253,20 @@ async def root():
     return Root()
 
 
-storage = MemoryStorage()
+def custom_json_dumps(obj: dict, **kwargs):
+
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, BaseModel):
+                obj[k] = v.model_dump()
+
+    return json.dumps(obj, **kwargs)
+
+
 bot = Bot(token=settings.telegram_token)
+storage = RedisStorage.from_url(
+    settings.redis_url, key_builder=DefaultKeyBuilder(with_destiny=True), json_dumps=custom_json_dumps
+)
 dp = Dispatcher(bot=bot, storage=storage)
 
 

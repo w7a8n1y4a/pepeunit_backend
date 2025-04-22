@@ -127,7 +127,9 @@ class RepoBotRouter(BaseBotRouter):
 
     async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
         data = await state.get_data()
-        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+        filters: BaseBotFilters = (
+            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+        )
 
         try:
             repo_uuid = UUID(callback.data.split('_')[-2])

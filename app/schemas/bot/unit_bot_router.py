@@ -144,7 +144,9 @@ class UnitBotRouter(BaseBotRouter):
 
     async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
         data = await state.get_data()
-        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+        filters: BaseBotFilters = (
+            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+        )
 
         try:
             unit_uuid = UUID(callback.data.split('_')[-2])
@@ -181,6 +183,9 @@ class UnitBotRouter(BaseBotRouter):
 
         text = f'Unit - *{unit.name}* - {unit.visibility_level}'
 
+        if target_version or unit.unit_state:
+            text += f'\n```text\n'
+
         if target_version:
 
             current_version = unit.current_commit_version[:8] if unit.current_commit_version else None
@@ -197,19 +202,17 @@ class UnitBotRouter(BaseBotRouter):
 
             table = [['Update', 'Current', 'Target'], [status, current_version, target_version]]
 
-            text += f'\n```text\n'
             text += make_monospace_table_with_title(table, 'Version')
 
             if unit.firmware_update_status == UnitFirmwareUpdateStatus.REQUEST_SENT:
-                text += '\n'
                 table = [[unit.last_firmware_update_datetime.strftime("%Y-%m-%d %H:%M:%S")]]
+
+                text += '\n'
                 text += make_monospace_table_with_title(table, 'Request Time')
 
             if unit.firmware_update_status == UnitFirmwareUpdateStatus.ERROR and unit.firmware_update_error:
                 text += '\n'
                 text += make_monospace_table_with_title([[unit.firmware_update_error]], 'Update Error')
-
-            text += '```'
 
         if unit.unit_state:
             table = []
@@ -237,9 +240,6 @@ class UnitBotRouter(BaseBotRouter):
                 if unit.unit_state.mem_free:
                     table.append(['Free RAM', byte_converter(unit.unit_state.mem_free)])
 
-                while len(table) % 4 != 0:
-                    table.append([None, None])
-
             if len(unit.unit_state.statvfs) == 10:
                 total, free, used = calculate_flash_mem(unit.unit_state.statvfs)
 
@@ -248,14 +248,14 @@ class UnitBotRouter(BaseBotRouter):
                         ['Total', byte_converter(round(total, 0))],
                         ['Free', byte_converter(round(free, 0))],
                         ['Used', byte_converter(round(used, 0))],
-                        [None, None],
                     ]
                 )
 
-            new_table = reformat_table(table)
+            text += '\n'
+            text += make_monospace_table_with_title(table, 'Unit State')
 
-            text += f'\n```text\n'
-            text += make_monospace_table_with_title(new_table, 'Unit State')
+        if target_version or unit.unit_state:
+
             text += '```'
 
         keyboard = []

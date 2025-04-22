@@ -61,7 +61,9 @@ class BaseBotRouter(ABC):
 
     async def handle_back(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
-        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+        filters: BaseBotFilters = (
+            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+        )
 
         if filters.previous_filters:
             await state.update_data(current_filters=filters.previous_filters)
@@ -88,7 +90,9 @@ class BaseBotRouter(ABC):
 
     async def handle_pagination(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
-        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+        filters: BaseBotFilters = (
+            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+        )
 
         if callback.data == f"{self.entity_name}_prev_page" and filters.page > 1:
             filters.page -= 1
@@ -109,7 +113,9 @@ class BaseBotRouter(ABC):
 
     async def toggle_filter(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
-        filters: BaseBotFilters = data.get("current_filters", BaseBotFilters())
+        filters: BaseBotFilters = (
+            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+        )
 
         *_, target = callback.data.split('_')
 
@@ -126,7 +132,9 @@ class BaseBotRouter(ABC):
 
     async def process_search(self, message: types.Message, state: FSMContext):
         data = await state.get_data()
-        current_filters = data.get("current_filters", BaseBotFilters())
+        current_filters = (
+            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+        )
 
         filters = BaseBotFilters(search_string=message.text, previous_filters=current_filters)
         await state.update_data(current_filters=filters)
