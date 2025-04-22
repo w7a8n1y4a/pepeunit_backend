@@ -12,9 +12,17 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_repo_service, get_unit_service
+from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
+from app.dto.enum import (
+    BackendTopicCommand,
+    CommandNames,
+    DecreesNames,
+    EntityNames,
+    GlobalPrefixTopic,
+    ReservedInputBaseTopic,
+    VisibilityLevel,
+)
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitStates
 from app.schemas.bot.utils import (
     byte_converter,
@@ -161,6 +169,11 @@ class UnitBotRouter(BaseBotRouter):
             except Exception:
                 target_version = None
 
+            try:
+                current_schema = unit_service.get_current_schema(unit_uuid)
+            except Exception:
+                current_schema = None
+
             is_creator = unit_service.access_service.current_agent.uuid == unit.creator_uuid
 
         finally:
@@ -238,13 +251,31 @@ class UnitBotRouter(BaseBotRouter):
                 ]
             )
 
-        keyboard.extend(
+            if current_schema:
+                commands = current_schema['input_base_topic'].keys()
+
+                command_mqtt_dict = {
+                    f'{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}': BackendTopicCommand.UPDATE,
+                    f'{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}': BackendTopicCommand.SCHEMA_UPDATE,
+                    f'{ReservedInputBaseTopic.ENV_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}': BackendTopicCommand.ENV_UPDATE,
+                    f'{ReservedInputBaseTopic.LOG_SYNC}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}': BackendTopicCommand.LOG_SYNC,
+                }
+
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            text=command_mqtt_dict[command],
+                            callback_data=f'{self.entity_name}_decrees_{command_mqtt_dict[command]}_{unit.uuid}',
+                        )
+                        for command in list(commands)
+                    ]
+                )
+
+        keyboard.append(
             [
-                [
-                    InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
-                    InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
-                ],
-            ]
+                InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
+            ],
         )
 
         await callback.message.edit_text(
@@ -263,12 +294,24 @@ class UnitBotRouter(BaseBotRouter):
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
 
+            unit_node_service = get_unit_node_service(
+                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
+            )
+
             text = ''
             match decrees_type:
                 case DecreesNames.GET_ENV:
                     text += f'\n```json\n'
                     text += json.dumps(unit_service.get_env(unit_uuid), indent=4)
                     text += '```'
+                case _ if decrees_type in (
+                    BackendTopicCommand.UPDATE,
+                    BackendTopicCommand.SCHEMA_UPDATE,
+                    BackendTopicCommand.ENV_UPDATE,
+                    BackendTopicCommand.LOG_SYNC,
+                ):
+                    unit_node_service.command_to_input_base_topic(unit_uuid, BackendTopicCommand(decrees_type))
+                    text = f'Success send command {decrees_type}'
 
         except Exception as e:
             await callback.answer(parse_mode='Markdown')
