@@ -25,6 +25,7 @@ class BaseBotFilters(BaseModel):
     is_only_my_entity: bool = False
     search_string: Optional[str] = None
     previous_filters: Optional["BaseBotFilters"] = None
+    repo_uuid: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True
