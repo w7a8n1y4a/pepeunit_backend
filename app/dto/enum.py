@@ -240,6 +240,9 @@ class DecreesNames(str, enum.Enum):
     RELATED_UNIT = 'RelatedUnit'
     LOCAL_UPDATE = 'LocalUpdate'
     GET_ENV = 'GetEnv'
+    TAR = 'Tar'
+    TGZ = 'Tgz'
+    ZIP = 'Zip'
 
 
 @strawberry.enum

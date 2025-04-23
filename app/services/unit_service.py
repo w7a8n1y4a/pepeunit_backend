@@ -315,7 +315,7 @@ class UnitService:
 
         return f'{firmware_tar_path}.tar'
 
-    def get_unit_firmware_tgz(self, uuid: uuid_pkg.UUID, wbits: int, level: int) -> str:
+    def get_unit_firmware_tgz(self, uuid: uuid_pkg.UUID, wbits: int = 15, level: int = 9) -> str:
         self.is_valid_wbits(wbits)
         self.is_valid_level(level)
 

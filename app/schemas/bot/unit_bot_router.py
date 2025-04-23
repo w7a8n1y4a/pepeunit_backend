@@ -1,12 +1,13 @@
 import json
 import logging
+import os
 from typing import Union
 from uuid import UUID
 
 from aiogram import types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
@@ -289,6 +290,18 @@ class UnitBotRouter(BaseBotRouter):
                         for command in list(commands)
                     ]
                 )
+            if target_version:
+                commands = [DecreesNames.TGZ, DecreesNames.TAR, DecreesNames.ZIP]
+
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            text=command,
+                            callback_data=f'{self.entity_name}_decrees_{command}_{unit.uuid}',
+                        )
+                        for command in commands
+                    ]
+                )
 
         keyboard.append(
             [
@@ -323,6 +336,29 @@ class UnitBotRouter(BaseBotRouter):
                     text += f'\n```json\n'
                     text += json.dumps(unit_service.get_env(unit_uuid), indent=4)
                     text += '```'
+
+                case _ if decrees_type in (
+                    DecreesNames.TGZ,
+                    DecreesNames.TAR,
+                    DecreesNames.ZIP,
+                ):
+                    decrees_to_func = {
+                        DecreesNames.TGZ: unit_service.get_unit_firmware_tgz,
+                        DecreesNames.TAR: unit_service.get_unit_firmware_tar,
+                        DecreesNames.ZIP: unit_service.get_unit_firmware_zip,
+                    }
+
+                    unit = unit_service.get(unit_uuid)
+                    file_name = decrees_to_func[DecreesNames(decrees_type)](unit_uuid)
+                    await callback.message.answer_document(
+                        FSInputFile(file_name, filename=f'{unit.name}.{decrees_type.lower()}')
+                    )
+
+                    os.remove(file_name)
+                    await callback.answer()
+
+                    return
+
                 case _ if decrees_type in (
                     BackendTopicCommand.UPDATE,
                     BackendTopicCommand.SCHEMA_UPDATE,
@@ -334,7 +370,10 @@ class UnitBotRouter(BaseBotRouter):
 
         except Exception as e:
             await callback.answer(parse_mode='Markdown')
-            await callback.message.answer(e.message, parse_mode='Markdown')
+            try:
+                await callback.message.answer(e.message, parse_mode='Markdown')
+            except AttributeError:
+                await callback.message.answer(e, parse_mode='Markdown')
             return
         finally:
             db.close()
