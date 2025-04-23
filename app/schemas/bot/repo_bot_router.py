@@ -184,6 +184,9 @@ class RepoBotRouter(BaseBotRouter):
                 ),
             ],
             [
+                InlineKeyboardButton(text='Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
+            ],
+            [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
                 InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
             ],

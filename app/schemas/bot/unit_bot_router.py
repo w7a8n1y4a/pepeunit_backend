@@ -4,7 +4,7 @@ import os
 from typing import Union
 from uuid import UUID
 
-from aiogram import types
+from aiogram import F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,7 +12,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_unit_node_service, get_unit_service
+from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import (
     BackendTopicCommand,
@@ -30,7 +30,6 @@ from app.schemas.bot.utils import (
     calculate_flash_mem,
     format_millis,
     make_monospace_table_with_title,
-    reformat_table,
 )
 from app.schemas.pydantic.unit import UnitFilter
 
@@ -41,12 +40,23 @@ class UnitBotRouter(BaseBotRouter):
 
         super().__init__(entity_name=entity_name, states_group=UnitStates)
         self.router.message(Command(CommandNames.UNIT))(self.unit_resolver)
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_repo_"))(self.handle_by_repo)
 
     async def unit_resolver(self, message: types.Message, state: FSMContext):
         await state.set_state(None)
         filters = BaseBotFilters()
         await state.update_data(current_filters=filters)
         await self.show_entities(message, filters)
+
+    async def handle_by_repo(self, callback: types.CallbackQuery, state: FSMContext):
+        *_, repo_uuid = callback.data.split('_')
+
+        print(callback.data)
+
+        await state.set_state(None)
+        filters = BaseBotFilters(repo_uuid=repo_uuid)
+        await state.update_data(current_filters=filters)
+        await self.show_entities(callback, filters)
 
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
@@ -69,6 +79,17 @@ class UnitBotRouter(BaseBotRouter):
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
+        if filters.repo_uuid:
+            db = next(get_session())
+            repo = None
+            try:
+                repo_service = get_repo_service(
+                    InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
+                )
+                repo = repo_service.get(filters.repo_uuid)
+            finally:
+                text += f" - for repo `{repo.name}`"
+
         if isinstance(message, types.Message):
             await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
         else:
@@ -86,6 +107,7 @@ class UnitBotRouter(BaseBotRouter):
                     visibility_level=filters.visibility_levels or None,
                     creator_uuid=unit_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
                     search_string=filters.search_string,
+                    repo_uuid=filters.repo_uuid,
                 )
             )
 
@@ -103,24 +125,24 @@ class UnitBotRouter(BaseBotRouter):
         self, entities: list, filters: BaseBotFilters, total_pages: int
     ) -> InlineKeyboardMarkup:
         builder = InlineKeyboardBuilder()
+        if not filters.repo_uuid:
+            filter_buttons = [
+                InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search"),
+                InlineKeyboardButton(
+                    text=("🟢 " if filters.is_only_my_entity else "🔴 ") + 'My units',
+                    callback_data=f"{self.entity_name}_toggle_mine",
+                ),
+            ]
+            builder.row(*filter_buttons)
 
-        filter_buttons = [
-            InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search"),
-            InlineKeyboardButton(
-                text=("🟢 " if filters.is_only_my_entity else "🔴 ") + 'My units',
-                callback_data=f"{self.entity_name}_toggle_mine",
-            ),
-        ]
-        builder.row(*filter_buttons)
-
-        filter_visibility_buttons = [
-            InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
-                callback_data=f"{self.entity_name}_toggle_" + item.value,
-            )
-            for item in VisibilityLevel
-        ]
-        builder.row(*filter_visibility_buttons)
+            filter_visibility_buttons = [
+                InlineKeyboardButton(
+                    text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
+                    callback_data=f"{self.entity_name}_toggle_" + item.value,
+                )
+                for item in VisibilityLevel
+            ]
+            builder.row(*filter_visibility_buttons)
 
         for unit, nodes in entities:
             builder.row(
