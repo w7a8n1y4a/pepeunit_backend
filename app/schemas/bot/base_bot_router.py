@@ -19,6 +19,10 @@ class UnitStates(StatesGroup):
     waiting_for_search = State()
 
 
+class UnitNodeStates(StatesGroup):
+    waiting_for_search = State()
+
+
 class BaseBotFilters(BaseModel):
     page: int = 1
     visibility_levels: list[str] = Query([item.value for item in VisibilityLevel])
@@ -26,6 +30,7 @@ class BaseBotFilters(BaseModel):
     search_string: Optional[str] = None
     previous_filters: Optional["BaseBotFilters"] = None
     repo_uuid: Optional[str] = None
+    unit_uuid: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -82,7 +87,7 @@ class BaseBotRouter(ABC):
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(self.toggle_filter)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(self.handle_entity_click)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_decrees_"))(self.handle_entity_decrees)
-        if self.states_group in (RepoStates, UnitStates):
+        if self.states_group in (RepoStates, UnitStates, UnitNodeStates):
             self.router.message(self.states_group.waiting_for_search)(self.process_search)
 
     @staticmethod
@@ -106,7 +111,7 @@ class BaseBotRouter(ABC):
 
     async def handle_search(self, callback: types.CallbackQuery, state: FSMContext):
 
-        if self.states_group in (RepoStates, UnitStates):
+        if self.states_group in (RepoStates, UnitStates, UnitNodeStates):
             await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
             await state.set_state(self.states_group.waiting_for_search)
         else:
@@ -136,8 +141,12 @@ class BaseBotRouter(ABC):
         current_filters = (
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
-
-        filters = BaseBotFilters(search_string=message.text, previous_filters=current_filters)
+        if self.entity_name == EntityNames.UNIT_NODE:
+            filters = BaseBotFilters(
+                search_string=message.text, unit_uuid=current_filters.unit_uuid, previous_filters=current_filters
+            )
+        else:
+            filters = BaseBotFilters(search_string=message.text, previous_filters=current_filters)
         await state.update_data(current_filters=filters)
         await state.set_state(None)
         await self.show_entities(message, filters)
