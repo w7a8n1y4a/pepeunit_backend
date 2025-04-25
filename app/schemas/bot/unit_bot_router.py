@@ -327,7 +327,8 @@ class UnitBotRouter(BaseBotRouter):
 
         keyboard.append(
             [
-                InlineKeyboardButton(text='UnitNodes', callback_data=f'{EntityNames.UNIT_NODE}_unit_{unit.uuid}'),
+                InlineKeyboardButton(text='Unit Nodes', callback_data=f'{EntityNames.UNIT_NODE}_unit_{unit.uuid}'),
+                InlineKeyboardButton(text='Unit Logs', callback_data=f'{EntityNames.UNIT_LOG}_unit_{unit.uuid}'),
             ]
         )
 

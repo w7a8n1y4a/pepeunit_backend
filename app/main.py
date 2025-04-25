@@ -38,6 +38,7 @@ from app.schemas.bot.info import info_router
 from app.schemas.bot.repo_bot_router import RepoBotRouter
 from app.schemas.bot.start_help import base_router
 from app.schemas.bot.unit_bot_router import UnitBotRouter
+from app.schemas.bot.unit_log_bot_router import UnitLogBotRouter
 from app.schemas.bot.unit_node_bot_router import UnitNodeBotRouter
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
@@ -276,6 +277,7 @@ dp.include_router(base_router)
 dp.include_router(RepoBotRouter().router)
 dp.include_router(UnitBotRouter().router)
 dp.include_router(UnitNodeBotRouter().router)
+dp.include_router(UnitLogBotRouter().router)
 dp.include_router(error_router)
 
 
