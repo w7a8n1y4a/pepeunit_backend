@@ -67,11 +67,11 @@ class UnitLogBotRouter(BaseBotRouter):
         table = [['Time', 'Level', 'Text']]
 
         for unit_log in unit_logs[::-1]:
-            table.append([unit_log.create_datetime.strftime("%Y-%m-%d %H:%M:%S"), unit_log.level.value, unit_log.text])
+            table.append([unit_log.create_datetime.strftime("%Y-%m-%d%H:%M:%S"), unit_log.level.value, unit_log.text])
 
         text += f'\n```text\n'
 
-        text += make_monospace_table_with_title(table)
+        text += make_monospace_table_with_title(table, lengths=[10, 5, 25])
 
         text += '```'
 
