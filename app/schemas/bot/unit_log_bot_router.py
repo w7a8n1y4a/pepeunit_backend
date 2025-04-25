@@ -11,18 +11,17 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
+from app.configs.gql import get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.dto.enum import CommandNames, DecreesNames, EntityNames, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
-from app.schemas.gql.types.shared import UnitNodeType
-from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.schemas.pydantic.unit import UnitLogFilter
 
 
-class UnitNodeBotRouter(BaseBotRouter):
+class UnitLogBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.UNIT_NODE
+        entity_name = EntityNames.UNIT_LOG
         super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_unit_"))(self.handle_by_unit)
 
@@ -39,10 +38,10 @@ class UnitNodeBotRouter(BaseBotRouter):
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
 
-        unit_nodes, total_pages = await self.get_entities_page(filters, str(chat_id))
+        unit_logs, total_pages = await self.get_entities_page(filters, str(chat_id))
 
-        if not unit_nodes:
-            text = "No unit nodes found"
+        if not unit_logs:
+            text = "No unit logs found"
 
             if isinstance(message, types.Message):
                 await message.answer(text, parse_mode='Markdown')
@@ -51,9 +50,9 @@ class UnitNodeBotRouter(BaseBotRouter):
 
             return
 
-        keyboard = self.build_entities_keyboard(unit_nodes, filters, total_pages)
+        keyboard = self.build_entities_keyboard(unit_logs, filters, total_pages)
 
-        text = "*UnitNodes*"
+        text = "*Unit Logs*"
         if filters.unit_uuid:
             db = next(get_session())
             unit = None
@@ -65,8 +64,16 @@ class UnitNodeBotRouter(BaseBotRouter):
             finally:
                 text += f" - for unit `{unit.name}`"
 
-        if filters.search_string:
-            text += f" - `{filters.search_string}`"
+        table = [['Time', 'Level', 'Text']]
+
+        for unit_log in unit_logs[::-1]:
+            table.append([unit_log.create_datetime.strftime("%Y-%m-%d%H:%M:%S"), unit_log.level.value, unit_log.text])
+
+        text += f'\n```text\n'
+
+        text += make_monospace_table_with_title(table, lengths=[10, 5, 25])
+
+        text += '```'
 
         if isinstance(message, types.Message):
             await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
@@ -76,64 +83,40 @@ class UnitNodeBotRouter(BaseBotRouter):
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
         try:
-            unit_node_service = get_unit_node_service(
-                InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True})
-            )
+            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
 
-            count, unit_nodes = unit_node_service.list(
-                UnitNodeFilter(
+            count, unit_logs = unit_service.log_list(
+                UnitLogFilter(
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or None,
-                    type=filters.unit_types or None,
-                    search_string=filters.search_string,
-                    unit_uuid=filters.unit_uuid,
+                    level=filters.log_levels or None,
+                    uuid=filters.unit_uuid,
                 )
             )
 
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         except Exception as e:
-            logging.error(f"Error getting unit_nodes: {e}")
-            unit_nodes, total_pages = [], 0
+            logging.error(f"Error getting unit_logs: {e}")
+            unit_logs, total_pages = [], 0
         finally:
             db.close()
 
-        return unit_nodes, total_pages
+        return unit_logs, total_pages
 
     def build_entities_keyboard(
         self, entities: list, filters: BaseBotFilters, total_pages: int
     ) -> InlineKeyboardMarkup:
         builder = InlineKeyboardBuilder()
 
-        filter_buttons = [InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search")]
-        builder.row(*filter_buttons)
-
-        filter_unit_types_buttons = [
+        filter_level_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.unit_types else "🔴️ ") + item.value,
+                text=("🟢 " if item.value in filters.log_levels else "🔴️ ") + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
-            for item in UnitNodeTypeEnum
+            for item in LogLevel
         ]
-        builder.row(*filter_unit_types_buttons)
-
-        filter_visibility_buttons = [
-            InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
-                callback_data=f"{self.entity_name}_toggle_" + item.value,
-            )
-            for item in VisibilityLevel
-        ]
-        builder.row(*filter_visibility_buttons)
-
-        for unit_node in entities:
-            builder.row(
-                InlineKeyboardButton(
-                    text=f"{unit_node.topic_name} - {unit_node.type} - {unit_node.visibility_level}",
-                    callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
-                )
-            )
+        builder.row(*filter_level_buttons)
 
         if total_pages > 1:
             pagination_row = []
