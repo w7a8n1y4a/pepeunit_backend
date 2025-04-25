@@ -8,7 +8,7 @@ from aiogram.types import InlineKeyboardMarkup
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.dto.enum import EntityNames, LogLevel, VisibilityLevel
+from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum, VisibilityLevel
 
 
 class RepoStates(StatesGroup):
@@ -26,6 +26,7 @@ class UnitNodeStates(StatesGroup):
 class BaseBotFilters(BaseModel):
     page: int = 1
     visibility_levels: list[str] = Query([item.value for item in VisibilityLevel])
+    unit_types: list[str] = Query([item.value for item in UnitNodeTypeEnum])
     log_levels: list[str] = Query([item.value for item in LogLevel])
     is_only_my_entity: bool = False
     search_string: Optional[str] = None
@@ -134,6 +135,13 @@ class BaseBotRouter(ABC):
                     filters.visibility_levels.remove(target)
                 else:
                     filters.visibility_levels.append(target)
+
+            if target in [item.value for item in UnitNodeTypeEnum]:
+                if target in filters.unit_types:
+                    filters.unit_types.remove(target)
+                else:
+                    filters.unit_types.append(target)
+
             if target in [item.value for item in LogLevel]:
                 if target in filters.log_levels:
                     filters.log_levels.remove(target)

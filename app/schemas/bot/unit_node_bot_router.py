@@ -85,6 +85,7 @@ class UnitNodeBotRouter(BaseBotRouter):
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
                     visibility_level=filters.visibility_levels or None,
+                    type=filters.unit_types or None,
                     search_string=filters.search_string,
                     unit_uuid=filters.unit_uuid,
                 )
@@ -107,6 +108,15 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         filter_buttons = [InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search")]
         builder.row(*filter_buttons)
+
+        filter_unit_types_buttons = [
+            InlineKeyboardButton(
+                text=("🟢 " if item.value in filters.unit_types else "🔴️ ") + item.value,
+                callback_data=f"{self.entity_name}_toggle_" + item.value,
+            )
+            for item in UnitNodeTypeEnum
+        ]
+        builder.row(*filter_unit_types_buttons)
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
