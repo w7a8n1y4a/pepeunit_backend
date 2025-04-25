@@ -62,7 +62,7 @@ class UnitNodeBotRouter(BaseBotRouter):
                 )
                 unit = unit_service.get(filters.unit_uuid)
             finally:
-                text += f" - for unit `{unit.name}`"
+                text += f" - for unit `{self.header_name_limit(unit.name)}`"
 
         if filters.search_string:
             text += f" - `{filters.search_string}`"
@@ -181,7 +181,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         finally:
             db.close()
 
-        text = f'UnitNode - *{unit_node.topic_name[:20]}*'
+        text = f'*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`'
 
         text += f'\n```text\n'
 

@@ -8,6 +8,7 @@ from aiogram.types import InlineKeyboardMarkup
 from fastapi import Query
 from pydantic import BaseModel, field_validator
 
+from app import settings
 from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum, VisibilityLevel
 
 
@@ -171,3 +172,11 @@ class BaseBotRouter(ABC):
         await state.update_data(current_filters=filters)
         await state.set_state(None)
         await self.show_entities(message, filters)
+
+    @staticmethod
+    def header_name_limit(data: str) -> str:
+        return data[: settings.telegram_header_entity_length]
+
+    @staticmethod
+    def git_hash_limit(data: str) -> str:
+        return data[: settings.telegram_git_hash_length]

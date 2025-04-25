@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     telegram_token: str
     telegram_bot_link: str
     telegram_items_per_page: int = 7
+    telegram_header_entity_length: int = 15
+    telegram_git_hash_length: int = 8
 
     prometheus_multiproc_dir: str = './prometheus_metrics'
 

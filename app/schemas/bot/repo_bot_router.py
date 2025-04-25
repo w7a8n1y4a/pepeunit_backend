@@ -158,7 +158,7 @@ class RepoBotRouter(BaseBotRouter):
         finally:
             db.close()
 
-        text = f'Repo - *{repo.name}* - {repo.visibility_level}'
+        text = f'*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*'
 
         if versions and versions.unit_count:
             text += f'\n```text\nTotal Units this Repo - {versions.unit_count}\n\n'
@@ -166,7 +166,9 @@ class RepoBotRouter(BaseBotRouter):
             table = [['№', 'Version', 'Unit Count']]
 
             for inc, version in enumerate(versions.versions):
-                table.append([inc, version.tag if version.tag else version.commit[:6], version.unit_count])
+                table.append(
+                    [inc, version.tag if version.tag else self.git_hash_limit(version.commit), version.unit_count]
+                )
 
             text += make_monospace_table_with_title(table, 'Version distribution')
 

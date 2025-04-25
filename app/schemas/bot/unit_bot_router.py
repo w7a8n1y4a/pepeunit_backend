@@ -211,15 +211,15 @@ class UnitBotRouter(BaseBotRouter):
         finally:
             db.close()
 
-        text = f'Unit - *{unit.name}* - {unit.visibility_level}'
+        text = f'*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*'
 
         if target_version or unit.unit_state:
             text += f'\n```text\n'
 
         if target_version:
 
-            current_version = unit.current_commit_version[:8] if unit.current_commit_version else None
-            target_version = target_version.commit[:8] if target_version.commit else None
+            current_version = self.git_hash_limit(unit.current_commit_version) if unit.current_commit_version else None
+            target_version = self.git_hash_limit(target_version.commit) if target_version.commit else None
 
             if not unit.firmware_update_status and current_version == target_version:
                 status = UnitFirmwareUpdateStatus.SUCCESS
