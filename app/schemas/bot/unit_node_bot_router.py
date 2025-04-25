@@ -212,7 +212,7 @@ class UnitNodeBotRouter(BaseBotRouter):
             [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
                 InlineKeyboardButton(
-                    text='Refresh', callback_data=f'{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}'
+                    text='↻ Refresh', callback_data=f'{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}'
                 ),
                 InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit-node/{unit_node.uuid}'),
             ],
