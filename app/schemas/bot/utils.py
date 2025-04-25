@@ -14,23 +14,51 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
 
     str_data = [[str(item) if item is not None else "-" for item in row] for row in data]
 
-    def truncate_text(text: str, max_len: Optional[int]) -> List[str]:
+    def wrap_text(text: str, max_len: Optional[int]) -> List[str]:
         if max_len is None:
             return [text]
-        return [text[i : i + max_len] for i in range(0, len(text), max_len)]
+        if len(text) <= max_len:
+            return [text]
 
-    truncated_data = []
+        lines = []
+        current_line = []
+        current_length = 0
+
+        for word in text.split(' '):
+            word_length = len(word)
+            if current_length + word_length <= max_len:
+                current_line.append(word)
+                current_length += word_length + 1  # +1 for space
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                if word_length > max_len:
+                    # Handle very long words that exceed max_len
+                    for i in range(0, len(word), max_len):
+                        lines.append(word[i : i + max_len])
+                    current_line = []
+                    current_length = 0
+                else:
+                    current_line = [word]
+                    current_length = word_length + 1
+
+        if current_line:
+            lines.append(' '.join(current_line))
+
+        return lines
+
+    wrapped_data = []
     for row in str_data:
-        truncated_row = []
+        wrapped_row = []
         for cell, max_len in zip(row, lengths):
-            truncated_row.append(truncate_text(cell, max_len))
-        truncated_data.append(truncated_row)
+            wrapped_row.append(wrap_text(cell, max_len))
+        wrapped_data.append(wrapped_row)
 
-    max_lines_per_row = [max(len(cell) for cell in row) for row in truncated_data]
+    max_lines_per_row = [max(len(cell) for cell in row) for row in wrapped_data]
 
     column_widths = []
     for col_idx in range(num_columns):
-        actual_max = max(len(line) for row in truncated_data for line in row[col_idx])
+        actual_max = max(len(line) for row in wrapped_data for line in row[col_idx])
         if lengths[col_idx] is not None:
             column_width = min(lengths[col_idx], actual_max)
         else:
@@ -47,7 +75,7 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
         result.append(title_line)
         result.append(horizontal_line)
 
-    for row, max_lines in zip(truncated_data, max_lines_per_row):
+    for row, max_lines in zip(wrapped_data, max_lines_per_row):
         for line_idx in range(max_lines):
             row_line = '|'
             for cell, width in zip(row, column_widths):

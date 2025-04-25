@@ -59,7 +59,10 @@ async def start_help_resolver(message: types.Message):
         ['Command', 'Info'],
         ['/info', 'Instance metrics'],
         ['/repo', 'Repo search, Repo base information, Repo base buttons'],
-        ['/unit', 'Unit search, Unit base information, get env, send mqtt command, get firmware, check nodes and logs'],
+        [
+            '/unit',
+            'Unit search, Unit base information, get env file, send mqtt command, get firmware archives, check IO nodes and check logs',
+        ],
     ]
     text += make_monospace_table_with_title(table, f'Backend Version - {root_data.version}', [10, 28])
     text += '```'
