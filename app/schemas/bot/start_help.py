@@ -12,6 +12,8 @@ from app.configs.gql import get_user_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
 from app.repositories.user_repository import UserRepository
+from app.schemas.bot.utils import make_monospace_table_with_title
+from app.schemas.pydantic.shared import Root
 
 base_router = Router()
 
@@ -50,16 +52,32 @@ async def start_help_resolver(message: types.Message):
 
         return
 
-    documentation = '*Control*\n' '/start - bot run\n' '\n' '*Instance information*\n' '/info - base info\n'
+    root_data = Root()
+
+    text = f'\n```text\n'
+    table = [
+        ['Command', 'Info'],
+        ['/info', 'Instance metrics'],
+        ['/repo', 'Repo search, Repo base information, Repo base buttons'],
+        ['/unit', 'Unit search, Unit base information, get env, send mqtt command, get firmware, check nodes and logs'],
+    ]
+    text += make_monospace_table_with_title(table, f'Backend Version - {root_data.version}', [10, 28])
+    text += '```'
 
     buttons = [
-        InlineKeyboardButton(text='Instance', url=settings.backend_link),
-        InlineKeyboardButton(text='Docs', url='https://pepeunit.com'),
+        InlineKeyboardButton(text='Frontend', url=settings.backend_link),
+        InlineKeyboardButton(text='Documentation', url='https://pepeunit.com'),
     ]
     builder = InlineKeyboardBuilder()
-    for button in buttons:
-        builder.row(button)
 
-    builder.adjust(2)
+    builder.add(*buttons)
 
-    await message.answer(documentation, reply_markup=builder.as_markup(), parse_mode='Markdown')
+    buttons = [
+        InlineKeyboardButton(text='Swagger', url=root_data.swagger),
+        InlineKeyboardButton(text='Graphql', url=root_data.graphql),
+        InlineKeyboardButton(text='Grafana', url=root_data.grafana),
+    ]
+
+    builder.row(*buttons)
+
+    await message.answer(text, reply_markup=builder.as_markup(), parse_mode='Markdown')
