@@ -228,6 +228,7 @@ class EntityNames(str, enum.Enum):
 
     REPO = 'Repo'
     UNIT = 'Unit'
+    UNIT_NODE = 'UnitNode'
     UNIT_LOG = 'UnitLog'
 
 

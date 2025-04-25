@@ -327,6 +327,12 @@ class UnitBotRouter(BaseBotRouter):
 
         keyboard.append(
             [
+                InlineKeyboardButton(text='UnitNodes', callback_data=f'{EntityNames.UNIT_NODE}_unit_{unit.uuid}'),
+            ]
+        )
+
+        keyboard.append(
+            [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
                 InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit/{unit.uuid}'),
             ],
