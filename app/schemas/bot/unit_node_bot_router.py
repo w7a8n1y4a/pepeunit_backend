@@ -129,7 +129,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         for unit_node in entities:
             builder.row(
                 InlineKeyboardButton(
-                    text=f"{unit_node.topic_name} - {unit_node.type} - {unit_node.visibility_level}",
+                    text=f"{self.header_name_limit(unit_node.topic_name)} - {unit_node.type} - {unit_node.visibility_level}",
                     callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
                 )
             )

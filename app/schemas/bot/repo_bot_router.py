@@ -107,7 +107,7 @@ class RepoBotRouter(BaseBotRouter):
         for repo in entities:
             builder.row(
                 InlineKeyboardButton(
-                    text=f"{repo.name} - {repo.visibility_level}",
+                    text=f"{self.header_name_limit(repo.name)} - {repo.visibility_level}",
                     callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
                 )
             )
@@ -177,16 +177,16 @@ class RepoBotRouter(BaseBotRouter):
         keyboard = [
             [
                 InlineKeyboardButton(
-                    text='Update Local Repo',
+                    text='🫀 Update Local Repo',
                     callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
                 ),
                 InlineKeyboardButton(
-                    text='Update Related Unit',
+                    text='📈 Update Related Unit',
                     callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
                 ),
             ],
             [
-                InlineKeyboardButton(text='Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
+                InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
             ],
             [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),

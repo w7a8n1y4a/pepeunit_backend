@@ -146,7 +146,7 @@ class UnitBotRouter(BaseBotRouter):
         for unit, nodes in entities:
             builder.row(
                 InlineKeyboardButton(
-                    text=f"{unit.name} - {unit.visibility_level}",
+                    text=f"{self.header_name_limit(unit.name)} - {unit.visibility_level}",
                     callback_data=f"{self.entity_name}_uuid_{unit.uuid}_{filters.page}",
                 )
             )
@@ -294,7 +294,7 @@ class UnitBotRouter(BaseBotRouter):
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        text='Get Env',
+                        text='💰 Get Env',
                         callback_data=f'{self.entity_name}_decrees_{DecreesNames.GET_ENV}_{unit.uuid}',
                     ),
                 ]
@@ -325,7 +325,7 @@ class UnitBotRouter(BaseBotRouter):
                 keyboard.append(
                     [
                         InlineKeyboardButton(
-                            text=command,
+                            text=f'💾 {command}',
                             callback_data=f'{self.entity_name}_decrees_{command}_{unit.uuid}',
                         )
                         for command in commands
@@ -333,12 +333,12 @@ class UnitBotRouter(BaseBotRouter):
                 )
 
         buttons = [
-            InlineKeyboardButton(text='Unit Nodes', callback_data=f'{EntityNames.UNIT_NODE}_unit_{unit.uuid}'),
+            InlineKeyboardButton(text='🎯 Unit Nodes', callback_data=f'{EntityNames.UNIT_NODE}_unit_{unit.uuid}'),
         ]
 
         if is_creator:
             buttons.append(
-                InlineKeyboardButton(text='Unit Logs', callback_data=f'{EntityNames.UNIT_LOG}_unit_{unit.uuid}')
+                InlineKeyboardButton(text='📝 Unit Logs', callback_data=f'{EntityNames.UNIT_LOG}_unit_{unit.uuid}')
             )
 
         keyboard.append(buttons)
