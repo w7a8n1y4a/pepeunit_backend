@@ -28,8 +28,6 @@ class UnitLogBotRouter(BaseBotRouter):
     async def handle_by_unit(self, callback: types.CallbackQuery, state: FSMContext):
         *_, unit_uuid = callback.data.split('_')
 
-        print(callback.data)
-
         await state.set_state(None)
         filters = BaseBotFilters(unit_uuid=unit_uuid)
         await state.update_data(current_filters=filters)
@@ -129,72 +127,14 @@ class UnitLogBotRouter(BaseBotRouter):
                 pagination_row.append(InlineKeyboardButton(text="➡️", callback_data=f"{self.entity_name}_next_page"))
             builder.row(*pagination_row)
 
+        builder.row(
+            InlineKeyboardButton(
+                text='← Back', callback_data=f'{EntityNames.UNIT}_uuid_{filters.unit_uuid}_{filters.page}'
+            )
+        )
         return builder.as_markup()
 
     async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
-        data = await state.get_data()
-        filters: BaseBotFilters = (
-            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
-        )
-
-        try:
-            unit_node_uuid = UUID(callback.data.split('_')[-2])
-            current_page = int(callback.data.split('_')[-1])
-        except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            return
-
-        filters.page = current_page
-        new_filters = BaseBotFilters(previous_filters=filters)
-        await state.update_data(current_filters=new_filters)
-
-        db = next(get_session())
-        try:
-            unit_node_service = get_unit_node_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
-            unit_node = unit_node_service.get(unit_node_uuid)
-
-        finally:
-            db.close()
-
-        text = f'UnitNode - *{unit_node.topic_name[:20]}*'
-
-        text += f'\n```text\n'
-
-        table = [
-            ['Type', unit_node.type],
-            ['Visibility', unit_node.visibility_level],
-            ['Last Update', unit_node.last_update_datetime.strftime("%Y-%m-%d %H:%M:%S")],
-        ]
-
-        if unit_node.type == UnitNodeTypeEnum.INPUT:
-            table.append(['Rewritable?', unit_node.is_rewritable_input])
-
-        text += make_monospace_table_with_title(table, 'Base Info')
-
-        if unit_node.state:
-            text += '\nState:\n\n'
-
-            try:
-                unit_state = json.loads(unit_node.state)
-                text += json.dumps(unit_state, indent=4)
-
-            except JSONDecodeError:
-                text += unit_node.state
-
-        text += '```'
-
-        keyboard = [
-            [
-                InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
-                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit-node/{unit_node.uuid}'),
-            ],
-        ]
-
-        await callback.message.edit_text(
-            text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
-        )
         await callback.answer(parse_mode='Markdown')
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:

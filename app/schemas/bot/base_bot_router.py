@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup
 from fastapi import Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum, VisibilityLevel
 
@@ -33,6 +33,12 @@ class BaseBotFilters(BaseModel):
     previous_filters: Optional["BaseBotFilters"] = None
     repo_uuid: Optional[str] = None
     unit_uuid: Optional[str] = None
+
+    @field_validator('previous_filters')
+    def validate_previous_filters(cls, v):
+        if v is not None and v.previous_filters is not None:
+            v.previous_filters = None
+        return v
 
     class Config:
         arbitrary_types_allowed = True

@@ -137,10 +137,10 @@ class RepoBotRouter(BaseBotRouter):
         except Exception as e:
             await callback.answer(parse_mode='Markdown')
             return
-
-        filters.page = current_page
-        new_filters = BaseBotFilters(previous_filters=filters)
-        await state.update_data(current_filters=new_filters)
+        if not filters.previous_filters:
+            filters.page = current_page
+            new_filters = BaseBotFilters(previous_filters=filters)
+            await state.update_data(current_filters=new_filters)
 
         db = next(get_session())
         try:
