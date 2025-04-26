@@ -36,10 +36,6 @@ class UnitLogRepository:
         )
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
-        query = f"delete from unit_logs where uuid = %(uuid)s"
-        self.client.execute(query, {'uuid': uuid})
-
-    def delete(self, uuid: uuid_pkg.UUID) -> None:
         query = f"delete from unit_logs where unit_uuid = %(uuid)s"
         self.client.execute(query, {'uuid': uuid})
 
@@ -48,10 +44,17 @@ class UnitLogRepository:
         query = f"select {UnitLog.get_keys()} from unit_logs where unit_uuid = %(uuid)s"
         count_query = f"select count() as count from unit_logs where unit_uuid = %(uuid)s"
 
+        filters.level = [] if filters.level is None else filters.level
+
         if filters.level:
             filters.level = filters.level.default if isinstance(filters.level, Query) else filters.level
             data = ', '.join([f"'{item}'" for item in filters.level])
             level_append = f' AND level in ({data})'
+
+            query += level_append
+            count_query += level_append
+        elif isinstance(filters.level, list) and not len(filters.level):
+            level_append = f' AND level in (0)'
 
             query += level_append
             count_query += level_append

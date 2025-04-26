@@ -17,8 +17,10 @@ def apply_ilike_search_string(query, filters, fields: list):
 
 def apply_enums(query, filters, fields: dict):
     for filter_name, field in fields.items():
-        if filter_name in filters.dict() and filters.dict()[filter_name]:
+        if filter_name in filters.dict():
             value = filters.dict()[filter_name]
+
+            value = [] if value is None else value
 
             if isinstance(value, params.Query):
                 value = value.default
@@ -34,6 +36,9 @@ def apply_restriction(query, filters, entity_type: any, restriction: list):
         if isinstance(filters.visibility_level, params.Query)
         else filters.visibility_level
     )
+
+    if filters.visibility_level is None:
+        visibility_levels = []
 
     if restriction and VisibilityLevel.PRIVATE in visibility_levels:
         query = query.filter(

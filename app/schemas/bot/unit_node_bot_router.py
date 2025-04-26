@@ -5,6 +5,7 @@ from typing import Union
 from uuid import UUID
 
 from aiogram import F, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -29,8 +30,6 @@ class UnitNodeBotRouter(BaseBotRouter):
     async def handle_by_unit(self, callback: types.CallbackQuery, state: FSMContext):
         *_, unit_uuid = callback.data.split('_')
 
-        print(callback.data)
-
         await state.set_state(None)
         filters = BaseBotFilters(unit_uuid=unit_uuid)
         await state.update_data(current_filters=filters)
@@ -39,19 +38,8 @@ class UnitNodeBotRouter(BaseBotRouter):
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
 
-        unit_nodes, total_pages = await self.get_entities_page(filters, str(chat_id))
-
-        if not unit_nodes:
-            text = "No unit nodes found"
-
-            if isinstance(message, types.Message):
-                await message.answer(text, parse_mode='Markdown')
-            else:
-                await message.message.edit_text(text, parse_mode='Markdown')
-
-            return
-
-        keyboard = self.build_entities_keyboard(unit_nodes, filters, total_pages)
+        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*UnitNodes*"
         if filters.unit_uuid:
@@ -63,15 +51,12 @@ class UnitNodeBotRouter(BaseBotRouter):
                 )
                 unit = unit_service.get(filters.unit_uuid)
             finally:
-                text += f" - for unit `{unit.name}`"
+                text += f" - for unit `{self.header_name_limit(unit.name)}`"
 
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
-        if isinstance(message, types.Message):
-            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-        else:
-            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
@@ -84,8 +69,8 @@ class UnitNodeBotRouter(BaseBotRouter):
                 UnitNodeFilter(
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or None,
-                    type=filters.unit_types or None,
+                    visibility_level=filters.visibility_levels or [],
+                    type=filters.unit_types or [],
                     search_string=filters.search_string,
                     unit_uuid=filters.unit_uuid,
                 )
@@ -126,14 +111,16 @@ class UnitNodeBotRouter(BaseBotRouter):
             for item in VisibilityLevel
         ]
         builder.row(*filter_visibility_buttons)
-
-        for unit_node in entities:
-            builder.row(
-                InlineKeyboardButton(
-                    text=f"{unit_node.topic_name} - {unit_node.type} - {unit_node.visibility_level}",
-                    callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+        if entities:
+            for unit_node in entities:
+                builder.row(
+                    InlineKeyboardButton(
+                        text=f"{self.header_name_limit(unit_node.topic_name)} - {unit_node.type} - {unit_node.visibility_level}",
+                        callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+                    )
                 )
-            )
+        else:
+            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
 
         if total_pages > 1:
             pagination_row = []
@@ -146,6 +133,12 @@ class UnitNodeBotRouter(BaseBotRouter):
                 pagination_row.append(InlineKeyboardButton(text="➡️", callback_data=f"{self.entity_name}_next_page"))
             builder.row(*pagination_row)
 
+        builder.row(
+            InlineKeyboardButton(
+                text='← Back', callback_data=f'{EntityNames.UNIT}_uuid_{filters.unit_uuid}_{filters.page}'
+            )
+        )
+
         return builder.as_markup()
 
     async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
@@ -154,16 +147,13 @@ class UnitNodeBotRouter(BaseBotRouter):
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
 
-        try:
-            unit_node_uuid = UUID(callback.data.split('_')[-2])
-            current_page = int(callback.data.split('_')[-1])
-        except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            return
+        unit_node_uuid = UUID(callback.data.split('_')[-2])
+        current_page = int(callback.data.split('_')[-1])
 
-        filters.page = current_page
-        new_filters = BaseBotFilters(previous_filters=filters)
-        await state.update_data(current_filters=new_filters)
+        if not filters.previous_filters:
+            filters.page = current_page
+            new_filters = BaseBotFilters(previous_filters=filters)
+            await state.update_data(current_filters=new_filters)
 
         db = next(get_session())
         try:
@@ -175,7 +165,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         finally:
             db.close()
 
-        text = f'UnitNode - *{unit_node.topic_name[:20]}*'
+        text = f'*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`'
 
         text += f'\n```text\n'
 
@@ -205,14 +195,19 @@ class UnitNodeBotRouter(BaseBotRouter):
         keyboard = [
             [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                InlineKeyboardButton(
+                    text='↻ Refresh', callback_data=f'{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}'
+                ),
                 InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit-node/{unit_node.uuid}'),
             ],
         ]
 
-        await callback.message.edit_text(
-            text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
-        )
         await callback.answer(parse_mode='Markdown')
+
+        try:
+            await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
+        except TelegramBadRequest:
+            logging.info('Bad refresh Click')
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
         await callback.answer(parse_mode='Markdown')

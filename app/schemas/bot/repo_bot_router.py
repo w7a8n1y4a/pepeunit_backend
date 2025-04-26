@@ -33,28 +33,14 @@ class RepoBotRouter(BaseBotRouter):
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
 
-        repos, total_pages = await self.get_entities_page(filters, str(chat_id))
-
-        if not repos:
-            text = "No repos found"
-
-            if isinstance(message, types.Message):
-                await message.answer(text, parse_mode='Markdown')
-            else:
-                await message.message.edit_text(text, parse_mode='Markdown')
-
-            return
-
-        keyboard = self.build_entities_keyboard(repos, filters, total_pages)
+        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Repos*"
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
-        if isinstance(message, types.Message):
-            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-        else:
-            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
@@ -65,7 +51,7 @@ class RepoBotRouter(BaseBotRouter):
                 RepoFilter(
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or None,
+                    visibility_level=filters.visibility_levels or [],
                     creator_uuid=repo_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
                     search_string=filters.search_string,
                 )
@@ -104,13 +90,16 @@ class RepoBotRouter(BaseBotRouter):
         ]
         builder.row(*filter_visibility_buttons)
 
-        for repo in entities:
-            builder.row(
-                InlineKeyboardButton(
-                    text=f"{repo.name} - {repo.visibility_level}",
-                    callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
+        if entities:
+            for repo in entities:
+                builder.row(
+                    InlineKeyboardButton(
+                        text=f"{self.header_name_limit(repo.name)} - {repo.visibility_level}",
+                        callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
+                    )
                 )
-            )
+        else:
+            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
 
         if total_pages > 1:
             pagination_row = []
@@ -131,16 +120,13 @@ class RepoBotRouter(BaseBotRouter):
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
 
-        try:
-            repo_uuid = UUID(callback.data.split('_')[-2])
-            current_page = int(callback.data.split('_')[-1])
-        except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            return
+        repo_uuid = UUID(callback.data.split('_')[-2])
+        current_page = int(callback.data.split('_')[-1])
 
-        filters.page = current_page
-        new_filters = BaseBotFilters(previous_filters=filters)
-        await state.update_data(current_filters=new_filters)
+        if not filters.previous_filters:
+            filters.page = current_page
+            new_filters = BaseBotFilters(previous_filters=filters)
+            await state.update_data(current_filters=new_filters)
 
         db = next(get_session())
         try:
@@ -158,7 +144,7 @@ class RepoBotRouter(BaseBotRouter):
         finally:
             db.close()
 
-        text = f'Repo - *{repo.name}* - {repo.visibility_level}'
+        text = f'*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*'
 
         if versions and versions.unit_count:
             text += f'\n```text\nTotal Units this Repo - {versions.unit_count}\n\n'
@@ -166,7 +152,9 @@ class RepoBotRouter(BaseBotRouter):
             table = [['№', 'Version', 'Unit Count']]
 
             for inc, version in enumerate(versions.versions):
-                table.append([inc, version.tag if version.tag else version.commit[:6], version.unit_count])
+                table.append(
+                    [inc, version.tag if version.tag else self.git_hash_limit(version.commit), version.unit_count]
+                )
 
             text += make_monospace_table_with_title(table, 'Version distribution')
 
@@ -175,16 +163,16 @@ class RepoBotRouter(BaseBotRouter):
         keyboard = [
             [
                 InlineKeyboardButton(
-                    text='Update Local Repo',
+                    text='🫀 Update Local Repo',
                     callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
                 ),
                 InlineKeyboardButton(
-                    text='Update Related Unit',
+                    text='📈 Update Related Unit',
                     callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
                 ),
             ],
             [
-                InlineKeyboardButton(text='Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
+                InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
             ],
             [
                 InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
@@ -192,10 +180,8 @@ class RepoBotRouter(BaseBotRouter):
             ],
         ]
 
-        await callback.message.edit_text(
-            text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
-        )
         await callback.answer(parse_mode='Markdown')
+        await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
 
@@ -218,11 +204,9 @@ class RepoBotRouter(BaseBotRouter):
                     repo_service.update_units_firmware(repo_uuid)
 
         except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            await callback.message.answer(e.message, parse_mode='Markdown')
-            return
+            text = e.message
         finally:
             db.close()
 
         await callback.answer(parse_mode='Markdown')
-        await callback.message.answer(text, parse_mode='Markdown')
+        await self.telegram_response(callback, text, is_editable=False)

@@ -6,8 +6,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup
 from fastapi import Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+from app import settings
 from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum, VisibilityLevel
 
 
@@ -33,6 +34,12 @@ class BaseBotFilters(BaseModel):
     previous_filters: Optional["BaseBotFilters"] = None
     repo_uuid: Optional[str] = None
     unit_uuid: Optional[str] = None
+
+    @field_validator('previous_filters')
+    def validate_previous_filters(cls, v):
+        if v is not None and v.previous_filters is not None:
+            v.previous_filters = None
+        return v
 
     class Config:
         arbitrary_types_allowed = True
@@ -165,3 +172,30 @@ class BaseBotRouter(ABC):
         await state.update_data(current_filters=filters)
         await state.set_state(None)
         await self.show_entities(message, filters)
+
+    @staticmethod
+    def header_name_limit(data: str) -> str:
+        return data[: settings.telegram_header_entity_length]
+
+    @staticmethod
+    def git_hash_limit(data: str) -> str:
+        return data[: settings.telegram_git_hash_length]
+
+    @staticmethod
+    async def telegram_response(
+        message: Union[types.Message, types.CallbackQuery],
+        text: str = None,
+        keyboard: InlineKeyboardMarkup = None,
+        is_editable: bool = True,
+    ):
+
+        params = {'text': text, 'reply_markup': keyboard, 'parse_mode': 'Markdown'}
+
+        if isinstance(message, types.Message):
+            await message.answer(**params)
+            return
+
+        if isinstance(message, types.CallbackQuery) and is_editable:
+            await message.message.edit_text(**params)
+        else:
+            await message.message.answer(**params)
