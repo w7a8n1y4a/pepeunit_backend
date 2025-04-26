@@ -9,6 +9,7 @@ engine = create_engine(
     echo_pool=settings.backend_debug,
     future=True,
     json_serializer=jsonable_encoder,
+    isolation_level='SERIALIZABLE',
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
