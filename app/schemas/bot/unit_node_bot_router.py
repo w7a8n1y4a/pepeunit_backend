@@ -1,5 +1,4 @@
 import json
-import logging
 from json import JSONDecodeError
 from typing import Union
 from uuid import UUID
@@ -12,12 +11,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
+from app.configs.gql import get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.dto.enum import CommandNames, DecreesNames, EntityNames, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
-from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 
 
@@ -79,7 +77,6 @@ class UnitNodeBotRouter(BaseBotRouter):
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         except Exception as e:
-            logging.error(f"Error getting unit_nodes: {e}")
             unit_nodes, total_pages = [], 0
         finally:
             db.close()
@@ -207,7 +204,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         try:
             await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
         except TelegramBadRequest:
-            logging.info('Bad refresh Click')
+            pass
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
         await callback.answer(parse_mode='Markdown')

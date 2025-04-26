@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton
@@ -44,8 +42,10 @@ async def start_help_resolver(message: types.Message):
                     else:
                         text = 'There is no such code'
         except Exception as e:
-            logging.error(e)
-            text = e
+            try:
+                text = e.message
+            except AttributeError:
+                text = e
         finally:
             db.close()
 

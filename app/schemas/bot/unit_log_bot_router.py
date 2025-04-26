@@ -1,8 +1,4 @@
-import json
-import logging
-from json import JSONDecodeError
 from typing import Union
-from uuid import UUID
 
 from aiogram import F, types
 from aiogram.fsm.context import FSMContext
@@ -11,9 +7,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
 from app.configs.db import get_session
-from app.configs.gql import get_unit_node_service, get_unit_service
+from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
-from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum
+from app.dto.enum import EntityNames, LogLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.unit import UnitLogFilter
@@ -86,7 +82,6 @@ class UnitLogBotRouter(BaseBotRouter):
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         except Exception as e:
-            logging.error(f"Error getting unit_logs: {e}")
             unit_logs, total_pages = [], 0
         finally:
             db.close()
