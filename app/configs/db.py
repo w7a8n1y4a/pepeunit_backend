@@ -17,8 +17,11 @@ engine = create_engine(
 
 
 def get_session() -> Session:
-    with Session(engine) as session:
-        try:
-            yield session
-        finally:
-            session.close()
+    session = Session(engine)
+    try:
+        yield session
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
