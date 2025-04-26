@@ -41,10 +41,7 @@ class UnitLogBotRouter(BaseBotRouter):
         if not unit_logs:
             text = "No unit logs found"
 
-            if isinstance(message, types.Message):
-                await message.answer(text, parse_mode='Markdown')
-            else:
-                await message.message.edit_text(text, parse_mode='Markdown')
+            await self.telegram_response(message, text)
 
             return
 
@@ -73,10 +70,7 @@ class UnitLogBotRouter(BaseBotRouter):
 
         text += '```'
 
-        if isinstance(message, types.Message):
-            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-        else:
-            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())

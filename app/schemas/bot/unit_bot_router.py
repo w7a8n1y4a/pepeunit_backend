@@ -65,10 +65,7 @@ class UnitBotRouter(BaseBotRouter):
         if not units:
             text = "No units found"
 
-            if isinstance(message, types.Message):
-                await message.answer(text, parse_mode='Markdown')
-            else:
-                await message.message.edit_text(text, parse_mode='Markdown')
+            await self.telegram_response(message, text)
 
             return
 
@@ -89,10 +86,7 @@ class UnitBotRouter(BaseBotRouter):
             finally:
                 text += f" - for repo `{repo.name}`"
 
-        if isinstance(message, types.Message):
-            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-        else:
-            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
@@ -134,14 +128,14 @@ class UnitBotRouter(BaseBotRouter):
             ]
             builder.row(*filter_buttons)
 
-            filter_visibility_buttons = [
-                InlineKeyboardButton(
-                    text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
-                    callback_data=f"{self.entity_name}_toggle_" + item.value,
-                )
-                for item in VisibilityLevel
-            ]
-            builder.row(*filter_visibility_buttons)
+        filter_visibility_buttons = [
+            InlineKeyboardButton(
+                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
+                callback_data=f"{self.entity_name}_toggle_" + item.value,
+            )
+            for item in VisibilityLevel
+        ]
+        builder.row(*filter_visibility_buttons)
 
         for unit, nodes in entities:
             builder.row(
@@ -177,12 +171,8 @@ class UnitBotRouter(BaseBotRouter):
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
 
-        try:
-            unit_uuid = UUID(callback.data.split('_')[-2])
-            current_page = int(callback.data.split('_')[-1])
-        except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            return
+        unit_uuid = UUID(callback.data.split('_')[-2])
+        current_page = int(callback.data.split('_')[-1])
 
         if not filters.previous_filters:
             filters.page = current_page
@@ -354,11 +344,8 @@ class UnitBotRouter(BaseBotRouter):
         )
 
         await callback.answer(parse_mode='Markdown')
-
         try:
-            await callback.message.edit_text(
-                text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
-            )
+            await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
         except TelegramBadRequest:
             logging.info('Bad refresh Click')
 
@@ -402,7 +389,7 @@ class UnitBotRouter(BaseBotRouter):
                     )
 
                     os.remove(file_name)
-                    await callback.answer()
+                    await callback.answer(parse_mode='Markdown')
 
                     return
 
@@ -416,14 +403,12 @@ class UnitBotRouter(BaseBotRouter):
                     text = f'Success send command {decrees_type}'
 
         except Exception as e:
-            await callback.answer(parse_mode='Markdown')
             try:
-                await callback.message.answer(e.message, parse_mode='Markdown')
+                text = e.message
             except AttributeError:
-                await callback.message.answer(e, parse_mode='Markdown')
-            return
+                text = e
         finally:
             db.close()
 
         await callback.answer(parse_mode='Markdown')
-        await callback.message.answer(text, parse_mode='Markdown')
+        await self.telegram_response(callback, text, is_editable=False)

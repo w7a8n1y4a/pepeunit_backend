@@ -31,7 +31,6 @@ async def start_help_resolver(message: types.Message):
 
             if user:
                 text = f'Your account is already linked to an account on instance {settings.backend_domain}'
-                await message.answer(text, parse_mode='Markdown')
             else:
                 user_service = get_user_service(InfoSubEntity({'db': db, 'jwt_token': None}))
                 try:
@@ -44,12 +43,13 @@ async def start_help_resolver(message: types.Message):
                         text = 'You are already verified'
                     else:
                         text = 'There is no such code'
-                await message.answer(text, parse_mode='Markdown')
         except Exception as e:
             logging.error(e)
+            text = e
         finally:
             db.close()
 
+        await message.answer(text, parse_mode='Markdown')
         return
 
     root_data = Root()

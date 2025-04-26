@@ -180,3 +180,22 @@ class BaseBotRouter(ABC):
     @staticmethod
     def git_hash_limit(data: str) -> str:
         return data[: settings.telegram_git_hash_length]
+
+    @staticmethod
+    async def telegram_response(
+        message: Union[types.Message, types.CallbackQuery],
+        text: str = None,
+        keyboard: InlineKeyboardMarkup = None,
+        is_editable: bool = True,
+    ):
+
+        params = {'text': text, 'reply_markup': keyboard, 'parse_mode': 'Markdown'}
+
+        if isinstance(message, types.Message):
+            await message.answer(**params)
+            return
+
+        if isinstance(message, types.CallbackQuery) and is_editable:
+            await message.message.edit_text(**params)
+        else:
+            await message.message.answer(**params)

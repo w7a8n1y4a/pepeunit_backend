@@ -43,10 +43,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         if not unit_nodes:
             text = "No unit nodes found"
 
-            if isinstance(message, types.Message):
-                await message.answer(text, parse_mode='Markdown')
-            else:
-                await message.message.edit_text(text, parse_mode='Markdown')
+            await self.telegram_response(message, text)
 
             return
 
@@ -67,10 +64,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
-        if isinstance(message, types.Message):
-            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-        else:
-            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
@@ -159,12 +153,8 @@ class UnitNodeBotRouter(BaseBotRouter):
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
 
-        try:
-            unit_node_uuid = UUID(callback.data.split('_')[-2])
-            current_page = int(callback.data.split('_')[-1])
-        except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            return
+        unit_node_uuid = UUID(callback.data.split('_')[-2])
+        current_page = int(callback.data.split('_')[-1])
 
         if not filters.previous_filters:
             filters.page = current_page
@@ -221,9 +211,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         await callback.answer(parse_mode='Markdown')
 
         try:
-            await callback.message.edit_text(
-                text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
-            )
+            await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
         except TelegramBadRequest:
             logging.info('Bad refresh Click')
 

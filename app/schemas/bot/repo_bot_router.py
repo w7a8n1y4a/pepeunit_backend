@@ -38,10 +38,7 @@ class RepoBotRouter(BaseBotRouter):
         if not repos:
             text = "No repos found"
 
-            if isinstance(message, types.Message):
-                await message.answer(text, parse_mode='Markdown')
-            else:
-                await message.message.edit_text(text, parse_mode='Markdown')
+            await self.telegram_response(message, text)
 
             return
 
@@ -51,10 +48,7 @@ class RepoBotRouter(BaseBotRouter):
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
-        if isinstance(message, types.Message):
-            await message.answer(text, reply_markup=keyboard, parse_mode='Markdown')
-        else:
-            await message.message.edit_text(text, reply_markup=keyboard, parse_mode='Markdown')
+        await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         db = next(get_session())
@@ -131,12 +125,9 @@ class RepoBotRouter(BaseBotRouter):
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
 
-        try:
-            repo_uuid = UUID(callback.data.split('_')[-2])
-            current_page = int(callback.data.split('_')[-1])
-        except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            return
+        repo_uuid = UUID(callback.data.split('_')[-2])
+        current_page = int(callback.data.split('_')[-1])
+
         if not filters.previous_filters:
             filters.page = current_page
             new_filters = BaseBotFilters(previous_filters=filters)
@@ -194,10 +185,8 @@ class RepoBotRouter(BaseBotRouter):
             ],
         ]
 
-        await callback.message.edit_text(
-            text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode='Markdown'
-        )
         await callback.answer(parse_mode='Markdown')
+        await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
 
@@ -220,11 +209,9 @@ class RepoBotRouter(BaseBotRouter):
                     repo_service.update_units_firmware(repo_uuid)
 
         except Exception as e:
-            await callback.answer(parse_mode='Markdown')
-            await callback.message.answer(e.message, parse_mode='Markdown')
-            return
+            text = e.message
         finally:
             db.close()
 
         await callback.answer(parse_mode='Markdown')
-        await callback.message.answer(text, parse_mode='Markdown')
+        await self.telegram_response(callback, text, is_editable=False)
