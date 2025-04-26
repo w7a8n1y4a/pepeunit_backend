@@ -38,16 +38,8 @@ class UnitNodeBotRouter(BaseBotRouter):
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
 
-        unit_nodes, total_pages = await self.get_entities_page(filters, str(chat_id))
-
-        if not unit_nodes:
-            text = "No unit nodes found"
-
-            await self.telegram_response(message, text)
-
-            return
-
-        keyboard = self.build_entities_keyboard(unit_nodes, filters, total_pages)
+        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*UnitNodes*"
         if filters.unit_uuid:
@@ -77,8 +69,8 @@ class UnitNodeBotRouter(BaseBotRouter):
                 UnitNodeFilter(
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or None,
-                    type=filters.unit_types or None,
+                    visibility_level=filters.visibility_levels or [],
+                    type=filters.unit_types or [],
                     search_string=filters.search_string,
                     unit_uuid=filters.unit_uuid,
                 )
@@ -119,14 +111,16 @@ class UnitNodeBotRouter(BaseBotRouter):
             for item in VisibilityLevel
         ]
         builder.row(*filter_visibility_buttons)
-
-        for unit_node in entities:
-            builder.row(
-                InlineKeyboardButton(
-                    text=f"{self.header_name_limit(unit_node.topic_name)} - {unit_node.type} - {unit_node.visibility_level}",
-                    callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+        if entities:
+            for unit_node in entities:
+                builder.row(
+                    InlineKeyboardButton(
+                        text=f"{self.header_name_limit(unit_node.topic_name)} - {unit_node.type} - {unit_node.visibility_level}",
+                        callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+                    )
                 )
-            )
+        else:
+            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
 
         if total_pages > 1:
             pagination_row = []

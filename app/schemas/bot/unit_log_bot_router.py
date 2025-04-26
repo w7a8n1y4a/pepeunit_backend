@@ -36,16 +36,8 @@ class UnitLogBotRouter(BaseBotRouter):
     async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
         chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
 
-        unit_logs, total_pages = await self.get_entities_page(filters, str(chat_id))
-
-        if not unit_logs:
-            text = "No unit logs found"
-
-            await self.telegram_response(message, text)
-
-            return
-
-        keyboard = self.build_entities_keyboard(unit_logs, filters, total_pages)
+        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Unit Logs*"
         if filters.unit_uuid:
@@ -61,8 +53,13 @@ class UnitLogBotRouter(BaseBotRouter):
 
         table = [['Time', 'Level', 'Text']]
 
-        for unit_log in unit_logs[::-1]:
-            table.append([unit_log.create_datetime.strftime("%Y-%m-%d%H:%M:%S"), unit_log.level.value, unit_log.text])
+        if entities:
+            for unit_log in entities[::-1]:
+                table.append(
+                    [unit_log.create_datetime.strftime("%Y-%m-%d%H:%M:%S"), unit_log.level.value, unit_log.text]
+                )
+        else:
+            table.append(['-', '-', '-'])
 
         text += f'\n```text\n'
 
@@ -81,7 +78,7 @@ class UnitLogBotRouter(BaseBotRouter):
                 UnitLogFilter(
                     offset=(filters.page - 1) * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
-                    level=filters.log_levels or None,
+                    level=filters.log_levels or [],
                     uuid=filters.unit_uuid,
                 )
             )
