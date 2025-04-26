@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import Router, types
 from aiogram.filters import Command
 
@@ -15,33 +13,35 @@ info_router = Router()
 @info_router.message(Command(CommandNames.INFO))
 async def info_resolver(message: types.Message):
     db = next(get_session())
-
     try:
         metrics_service = get_metrics_service(
             InfoSubEntity({'db': db, 'jwt_token': str(message.chat.id), 'is_bot_auth': True})
         )
         metrics = metrics_service.get_instance_metrics()
 
+        table = [['Type', 'Count']]
+
+        metrics_dict = {
+            'User': metrics.user_count,
+            'Repo': metrics.repo_count,
+            'Unit': metrics.unit_count,
+            'UnitNode': metrics.unit_node_count,
+            'UnitNodeEdge': metrics.unit_node_edge_count,
+        }
+
+        for k, v in metrics_dict.items():
+            table.append([k, v])
+
+        text = f'\n```text\n'
+        text += make_monospace_table_with_title(table, 'Instance Stats')
+        text += '```'
+
     except Exception as e:
-        logging.error(e)
+        try:
+            text = e.message
+        except AttributeError:
+            text = e
     finally:
         db.close()
-
-    table = [['Type', 'Count']]
-
-    metrics_dict = {
-        'User': metrics.user_count,
-        'Repo': metrics.repo_count,
-        'Unit': metrics.unit_count,
-        'UnitNode': metrics.unit_node_count,
-        'UnitNodeEdge': metrics.unit_node_edge_count,
-    }
-
-    for k, v in metrics_dict.items():
-        table.append([k, v])
-
-    text = f'\n```text\n'
-    text += make_monospace_table_with_title(table, 'Instance Stats')
-    text += '```'
 
     await message.answer(text, parse_mode='Markdown')

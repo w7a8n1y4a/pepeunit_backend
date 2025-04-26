@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from typing import Union
 from uuid import UUID
@@ -99,7 +98,6 @@ class UnitBotRouter(BaseBotRouter):
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         except Exception as e:
-            logging.error(f"Error getting units: {e}")
             units, total_pages = [], 0
         finally:
             db.close()
@@ -342,7 +340,7 @@ class UnitBotRouter(BaseBotRouter):
         try:
             await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
         except TelegramBadRequest:
-            logging.info('Bad refresh Click')
+            pass
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
 

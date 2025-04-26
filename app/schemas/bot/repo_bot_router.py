@@ -1,4 +1,3 @@
-import logging
 from typing import Union
 from uuid import UUID
 
@@ -60,7 +59,6 @@ class RepoBotRouter(BaseBotRouter):
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         except Exception as e:
-            logging.error(f"Error getting repos: {e}")
             repos, total_pages = [], 0
         finally:
             db.close()
@@ -204,7 +202,10 @@ class RepoBotRouter(BaseBotRouter):
                     repo_service.update_units_firmware(repo_uuid)
 
         except Exception as e:
-            text = e.message
+            try:
+                text = e.message
+            except AttributeError:
+                text = e
         finally:
             db.close()
 
