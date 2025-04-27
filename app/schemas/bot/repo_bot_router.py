@@ -128,6 +128,8 @@ class RepoBotRouter(BaseBotRouter):
                 repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
                 repo = repo_service.get(repo_uuid)
 
+                is_creator = repo_service.access_service.current_agent.uuid == repo.creator_uuid
+
                 try:
                     versions = repo_service.get_versions(repo_uuid)
                 except Exception:
@@ -149,25 +151,32 @@ class RepoBotRouter(BaseBotRouter):
 
             text += '```'
 
-        keyboard = [
+        keyboard = []
+        if is_creator:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        text='🫀 Update Local Repo',
+                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
+                    ),
+                    InlineKeyboardButton(
+                        text='📈 Update Related Unit',
+                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
+                    ),
+                ],
+            )
+
+        keyboard.append(
             [
-                InlineKeyboardButton(
-                    text='🫀 Update Local Repo',
-                    callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
-                ),
-                InlineKeyboardButton(
-                    text='📈 Update Related Unit',
-                    callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
-            ],
-            [
-                InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
-                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
-            ],
-        ]
+                [
+                    InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
+                ],
+                [
+                    InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                    InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
+                ],
+            ]
+        )
 
         await callback.answer(parse_mode='Markdown')
         await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
