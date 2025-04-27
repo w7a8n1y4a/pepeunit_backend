@@ -18,7 +18,7 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context, get_repo_service
@@ -125,15 +125,9 @@ async def _lifespan(_app: FastAPI):
 
             logging.info(f'Success set TG bot webhook url')
 
-        db = next(get_session())
-
-        try:
+        with get_hand_session() as db:
             repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
             repo_service.sync_local_repo_storage()
-        except Exception as e:
-            logging.error(e)
-        finally:
-            db.close()
 
         mqtt_run_lock.close()
 

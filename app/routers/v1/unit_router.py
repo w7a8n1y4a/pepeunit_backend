@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, status
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import BackendTopicCommand
@@ -103,15 +103,14 @@ def get_state_storage(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends()
 @router.post("/auth", response_model=MqttRead, status_code=status.HTTP_200_OK)
 def get_mqtt_auth(data: UnitMqttTokenAuth):
 
-    db = next(get_session())
-    try:
-        unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': data.token}))
-        unit_service.get_mqtt_auth(data.topic)
-        db.close()
-    except Exception as e:
-        logging.info(repr(e))
-        db.close()
-        return MqttRead(result='deny')
+    with get_hand_session() as db:
+        try:
+            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': data.token}))
+            unit_service.get_mqtt_auth(data.topic)
+            db.close()
+        except Exception as e:
+            logging.info(repr(e))
+            return MqttRead(result='deny')
 
     return MqttRead(result='allow')
 

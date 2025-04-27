@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
 
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import acquire_file_lock
@@ -36,14 +36,9 @@ def automatic_update_repositories():
 
     if lock_fd:
         logging.info('Run update with lock')
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
             repo_service.bulk_update_repositories(is_auto_update=True)
-        except Exception as e:
-            logging.error(e)
-        finally:
-            db.close()
 
     else:
         logging.info('Skip update without lock')
