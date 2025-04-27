@@ -166,7 +166,7 @@ class RepoBotRouter(BaseBotRouter):
                 ],
             )
 
-        keyboard.append(
+        keyboard.extend(
             [
                 [
                     InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
