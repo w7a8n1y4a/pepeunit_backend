@@ -1,8 +1,6 @@
 import pytest
 
-from app.configs.gql import get_metrics_service_gql
 from app.configs.rest import get_metrics_service
-from app.configs.sub_entities import InfoSubEntity
 
 
 @pytest.mark.run(order=0)

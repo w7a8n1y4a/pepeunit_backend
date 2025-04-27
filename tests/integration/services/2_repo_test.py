@@ -3,9 +3,7 @@ import logging
 import pytest
 
 from app.configs.errors import GitRepoError, RepoError
-from app.configs.gql import get_repo_service_gql
 from app.configs.rest import get_repo_service
-from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import CommitFilter, Credentials, RepoCreate, RepoFilter, RepoUpdate
 

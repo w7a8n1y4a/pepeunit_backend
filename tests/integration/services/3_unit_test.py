@@ -18,7 +18,6 @@ from app.configs.errors import (
     ValidationError,
 )
 from app.configs.rest import get_repo_service, get_unit_service
-from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
 from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
 from app.repositories.unit_log_repository import UnitLogRepository
