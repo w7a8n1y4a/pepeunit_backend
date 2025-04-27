@@ -128,52 +128,49 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     )
 
             if topic_name == ReservedOutputBaseTopic.LOG + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
-                client = next(get_clickhouse_client())
-                try:
+                with get_hand_clickhouse_client() as cc:
                     with get_hand_session() as db:
-                        unit_repository = UnitRepository(db)
-                        unit_log_repository = UnitLogRepository(client)
+                        try:
+                            unit_repository = UnitRepository(db)
+                            unit_log_repository = UnitLogRepository(cc)
 
-                        log_data = is_valid_json(payload.decode(), "unit hardware log")
+                            log_data = is_valid_json(payload.decode(), "unit hardware log")
 
-                        unit = unit_repository.get(Unit(uuid=unit_uuid))
-                        is_valid_object(unit)
+                            unit = unit_repository.get(Unit(uuid=unit_uuid))
+                            is_valid_object(unit)
 
-                        if isinstance(log_data, dict):
-                            log_data = [log_data]
+                            if isinstance(log_data, dict):
+                                log_data = [log_data]
 
-                        server_datetime = datetime.datetime.utcnow()
+                            server_datetime = datetime.datetime.utcnow()
 
-                        unit_log_repository.bulk_create(
-                            [
-                                UnitLog(
-                                    uuid=uuid.uuid4(),
-                                    level=item['level'].capitalize(),
-                                    unit_uuid=unit.uuid,
-                                    text=item['text'],
-                                    create_datetime=(
-                                        item['create_datetime']
-                                        if item.get('create_datetime')
-                                        else server_datetime + datetime.timedelta(seconds=inc)
-                                    ),
-                                    expiration_datetime=datetime.datetime.utcnow()
-                                    + datetime.timedelta(seconds=settings.backend_unit_log_expiration),
-                                )
-                                for inc, item in enumerate(log_data)
-                            ]
-                        )
+                            unit_log_repository.bulk_create(
+                                [
+                                    UnitLog(
+                                        uuid=uuid.uuid4(),
+                                        level=item['level'].capitalize(),
+                                        unit_uuid=unit.uuid,
+                                        text=item['text'],
+                                        create_datetime=(
+                                            item['create_datetime']
+                                            if item.get('create_datetime')
+                                            else server_datetime + datetime.timedelta(seconds=inc)
+                                        ),
+                                        expiration_datetime=datetime.datetime.utcnow()
+                                        + datetime.timedelta(seconds=settings.backend_unit_log_expiration),
+                                    )
+                                    for inc, item in enumerate(log_data)
+                                ]
+                            )
 
-                        unit.last_update_datetime = datetime.datetime.utcnow()
-                        unit_repository.update(
-                            unit_uuid,
-                            unit,
-                        )
+                            unit.last_update_datetime = datetime.datetime.utcnow()
+                            unit_repository.update(
+                                unit_uuid,
+                                unit,
+                            )
 
-                except Exception as e:
-                    logging.error(e)
-                finally:
-                    db.close()
-                    client.disconnect()
+                        except Exception as e:
+                            logging.error(e)
 
     elif len(topic_split) == 3:
         backend_domain, unit_node_uuid, *_ = topic_split
