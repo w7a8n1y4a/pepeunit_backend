@@ -6,9 +6,9 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
-from app.configs.gql import get_unit_service
-from app.configs.sub_entities import InfoSubEntity
+from app.configs.clickhouse import get_hand_clickhouse_client
+from app.configs.db import get_hand_session
+from app.configs.rest import get_unit_service
 from app.dto.enum import EntityNames, LogLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -37,15 +37,12 @@ class UnitLogBotRouter(BaseBotRouter):
 
         text = "*Unit Logs*"
         if filters.unit_uuid:
-            db = next(get_session())
-            unit = None
-            try:
-                unit_service = get_unit_service(
-                    InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
-                )
-                unit = unit_service.get(filters.unit_uuid)
-            finally:
-                text += f" - for unit `{unit.name}`"
+            with get_hand_session() as db:
+                with get_hand_clickhouse_client() as cc:
+                    unit_service = get_unit_service(db, cc, str(chat_id), True)
+                    unit = unit_service.get(filters.unit_uuid)
+
+            text += f" - for unit `{unit.name}`"
 
         table = [['Time', 'Level', 'Text']]
 
@@ -66,25 +63,20 @@ class UnitLogBotRouter(BaseBotRouter):
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
-            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                unit_service = get_unit_service(db, cc, str(chat_id), True)
 
-            count, unit_logs = unit_service.log_list(
-                UnitLogFilter(
-                    offset=(filters.page - 1) * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
-                    level=filters.log_levels or [],
-                    uuid=filters.unit_uuid,
+                count, unit_logs = unit_service.log_list(
+                    UnitLogFilter(
+                        offset=(filters.page - 1) * settings.telegram_items_per_page,
+                        limit=settings.telegram_items_per_page,
+                        level=filters.log_levels or [],
+                        uuid=filters.unit_uuid,
+                    )
                 )
-            )
 
-            total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            unit_logs, total_pages = [], 0
-        finally:
-            db.close()
+                total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         return unit_logs, total_pages
 

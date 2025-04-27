@@ -4,14 +4,14 @@ from strawberry.types import Info
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
-from app.repositories.permission_repository import PermissionRepository
-from app.repositories.repo_repository import RepoRepository
-from app.repositories.unit_log_repository import UnitLogRepository
-from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
-from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
-from app.services.access_service import AccessService
+from app.configs.rest import (
+    get_metrics_service,
+    get_permission_service,
+    get_repo_service,
+    get_unit_node_service,
+    get_unit_service,
+    get_user_service,
+)
 from app.services.metrics_service import MetricsService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
@@ -23,193 +23,46 @@ from app.services.utils import token_depends
 
 async def get_graphql_context(
     db: Session = Depends(get_session),
+    clickhouse_client: Session = Depends(get_clickhouse_client),
     jwt_token: str = Depends(token_depends),
 ):
-    return {'db': db, 'jwt_token': jwt_token}
+    return {'db': db, 'clickhouse_client': clickhouse_client, 'jwt_token': jwt_token}
 
 
-def get_access_service(info: Info) -> type[AccessService]:
-    access_service = AccessService
-
-    if 'is_bot_auth' in info.context and info.context['is_bot_auth']:
-        access_service._is_bot_auth = info.context['is_bot_auth']
-    else:
-        access_service._is_bot_auth = False
-
-    return access_service
-
-
-def get_user_service(info: Info) -> UserService:
-    db = info.context['db']
+def get_user_service_gql(info: Info) -> UserService:
+    db = info.context.get('db')
     jwt_token = info.context['jwt_token']
-
-    user_repository = UserRepository(db)
-
-    return UserService(
-        user_repository=user_repository,
-        access_service=get_access_service(info)(
-            permission_repository=PermissionRepository(db),
-            unit_repository=UnitRepository(db),
-            user_repository=user_repository,
-            jwt_token=jwt_token,
-        ),
-    )
+    return get_user_service(db, jwt_token)
 
 
-def get_repo_service(info: Info) -> RepoService:
-    db = info.context['db']
-    client = next(get_clickhouse_client())
+def get_repo_service_gql(info: Info) -> RepoService:
+    db = info.context.get('db')
+    clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    permission_repository = PermissionRepository(db)
-
-    access_service = get_access_service(info)(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    unit_node_service = UnitNodeService(
-        unit_repository=unit_repository,
-        repo_repository=repo_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        access_service=access_service,
-        permission_service=permission_service,
-    )
-
-    return RepoService(
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        unit_service=UnitService(
-            repo_repository=repo_repository,
-            unit_repository=unit_repository,
-            unit_node_repository=UnitNodeRepository(db),
-            unit_log_repository=UnitLogRepository(client),
-            access_service=access_service,
-            permission_service=permission_service,
-            unit_node_service=unit_node_service,
-        ),
-        permission_service=permission_service,
-        access_service=access_service,
-    )
+    return get_repo_service(db, clickhouse_client, jwt_token)
 
 
-def get_unit_service(info: Info) -> UnitService:
-    db = info.context['db']
-    client = next(get_clickhouse_client())
+def get_unit_service_gql(info: Info) -> UnitService:
+    db = info.context.get('db')
+    clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    permission_repository = PermissionRepository(db)
-
-    access_service = get_access_service(info)(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    unit_node_service = UnitNodeService(
-        unit_repository=unit_repository,
-        repo_repository=repo_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        permission_service=permission_service,
-        access_service=access_service,
-    )
-
-    return UnitService(
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        access_service=access_service,
-        permission_service=permission_service,
-        unit_node_service=unit_node_service,
-    )
+    return get_unit_service(db, clickhouse_client, jwt_token)
 
 
-def get_unit_node_service(info: Info) -> UnitNodeService:
-    db = info.context['db']
-    client = next(get_clickhouse_client())
+def get_unit_node_service_gql(info: Info) -> UnitNodeService:
+    db = info.context.get('db')
+    clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-
-    unit_repository = UnitRepository(db)
-    permission_repository = PermissionRepository(db)
-
-    access_service = get_access_service(info)(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    return UnitNodeService(
-        unit_repository=unit_repository,
-        repo_repository=RepoRepository(db),
-        unit_node_repository=UnitNodeRepository(db),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        permission_service=permission_service,
-        access_service=access_service,
-    )
+    return get_unit_node_service(db, clickhouse_client, jwt_token)
 
 
-def get_metrics_service(info: Info) -> MetricsService:
-    db = info.context['db']
+def get_metrics_service_gql(info: Info) -> MetricsService:
+    db = info.context.get('db')
     jwt_token = info.context['jwt_token']
-
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    user_repository = UserRepository(db)
-
-    return MetricsService(
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        user_repository=user_repository,
-        access_service=get_access_service(info)(
-            permission_repository=PermissionRepository(db),
-            unit_repository=unit_repository,
-            user_repository=user_repository,
-            jwt_token=jwt_token,
-        ),
-    )
+    return get_metrics_service(db, jwt_token)
 
 
-def get_permission_service(info: Info) -> PermissionService:
-    db = info.context['db']
+def get_permission_service_gql(info: Info) -> PermissionService:
+    db = info.context.get('db')
     jwt_token = info.context['jwt_token']
-
-    return PermissionService(
-        access_service=get_access_service(info)(
-            permission_repository=PermissionRepository(db),
-            unit_repository=UnitRepository(db),
-            user_repository=UserRepository(db),
-            jwt_token=jwt_token,
-        ),
-        permission_repository=PermissionRepository(db),
-    )
+    return get_permission_service(db, jwt_token)

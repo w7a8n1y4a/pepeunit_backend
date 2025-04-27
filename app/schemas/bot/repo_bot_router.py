@@ -8,9 +8,9 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
-from app.configs.gql import get_repo_service
-from app.configs.sub_entities import InfoSubEntity
+from app.configs.clickhouse import get_hand_clickhouse_client
+from app.configs.db import get_hand_session
+from app.configs.rest import get_repo_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -42,26 +42,23 @@ class RepoBotRouter(BaseBotRouter):
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
-            repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                repo_service = get_repo_service(db, cc, chat_id, True)
 
-            count, repos = repo_service.list(
-                RepoFilter(
-                    offset=(filters.page - 1) * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or [],
-                    creator_uuid=repo_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
-                    search_string=filters.search_string,
+                count, repos = repo_service.list(
+                    RepoFilter(
+                        offset=(filters.page - 1) * settings.telegram_items_per_page,
+                        limit=settings.telegram_items_per_page,
+                        visibility_level=filters.visibility_levels or [],
+                        creator_uuid=(
+                            repo_service.access_service.current_agent.uuid if filters.is_only_my_entity else None
+                        ),
+                        search_string=filters.search_string,
+                    )
                 )
-            )
 
-            total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            repos, total_pages = [], 0
-        finally:
-            db.close()
+                total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         return repos, total_pages
 
@@ -126,21 +123,15 @@ class RepoBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        db = next(get_session())
-        try:
-            repo_service = get_repo_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
-            repo = repo_service.get(repo_uuid)
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
+                repo = repo_service.get(repo_uuid)
 
-            versions = None
-            try:
-                versions = repo_service.get_versions(repo_uuid)
-            except Exception as e:
-                pass
-
-        finally:
-            db.close()
+                try:
+                    versions = repo_service.get_versions(repo_uuid)
+                except Exception:
+                    versions = None
 
         text = f'*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*'
 
@@ -186,28 +177,18 @@ class RepoBotRouter(BaseBotRouter):
         *_, decrees_type, repo_uuid = callback.data.split('_')
         repo_uuid = UUID(repo_uuid)
 
-        db = next(get_session())
-        try:
-            repo_service = get_repo_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
 
-            text = ''
-            match decrees_type:
-                case DecreesNames.LOCAL_UPDATE:
-                    text = 'Local repository update successfully started'
-                    repo_service.update_local_repo(repo_uuid)
-                case DecreesNames.RELATED_UNIT:
-                    text = 'Linked Unit update has started successfully'
-                    repo_service.update_units_firmware(repo_uuid)
-
-        except Exception as e:
-            try:
-                text = e.message
-            except AttributeError:
-                text = e
-        finally:
-            db.close()
+                text = ''
+                match decrees_type:
+                    case DecreesNames.LOCAL_UPDATE:
+                        text = 'Local repository update successfully started'
+                        repo_service.update_local_repo(repo_uuid)
+                    case DecreesNames.RELATED_UNIT:
+                        text = 'Linked Unit update has started successfully'
+                        repo_service.update_units_firmware(repo_uuid)
 
         await callback.answer(parse_mode='Markdown')
         await self.telegram_response(callback, text, is_editable=False)

@@ -8,11 +8,10 @@ import uuid
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
-from app.configs.clickhouse import get_clickhouse_client
-from app.configs.db import get_session
+from app.configs.clickhouse import get_clickhouse_client, get_hand_clickhouse_client
+from app.configs.db import get_hand_session
 from app.configs.errors import MqttError, UpdateError
-from app.configs.gql import get_unit_node_service
-from app.configs.sub_entities import InfoSubEntity
+from app.configs.rest import get_unit_node_service
 from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -29,6 +28,7 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
+from app.services.unit_node_service import UnitNodeService
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
@@ -78,8 +78,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
         if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
             if topic_name == ReservedOutputBaseTopic.STATE + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
-                db = next(get_session())
-                try:
+                with get_hand_session() as db:
                     unit_repository = UnitRepository(db)
 
                     unit_state_dict = get_only_reserved_keys(is_valid_json(payload.decode(), "hardware state"))
@@ -127,53 +126,48 @@ async def message_to_topic(client, topic, payload, qos, properties):
                         unit_uuid,
                         unit,
                     )
-                except Exception as e:
-                    logging.error(e)
-                finally:
-                    db.close()
 
             if topic_name == ReservedOutputBaseTopic.LOG + GlobalPrefixTopic.BACKEND_SUB_PREFIX:
                 client = next(get_clickhouse_client())
-                db = next(get_session())
-
                 try:
-                    unit_repository = UnitRepository(db)
-                    unit_log_repository = UnitLogRepository(client)
+                    with get_hand_session() as db:
+                        unit_repository = UnitRepository(db)
+                        unit_log_repository = UnitLogRepository(client)
 
-                    log_data = is_valid_json(payload.decode(), "unit hardware log")
+                        log_data = is_valid_json(payload.decode(), "unit hardware log")
 
-                    unit = unit_repository.get(Unit(uuid=unit_uuid))
-                    is_valid_object(unit)
+                        unit = unit_repository.get(Unit(uuid=unit_uuid))
+                        is_valid_object(unit)
 
-                    if isinstance(log_data, dict):
-                        log_data = [log_data]
+                        if isinstance(log_data, dict):
+                            log_data = [log_data]
 
-                    server_datetime = datetime.datetime.utcnow()
+                        server_datetime = datetime.datetime.utcnow()
 
-                    unit_log_repository.bulk_create(
-                        [
-                            UnitLog(
-                                uuid=uuid.uuid4(),
-                                level=item['level'].capitalize(),
-                                unit_uuid=unit.uuid,
-                                text=item['text'],
-                                create_datetime=(
-                                    item['create_datetime']
-                                    if item.get('create_datetime')
-                                    else server_datetime + datetime.timedelta(seconds=inc)
-                                ),
-                                expiration_datetime=datetime.datetime.utcnow()
-                                + datetime.timedelta(seconds=settings.backend_unit_log_expiration),
-                            )
-                            for inc, item in enumerate(log_data)
-                        ]
-                    )
+                        unit_log_repository.bulk_create(
+                            [
+                                UnitLog(
+                                    uuid=uuid.uuid4(),
+                                    level=item['level'].capitalize(),
+                                    unit_uuid=unit.uuid,
+                                    text=item['text'],
+                                    create_datetime=(
+                                        item['create_datetime']
+                                        if item.get('create_datetime')
+                                        else server_datetime + datetime.timedelta(seconds=inc)
+                                    ),
+                                    expiration_datetime=datetime.datetime.utcnow()
+                                    + datetime.timedelta(seconds=settings.backend_unit_log_expiration),
+                                )
+                                for inc, item in enumerate(log_data)
+                            ]
+                        )
 
-                    unit.last_update_datetime = datetime.datetime.utcnow()
-                    unit_repository.update(
-                        unit_uuid,
-                        unit,
-                    )
+                        unit.last_update_datetime = datetime.datetime.utcnow()
+                        unit_repository.update(
+                            unit_uuid,
+                            unit,
+                        )
 
                 except Exception as e:
                     logging.error(e)
@@ -192,14 +186,10 @@ async def message_to_topic(client, topic, payload, qos, properties):
             logging.info(f'{datetime.datetime.utcnow()} {unit_node_uuid}')
             cache_dict[str(unit_node_uuid)] = current_time
 
-            db = next(get_session())
-            try:
-                unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
-                unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
-            except Exception as e:
-                logging.error(e)
-            finally:
-                db.close()
+            with get_hand_session() as db:
+                with get_hand_clickhouse_client() as cc:
+                    unit_node_service = get_unit_node_service(db, cc, None)
+                    unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
     else:
         pass
 

@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import Depends
 

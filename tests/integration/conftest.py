@@ -8,9 +8,11 @@ from concurrent.futures import ThreadPoolExecutor
 from json import JSONDecodeError
 
 import pytest
+from clickhouse_driver import Client
 from sqlmodel import Session
 
 from app import settings
+from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -35,6 +37,11 @@ def pytest_configure():
 @pytest.fixture(scope="session")
 def database() -> Session:
     return next(get_session())
+
+
+@pytest.fixture(scope="session")
+def cc() -> Client:
+    return next(get_clickhouse_client())
 
 
 @pytest.fixture

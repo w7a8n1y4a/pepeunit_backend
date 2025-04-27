@@ -33,8 +33,9 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
+from app.services.thread import _process_bulk_update_repositories
 from app.services.unit_service import UnitService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, token_depends
 from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
 from app.utils.utils import aes_gcm_encode
 
@@ -282,22 +283,9 @@ class RepoService:
         if not is_auto_update:
             self.access_service.authorization.check_access([AgentType.USER], [UserRole.ADMIN])
 
-        threading.Thread(target=self._process_bulk_update_repositories, daemon=True).start()
+        threading.Thread(target=_process_bulk_update_repositories, daemon=True).start()
 
         return None
-
-    def _process_bulk_update_repositories(self):
-        count, auto_update_repositories = self.repo_repository.list(RepoFilter(is_auto_update_repo=True))
-        logging.info(f'{len(auto_update_repositories)} repos update launched')
-
-        for repo in auto_update_repositories:
-            logging.info(f'run update repo {repo.uuid}')
-            try:
-                self.update_units_firmware(repo.uuid, is_auto_update=True)
-            except Exception as e:
-                logging.error(f'failed to update repo {repo.uuid}: {e}')
-
-        logging.info('task auto update repo successfully completed')
 
     def sync_local_repo_storage(self) -> None:
 

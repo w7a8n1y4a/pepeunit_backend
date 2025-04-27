@@ -3,19 +3,18 @@ import logging
 import pytest
 
 from app.configs.errors import GitRepoError, RepoError
-from app.configs.gql import get_repo_service
+from app.configs.gql import get_repo_service_gql
+from app.configs.rest import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import CommitFilter, Credentials, RepoCreate, RepoFilter, RepoUpdate
 
 
 @pytest.mark.run(order=0)
-def test_create_repo(test_repos, database) -> None:
+def test_create_repo(test_repos, database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # create test repos
     new_repos = []
@@ -55,14 +54,12 @@ def test_create_repo(test_repos, database) -> None:
 
 
 @pytest.mark.run(order=1)
-def test_update_repo(database) -> None:
+def test_update_repo(database, cc) -> None:
 
     pytest.repos = pytest.repos[:2] + pytest.repos[3:]
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # set default branch for all repos
     for update_repo in pytest.repos:
@@ -130,12 +127,10 @@ def test_update_repo(database) -> None:
 
 
 @pytest.mark.run(order=2)
-def test_get_commits_repo(database) -> None:
+def test_get_commits_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # check get repo commits - first 10
     target_repo = repo_service.get(pytest.repos[5].uuid)
@@ -153,12 +148,10 @@ def test_get_commits_repo(database) -> None:
 
 
 @pytest.mark.run(order=3)
-def test_get_available_platforms(database) -> None:
+def test_get_available_platforms(database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_repo = pytest.repos[-1]
 
@@ -189,12 +182,10 @@ def test_get_available_platforms(database) -> None:
 
 
 @pytest.mark.run(order=4)
-def test_update_credentials_repo(test_repos, database) -> None:
+def test_update_credentials_repo(test_repos, database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # change to invalid credentials for gitlab and github
     for inc, repo in enumerate(pytest.repos[:1]):
@@ -213,12 +204,10 @@ def test_update_credentials_repo(test_repos, database) -> None:
 
 
 @pytest.mark.run(order=5)
-def test_update_default_branch_repo(database) -> None:
+def test_update_default_branch_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # set default branch
     for repo in pytest.repos:
@@ -236,12 +225,10 @@ def test_update_default_branch_repo(database) -> None:
 
 
 @pytest.mark.run(order=6)
-def test_update_local_repo(database) -> None:
+def test_update_local_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # del local repo
     repo_service.git_repo_repository.delete_repo(Repo(uuid=pytest.repos[0].uuid))
@@ -253,23 +240,19 @@ def test_update_local_repo(database) -> None:
 
 
 @pytest.mark.run(order=7)
-def test_delete_repo(database) -> None:
+def test_delete_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # del repo
     repo_service.delete(pytest.repos[3].uuid)
 
 
 @pytest.mark.run(order=8)
-def test_get_many_repo(database) -> None:
+def test_get_many_repo(database, cc) -> None:
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # check for users is updated
     count, repos = repo_service.list(RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True))

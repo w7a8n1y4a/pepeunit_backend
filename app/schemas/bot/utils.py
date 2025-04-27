@@ -28,12 +28,11 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
             word_length = len(word)
             if current_length + word_length <= max_len:
                 current_line.append(word)
-                current_length += word_length + 1  # +1 for space
+                current_length += word_length + 1
             else:
                 if current_line:
                     lines.append(' '.join(current_line))
                 if word_length > max_len:
-                    # Handle very long words that exceed max_len
                     for i in range(0, len(word), max_len):
                         lines.append(word[i : i + max_len])
                     current_line = []

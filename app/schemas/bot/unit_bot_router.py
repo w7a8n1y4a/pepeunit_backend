@@ -11,9 +11,9 @@ from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarku
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
-from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
-from app.configs.sub_entities import InfoSubEntity
+from app.configs.clickhouse import get_hand_clickhouse_client
+from app.configs.db import get_hand_session
+from app.configs.rest import get_repo_service, get_unit_node_service, get_unit_service
 from app.dto.enum import (
     BackendTopicCommand,
     CommandNames,
@@ -67,40 +67,34 @@ class UnitBotRouter(BaseBotRouter):
             text += f" - `{filters.search_string}`"
 
         if filters.repo_uuid:
-            db = next(get_session())
-            repo = None
-            try:
-                repo_service = get_repo_service(
-                    InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
-                )
-                repo = repo_service.get(filters.repo_uuid)
-            finally:
-                text += f" - for repo `{repo.name}`"
+            with get_hand_session() as db:
+                with get_hand_clickhouse_client() as cc:
+                    repo_service = get_repo_service(db, cc, str(chat_id), True)
+                    repo = repo_service.get(filters.repo_uuid)
+
+            text += f" - for repo `{repo.name}`"
 
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
-            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                unit_service = get_unit_service(db, cc, chat_id, True)
 
-            count, units = unit_service.list(
-                UnitFilter(
-                    offset=(filters.page - 1) * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or [],
-                    creator_uuid=unit_service.access_service.current_agent.uuid if filters.is_only_my_entity else None,
-                    search_string=filters.search_string,
-                    repo_uuid=filters.repo_uuid,
+                count, units = unit_service.list(
+                    UnitFilter(
+                        offset=(filters.page - 1) * settings.telegram_items_per_page,
+                        limit=settings.telegram_items_per_page,
+                        visibility_level=filters.visibility_levels or [],
+                        creator_uuid=(
+                            unit_service.access_service.current_agent.uuid if filters.is_only_my_entity else None
+                        ),
+                        search_string=filters.search_string,
+                        repo_uuid=filters.repo_uuid,
+                    )
                 )
-            )
 
-            total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            units, total_pages = [], 0
-        finally:
-            db.close()
+                total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         return units, total_pages
 
@@ -172,27 +166,22 @@ class UnitBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        db = next(get_session())
-        try:
-            unit_service = get_unit_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
-            unit = unit_service.mapper_unit_to_unit_type((unit_service.get(unit_uuid), []))
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                unit_service = get_unit_service(db, cc, str(callback.from_user.id), True)
+                unit = unit_service.mapper_unit_to_unit_type((unit_service.get(unit_uuid), []))
 
-            try:
-                target_version = unit_service.get_target_version(unit_uuid)
-            except Exception:
-                target_version = None
+                try:
+                    target_version = unit_service.get_target_version(unit_uuid)
+                except Exception:
+                    target_version = None
 
-            try:
-                current_schema = unit_service.get_current_schema(unit_uuid)
-            except Exception:
-                current_schema = None
+                try:
+                    current_schema = unit_service.get_current_schema(unit_uuid)
+                except Exception:
+                    current_schema = None
 
-            is_creator = unit_service.access_service.current_agent.uuid == unit.creator_uuid
-
-        finally:
-            db.close()
+                is_creator = unit_service.access_service.current_agent.uuid == unit.creator_uuid
 
         text = f'*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*'
 
@@ -346,62 +335,48 @@ class UnitBotRouter(BaseBotRouter):
 
         *_, decrees_type, unit_uuid = callback.data.split('_')
         unit_uuid = UUID(unit_uuid)
+        with get_hand_session() as db:
+            with get_hand_clickhouse_client() as cc:
+                unit_service = get_unit_service(db, cc, str(callback.from_user.id), True)
+                unit_node_service = get_unit_node_service(db, cc, str(callback.from_user.id), True)
 
-        db = next(get_session())
-        try:
-            unit_service = get_unit_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
+                text = ''
+                match decrees_type:
+                    case DecreesNames.GET_ENV:
+                        text += f'\n```json\n'
+                        text += json.dumps(unit_service.get_env(unit_uuid), indent=4)
+                        text += '```'
 
-            unit_node_service = get_unit_node_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
+                    case _ if decrees_type in (
+                        DecreesNames.TGZ,
+                        DecreesNames.TAR,
+                        DecreesNames.ZIP,
+                    ):
+                        decrees_to_func = {
+                            DecreesNames.TGZ: unit_service.get_unit_firmware_tgz,
+                            DecreesNames.TAR: unit_service.get_unit_firmware_tar,
+                            DecreesNames.ZIP: unit_service.get_unit_firmware_zip,
+                        }
 
-            text = ''
-            match decrees_type:
-                case DecreesNames.GET_ENV:
-                    text += f'\n```json\n'
-                    text += json.dumps(unit_service.get_env(unit_uuid), indent=4)
-                    text += '```'
+                        unit = unit_service.get(unit_uuid)
+                        file_name = decrees_to_func[DecreesNames(decrees_type)](unit_uuid)
+                        await callback.message.answer_document(
+                            FSInputFile(file_name, filename=f'{unit.name}.{decrees_type.lower()}')
+                        )
 
-                case _ if decrees_type in (
-                    DecreesNames.TGZ,
-                    DecreesNames.TAR,
-                    DecreesNames.ZIP,
-                ):
-                    decrees_to_func = {
-                        DecreesNames.TGZ: unit_service.get_unit_firmware_tgz,
-                        DecreesNames.TAR: unit_service.get_unit_firmware_tar,
-                        DecreesNames.ZIP: unit_service.get_unit_firmware_zip,
-                    }
+                        os.remove(file_name)
+                        await callback.answer(parse_mode='Markdown')
 
-                    unit = unit_service.get(unit_uuid)
-                    file_name = decrees_to_func[DecreesNames(decrees_type)](unit_uuid)
-                    await callback.message.answer_document(
-                        FSInputFile(file_name, filename=f'{unit.name}.{decrees_type.lower()}')
-                    )
+                        return
 
-                    os.remove(file_name)
-                    await callback.answer(parse_mode='Markdown')
-
-                    return
-
-                case _ if decrees_type in (
-                    BackendTopicCommand.UPDATE,
-                    BackendTopicCommand.SCHEMA_UPDATE,
-                    BackendTopicCommand.ENV_UPDATE,
-                    BackendTopicCommand.LOG_SYNC,
-                ):
-                    unit_node_service.command_to_input_base_topic(unit_uuid, BackendTopicCommand(decrees_type))
-                    text = f'Success send command {decrees_type}'
-
-        except Exception as e:
-            try:
-                text = e.message
-            except AttributeError:
-                text = e
-        finally:
-            db.close()
+                    case _ if decrees_type in (
+                        BackendTopicCommand.UPDATE,
+                        BackendTopicCommand.SCHEMA_UPDATE,
+                        BackendTopicCommand.ENV_UPDATE,
+                        BackendTopicCommand.LOG_SYNC,
+                    ):
+                        unit_node_service.command_to_input_base_topic(unit_uuid, BackendTopicCommand(decrees_type))
+                        text = f'Success send command {decrees_type}'
 
         await callback.answer(parse_mode='Markdown')
         await self.telegram_response(callback, text, is_editable=False)
