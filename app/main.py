@@ -18,6 +18,7 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
+from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
@@ -126,8 +127,9 @@ async def _lifespan(_app: FastAPI):
             logging.info(f'Success set TG bot webhook url')
 
         with get_hand_session() as db:
-            repo_service = RepoService(db, None)
-            repo_service.sync_local_repo_storage()
+            with get_hand_clickhouse_client() as cc:
+                repo_service = RepoService(db, cc, None)
+                repo_service.sync_local_repo_storage()
 
         mqtt_run_lock.close()
 

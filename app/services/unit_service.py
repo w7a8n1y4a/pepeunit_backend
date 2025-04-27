@@ -74,7 +74,7 @@ class UnitService:
         self.unit_log_repository = UnitLogRepository(client)
         self.access_service = AccessService(db, jwt_token, is_bot_auth)
         self.permission_service = PermissionService(db, jwt_token, is_bot_auth)
-        self.unit_node_service = UnitNodeService(db, jwt_token, client)
+        self.unit_node_service = UnitNodeService(db, client, jwt_token)
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])

@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
 
+from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
@@ -35,8 +36,9 @@ def automatic_update_repositories():
     if lock_fd:
         logging.info('Run update with lock')
         with get_hand_session() as db:
-            repo_service = RepoService(db)
-            repo_service.bulk_update_repositories(is_auto_update=True)
+            with get_hand_clickhouse_client() as cc:
+                repo_service = RepoService(db, cc, None)
+                repo_service.bulk_update_repositories(is_auto_update=True)
 
     else:
         logging.info('Skip update without lock')
