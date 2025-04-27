@@ -5,12 +5,8 @@ import threading
 import uuid as uuid_pkg
 from typing import Optional, Union
 
-from clickhouse_driver import Client
 from fastapi import Depends, HTTPException
-from sqlmodel import Session
 
-from app.configs.clickhouse import get_clickhouse_client
-from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
@@ -48,17 +44,18 @@ class RepoService:
 
     def __init__(
         self,
-        db: Session = Depends(get_session),
-        client: Client = Depends(get_clickhouse_client),
-        jwt_token: Optional[str] = Depends(token_depends),
-        is_bot_auth: bool = False,
+        repo_repository: RepoRepository = Depends(),
+        unit_repository: UnitRepository = Depends(),
+        unit_service: UnitService = Depends(),
+        permission_service: PermissionService = Depends(),
+        access_service: AccessService = Depends(),
     ) -> None:
-        self.repo_repository = RepoRepository(db)
+        self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
-        self.unit_repository = UnitRepository(db)
-        self.unit_service = UnitService(db, client, jwt_token, is_bot_auth)
-        self.permission_service = PermissionService(db, jwt_token, is_bot_auth)
-        self.access_service = AccessService(db, jwt_token, is_bot_auth)
+        self.unit_repository = unit_repository
+        self.unit_service = unit_service
+        self.permission_service = permission_service
+        self.access_service = access_service
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
         self.access_service.authorization.check_access([AgentType.USER])

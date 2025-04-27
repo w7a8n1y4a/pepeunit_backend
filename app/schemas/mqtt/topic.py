@@ -8,9 +8,10 @@ import uuid
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import settings
-from app.configs.clickhouse import get_clickhouse_client
+from app.configs.clickhouse import get_clickhouse_client, get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import MqttError, UpdateError
+from app.configs.rest import get_unit_node_service
 from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -186,8 +187,9 @@ async def message_to_topic(client, topic, payload, qos, properties):
             cache_dict[str(unit_node_uuid)] = current_time
 
             with get_hand_session() as db:
-                unit_node_service = UnitNodeService(db)
-                unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
+                with get_hand_clickhouse_client() as cc:
+                    unit_node_service = get_unit_node_service(db, cc, None)
+                    unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
     else:
         pass
 

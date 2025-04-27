@@ -10,13 +10,15 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
+from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.gql import get_unit_node_service, get_unit_service
-from app.configs.sub_entities import InfoSubEntity
+from app.configs.rest import get_unit_node_service, get_unit_service
 from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.services.unit_node_service import UnitNodeService
+from app.services.unit_service import UnitService
 
 
 class UnitNodeBotRouter(BaseBotRouter):
@@ -42,10 +44,9 @@ class UnitNodeBotRouter(BaseBotRouter):
         text = "*UnitNodes*"
         if filters.unit_uuid:
             with get_hand_session() as db:
-                unit_service = get_unit_service(
-                    InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
-                )
-                unit = unit_service.get(filters.unit_uuid)
+                with get_hand_clickhouse_client() as cc:
+                    unit_service = get_unit_service(db, cc, str(chat_id), True)
+                    unit = unit_service.get(filters.unit_uuid)
 
             text += f" - for unit `{self.header_name_limit(unit.name)}`"
 
@@ -56,22 +57,21 @@ class UnitNodeBotRouter(BaseBotRouter):
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         with get_hand_session() as db:
-            unit_node_service = get_unit_node_service(
-                InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True})
-            )
+            with get_hand_clickhouse_client() as cc:
+                unit_node_service = get_unit_node_service(db, cc, str(chat_id), True)
 
-            count, unit_nodes = unit_node_service.list(
-                UnitNodeFilter(
-                    offset=(filters.page - 1) * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
-                    visibility_level=filters.visibility_levels or [],
-                    type=filters.unit_types or [],
-                    search_string=filters.search_string,
-                    unit_uuid=filters.unit_uuid,
+                count, unit_nodes = unit_node_service.list(
+                    UnitNodeFilter(
+                        offset=(filters.page - 1) * settings.telegram_items_per_page,
+                        limit=settings.telegram_items_per_page,
+                        visibility_level=filters.visibility_levels or [],
+                        type=filters.unit_types or [],
+                        search_string=filters.search_string,
+                        unit_uuid=filters.unit_uuid,
+                    )
                 )
-            )
 
-            total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
+                total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
 
         return unit_nodes, total_pages
 
@@ -145,10 +145,9 @@ class UnitNodeBotRouter(BaseBotRouter):
             await state.update_data(current_filters=new_filters)
 
         with get_hand_session() as db:
-            unit_node_service = get_unit_node_service(
-                InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
-            )
-            unit_node = unit_node_service.get(unit_node_uuid)
+            with get_hand_clickhouse_client() as cc:
+                unit_node_service = get_unit_node_service(db, cc, str(callback.from_user.id), True)
+                unit_node = unit_node_service.get(unit_node_uuid)
 
         text = f'*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`'
 

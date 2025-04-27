@@ -1,6 +1,6 @@
 import pytest
 
-from app.configs.gql import get_metrics_service
+from app.configs.gql import get_metrics_service_gql
 from app.configs.sub_entities import InfoSubEntity
 
 
@@ -8,7 +8,7 @@ from app.configs.sub_entities import InfoSubEntity
 def test_get_metrics(database) -> None:
 
     current_user = pytest.users[0]
-    unit_metrics_service = get_metrics_service(
+    unit_metrics_service = get_metrics_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 

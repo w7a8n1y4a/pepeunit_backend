@@ -6,11 +6,11 @@ from app.schemas.pydantic.repo import RepoFilter
 
 
 def _process_bulk_update_repositories():
-    from app.services.repo_service import RepoService
+    from app.configs.rest import get_repo_service
 
     with get_hand_session() as db:
         with get_hand_clickhouse_client() as cc:
-            repo_service = RepoService(db, cc, None)
+            repo_service = get_repo_service(db, cc, None)
 
             count, auto_update_repositories = repo_service.repo_repository.list(RepoFilter(is_auto_update_repo=True))
             logging.info(f'{len(auto_update_repositories)} repos update launched')

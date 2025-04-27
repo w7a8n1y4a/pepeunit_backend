@@ -2,9 +2,9 @@ from aiogram import Router, types
 from aiogram.filters import Command
 
 from app.configs.db import get_hand_session
+from app.configs.rest import get_metrics_service
 from app.dto.enum import CommandNames
 from app.schemas.bot.utils import make_monospace_table_with_title
-from app.services.metrics_service import MetricsService
 
 info_router = Router()
 
@@ -13,7 +13,7 @@ info_router = Router()
 async def info_resolver(message: types.Message):
 
     with get_hand_session() as db:
-        metrics_service = MetricsService(db, str(message.chat.id), True)
+        metrics_service = get_metrics_service(db, str(message.chat.id), True)
         metrics = metrics_service.get_instance_metrics()
 
         table = [['Type', 'Count']]

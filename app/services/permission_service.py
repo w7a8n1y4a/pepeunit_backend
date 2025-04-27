@@ -2,9 +2,7 @@ import uuid as uuid_pkg
 from typing import Optional, Union
 
 from fastapi import Depends
-from sqlmodel import Session
 
-from app.configs.db import get_session
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
@@ -16,19 +14,17 @@ from app.repositories.permission_repository import PermissionRepository
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
-from app.services.utils import token_depends
 from app.services.validators import is_valid_object, is_valid_uuid
 
 
 class PermissionService:
     def __init__(
         self,
-        db: Session = Depends(get_session),
-        jwt_token: Optional[str] = Depends(token_depends),
-        is_bot_auth: bool = False,
+        access_service: AccessService = Depends(),
+        permission_repository: PermissionRepository = Depends(),
     ) -> None:
-        self.permission_repository = PermissionRepository(db)
-        self.access_service = AccessService(db, jwt_token, is_bot_auth)
+        self.access_service = access_service
+        self.permission_repository = permission_repository
 
     def create(
         self, data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType], is_api: bool = True

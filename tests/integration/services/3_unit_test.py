@@ -17,7 +17,7 @@ from app.configs.errors import (
     UnitError,
     ValidationError,
 )
-from app.configs.gql import get_repo_service, get_unit_service
+from app.configs.gql import get_repo_service_gql, get_unit_service_gql
 from app.configs.sub_entities import InfoSubEntity
 from app.domain.repo_model import Repo
 from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
@@ -32,7 +32,7 @@ from app.utils.utils import aes_gcm_encode
 def test_create_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -53,7 +53,7 @@ def test_create_unit(database) -> None:
     # create no auto updated units, with all visibility levels
     for inc, test_repo in enumerate([pytest.repos[-4]] + pytest.repos[-4:-1] * 2 + [pytest.repos[-1]]):
         logging.info(test_repo.uuid)
-        repo_service = get_repo_service(
+        repo_service = get_repo_service_gql(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
         )
         commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
@@ -88,7 +88,7 @@ def test_create_unit(database) -> None:
         )
 
     # check create Unit with Repo without default branch
-    repo_service = get_repo_service(
+    repo_service = get_repo_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
     target_repo = Repo(**pytest.repos[0].__dict__)
@@ -125,7 +125,7 @@ def test_create_unit(database) -> None:
 def test_delete_repo_with_unit(database) -> None:
 
     current_user = pytest.users[0]
-    repo_service = get_repo_service(
+    repo_service = get_repo_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -138,7 +138,7 @@ def test_delete_repo_with_unit(database) -> None:
 def test_update_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -175,7 +175,7 @@ def test_update_unit(database) -> None:
         unit_service.update(pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=False))
 
     # check set hand update
-    repo_service = get_repo_service(
+    repo_service = get_repo_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -195,7 +195,7 @@ def test_update_unit(database) -> None:
 
     # check update not creator
     current_user = pytest.users[1]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -207,7 +207,7 @@ def test_update_unit(database) -> None:
 def test_env_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -238,7 +238,7 @@ def test_env_unit(database) -> None:
 def test_get_firmware(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -309,7 +309,7 @@ def test_get_firmware(database) -> None:
 def test_state_storage(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -341,8 +341,8 @@ def test_hand_update_firmware_unit(database, client_emulator) -> None:
     token = pytest.user_tokens_dict[current_user.uuid]
     logging.info(f'User token: {token}')
 
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': token}))
-    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': token}))
+    unit_service = get_unit_service_gql(InfoSubEntity({'db': database, 'jwt_token': token}))
+    repo_service = get_repo_service_gql(InfoSubEntity({'db': database, 'jwt_token': token}))
 
     target_units = pytest.units[1:]
 
@@ -460,8 +460,8 @@ def test_repo_update_firmware_unit(database) -> None:
     token = pytest.user_tokens_dict[current_user.uuid]
     logging.info(f'User token: {token}')
 
-    unit_service = get_unit_service(InfoSubEntity({'db': database, 'jwt_token': token}))
-    repo_service = get_repo_service(InfoSubEntity({'db': database, 'jwt_token': token}))
+    unit_service = get_unit_service_gql(InfoSubEntity({'db': database, 'jwt_token': token}))
+    repo_service = get_repo_service_gql(InfoSubEntity({'db': database, 'jwt_token': token}))
 
     target_units = pytest.units[-4:-1]
 
@@ -535,7 +535,7 @@ def test_env_update_command(database) -> None:
 
     current_user = pytest.users[0]
     token = pytest.user_tokens_dict[current_user.uuid]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -620,7 +620,7 @@ def test_log_sync_command(database) -> None:
 def test_get_many_unit(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -642,7 +642,7 @@ def test_get_many_unit(database) -> None:
 def test_get_unit_logs(database) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service(
+    unit_service = get_unit_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 

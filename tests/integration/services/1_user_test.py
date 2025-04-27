@@ -5,7 +5,7 @@ import pytest
 
 from app import settings
 from app.configs.errors import NoAccessError, UserError, ValidationError
-from app.configs.gql import get_user_service
+from app.configs.gql import get_user_service_gql
 from app.configs.redis import get_redis_session
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import UserRole, UserStatus
@@ -15,7 +15,7 @@ from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpda
 
 @pytest.mark.run(order=0)
 def test_create_user(test_users, database, clear_database) -> None:
-    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': None}))
+    user_service = get_user_service_gql(InfoSubEntity({'db': database, 'jwt_token': None}))
 
     # create test users
     new_users = []
@@ -40,7 +40,7 @@ def test_create_user(test_users, database, clear_database) -> None:
 
 @pytest.mark.run(order=1)
 def test_get_auth_token_user(test_users, database) -> None:
-    user_service = get_user_service(InfoSubEntity({'db': database, 'jwt_token': None}))
+    user_service = get_user_service_gql(InfoSubEntity({'db': database, 'jwt_token': None}))
 
     # get token for all test users
     for inc, user in enumerate(pytest.users):
@@ -66,7 +66,7 @@ async def test_verification_user(database) -> None:
 
     # check invalid code
     with pytest.raises(ValidationError):
-        user_service = get_user_service(
+        user_service = get_user_service_gql(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
 
@@ -78,7 +78,7 @@ async def test_verification_user(database) -> None:
     # set verified status all test users
     codes_list = []
     for inc, user in enumerate(pytest.users, start=1):
-        user_service = get_user_service(
+        user_service = get_user_service_gql(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[user.uuid]})
         )
         logging.info(user.uuid)
@@ -102,7 +102,7 @@ async def test_verification_user(database) -> None:
 
 @pytest.mark.run(order=3)
 def test_block_unblock_user(database) -> None:
-    user_service = get_user_service(
+    user_service = get_user_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[-1].uuid]})
     )
 
@@ -117,7 +117,7 @@ def test_block_unblock_user(database) -> None:
 
     # block without admin role
     with pytest.raises(NoAccessError):
-        user_service = get_user_service(
+        user_service = get_user_service_gql(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
         user = pytest.users[0]
@@ -127,7 +127,7 @@ def test_block_unblock_user(database) -> None:
 
     # unblock without admin role
     with pytest.raises(NoAccessError):
-        user_service = get_user_service(
+        user_service = get_user_service_gql(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[pytest.users[0].uuid]})
         )
         user = pytest.users[0]
@@ -141,7 +141,7 @@ def test_update_user(database) -> None:
 
     # check change login on new
     current_user = pytest.users[-1]
-    user_service = get_user_service(
+    user_service = get_user_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -154,7 +154,7 @@ def test_update_user(database) -> None:
     # check change login on exist
     with pytest.raises(UserError):
         current_user = pytest.users[-1]
-        user_service = get_user_service(
+        user_service = get_user_service_gql(
             InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
         )
 
@@ -163,7 +163,7 @@ def test_update_user(database) -> None:
 
     # check change password
     current_user = pytest.users[0]
-    user_service = get_user_service(
+    user_service = get_user_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 
@@ -173,7 +173,7 @@ def test_update_user(database) -> None:
 @pytest.mark.run(order=5)
 def test_get_many_user(database) -> None:
     current_user = pytest.users[-1]
-    user_service = get_user_service(
+    user_service = get_user_service_gql(
         InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
     )
 

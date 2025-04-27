@@ -24,6 +24,7 @@ from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context
 from app.configs.redis import get_redis_session
+from app.configs.rest import get_repo_service
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
@@ -128,7 +129,7 @@ async def _lifespan(_app: FastAPI):
 
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                repo_service = RepoService(db, cc, None)
+                repo_service = get_repo_service(db, cc, None)
                 repo_service.sync_local_repo_storage()
 
         mqtt_run_lock.close()

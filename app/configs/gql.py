@@ -4,6 +4,14 @@ from strawberry.types import Info
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
+from app.configs.rest import (
+    get_metrics_service,
+    get_permission_service,
+    get_repo_service,
+    get_unit_node_service,
+    get_unit_service,
+    get_user_service,
+)
 from app.services.metrics_service import MetricsService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
@@ -21,40 +29,40 @@ async def get_graphql_context(
     return {'db': db, 'clickhouse_client': clickhouse_client, 'jwt_token': jwt_token}
 
 
-def get_user_service(info: Info) -> UserService:
+def get_user_service_gql(info: Info) -> UserService:
     db = info.context.get('db')
     jwt_token = info.context['jwt_token']
-    return UserService(db, jwt_token)
+    return get_user_service(db, jwt_token)
 
 
-def get_repo_service(info: Info) -> RepoService:
-    db = info.context.get('db')
-    clickhouse_client = info.context.get('clickhouse_client')
-    jwt_token = info.context['jwt_token']
-    return RepoService(db, clickhouse_client, jwt_token)
-
-
-def get_unit_service(info: Info) -> UnitService:
+def get_repo_service_gql(info: Info) -> RepoService:
     db = info.context.get('db')
     clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-    return UnitService(db, clickhouse_client, jwt_token)
+    return get_repo_service(db, clickhouse_client, jwt_token)
 
 
-def get_unit_node_service(info: Info) -> UnitNodeService:
+def get_unit_service_gql(info: Info) -> UnitService:
     db = info.context.get('db')
     clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-    return UnitNodeService(db, clickhouse_client, jwt_token)
+    return get_unit_service(db, clickhouse_client, jwt_token)
 
 
-def get_metrics_service(info: Info) -> MetricsService:
+def get_unit_node_service_gql(info: Info) -> UnitNodeService:
+    db = info.context.get('db')
+    clickhouse_client = info.context.get('clickhouse_client')
+    jwt_token = info.context['jwt_token']
+    return get_unit_node_service(db, clickhouse_client, jwt_token)
+
+
+def get_metrics_service_gql(info: Info) -> MetricsService:
     db = info.context.get('db')
     jwt_token = info.context['jwt_token']
-    return MetricsService(db, jwt_token)
+    return get_metrics_service(db, jwt_token)
 
 
-def get_permission_service(info: Info) -> PermissionService:
+def get_permission_service_gql(info: Info) -> PermissionService:
     db = info.context.get('db')
     jwt_token = info.context['jwt_token']
-    return PermissionService(db, jwt_token)
+    return get_permission_service(db, jwt_token)

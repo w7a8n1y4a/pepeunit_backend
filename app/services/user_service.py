@@ -30,6 +30,10 @@ class UserService:
         self.user_repository = UserRepository(db)
         self.access_service = AccessService(db, jwt_token, is_bot_auth)
 
+    def __init__(self, user_repository: UserRepository = Depends(), access_service: AccessService = Depends()) -> None:
+        self.user_repository = user_repository
+        self.access_service = access_service
+
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])
         self.user_repository.is_valid_login(data.login)
