@@ -11,7 +11,7 @@ from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarku
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import (
@@ -67,21 +67,18 @@ class UnitBotRouter(BaseBotRouter):
             text += f" - `{filters.search_string}`"
 
         if filters.repo_uuid:
-            db = next(get_session())
-            repo = None
-            try:
+            with get_hand_session() as db:
                 repo_service = get_repo_service(
                     InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
                 )
                 repo = repo_service.get(filters.repo_uuid)
-            finally:
-                text += f" - for repo `{repo.name}`"
+
+            text += f" - for repo `{repo.name}`"
 
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
 
             count, units = unit_service.list(
@@ -96,11 +93,6 @@ class UnitBotRouter(BaseBotRouter):
             )
 
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            units, total_pages = [], 0
-        finally:
-            db.close()
 
         return units, total_pages
 
@@ -172,8 +164,7 @@ class UnitBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             unit_service = get_unit_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
@@ -190,9 +181,6 @@ class UnitBotRouter(BaseBotRouter):
                 current_schema = None
 
             is_creator = unit_service.access_service.current_agent.uuid == unit.creator_uuid
-
-        finally:
-            db.close()
 
         text = f'*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*'
 
@@ -347,8 +335,7 @@ class UnitBotRouter(BaseBotRouter):
         *_, decrees_type, unit_uuid = callback.data.split('_')
         unit_uuid = UUID(unit_uuid)
 
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             unit_service = get_unit_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
@@ -394,14 +381,6 @@ class UnitBotRouter(BaseBotRouter):
                 ):
                     unit_node_service.command_to_input_base_topic(unit_uuid, BackendTopicCommand(decrees_type))
                     text = f'Success send command {decrees_type}'
-
-        except Exception as e:
-            try:
-                text = e.message
-            except AttributeError:
-                text = e
-        finally:
-            db.close()
 
         await callback.answer(parse_mode='Markdown')
         await self.telegram_response(callback, text, is_editable=False)

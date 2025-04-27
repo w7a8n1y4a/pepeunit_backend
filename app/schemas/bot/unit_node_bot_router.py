@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
@@ -41,15 +41,13 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         text = "*UnitNodes*"
         if filters.unit_uuid:
-            db = next(get_session())
-            unit = None
-            try:
+            with get_hand_session() as db:
                 unit_service = get_unit_service(
                     InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
                 )
                 unit = unit_service.get(filters.unit_uuid)
-            finally:
-                text += f" - for unit `{self.header_name_limit(unit.name)}`"
+
+            text += f" - for unit `{self.header_name_limit(unit.name)}`"
 
         if filters.search_string:
             text += f" - `{filters.search_string}`"
@@ -57,8 +55,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             unit_node_service = get_unit_node_service(
                 InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True})
             )
@@ -75,11 +72,6 @@ class UnitNodeBotRouter(BaseBotRouter):
             )
 
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            unit_nodes, total_pages = [], 0
-        finally:
-            db.close()
 
         return unit_nodes, total_pages
 
@@ -152,15 +144,11 @@ class UnitNodeBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             unit_node_service = get_unit_node_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
             unit_node = unit_node_service.get(unit_node_uuid)
-
-        finally:
-            db.close()
 
         text = f'*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`'
 

@@ -1,7 +1,7 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_metrics_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
@@ -12,8 +12,8 @@ info_router = Router()
 
 @info_router.message(Command(CommandNames.INFO))
 async def info_resolver(message: types.Message):
-    db = next(get_session())
-    try:
+
+    with get_hand_session() as db:
         metrics_service = get_metrics_service(
             InfoSubEntity({'db': db, 'jwt_token': str(message.chat.id), 'is_bot_auth': True})
         )
@@ -35,13 +35,5 @@ async def info_resolver(message: types.Message):
         text = f'\n```text\n'
         text += make_monospace_table_with_title(table, 'Instance Stats')
         text += '```'
-
-    except Exception as e:
-        try:
-            text = e.message
-        except AttributeError:
-            text = e
-    finally:
-        db.close()
 
     await message.answer(text, parse_mode='Markdown')

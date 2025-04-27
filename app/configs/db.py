@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session, create_engine
 
@@ -18,5 +20,11 @@ engine = create_engine(
 
 
 def get_session() -> Session:
+    with Session(engine) as session:
+        yield session
+
+
+@contextmanager
+def get_hand_session() -> Session:
     with Session(engine) as session:
         yield session

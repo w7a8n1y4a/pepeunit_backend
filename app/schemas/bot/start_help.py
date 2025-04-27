@@ -5,7 +5,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from fastapi import HTTPException
 
 from app import settings
-from app.configs.db import get_session
+from app.configs.db import get_hand_session, get_session
 from app.configs.gql import get_user_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames
@@ -22,8 +22,7 @@ async def start_help_resolver(message: types.Message):
     code = args[1] if len(args) == 2 else None
 
     if code:
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             user_repository = UserRepository(db)
             user = user_repository.get_user_by_telegram_id(str(message.chat.id))
 
@@ -41,13 +40,6 @@ async def start_help_resolver(message: types.Message):
                         text = 'You are already verified'
                     else:
                         text = 'There is no such code'
-        except Exception as e:
-            try:
-                text = e.message
-            except AttributeError:
-                text = e
-        finally:
-            db.close()
 
         await message.answer(text, parse_mode='Markdown')
         return

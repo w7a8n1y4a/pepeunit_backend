@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import EntityNames, LogLevel
@@ -37,15 +37,13 @@ class UnitLogBotRouter(BaseBotRouter):
 
         text = "*Unit Logs*"
         if filters.unit_uuid:
-            db = next(get_session())
-            unit = None
-            try:
+            with get_hand_session() as db:
                 unit_service = get_unit_service(
                     InfoSubEntity({'db': db, 'jwt_token': str(chat_id), 'is_bot_auth': True})
                 )
                 unit = unit_service.get(filters.unit_uuid)
-            finally:
-                text += f" - for unit `{unit.name}`"
+
+            text += f" - for unit `{unit.name}`"
 
         table = [['Time', 'Level', 'Text']]
 
@@ -66,8 +64,7 @@ class UnitLogBotRouter(BaseBotRouter):
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
 
             count, unit_logs = unit_service.log_list(
@@ -80,11 +77,6 @@ class UnitLogBotRouter(BaseBotRouter):
             )
 
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            unit_logs, total_pages = [], 0
-        finally:
-            db.close()
 
         return unit_logs, total_pages
 

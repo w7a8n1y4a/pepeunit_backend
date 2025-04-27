@@ -8,7 +8,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
-from app.configs.db import get_session
+from app.configs.db import get_hand_session
 from app.configs.gql import get_repo_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
@@ -42,8 +42,7 @@ class RepoBotRouter(BaseBotRouter):
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': chat_id, 'is_bot_auth': True}))
 
             count, repos = repo_service.list(
@@ -57,11 +56,6 @@ class RepoBotRouter(BaseBotRouter):
             )
 
             total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
-
-        except Exception as e:
-            repos, total_pages = [], 0
-        finally:
-            db.close()
 
         return repos, total_pages
 
@@ -126,21 +120,16 @@ class RepoBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             repo_service = get_repo_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
             repo = repo_service.get(repo_uuid)
 
-            versions = None
             try:
                 versions = repo_service.get_versions(repo_uuid)
-            except Exception as e:
-                pass
-
-        finally:
-            db.close()
+            except Exception:
+                versions = None
 
         text = f'*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*'
 
@@ -186,8 +175,7 @@ class RepoBotRouter(BaseBotRouter):
         *_, decrees_type, repo_uuid = callback.data.split('_')
         repo_uuid = UUID(repo_uuid)
 
-        db = next(get_session())
-        try:
+        with get_hand_session() as db:
             repo_service = get_repo_service(
                 InfoSubEntity({'db': db, 'jwt_token': str(callback.from_user.id), 'is_bot_auth': True})
             )
@@ -200,14 +188,6 @@ class RepoBotRouter(BaseBotRouter):
                 case DecreesNames.RELATED_UNIT:
                     text = 'Linked Unit update has started successfully'
                     repo_service.update_units_firmware(repo_uuid)
-
-        except Exception as e:
-            try:
-                text = e.message
-            except AttributeError:
-                text = e
-        finally:
-            db.close()
 
         await callback.answer(parse_mode='Markdown')
         await self.telegram_response(callback, text, is_editable=False)
