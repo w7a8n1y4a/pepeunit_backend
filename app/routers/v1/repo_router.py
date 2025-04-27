@@ -7,8 +7,6 @@ from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
 
 from app.configs.db import get_hand_session
-from app.configs.gql import get_repo_service
-from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
     CommitFilter,
@@ -37,7 +35,7 @@ def automatic_update_repositories():
     if lock_fd:
         logging.info('Run update with lock')
         with get_hand_session() as db:
-            repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+            repo_service = RepoService(db)
             repo_service.bulk_update_repositories(is_auto_update=True)
 
     else:

@@ -13,19 +13,25 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.metrics import BaseMetricsRead
 from app.services.access_service import AccessService
+from app.services.utils import token_depends
 
 cache = TTLCache(maxsize=1, ttl=600)
 
 
 class MetricsService:
 
-    def __init__(self, db: Session = Depends(get_session), jwt_token: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        db: Session = Depends(get_session),
+        jwt_token: Optional[str] = Depends(token_depends),
+        is_bot_auth: bool = False,
+    ) -> None:
         self.repo_repository = RepoRepository(db)
         self.unit_repository = UnitRepository(db)
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
         self.user_repository = UserRepository(db)
-        self.access_service = AccessService(db, jwt_token)
+        self.access_service = AccessService(db, jwt_token, is_bot_auth)
 
     def get_instance_metrics(self) -> BaseMetricsRead:
         cache_key = "instance_metrics"

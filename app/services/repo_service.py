@@ -5,9 +5,11 @@ import threading
 import uuid as uuid_pkg
 from typing import Optional, Union
 
+from clickhouse_driver import Client
 from fastapi import Depends, HTTPException
 from sqlmodel import Session
 
+from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
@@ -37,7 +39,7 @@ from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.thread import _process_bulk_update_repositories
 from app.services.unit_service import UnitService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, token_depends
 from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
 from app.utils.utils import aes_gcm_encode
 
@@ -47,14 +49,16 @@ class RepoService:
     def __init__(
         self,
         db: Session = Depends(get_session),
-        jwt_token: Optional[str] = None,
+        client: Client = Depends(get_clickhouse_client),
+        jwt_token: Optional[str] = Depends(token_depends),
+        is_bot_auth: bool = False,
     ) -> None:
         self.repo_repository = RepoRepository(db)
         self.git_repo_repository = GitRepoRepository()
         self.unit_repository = UnitRepository(db)
-        self.unit_service = UnitService(db, jwt_token)
-        self.permission_service = PermissionService(db, jwt_token)
-        self.access_service = AccessService(db, jwt_token)
+        self.unit_service = UnitService(db, client, jwt_token, is_bot_auth)
+        self.permission_service = PermissionService(db, jwt_token, is_bot_auth)
+        self.access_service = AccessService(db, jwt_token, is_bot_auth)
 
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
         self.access_service.authorization.check_access([AgentType.USER])

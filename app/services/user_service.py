@@ -15,14 +15,20 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
 from app.services.access_service import AccessService
+from app.services.utils import token_depends
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import generate_random_string, password_to_hash
 
 
 class UserService:
-    def __init__(self, db: Session = Depends(get_session), jwt_token: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        db: Session = Depends(get_session),
+        jwt_token: Optional[str] = Depends(token_depends),
+        is_bot_auth: bool = False,
+    ) -> None:
         self.user_repository = UserRepository(db)
-        self.access_service = AccessService(db, jwt_token)
+        self.access_service = AccessService(db, jwt_token, is_bot_auth)
 
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])

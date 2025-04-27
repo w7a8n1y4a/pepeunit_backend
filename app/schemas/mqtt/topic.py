@@ -11,8 +11,6 @@ from app import settings
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import MqttError, UpdateError
-from app.configs.gql import get_unit_node_service
-from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -29,6 +27,7 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
+from app.services.unit_node_service import UnitNodeService
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
 
 mqtt_config = MQTTConfig(
@@ -187,7 +186,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
             cache_dict[str(unit_node_uuid)] = current_time
 
             with get_hand_session() as db:
-                unit_node_service = get_unit_node_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+                unit_node_service = UnitNodeService(db)
                 unit_node_service.set_state(unit_node_uuid, str(payload.decode()))
     else:
         pass

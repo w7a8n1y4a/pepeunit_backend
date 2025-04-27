@@ -8,8 +8,6 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from app.configs.db import get_hand_session
-from app.configs.gql import get_unit_service
-from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import BackendTopicCommand
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import MqttRead
@@ -105,7 +103,7 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
 
     with get_hand_session() as db:
         try:
-            unit_service = get_unit_service(InfoSubEntity({'db': db, 'jwt_token': data.token}))
+            unit_service = UnitService(db, data.token)
             unit_service.get_mqtt_auth(data.topic)
             db.close()
         except Exception as e:

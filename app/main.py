@@ -126,7 +126,7 @@ async def _lifespan(_app: FastAPI):
             logging.info(f'Success set TG bot webhook url')
 
         with get_hand_session() as db:
-            repo_service = RepoService(db)
+            repo_service = RepoService(db, None)
             repo_service.sync_local_repo_storage()
 
         mqtt_run_lock.close()

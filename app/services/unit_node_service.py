@@ -54,6 +54,7 @@ from app.services.utils import (
     get_visibility_level_priority,
     merge_two_dict_first_priority,
     remove_none_value_dict,
+    token_depends,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
 
@@ -62,8 +63,9 @@ class UnitNodeService:
     def __init__(
         self,
         db: Session = Depends(get_session),
-        jwt_token: Optional[str] = None,
         client: Client = Depends(get_clickhouse_client),
+        jwt_token: Optional[str] = Depends(token_depends),
+        is_bot_auth: bool = False,
     ) -> None:
         self.unit_repository = UnitRepository(db)
         self.repo_repository = RepoRepository(db)
@@ -71,8 +73,8 @@ class UnitNodeService:
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_log_repository = UnitLogRepository(client)
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
-        self.permission_service = PermissionService(db, jwt_token)
-        self.access_service = AccessService(db, jwt_token)
+        self.permission_service = PermissionService(db, jwt_token, is_bot_auth)
+        self.access_service = AccessService(db, jwt_token, is_bot_auth)
 
     def get(self, uuid: uuid_pkg.UUID) -> UnitNode:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])

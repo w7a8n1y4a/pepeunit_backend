@@ -53,6 +53,7 @@ from app.services.utils import (
     get_topic_name,
     merge_two_dict_first_priority,
     remove_none_value_dict,
+    token_depends,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
@@ -62,16 +63,17 @@ class UnitService:
     def __init__(
         self,
         db: Session = Depends(get_session),
-        jwt_token: Optional[str] = None,
         client: Client = Depends(get_clickhouse_client),
+        jwt_token: Optional[str] = Depends(token_depends),
+        is_bot_auth: bool = False,
     ) -> None:
         self.unit_repository = UnitRepository(db)
         self.repo_repository = RepoRepository(db)
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_log_repository = UnitLogRepository(client)
-        self.access_service = AccessService(db, jwt_token)
-        self.permission_service = PermissionService(db, jwt_token)
+        self.access_service = AccessService(db, jwt_token, is_bot_auth)
+        self.permission_service = PermissionService(db, jwt_token, is_bot_auth)
         self.unit_node_service = UnitNodeService(db, jwt_token, client)
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:

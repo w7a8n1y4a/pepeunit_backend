@@ -50,5 +50,6 @@ def unblock(uuid: uuid_pkg.UUID, user_service: UserService = Depends()):
 
 @router.get("", response_model=UsersResult)
 def get_users(filters: UserFilter = Depends(UserFilter), user_service: UserService = Depends()):
+    print(user_service.access_service.auth.jwt_token)
     count, users = user_service.list(filters)
     return UsersResult(count=count, users=[UserRead(**user.dict()) for user in users])

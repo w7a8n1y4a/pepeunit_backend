@@ -16,6 +16,7 @@ from app.repositories.permission_repository import PermissionRepository
 from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
+from app.services.utils import token_depends
 from app.services.validators import is_valid_object, is_valid_uuid
 
 
@@ -23,10 +24,11 @@ class PermissionService:
     def __init__(
         self,
         db: Session = Depends(get_session),
-        jwt_token: Optional[str] = None,
+        jwt_token: Optional[str] = Depends(token_depends),
+        is_bot_auth: bool = False,
     ) -> None:
-        self.access_service = AccessService(db, jwt_token)
         self.permission_repository = PermissionRepository(db)
+        self.access_service = AccessService(db, jwt_token, is_bot_auth)
 
     def create(
         self, data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType], is_api: bool = True
