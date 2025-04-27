@@ -1,8 +1,10 @@
 import uuid as uuid_pkg
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import Depends
+from sqlmodel import Session
 
+from app.configs.db import get_session
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
@@ -20,11 +22,11 @@ from app.services.validators import is_valid_object, is_valid_uuid
 class PermissionService:
     def __init__(
         self,
-        access_service: AccessService = Depends(),
-        permission_repository: PermissionRepository = Depends(),
+        db: Session = Depends(get_session),
+        jwt_token: Optional[str] = None,
     ) -> None:
-        self.access_service = access_service
-        self.permission_repository = permission_repository
+        self.access_service = AccessService(db, jwt_token)
+        self.permission_repository = PermissionRepository(db)
 
     def create(
         self, data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType], is_api: bool = True

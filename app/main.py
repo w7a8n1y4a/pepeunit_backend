@@ -21,9 +21,8 @@ from app import settings
 from app.configs.db import get_hand_session
 from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
-from app.configs.gql import get_graphql_context, get_repo_service
+from app.configs.gql import get_graphql_context
 from app.configs.redis import get_redis_session
-from app.configs.sub_entities import InfoSubEntity
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
@@ -44,6 +43,7 @@ from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
+from app.services.repo_service import RepoService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -126,7 +126,7 @@ async def _lifespan(_app: FastAPI):
             logging.info(f'Success set TG bot webhook url')
 
         with get_hand_session() as db:
-            repo_service = get_repo_service(InfoSubEntity({'db': db, 'jwt_token': None}))
+            repo_service = RepoService(db)
             repo_service.sync_local_repo_storage()
 
         mqtt_run_lock.close()

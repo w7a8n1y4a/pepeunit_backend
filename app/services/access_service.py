@@ -1,4 +1,5 @@
 from fastapi import Depends
+from sqlmodel import Session
 
 from app.dto.agent.abc import Agent
 from app.repositories.permission_repository import PermissionRepository
@@ -15,16 +16,14 @@ class AccessService:
 
     def __init__(
         self,
-        permission_repository: PermissionRepository = Depends(),
-        unit_repository: UnitRepository = Depends(),
-        user_repository: UserRepository = Depends(),
+        db: Session,
         jwt_token: str = Depends(token_depends),
     ) -> None:
-        self.user_repository = user_repository
-        self.unit_repository = unit_repository
-        self.permission_repository = permission_repository
+        self.user_repository = UserRepository(db)
+        self.unit_repository = UnitRepository(db)
+        self.permission_repository = PermissionRepository(db)
         self.auth = AuthServiceFactory(
             self.unit_repository, self.user_repository, jwt_token, self._is_bot_auth
         ).create()
         self.current_agent = self.auth.get_current_agent()
-        self.authorization = AuthorizationService(permission_repository, self.current_agent)
+        self.authorization = AuthorizationService(self.permission_repository, self.current_agent)

@@ -1,11 +1,15 @@
 import datetime
 import logging
 import uuid as uuid_pkg
-from typing import Union
+from typing import Optional, Union
 
+from clickhouse_driver import Client
 from fastapi import Depends, HTTPException
+from sqlmodel import Session
 
 from app import settings
+from app.configs.clickhouse import get_clickhouse_client
+from app.configs.db import get_session
 from app.configs.errors import MqttError, UnitNodeError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
@@ -57,22 +61,18 @@ from app.services.validators import is_valid_json, is_valid_object, is_valid_uui
 class UnitNodeService:
     def __init__(
         self,
-        unit_repository: UnitRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
-        unit_log_repository: UnitLogRepository = Depends(),
-        unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
-        permission_service: PermissionService = Depends(),
-        access_service: AccessService = Depends(),
+        db: Session = Depends(get_session),
+        jwt_token: Optional[str] = None,
+        client: Client = Depends(get_clickhouse_client),
     ) -> None:
-        self.unit_repository = unit_repository
-        self.repo_repository = repo_repository
+        self.unit_repository = UnitRepository(db)
+        self.repo_repository = RepoRepository(db)
         self.git_repo_repository = GitRepoRepository()
-        self.unit_node_repository = unit_node_repository
-        self.unit_log_repository = unit_log_repository
-        self.unit_node_edge_repository = unit_node_edge_repository
-        self.permission_service = permission_service
-        self.access_service = access_service
+        self.unit_node_repository = UnitNodeRepository(db)
+        self.unit_log_repository = UnitLogRepository(client)
+        self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
+        self.permission_service = PermissionService(db, jwt_token)
+        self.access_service = AccessService(db, jwt_token)
 
     def get(self, uuid: uuid_pkg.UUID) -> UnitNode:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])

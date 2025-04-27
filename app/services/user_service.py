@@ -1,10 +1,12 @@
 import datetime
 import uuid as uuid_pkg
-from typing import Union
+from typing import Optional, Union
 
 from fastapi import Depends
+from sqlmodel import Session
 
 from app import settings
+from app.configs.db import get_session
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentUser
@@ -18,9 +20,9 @@ from app.utils.utils import generate_random_string, password_to_hash
 
 
 class UserService:
-    def __init__(self, user_repository: UserRepository = Depends(), access_service: AccessService = Depends()) -> None:
-        self.user_repository = user_repository
-        self.access_service = access_service
+    def __init__(self, db: Session = Depends(get_session), jwt_token: Optional[str] = None) -> None:
+        self.user_repository = UserRepository(db)
+        self.access_service = AccessService(db, jwt_token)
 
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])

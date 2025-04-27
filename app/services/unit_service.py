@@ -7,11 +7,15 @@ import os
 import shutil
 import uuid as uuid_pkg
 import zlib
-from typing import List, Union
+from typing import List, Optional, Union
 
+from clickhouse_driver import Client
 from fastapi import Depends
+from sqlmodel import Session
 
 from app import settings
+from app.configs.clickhouse import get_clickhouse_client
+from app.configs.db import get_session
 from app.configs.errors import MqttError, NoAccessError, UnitError
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -57,22 +61,18 @@ from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 class UnitService:
     def __init__(
         self,
-        unit_repository: UnitRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
-        unit_log_repository: UnitLogRepository = Depends(),
-        access_service: AccessService = Depends(),
-        permission_service: PermissionService = Depends(),
-        unit_node_service: UnitNodeService = Depends(),
+        db: Session = Depends(get_session),
+        jwt_token: Optional[str] = None,
+        client: Client = Depends(get_clickhouse_client),
     ) -> None:
-        self.unit_repository = unit_repository
-        self.repo_repository = repo_repository
+        self.unit_repository = UnitRepository(db)
+        self.repo_repository = RepoRepository(db)
         self.git_repo_repository = GitRepoRepository()
-        self.unit_node_repository = unit_node_repository
-        self.unit_log_repository = unit_log_repository
-        self.access_service = access_service
-        self.permission_service = permission_service
-        self.unit_node_service = unit_node_service
+        self.unit_node_repository = UnitNodeRepository(db)
+        self.unit_log_repository = UnitLogRepository(client)
+        self.access_service = AccessService(db, jwt_token)
+        self.permission_service = PermissionService(db, jwt_token)
+        self.unit_node_service = UnitNodeService(db, jwt_token, client)
 
     def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
