@@ -32,9 +32,6 @@ from app.schemas.bot.utils import (
     make_monospace_table_with_title,
 )
 from app.schemas.pydantic.unit import UnitFilter
-from app.services.repo_service import RepoService
-from app.services.unit_node_service import UnitNodeService
-from app.services.unit_service import UnitService
 
 
 class UnitBotRouter(BaseBotRouter):

@@ -17,8 +17,6 @@ from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.unit_node import UnitNodeFilter
-from app.services.unit_node_service import UnitNodeService
-from app.services.unit_service import UnitService
 
 
 class UnitNodeBotRouter(BaseBotRouter):

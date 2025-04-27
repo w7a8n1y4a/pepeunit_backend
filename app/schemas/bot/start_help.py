@@ -12,7 +12,6 @@ from app.dto.enum import CommandNames
 from app.repositories.user_repository import UserRepository
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.shared import Root
-from app.services.user_service import UserService
 
 base_router = Router()
 

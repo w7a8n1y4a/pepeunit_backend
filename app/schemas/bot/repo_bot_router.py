@@ -10,13 +10,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.gql import get_repo_service_gql
 from app.configs.rest import get_repo_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.repo import RepoFilter
-from app.services.repo_service import RepoService
 
 
 class RepoBotRouter(BaseBotRouter):
