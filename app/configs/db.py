@@ -9,20 +9,14 @@ engine = create_engine(
     echo_pool=settings.backend_debug,
     future=True,
     json_serializer=jsonable_encoder,
-    isolation_level="AUTOCOMMIT",
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    pool_timeout=60,
+    pool_size=max(5, settings.backend_worker_count * 2),
+    max_overflow=max(5, settings.backend_worker_count),
+    pool_recycle=1800,
+    pool_timeout=10,
 )
 
 
 def get_session() -> Session:
-    session = Session(engine)
-    try:
+    with Session(engine) as session:
         yield session
-    except Exception as e:
-        session.rollback()
-        raise e
-    finally:
-        session.close()
