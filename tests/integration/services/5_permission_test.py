@@ -4,6 +4,7 @@ import pytest
 
 from app.configs.errors import ValidationError
 from app.configs.gql import get_permission_service_gql
+from app.configs.rest import get_permission_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import PermissionEntities
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
@@ -13,9 +14,7 @@ from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 def test_create_permission(database) -> None:
 
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_permission_service = get_permission_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     target_agent = pytest.users[1]
     target_resource = pytest.units[-1]
@@ -58,9 +57,7 @@ def test_create_permission(database) -> None:
 def test_get_permission(database) -> None:
 
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_permission_service = get_permission_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     target_resource = pytest.units[-1]
 
@@ -82,9 +79,7 @@ def test_get_permission(database) -> None:
 def test_delete_permission(database) -> None:
 
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_permission_service = get_permission_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     target_permission = pytest.permissions[0]
 

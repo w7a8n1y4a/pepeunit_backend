@@ -9,7 +9,7 @@ import pytest
 
 from app import settings
 from app.configs.errors import UnitNodeError, ValidationError
-from app.configs.gql import get_repo_service_gql, get_unit_node_service_gql, get_unit_service_gql
+from app.configs.rest import get_repo_service, get_unit_node_service, get_unit_service
 from app.configs.sub_entities import InfoSubEntity
 from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.unit_node import (
@@ -21,12 +21,10 @@ from app.schemas.pydantic.unit_node import (
 
 
 @pytest.mark.run(order=0)
-def test_update_unit_node(database) -> None:
+def test_update_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_unit = pytest.units[-2]
 
@@ -54,13 +52,11 @@ def test_update_unit_node(database) -> None:
 
 
 @pytest.mark.run(order=1)
-def test_create_unit_node_edge(database) -> None:
+def test_create_unit_node_edge(database, cc) -> None:
 
     current_user = pytest.users[0]
     token = pytest.user_tokens_dict[current_user.uuid]
-    unit_node_service = get_unit_node_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_units = pytest.units[-4:-1]
 
@@ -140,17 +136,13 @@ def test_create_unit_node_edge(database) -> None:
 
 
 @pytest.mark.run(order=2)
-def test_set_state_input_unit_node(database) -> None:
+def test_set_state_input_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_unit = pytest.units[-4]
-    unit_service = get_unit_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
     unit_token = unit_service.generate_token(target_unit.uuid)
 
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
@@ -179,12 +171,10 @@ def test_set_state_input_unit_node(database) -> None:
 
 
 @pytest.mark.run(order=3)
-def test_get_unit_node_edge(database) -> None:
+def test_get_unit_node_edge(database, cc) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_unit = pytest.units[-3]
 
@@ -196,13 +186,10 @@ def test_get_unit_node_edge(database) -> None:
 
 
 @pytest.mark.run(order=4)
-def test_delete_unit_node_edge(database) -> None:
+def test_delete_unit_node_edge(database, cc) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
-
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
     target_edge = pytest.edges[0]
 
     # check del edge
@@ -214,12 +201,10 @@ def test_delete_unit_node_edge(database) -> None:
 
 
 @pytest.mark.run(order=5)
-def test_get_many_unit_node(database) -> None:
+def test_get_many_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # check many get with all filters
     count, units_nodes = unit_node_service.list(
@@ -229,12 +214,10 @@ def test_get_many_unit_node(database) -> None:
 
 
 @pytest.mark.run(order=6)
-def test_delete_unit(database) -> None:
+def test_delete_unit(database, cc) -> None:
 
     current_user = pytest.users[0]
-    unit_service = get_unit_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_unit = pytest.units[0]
 
@@ -245,11 +228,9 @@ def test_delete_unit(database) -> None:
 
 
 @pytest.mark.run(order=7)
-def test_get_repo_versions(database) -> None:
+def test_get_repo_versions(database, cc) -> None:
     current_user = pytest.users[0]
-    repo_service = get_repo_service_gql(
-        InfoSubEntity({'db': database, 'jwt_token': pytest.user_tokens_dict[current_user.uuid]})
-    )
+    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     target_unit = pytest.repos[6]
 
