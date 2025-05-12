@@ -71,7 +71,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
     if (current_time - last_time) < settings.backend_state_send_interval:
         raise MqttError(
             'Exceeding the message sending rate for the {} topic, you need to send values no more often than {}'.format(
-                topic, settings.mqtt_max_payload_size
+                topic, settings.backend_state_send_interval
             )
         )
 
