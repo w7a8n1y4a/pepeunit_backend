@@ -32,7 +32,7 @@
 1. Проверка cоединения с `EMQX MQTT Broker` и его настройка
 1. Будет настроен `webhook` или `pooling` для `Telegram Bot`
 1. `Fastapi-mqtt` установит соединение с `EMQX MQTT Broker`
-1. Бэкенд подпишется на топики: `example.com/+/pepeunit` и `example.com/+/+/+/pepeunit`, авторизация при этом произойдёт через `redis`
+1. Бэкенд подпишется на топик `example.com/+/+/+/pepeunit`, авторизация при этом произойдёт через `redis`
 1. Запуск веб сервера
 
 ## Как работает интеграция с Telegram Bot

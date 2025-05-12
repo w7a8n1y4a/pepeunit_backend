@@ -91,10 +91,7 @@ async def _lifespan(_app: FastAPI):
         control_emqx.set_tcp_listener_settings()
         control_emqx.set_global_mqtt_settings()
 
-        backend_topics = (
-            f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
-            f'{settings.backend_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',
-        )
+        backend_topics = (f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',)
 
         async def hset_emqx_auth_keys(redis_client, topic):
             token = AgentBackend(name=settings.backend_domain).generate_agent_token()
