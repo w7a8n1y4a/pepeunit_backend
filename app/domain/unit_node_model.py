@@ -5,7 +5,7 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
-from app.dto.enum import VisibilityLevel
+from app.dto.enum import DataPipeStatus, VisibilityLevel
 
 
 class UnitNode(SQLModel, table=True):
@@ -31,6 +31,15 @@ class UnitNode(SQLModel, table=True):
     # last state topic - only for topics with prefix #/pepeunit
     state: str = Field(nullable=True)
     last_update_datetime: datetime = Field(nullable=False)
+
+    # pipeline user target state
+    is_data_pipe_active: bool = Field(nullable=False, default=False)
+    # pipeline data processing config
+    data_pipe_yml: str = Field(nullable=True)
+    # current pipeline state on worker
+    data_pipe_status: str = Field(nullable=True, default=DataPipeStatus.INACTIVE)
+    # pipeline error text when status is Error
+    data_pipe_error: str = Field(nullable=True)
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
