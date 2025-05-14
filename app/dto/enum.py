@@ -279,3 +279,14 @@ class LogLevel(str, enum.Enum):
     WARNING = 'Warning'
     ERROR = 'Error'
     CRITICAL = 'Critical'
+
+
+@strawberry.enum
+class DataPipeStatus(str, enum.Enum):
+    """
+    Types of state data pipeline
+    """
+
+    ACTIVE = 'Active'
+    INACTIVE = 'Inactive'
+    ERROR = 'Error'
