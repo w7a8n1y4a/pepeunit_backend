@@ -48,7 +48,10 @@ class AuthorizationService:
                 raise NoAccessError("The Unit requesting the information does not have access to it")
 
     def check_visibility(self, check_entity):
-        if check_entity.visibility_level == VisibilityLevel.PUBLIC:
+
+        if self.current_agent.type == AgentType.BACKEND:
+            pass
+        elif check_entity.visibility_level == VisibilityLevel.PUBLIC:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
             if self.current_agent.type not in [AgentType.USER, AgentType.UNIT]:
