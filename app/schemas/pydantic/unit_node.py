@@ -11,6 +11,7 @@ from app.dto.enum import OrderByDate, UnitNodeTypeEnum, VisibilityLevel
 class UnitNodeUpdate(BaseModel):
     visibility_level: Optional[VisibilityLevel] = None
     is_rewritable_input: Optional[bool] = None
+    is_data_pipe_active: Optional[bool] = None
 
 
 class UnitNodeSetState(BaseModel):

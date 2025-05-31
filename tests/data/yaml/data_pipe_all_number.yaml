@@ -1,0 +1,30 @@
+active_period:
+  type: "DateRange"
+  start: "2023-11-15T00:00:00Z"
+  end: "2024-11-15T00:00:00Z"
+
+filters:
+  type_input_value: "Number"
+
+  type_value_filtering: "WhiteList"
+  filtering_values: ["null"]
+
+  type_value_threshold: "Range"
+  threshold_min: -60
+  threshold_max: 120
+
+  max_rate: "0s"
+  last_unique_check: false
+  max_size: 0
+
+transformations:
+  multiplication: true
+  multiplication_ratio: 0.3
+
+  round: true
+  round_decimal_point: 3
+
+processing_policy:
+  policy_type: "Aggregation"
+  time_window_size: "1h"
+  aggregation_functions: "Avg"

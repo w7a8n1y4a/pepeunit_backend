@@ -1,6 +1,6 @@
 import uuid as uuid_pkg
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, UploadFile, status
 
 from app.configs.rest import get_unit_node_service
 from app.schemas.pydantic.shared import UnitNodeRead, UnitNodesResult
@@ -33,6 +33,11 @@ def set_state_input(
     uuid: uuid_pkg.UUID, data: UnitNodeSetState, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
 ):
     return UnitNodeRead(**unit_node_service.set_state_input(uuid, data).dict())
+
+
+@router.post("/check_data_pipe_config/")
+async def check_data_pipe_config(data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+    await unit_node_service.check_data_pipe_config(data)
 
 
 @router.get("", response_model=UnitNodesResult)
