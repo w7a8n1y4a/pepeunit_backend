@@ -9,7 +9,6 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 from strawberry.file_uploads import Upload
 
 from app import settings
-from app.configs.errors import UnitNodeError
 from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
 
@@ -50,18 +49,12 @@ def get_visibility_level_priority(visibility_level: VisibilityLevel) -> int:
 
 
 async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
-    print(type(yml_file))
-
     content = ''
     if isinstance(yml_file, StarletteUploadFile):
         content = await yml_file.read()
 
-    print(content[:50])
-
     if isinstance(content, bytes):
         content = content.decode('utf-8')
-
-    print(content[:50])
 
     print(json.dumps(yaml.safe_load(content), indent=4))
 

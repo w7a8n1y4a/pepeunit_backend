@@ -7,13 +7,13 @@ filters:
   type_input_value: "Number"
 
   type_value_filtering: "WhiteList"
-  filtering_values: ["null"]
+  filtering_values: [12.3, 4, 123.4]
 
   type_value_threshold: "Range"
   threshold_min: -60
-  threshold_max: 120
+  threshold_max: 140
 
-  max_rate: "0s"
+  max_rate: 0
   last_unique_check: false
   max_size: 0
 

@@ -47,3 +47,4 @@ settings.backend_link_prefix = settings.backend_link + settings.backend_app_pref
 settings.backend_link_prefix_and_v1 = settings.backend_link_prefix + settings.backend_api_v1_prefix
 if settings.clickhouse_database_url:
     settings.clickhouse_connection = ClickHouseConnectionParams.from_connection_string(settings.clickhouse_database_url)
+settings.time_window_sizes = [60, 300, 600, 900, 1200, 1800, 3600, 7200, 10800, 14400, 21600, 28800, 43200, 86400]

@@ -85,6 +85,16 @@ class UnitNodeError(CustomException):
         )
 
 
+class DataPipeError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="UnitNode Validation Error: DataPipe Validation Error: {}",
+            error_code=8,
+        )
+
+
 class CustomJSONDecodeError(CustomException):
     def __init__(self, message):
         super().__init__(
