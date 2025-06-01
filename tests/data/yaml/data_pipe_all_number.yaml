@@ -26,5 +26,5 @@ transformations:
 
 processing_policy:
   policy_type: "Aggregation"
-  time_window_size: "1h"
+  time_window_size: 300
   aggregation_functions: "Avg"

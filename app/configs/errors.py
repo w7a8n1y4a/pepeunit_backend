@@ -1,12 +1,29 @@
-from fastapi import HTTPException, status
+import enum
+
+from fastapi import status
+
+
+class ErrorType(str, enum.Enum):
+    BASE_ERROR = 'BaseError'
+    DATA_PIPE_ERROR = 'DataPipeError'
 
 
 class CustomException(Exception):
-    def __init__(self, message: str, status_code: int, message_template: str, error_code: int):
+    def __init__(
+        self,
+        message: str,
+        status_code: int,
+        message_template: str,
+        error_code: int,
+        error_type: ErrorType = ErrorType.BASE_ERROR,
+        custom: dict | None = None,
+    ):
+        self.error_type = error_type
         self.message = '{}: {}: {}'.format(status_code, error_code, message_template.format(message))
         self.status_code = status_code
         self.message_template = message_template
         self.error_code = error_code
+        self.custom = custom
         super().__init__(self.message)
 
 
@@ -86,12 +103,14 @@ class UnitNodeError(CustomException):
 
 
 class DataPipeError(CustomException):
-    def __init__(self, message):
+    def __init__(self, message, custom: dict):
         super().__init__(
-            message,
+            error_type=ErrorType.DATA_PIPE_ERROR,
+            message=message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             message_template="UnitNode Validation Error: DataPipe Validation Error: {}",
             error_code=8,
+            custom=custom,
         )
 
 

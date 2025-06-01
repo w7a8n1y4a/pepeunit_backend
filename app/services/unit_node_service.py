@@ -55,7 +55,7 @@ from app.services.utils import (
     yml_file_to_dict,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
-from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
+from app.validators.data_pipe import is_valid_data_pipe_config
 
 
 class UnitNodeService:

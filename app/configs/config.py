@@ -105,4 +105,4 @@ class Settings(BaseSettings):
     mqtt_http_type: str = 'https'
 
     clickhouse_connection: None = None
-    time_window_sizes: list = None
+    time_window_sizes: None = None
