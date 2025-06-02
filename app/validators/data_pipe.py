@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from app import settings
 from app.configs.errors import DataPipeError
+from app.dto.enum import DataPipeStage
+from app.schemas.pydantic.unit_node import DataPipeValidationErrorRead
+from app.utils.utils import snake_to_camel
 
 
 class ActivePeriodType(str, Enum):
@@ -148,23 +151,30 @@ class DataPipeConfig(BaseModel):
     processing_policy: ProcessingPolicyConfig
 
 
-def format_validation_error_dict(e: ValidationError) -> dict:
-    error_dict = {}
+def format_validation_error_dict(e: ValidationError) -> list[DataPipeValidationErrorRead]:
+    validation_errors = []
     for err in e.errors():
-        loc = ".".join([str(x) for x in err["loc"]])
+        validation_errors.append(
+            DataPipeValidationErrorRead(
+                stage=DataPipeStage(snake_to_camel(err["loc"][0])),
+                message=err["msg"],
+            )
+        )
 
-        if loc not in error_dict:
-            error_dict[loc] = [err['msg']]
-        else:
-            error_dict[loc].append(err['msg'])
-
-    return error_dict
+    return validation_errors
 
 
-def is_valid_data_pipe_config(data: dict) -> DataPipeConfig:
-    try:
-        return DataPipeConfig.model_validate(data)
-    except ValidationError as e:
-        error_dict = format_validation_error_dict(e)
-        message = "{} validation errors for DataPipeConfig".format(len(e.errors()))
-        raise DataPipeError(message, custom=error_dict)
+def is_valid_data_pipe_config(
+    data: dict, is_business_validator: bool = False
+) -> DataPipeConfig | list[DataPipeValidationErrorRead]:
+    if is_business_validator:
+        try:
+            return DataPipeConfig.model_validate(data)
+        except ValidationError as e:
+            raise DataPipeError("{} validation errors for DataPipeConfig".format(len(e.errors())))
+    else:
+        try:
+            DataPipeConfig.model_validate(data)
+            return []
+        except ValidationError as e:
+            return format_validation_error_dict(e)

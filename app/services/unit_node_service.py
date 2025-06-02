@@ -40,6 +40,7 @@ from app.schemas.gql.inputs.unit_node import (
 )
 from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_node import (
+    DataPipeValidationErrorRead,
     UnitNodeEdgeCreate,
     UnitNodeFilter,
     UnitNodeSetState,
@@ -55,6 +56,7 @@ from app.services.utils import (
     yml_file_to_dict,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
+from app.utils.utils import datetime_serializer
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
@@ -321,11 +323,14 @@ class UnitNodeService:
 
         return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
 
-    async def check_data_pipe_config(self, data_pipe: Union[Upload, UploadFile]) -> None:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
+    async def check_data_pipe_config(self, data_pipe: Union[Upload, UploadFile]) -> list[DataPipeValidationErrorRead]:
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER, AgentType.UNIT, AgentType.BACKEND]
+        )
 
         data_pipe_dict = await yml_file_to_dict(data_pipe)
-        is_valid_data_pipe_config(data_pipe_dict)
+
+        return is_valid_data_pipe_config(data_pipe_dict, is_business_validator=False)
 
     async def set_data_pipe_config(self, uuid: uuid_pkg.UUID, data_pipe: Union[Upload, UploadFile]) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -333,10 +338,13 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
-        data_pipe_dict = await yml_file_to_dict(data_pipe)
-        data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict)
+        if not unit_node.is_data_pipe_active:
+            raise UnitNodeError('Data pipe is not active')
 
-        unit_node.data_pipe_yml = json.dumps(**data_pipe_entity.dict())
+        data_pipe_dict = await yml_file_to_dict(data_pipe)
+        data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
+
+        unit_node.data_pipe_yml = json.dumps(data_pipe_entity.dict(), default=datetime_serializer)
         self.unit_node_repository.update(uuid, unit_node)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:

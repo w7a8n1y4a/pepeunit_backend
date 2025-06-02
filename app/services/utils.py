@@ -56,6 +56,4 @@ async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
     if isinstance(content, bytes):
         content = content.decode('utf-8')
 
-    print(json.dumps(yaml.safe_load(content), indent=4))
-
     return yaml.safe_load(content)
