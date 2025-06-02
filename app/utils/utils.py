@@ -1,4 +1,5 @@
 import base64
+import datetime
 import hashlib
 import logging
 import os
@@ -146,3 +147,13 @@ def timeit(func):
         return result
 
     return wrapper
+
+
+def snake_to_camel(snake_str: str) -> str:
+    return ''.join(part.capitalize() for part in snake_str.split('_'))
+
+
+def datetime_serializer(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")

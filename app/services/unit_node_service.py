@@ -1,9 +1,11 @@
 import datetime
+import json
 import logging
 import uuid as uuid_pkg
 from typing import Union
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, UploadFile
+from strawberry.file_uploads import Upload
 
 from app import settings
 from app.configs.errors import MqttError, UnitNodeError
@@ -38,6 +40,7 @@ from app.schemas.gql.inputs.unit_node import (
 )
 from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_node import (
+    DataPipeValidationErrorRead,
     UnitNodeEdgeCreate,
     UnitNodeFilter,
     UnitNodeSetState,
@@ -46,12 +49,16 @@ from app.schemas.pydantic.unit_node import (
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.utils import (
+    dict_to_yml_file,
     get_topic_name,
     get_visibility_level_priority,
     merge_two_dict_first_priority,
     remove_none_value_dict,
+    yml_file_to_dict,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
+from app.utils.utils import datetime_serializer
+from app.validators.data_pipe import is_valid_data_pipe_config
 
 
 class UnitNodeService:
@@ -316,6 +323,41 @@ class UnitNodeService:
         count, unit_nodes = self.unit_node_repository.list(filters=filters, restriction=restriction)
 
         return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
+
+    async def check_data_pipe_config(self, data_pipe: Union[Upload, UploadFile]) -> list[DataPipeValidationErrorRead]:
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER, AgentType.UNIT, AgentType.BACKEND]
+        )
+
+        data_pipe_dict = await yml_file_to_dict(data_pipe)
+
+        return is_valid_data_pipe_config(data_pipe_dict, is_business_validator=False)
+
+    async def set_data_pipe_config(self, uuid: uuid_pkg.UUID, data_pipe: Union[Upload, UploadFile]) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        if not unit_node.is_data_pipe_active:
+            raise UnitNodeError('Data pipe is not active')
+
+        data_pipe_dict = await yml_file_to_dict(data_pipe)
+        data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
+
+        unit_node.data_pipe_yml = json.dumps(data_pipe_entity.dict(), default=datetime_serializer)
+        self.unit_node_repository.update(uuid, unit_node)
+
+    def get_data_pipe_config(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        if not unit_node.is_data_pipe_active:
+            raise UnitNodeError('Data pipe is not active')
+
+        return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

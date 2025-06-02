@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from fastapi import status
 
 
 class CustomException(Exception):
@@ -81,6 +81,16 @@ class UnitNodeError(CustomException):
             message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             message_template="UnitNode Validation Error: {}",
+            error_code=8,
+        )
+
+
+class DataPipeError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="DataPipe Validation Error: {}",
             error_code=8,
         )
 

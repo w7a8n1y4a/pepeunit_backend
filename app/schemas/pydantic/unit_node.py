@@ -5,12 +5,13 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.dto.enum import OrderByDate, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import DataPipeStage, OrderByDate, UnitNodeTypeEnum, VisibilityLevel
 
 
 class UnitNodeUpdate(BaseModel):
     visibility_level: Optional[VisibilityLevel] = None
     is_rewritable_input: Optional[bool] = None
+    is_data_pipe_active: Optional[bool] = None
 
 
 class UnitNodeSetState(BaseModel):
@@ -48,3 +49,8 @@ class UnitNodeEdgeRead(BaseModel):
 class UnitNodeEdgeCreate(BaseModel):
     node_output_uuid: uuid_pkg.UUID
     node_input_uuid: uuid_pkg.UUID
+
+
+class DataPipeValidationErrorRead(BaseModel):
+    stage: DataPipeStage
+    message: str

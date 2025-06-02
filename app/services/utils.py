@@ -1,8 +1,13 @@
+import json
+import uuid
 import uuid as uuid_pkg
-from typing import Annotated
+from typing import Annotated, Union
 
-from fastapi import Depends
+import yaml
+from fastapi import Depends, UploadFile
 from fastapi.security import APIKeyHeader
+from starlette.datastructures import UploadFile as StarletteUploadFile
+from strawberry.file_uploads import Upload
 
 from app import settings
 from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
@@ -42,3 +47,24 @@ def get_visibility_level_priority(visibility_level: VisibilityLevel) -> int:
     }
 
     return priority_dict[visibility_level]
+
+
+async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
+    content = ''
+    if isinstance(yml_file, StarletteUploadFile):
+        content = await yml_file.read()
+
+    if isinstance(content, bytes):
+        content = content.decode('utf-8')
+
+    return yaml.safe_load(content)
+
+
+def dict_to_yml_file(yml_dict: dict) -> str:
+    yaml_content = yaml.safe_dump(yml_dict, allow_unicode=True, default_flow_style=False)
+
+    filename = f'tmp/data_pipe_yml_{uuid.uuid4()}'
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(yaml_content)
+
+    return filename

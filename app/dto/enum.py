@@ -290,3 +290,15 @@ class DataPipeStatus(str, enum.Enum):
     ACTIVE = 'Active'
     INACTIVE = 'Inactive'
     ERROR = 'Error'
+
+
+@strawberry.enum
+class DataPipeStage(str, enum.Enum):
+    """
+    Stages data pipeline
+    """
+
+    ACTIVE_PERIOD = 'ActivePeriod'
+    FILTERS = 'Filters'
+    TRANSFORMATIONS = 'Transformations'
+    PROCESSING_POLICY = 'ProcessingPolicy'

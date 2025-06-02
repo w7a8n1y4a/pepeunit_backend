@@ -11,6 +11,7 @@ from app.schemas.gql.type_input_mixin import TypeInputMixin
 class UnitNodeUpdateInput(TypeInputMixin):
     visibility_level: Optional[VisibilityLevel] = None
     is_rewritable_input: Optional[bool] = None
+    is_data_pipe_active: Optional[bool] = None
 
 
 @strawberry.input()
