@@ -1,4 +1,5 @@
 import json
+import uuid
 import uuid as uuid_pkg
 from typing import Annotated, Union
 
@@ -57,3 +58,13 @@ async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
         content = content.decode('utf-8')
 
     return yaml.safe_load(content)
+
+
+def dict_to_yml_file(yml_dict: dict) -> str:
+    yaml_content = yaml.safe_dump(yml_dict, allow_unicode=True, default_flow_style=False)
+
+    filename = f'tmp/data_pipe_yml_{uuid.uuid4()}'
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(yaml_content)
+
+    return filename

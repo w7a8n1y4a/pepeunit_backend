@@ -49,6 +49,7 @@ from app.schemas.pydantic.unit_node import (
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.utils import (
+    dict_to_yml_file,
     get_topic_name,
     get_visibility_level_priority,
     merge_two_dict_first_priority,
@@ -346,6 +347,17 @@ class UnitNodeService:
 
         unit_node.data_pipe_yml = json.dumps(data_pipe_entity.dict(), default=datetime_serializer)
         self.unit_node_repository.update(uuid, unit_node)
+
+    def get_data_pipe_config(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        if not unit_node.is_data_pipe_active:
+            raise UnitNodeError('Data pipe is not active')
+
+        return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

@@ -1,6 +1,9 @@
+import os
 import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, UploadFile, status
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse
 
 from app.configs.rest import get_unit_node_service
 from app.schemas.pydantic.shared import UnitNodeRead, UnitNodesResult
@@ -46,6 +49,16 @@ async def set_data_pipe_config(
     uuid: uuid_pkg.UUID, data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
 ):
     return await unit_node_service.set_data_pipe_config(uuid, data)
+
+
+@router.get("/get_data_pipe_config/{uuid}", response_model=bytes)
+def get_data_pipe_config(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+    yml_filepath = unit_node_service.get_data_pipe_config(uuid)
+
+    def cleanup():
+        os.remove(yml_filepath)
+
+    return FileResponse(yml_filepath, background=BackgroundTask(cleanup))
 
 
 @router.get("", response_model=UnitNodesResult)
