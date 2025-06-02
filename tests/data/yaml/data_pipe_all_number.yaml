@@ -18,10 +18,7 @@ filters:
   max_size: 0
 
 transformations:
-  multiplication: true
   multiplication_ratio: 0.3
-
-  round: true
   round_decimal_point: 3
 
 processing_policy:
