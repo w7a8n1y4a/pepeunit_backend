@@ -230,11 +230,7 @@ app = FastAPI(
 app.add_middleware(CustomExceptionMiddleware)
 
 schema = Schema(query=Query, mutation=Mutation)
-graphql = GraphQLRouter(
-    schema,
-    graphiql=True,
-    context_getter=get_graphql_context,
-)
+graphql = GraphQLRouter(schema, graphiql=True, context_getter=get_graphql_context, multipart_uploads_enabled=True)
 
 
 app.include_router(
