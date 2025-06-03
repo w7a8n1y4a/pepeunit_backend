@@ -38,7 +38,7 @@ CREATE TABLE aggregation_entry
     uuid UUID,
     unit_node_uuid UUID,
     state Float64,
-    aggregation_type Enum8('avg' = 1, 'min' = 2, 'max' = 3, 'sum' = 4),
+    aggregation_type Enum8('Avg' = 1, 'Min' = 2, 'Max' = 3, 'Sum' = 4),
     create_datetime DateTime64(3),
     start_window_datetime DateTime64(3),
     end_window_datetime DateTime64(3)
