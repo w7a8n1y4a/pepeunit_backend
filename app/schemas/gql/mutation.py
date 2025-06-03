@@ -32,5 +32,6 @@ Mutation = create_type(
         delete_permission,
         create_unit_node_edge,
         delete_unit_node_edge,
+        set_data_pipe_config,
     ],
 )

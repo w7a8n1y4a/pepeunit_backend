@@ -1,6 +1,7 @@
 import uuid as uuid_pkg
 
 import strawberry
+from strawberry.file_uploads import Upload
 from strawberry.types import Info
 
 from app.configs.gql import get_unit_node_service_gql
@@ -31,4 +32,11 @@ def create_unit_node_edge(info: Info, unit_node_edge: UnitNodeEdgeCreateInput) -
 def delete_unit_node_edge(info: Info, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> NoneType:
     unit_node_service = get_unit_node_service_gql(info)
     unit_node_service.delete_node_edge(input_uuid, output_uuid)
+    return NoneType()
+
+
+@strawberry.field()
+async def set_data_pipe_config(uuid: uuid_pkg.UUID, file: Upload, info: Info) -> NoneType:
+    unit_node_service = get_unit_node_service_gql(info)
+    await unit_node_service.set_data_pipe_config(uuid, file)
     return NoneType()

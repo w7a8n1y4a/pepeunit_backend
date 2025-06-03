@@ -28,6 +28,7 @@ Query = create_type(
         get_unit_logs,
         get_unit_node,
         get_unit_nodes,
+        check_data_pipe_config,
         get_base_metrics,
         get_resource_agents,
     ],
