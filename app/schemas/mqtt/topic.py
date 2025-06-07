@@ -69,11 +69,14 @@ async def message_to_topic(client, topic, payload, qos, properties):
     current_time = time.time()
 
     if (current_time - last_time) < settings.backend_state_send_interval:
-        raise MqttError(
-            'Exceeding the message sending rate for the {} topic, you need to send values no more often than {}'.format(
-                topic, settings.backend_state_send_interval
+        if settings.backend_debug:
+            raise MqttError(
+                'Exceeding the message sending rate for the {} topic, you need to send values no more often than {}'.format(
+                    topic, settings.backend_state_send_interval
+                )
             )
-        )
+        else:
+            return None
 
     cache_dict[str(unit_uuid)] = current_time
 
