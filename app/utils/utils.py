@@ -5,6 +5,7 @@ import logging
 import os
 import string
 import time
+import uuid
 
 import pyaes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -153,7 +154,9 @@ def snake_to_camel(snake_str: str) -> str:
     return ''.join(part.capitalize() for part in snake_str.split('_'))
 
 
-def datetime_serializer(obj):
+def obj_serializer(obj):
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
     raise TypeError(f"Type {type(obj)} not serializable")

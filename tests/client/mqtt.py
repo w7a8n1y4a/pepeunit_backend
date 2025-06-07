@@ -387,7 +387,7 @@ class MQTTClient:
 
 if __name__ == '__main__':
     UnitType = namedtuple('Unit', ['uuid'])
-    test_unit = UnitType(uuid='c5e56248-2197-46e1-8486-9a61b6878a33')
+    test_unit = UnitType(uuid='fce48979-622f-4cb5-9340-4939a15d7ede')
 
     mqtt_client = MQTTClient(test_unit)
     asyncio.run(mqtt_client.run())

@@ -26,10 +26,10 @@ def get(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_un
 
 
 @router.patch("/{uuid}", response_model=UnitNodeRead)
-def update(
+async def update(
     uuid: uuid_pkg.UUID, data: UnitNodeUpdate, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
 ):
-    return UnitNodeRead(**unit_node_service.update(uuid, data).dict())
+    return UnitNodeRead(**(await unit_node_service.update(uuid, data)).dict())
 
 
 @router.patch("/set_state_input/{uuid}", response_model=UnitNodeRead)

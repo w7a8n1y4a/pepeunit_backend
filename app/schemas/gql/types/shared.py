@@ -26,6 +26,11 @@ class UnitNodeType(TypeInputMixin):
     topic_name: str
     last_update_datetime: datetime
 
+    is_data_pipe_active: bool
+    data_pipe_yml: Optional[str] = None
+    data_pipe_status: Optional[str] = None
+    data_pipe_error: Optional[str] = None
+
     create_datetime: datetime
     state: Optional[str] = None
 

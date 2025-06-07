@@ -11,9 +11,9 @@ from app.schemas.gql.types.unit_node import UnitNodeEdgeType
 
 
 @strawberry.mutation()
-def update_unit_node(info: Info, uuid: uuid_pkg.UUID, unit_node: UnitNodeUpdateInput) -> UnitNodeType:
+async def update_unit_node(info: Info, uuid: uuid_pkg.UUID, unit_node: UnitNodeUpdateInput) -> UnitNodeType:
     unit_node_service = get_unit_node_service_gql(info)
-    return UnitNodeType(**unit_node_service.update(uuid, unit_node).dict())
+    return UnitNodeType(**(await unit_node_service.update(uuid, unit_node)).dict())
 
 
 @strawberry.mutation()

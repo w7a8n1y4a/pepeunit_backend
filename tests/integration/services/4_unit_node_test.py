@@ -20,7 +20,7 @@ from app.schemas.pydantic.unit_node import (
 
 
 @pytest.mark.run(order=0)
-def test_update_unit_node(database, cc) -> None:
+async def test_update_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
@@ -32,13 +32,13 @@ def test_update_unit_node(database, cc) -> None:
     )
 
     # check update visibility level
-    update_unit_node = unit_node_service.update(
+    update_unit_node = await unit_node_service.update(
         input_unit_node[0].uuid, UnitNodeUpdate(visibility_level=VisibilityLevel.PRIVATE)
     )
     assert update_unit_node.visibility_level == VisibilityLevel.PRIVATE
 
     # check update is_rewritable_input for input
-    update_unit_node = unit_node_service.update(input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
+    update_unit_node = await unit_node_service.update(input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
     assert update_unit_node.is_rewritable_input == True
 
     count, output_unit_node = unit_node_service.list(
@@ -47,7 +47,9 @@ def test_update_unit_node(database, cc) -> None:
 
     # check update is_rewritable_input for output
     with pytest.raises(UnitNodeError):
-        update_unit_node = unit_node_service.update(output_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
+        update_unit_node = await unit_node_service.update(
+            output_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True)
+        )
 
 
 @pytest.mark.run(order=1)
@@ -135,7 +137,7 @@ def test_create_unit_node_edge(database, cc) -> None:
 
 
 @pytest.mark.run(order=2)
-def test_set_state_input_unit_node(database, cc) -> None:
+async def test_set_state_input_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
@@ -163,7 +165,7 @@ def test_set_state_input_unit_node(database, cc) -> None:
     # check set with is_rewritable_input=False
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) >= 400
 
-    unit_node_service.update(unit_nodes[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
+    await unit_node_service.update(unit_nodes[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
 
     # check set with is_rewritable_input=True
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) < 400

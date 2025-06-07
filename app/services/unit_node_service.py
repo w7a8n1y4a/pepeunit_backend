@@ -9,6 +9,7 @@ from strawberry.file_uploads import Upload
 
 from app import settings
 from app.configs.errors import MqttError, UnitNodeError
+from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
@@ -57,7 +58,7 @@ from app.services.utils import (
     yml_file_to_dict,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
-from app.utils.utils import datetime_serializer
+from app.utils.utils import obj_serializer
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
@@ -166,7 +167,7 @@ class UnitNodeService:
 
         self.unit_node_repository.bulk_save(update_list)
 
-    def update(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
+    async def update(self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]) -> UnitNode:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
@@ -183,6 +184,14 @@ class UnitNodeService:
         is_valid_visibility_level(self.unit_repository.get(Unit(uuid=update_unit_node.unit_uuid)), [update_unit_node])
 
         update_unit_node.last_update_datetime = datetime.datetime.utcnow()
+
+        unit_node_updated = self.unit_node_repository.update(uuid, update_unit_node)
+
+        if data.is_data_pipe_active is not None:
+            await send_to_data_pipe_stream(
+                DataPipeConfigAction.UPDATE if data.is_data_pipe_active else DataPipeConfigAction.DELETE,
+                unit_node_updated.model_dump(),
+            )
 
         return self.unit_node_repository.update(uuid, update_unit_node)
 
@@ -345,8 +354,10 @@ class UnitNodeService:
         data_pipe_dict = await yml_file_to_dict(data_pipe)
         data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
 
-        unit_node.data_pipe_yml = json.dumps(data_pipe_entity.dict(), default=datetime_serializer)
-        self.unit_node_repository.update(uuid, unit_node)
+        unit_node.data_pipe_yml = json.dumps(data_pipe_entity.dict(), default=obj_serializer)
+        unit_node = self.unit_node_repository.update(uuid, unit_node)
+
+        await send_to_data_pipe_stream(DataPipeConfigAction.UPDATE, unit_node.model_dump())
 
     def get_data_pipe_config(self, uuid: uuid_pkg.UUID) -> str:
         self.access_service.authorization.check_access([AgentType.USER])
