@@ -18,4 +18,4 @@ transformations:
 
 processing_policy:
   policy_type: "TimeWindow"
-  time_window_size: 600
+  time_window_size: 300

@@ -1,0 +1,26 @@
+active_period:
+  type: "FromDate"
+  start: "2023-11-15T00:00:00Z"
+
+filters:
+  type_input_value: "Number"
+
+  type_value_filtering: "BlackList"
+  filtering_values: [12.3, 4, 123.4]
+
+  type_value_threshold: "Range"
+  threshold_min: -60
+  threshold_max: 1000000
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 100
+
+transformations:
+  multiplication_ratio: 1
+  round_decimal_point: 0
+
+processing_policy:
+  policy_type: "Aggregation"
+  time_window_size: 60
+  aggregation_functions: "Avg"
