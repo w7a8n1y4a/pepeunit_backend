@@ -1,7 +1,6 @@
 active_period:
-  type: "DateRange"
+  type: "FromDate"
   start: "2023-11-15T00:00:00Z"
-  end: "2025-11-15T00:00:00Z"
 
 filters:
   type_input_value: "Number"
@@ -14,12 +13,13 @@ filters:
   threshold_max: 1000000
 
   max_rate: 0
-  last_unique_check: true
-  max_size: 5
+  last_unique_check: false
+  max_size: 100
 
 transformations:
-  multiplication_ratio: 0.3
+  multiplication_ratio: 1
   round_decimal_point: 0
 
 processing_policy:
-  policy_type: "LastValue"
+  policy_type: "NRecords"
+  n_records_count: 100

@@ -17,4 +17,5 @@ transformations:
   slice_end: 100
 
 processing_policy:
-  policy_type: "LastValue"
+  policy_type: "TimeWindow"
+  time_window_size: 600
