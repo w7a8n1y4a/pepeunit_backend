@@ -10,6 +10,7 @@ from app.schemas.pydantic.shared import UnitNodeRead, UnitNodesResult
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
     DataPipeValidationErrorRead,
+    PipeDataResult,
     UnitNodeEdgeCreate,
     UnitNodeEdgeRead,
     UnitNodeFilter,
@@ -62,15 +63,13 @@ def get_data_pipe_config(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService
     return FileResponse(yml_filepath, background=BackgroundTask(cleanup))
 
 
-@router.get(
-    "/get_data_pipe_data/",
-)
+@router.get("/get_data_pipe_data/", response_model=PipeDataResult)
 def get_data_pipe_data(
     filters: DataPipeFilter = Depends(DataPipeFilter),
     unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     count, pipe_data = unit_node_service.get_data_pipe_data(filters)
-    return pipe_data
+    return PipeDataResult(count=count, pipe_data=pipe_data)
 
 
 @router.get("", response_model=UnitNodesResult)

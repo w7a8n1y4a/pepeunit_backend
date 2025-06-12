@@ -1,11 +1,14 @@
 import datetime
 import uuid as uuid_pkg
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import Query
 from pydantic import BaseModel
 
+from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.n_records import NRecords
+from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
     AggregationFunctions,
     DataPipeStage,
@@ -87,3 +90,8 @@ class DataPipeFilter:
 
     def dict(self):
         return self.__dict__
+
+
+class PipeDataResult(BaseModel):
+    count: int
+    pipe_data: list[Union[NRecords, TimeWindow, Aggregation]]
