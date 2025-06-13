@@ -1,3 +1,4 @@
+import datetime
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from typing import Optional
@@ -5,7 +6,14 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.dto.enum import DataPipeStage, OrderByDate, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import (
+    AggregationFunctions,
+    DataPipeStage,
+    OrderByDate,
+    ProcessingPolicyType,
+    UnitNodeTypeEnum,
+    VisibilityLevel,
+)
 
 
 class UnitNodeUpdate(BaseModel):
@@ -54,3 +62,28 @@ class UnitNodeEdgeCreate(BaseModel):
 class DataPipeValidationErrorRead(BaseModel):
     stage: DataPipeStage
     message: str
+
+
+@dataclass
+class DataPipeFilter:
+    uuid: uuid_pkg.UUID
+    type: ProcessingPolicyType
+
+    search_string: Optional[str] = None
+
+    aggregation_type: Optional[list[str]] = Query([item.value for item in AggregationFunctions])
+    time_window_size: Optional[int] = None
+
+    start_agg_window_datetime: Optional[datetime.datetime] = None
+    end_agg_window_datetime: Optional[datetime.datetime] = None
+
+    start_create_datetime: Optional[datetime.datetime] = None
+    end_create_datetime: Optional[datetime.datetime] = None
+
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__

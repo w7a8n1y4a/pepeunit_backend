@@ -302,3 +302,46 @@ class DataPipeStage(str, enum.Enum):
     FILTERS = 'Filters'
     TRANSFORMATIONS = 'Transformations'
     PROCESSING_POLICY = 'ProcessingPolicy'
+
+
+@strawberry.enum
+class ActivePeriodType(str, enum.Enum):
+    PERMANENT = "Permanent"
+    FROM_DATE = "FromDate"
+    TO_DATE = "ToDate"
+    DATE_RANGE = "DateRange"
+
+
+@strawberry.enum
+class TypeInputValue(str, enum.Enum):
+    TEXT = "Text"
+    NUMBER = "Number"
+
+
+@strawberry.enum
+class FilterTypeValueFiltering(str, enum.Enum):
+    WHITELIST = "WhiteList"
+    BLACKLIST = "BlackList"
+
+
+@strawberry.enum
+class FilterTypeValueThreshold(str, enum.Enum):
+    MIN = "Min"
+    MAX = "Max"
+    RANGE = "Range"
+
+
+@strawberry.enum
+class ProcessingPolicyType(str, enum.Enum):
+    LAST_VALUE = "LastValue"
+    N_RECORDS = "NRecords"
+    TIME_WINDOW = "TimeWindow"
+    AGGREGATION = "Aggregation"
+
+
+@strawberry.enum
+class AggregationFunctions(str, enum.Enum):
+    AVG = "Avg"
+    MIN = "Min"
+    MAX = "Max"
+    SUM = "Sum"

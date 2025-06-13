@@ -16,6 +16,9 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
+from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.n_records import NRecords
+from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
     AgentType,
     BackendTopicCommand,
@@ -27,6 +30,7 @@ from app.dto.enum import (
     UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
 )
+from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
@@ -41,6 +45,7 @@ from app.schemas.gql.inputs.unit_node import (
 )
 from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_node import (
+    DataPipeFilter,
     DataPipeValidationErrorRead,
     UnitNodeEdgeCreate,
     UnitNodeFilter,
@@ -69,6 +74,7 @@ class UnitNodeService:
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
+        data_pipe_repository: DataPipeRepository = Depends(),
         unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
@@ -78,6 +84,7 @@ class UnitNodeService:
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
         self.unit_log_repository = unit_log_repository
+        self.data_pipe_repository = data_pipe_repository
         self.unit_node_edge_repository = unit_node_edge_repository
         self.permission_service = permission_service
         self.access_service = access_service
@@ -369,6 +376,18 @@ class UnitNodeService:
             raise UnitNodeError('Data pipe is not active')
 
         return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
+
+    def get_data_pipe_data(
+        self, filters: Union[DataPipeFilter]
+    ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation]]]:
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=filters.uuid))
+        is_valid_object(unit_node)
+
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
+
+        return self.data_pipe_repository.list(filters=filters)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
