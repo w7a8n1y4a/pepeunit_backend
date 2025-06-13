@@ -103,6 +103,7 @@ def test_check_ownership_not_unit_to_input_node(authorization_service, mock_agen
 
 
 def test_check_visibility_public(authorization_service, mock_agent):
+    mock_agent.type = AgentType.USER
     entity = MagicMock()
     entity.visibility_level = VisibilityLevel.PUBLIC
     authorization_service.check_visibility(entity)
