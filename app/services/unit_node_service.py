@@ -356,6 +356,8 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
+
         if not unit_node.is_data_pipe_active:
             raise UnitNodeError('Data pipe is not active')
 
@@ -380,6 +382,16 @@ class UnitNodeService:
             raise DataPipeError('Data pipe is not filled')
 
         return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
+
+    def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
+
+        self.data_pipe_repository.bulk_delete([unit_node.uuid])
 
     def get_data_pipe_data(
         self, filters: Union[DataPipeFilter, DataPipeFilterInput]

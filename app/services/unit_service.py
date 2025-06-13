@@ -406,7 +406,17 @@ class UnitService:
 
         self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
 
-        return self.unit_repository.delete(unit)
+        count, unit_nodes = self.unit_node_repository.list(UnitNodeFilter(unit_uuid=unit.uuid))
+
+        # orm feature =_=
+        unit_deep = copy.deepcopy(unit)
+        unit_nodes_deep = copy.deepcopy(unit_nodes)
+
+        self.unit_repository.delete(unit)
+
+        # clickhouse data clear
+        self.unit_node_service.data_pipe_repository.bulk_delete([unit_node.uuid for unit_node in unit_nodes_deep])
+        self.unit_log_repository.delete(unit_deep.uuid)
 
     def list(
         self, filters: Union[UnitFilter, UnitFilterInput], is_include_output_unit_nodes: bool = False

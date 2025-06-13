@@ -35,8 +35,15 @@ def delete_unit_node_edge(info: Info, input_uuid: uuid_pkg.UUID, output_uuid: uu
     return NoneType()
 
 
-@strawberry.field()
+@strawberry.mutation()
 async def set_data_pipe_config(uuid: uuid_pkg.UUID, file: Upload, info: Info) -> NoneType:
     unit_node_service = get_unit_node_service_gql(info)
     await unit_node_service.set_data_pipe_config(uuid, file)
+    return NoneType()
+
+
+@strawberry.mutation()
+def delete_data_pipe_data(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
+    unit_node_service = get_unit_node_service_gql(info)
+    unit_node_service.delete_data_pipe_data(uuid)
     return NoneType()

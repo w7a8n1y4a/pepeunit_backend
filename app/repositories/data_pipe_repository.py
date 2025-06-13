@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Union
 
 from clickhouse_driver import Client
 from fastapi import Depends
@@ -123,3 +123,10 @@ class DataPipeRepository:
         )
 
         return count, unit_logs
+
+    def bulk_delete(self, uuids: List[str]) -> None:
+        tables = ["n_last_entry", "window_entry", "aggregation_entry"]
+        uuid_list = ", ".join([f"'{uuid}'" for uuid in uuids])
+        for table_name in tables:
+            query = f"ALTER TABLE {table_name} DELETE WHERE unit_node_uuid IN ({uuid_list})"
+            self.client.execute(query)

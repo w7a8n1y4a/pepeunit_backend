@@ -363,3 +363,17 @@ async def test_get_data_pipe_data(database, cc) -> None:
     )
 
     assert count > 0
+
+
+@pytest.mark.run(order=10)
+async def test_delete_data_pipe_data(database, cc) -> None:
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check delete pipe data in cc
+    for target_unit in pytest.units[1:6]:
+        count, output_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        )
+
+        unit_node_service.delete_data_pipe_data(output_unit_node[0].uuid)
