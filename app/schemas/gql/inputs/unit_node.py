@@ -1,9 +1,10 @@
 import uuid as uuid_pkg
+from datetime import datetime
 from typing import Optional
 
 import strawberry
 
-from app.dto.enum import OrderByDate, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import AggregationFunctions, OrderByDate, ProcessingPolicyType, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -42,3 +43,25 @@ class UnitNodeFilterInput(TypeInputMixin):
 class UnitNodeEdgeCreateInput(TypeInputMixin):
     node_output_uuid: uuid_pkg.UUID
     node_input_uuid: uuid_pkg.UUID
+
+
+@strawberry.input()
+class DataPipeFilterInput(TypeInputMixin):
+    uuid: uuid_pkg.UUID
+    type: ProcessingPolicyType
+
+    search_string: Optional[str] = None
+
+    aggregation_type: Optional[list[AggregationFunctions]] = tuple([item for item in AggregationFunctions])
+    time_window_size: Optional[int] = None
+
+    start_agg_window_datetime: Optional[datetime] = None
+    end_agg_window_datetime: Optional[datetime] = None
+
+    start_create_datetime: Optional[datetime] = None
+    end_create_datetime: Optional[datetime] = None
+
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None

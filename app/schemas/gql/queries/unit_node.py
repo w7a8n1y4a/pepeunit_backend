@@ -1,19 +1,54 @@
 import uuid as uuid_pkg
+from typing import Union
 
 import strawberry
 from strawberry.file_uploads import Upload
 from strawberry.types import Info
 
+from app.configs.errors import DataPipeError
 from app.configs.gql import get_unit_node_service_gql
-from app.schemas.gql.inputs.unit_node import UnitNodeFilterInput
+from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.n_records import NRecords
+from app.dto.clickhouse.time_window import TimeWindow
+from app.schemas.gql.inputs.unit_node import DataPipeFilterInput, UnitNodeFilterInput
 from app.schemas.gql.types.shared import UnitNodesResultType, UnitNodeType
-from app.schemas.gql.types.unit_node import DataPipeValidationErrorType
+from app.schemas.gql.types.unit_node import (
+    AggregationType,
+    DataPipeValidationErrorType,
+    NRecordsType,
+    PipeDataResultType,
+    TimeWindowType,
+)
 
 
 @strawberry.field()
 def get_unit_node(uuid: uuid_pkg.UUID, info: Info) -> UnitNodeType:
     unit_node_service = get_unit_node_service_gql(info)
     return UnitNodeType(**unit_node_service.get(uuid).dict())
+
+
+@strawberry.field()
+def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultType:
+    unit_node_service = get_unit_node_service_gql(info)
+    count, pipe_data = unit_node_service.get_data_pipe_data(filters)
+
+    def get_gql_type(
+        input_value: Union[NRecords, TimeWindow, Aggregation]
+    ) -> Union[NRecordsType, TimeWindowType, AggregationType]:
+
+        if isinstance(input_value, NRecords):
+            return NRecordsType
+        elif isinstance(input_value, TimeWindow):
+            return TimeWindowType
+        elif isinstance(input_value, Aggregation):
+            return AggregationType
+        else:
+            raise DataPipeError("Other types are not supported")
+
+    return PipeDataResultType(
+        count=count,
+        pipe_data=[get_gql_type(value)(**value.dict()) for value in pipe_data],
+    )
 
 
 @strawberry.field()

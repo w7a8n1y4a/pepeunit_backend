@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
+from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
@@ -68,6 +69,7 @@ def get_repo_service(
         repo_repository=repo_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_log_repository=UnitLogRepository(client),
+        data_pipe_repository=DataPipeRepository(client),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
         access_service=access_service,
         permission_service=permission_service,
@@ -118,6 +120,7 @@ def get_unit_service(
         repo_repository=repo_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_log_repository=UnitLogRepository(client),
+        data_pipe_repository=DataPipeRepository(client),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
         permission_service=permission_service,
         access_service=access_service,
@@ -162,6 +165,7 @@ def get_unit_node_service(
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
         unit_log_repository=UnitLogRepository(client),
+        data_pipe_repository=DataPipeRepository(client),
         permission_service=permission_service,
         access_service=access_service,
     )

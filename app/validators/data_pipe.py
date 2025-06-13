@@ -7,16 +7,17 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from app import settings
 from app.configs.errors import DataPipeError
-from app.dto.enum import DataPipeStage
+from app.dto.enum import (
+    ActivePeriodType,
+    AggregationFunctions,
+    DataPipeStage,
+    FilterTypeValueFiltering,
+    FilterTypeValueThreshold,
+    ProcessingPolicyType,
+    TypeInputValue,
+)
 from app.schemas.pydantic.unit_node import DataPipeValidationErrorRead
 from app.utils.utils import snake_to_camel
-
-
-class ActivePeriodType(str, Enum):
-    PERMANENT = "Permanent"
-    FROM_DATE = "FromDate"
-    TO_DATE = "ToDate"
-    DATE_RANGE = "DateRange"
 
 
 class ActivePeriod(BaseModel):
@@ -36,22 +37,6 @@ class ActivePeriod(BaseModel):
             if self.start >= self.end:
                 raise ValueError("start must be before end for DATE_RANGE")
         return self
-
-
-class TypeInputValue(str, Enum):
-    TEXT = "Text"
-    NUMBER = "Number"
-
-
-class FilterTypeValueFiltering(str, Enum):
-    WHITELIST = "WhiteList"
-    BLACKLIST = "BlackList"
-
-
-class FilterTypeValueThreshold(str, Enum):
-    MIN = "Min"
-    MAX = "Max"
-    RANGE = "Range"
 
 
 class FiltersConfig(BaseModel):
@@ -102,20 +87,6 @@ class TransformationConfig(BaseModel):
     round_decimal_point: Optional[int] = Field(default=None, ge=0, le=7)
     slice_start: Optional[int] = None
     slice_end: Optional[int] = None
-
-
-class ProcessingPolicyType(str, Enum):
-    LAST_VALUE = "LastValue"
-    N_RECORDS = "NRecords"
-    TIME_WINDOW = "TimeWindow"
-    AGGREGATION = "Aggregation"
-
-
-class AggregationFunctions(str, Enum):
-    AVG = "Avg"
-    MIN = "Min"
-    MAX = "Max"
-    SUM = "Sum"
 
 
 class ProcessingPolicyConfig(BaseModel):
