@@ -209,7 +209,7 @@ def test_get_many_unit_node(database, cc) -> None:
 
     # check many get with all filters
     count, units_nodes = unit_node_service.list(
-        UnitNodeFilter(search_string='pepeunit', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
+        UnitNodeFilter(search_string='input', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
     )
     assert len(units_nodes) >= 8
 

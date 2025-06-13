@@ -1,16 +1,16 @@
 active_period:
-  type: "FromDate"
-  start: "2023-11-15T00:00:00Z"
+  type: "ToDate"
+  start: "2100-11-15T00:00:00Z"
 
 filters:
   type_input_value: "Text"
 
-  type_value_filtering: "BlackList"
-  filtering_values: ["one", "two", "three"]
+  type_value_filtering: "WhiteList"
+  filtering_values: ["0","1","2","3","4","5","6","7","8","9"]
 
   max_rate: 0
   last_unique_check: false
-  max_size: 100
+  max_size: 50
 
 transformations:
   slice_start: 0

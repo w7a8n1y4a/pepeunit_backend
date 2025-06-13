@@ -5,20 +5,19 @@ active_period:
 filters:
   type_input_value: "Number"
 
-  type_value_filtering: "BlackList"
-  filtering_values: [12.3, 4, 123.4]
+  type_value_filtering: "WhiteList"
+  filtering_values: [0,1,2,3,4,5,6,7,8,9]
 
-  type_value_threshold: "Range"
-  threshold_min: -60
-  threshold_max: 1000000
+  type_value_threshold: "Min"
+  threshold_min: 0
 
   max_rate: 0
   last_unique_check: false
-  max_size: 100
+  max_size: 50
 
 transformations:
-  multiplication_ratio: 1
-  round_decimal_point: 0
+  multiplication_ratio: 0.7
+  round_decimal_point: 3
 
 processing_policy:
   policy_type: "NRecords"

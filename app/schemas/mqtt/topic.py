@@ -60,12 +60,11 @@ def connect(client, flags, rc, properties):
 
 @mqtt.on_message()
 async def message_to_topic(client, topic, payload, qos, properties):
-
     topic_split = get_topic_split(topic)
     backend_domain, destination, unit_uuid, topic_name, *_ = topic_split
     unit_uuid = is_valid_uuid(unit_uuid)
 
-    last_time = cache_dict.get(str(unit_uuid), 0)
+    last_time = cache_dict.get(topic, 0)
     current_time = time.time()
 
     if (current_time - last_time) < settings.backend_state_send_interval:
@@ -78,7 +77,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
         else:
             return None
 
-    cache_dict[str(unit_uuid)] = current_time
+    cache_dict[topic] = current_time
 
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:

@@ -179,7 +179,7 @@ class MQTTMessageHandler:
 
         if len(struct_topic) == 5:
             self._handle_structured_message(client, msg, struct_topic)
-        elif len(struct_topic) == 3:
+        elif len(struct_topic) == 2:
             self._handle_input_message(client, msg, struct_topic)
 
     @staticmethod
@@ -282,15 +282,16 @@ class MQTTMessageHandler:
         try:
             topic_type, topic_name = self.mqtt_client.unit_file_manager.search_topic_in_schema(struct_topic[1])
 
-            if topic_type == 'input_topic' and topic_name == 'input/pepeunit':
+            if topic_type == 'input_topic' and topic_name == 'input':
                 value = msg.payload.decode()
                 try:
                     value = int(value)
-                    FileManager.write_json_file(
-                        f'tmp/test_units/{self.mqtt_client.unit.uuid}/log_state.json',
-                        {'value': value, 'input_topic': struct_topic},
-                    )
-                    self.mqtt_client.publish_to_output_topic('output/pepeunit', str(value))
+                    if value == 0:
+                        FileManager.write_json_file(
+                            f'tmp/test_units/{self.mqtt_client.unit.uuid}/log_state.json',
+                            {'value': value, 'input_topic': struct_topic},
+                        )
+                        self.mqtt_client.publish_to_output_topic('output', str(value))
                 except ValueError:
                     pass
         except ValueError:
@@ -348,7 +349,7 @@ class MQTTClient:
                 current_time - self.unit_file_manager.settings.DELAY_PUB_MSG
             ) >= self.unit_file_manager.settings.DELAY_PUB_MSG:
                 for topic in self.unit_file_manager.schema['output_topic'].keys():
-                    msg = f"messages: {msg_count // 10}"
+                    msg = f"{msg_count // 10}"
                     self.publish_to_output_topic(topic, msg)
                 msg_count += 1
 
@@ -387,7 +388,7 @@ class MQTTClient:
 
 if __name__ == '__main__':
     UnitType = namedtuple('Unit', ['uuid'])
-    test_unit = UnitType(uuid='fce48979-622f-4cb5-9340-4939a15d7ede')
+    test_unit = UnitType(uuid='619f8c6e-4afd-4d3d-bc62-338d666fcc28')
 
     mqtt_client = MQTTClient(test_unit)
     asyncio.run(mqtt_client.run())
