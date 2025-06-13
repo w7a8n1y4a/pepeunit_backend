@@ -1,6 +1,7 @@
 active_period:
-  type: "FromDate"
+  type: "DateRange"
   start: "2023-11-15T00:00:00Z"
+  end: "2100-11-15T00:00:00Z"
 
 filters:
   type_input_value: "Text"
@@ -9,8 +10,8 @@ filters:
   filtering_values: ["one", "two", "three"]
 
   max_rate: 0
-  last_unique_check: false
-  max_size: 100
+  last_unique_check: true
+  max_size: 50
 
 transformations:
   slice_start: 0

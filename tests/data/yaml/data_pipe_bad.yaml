@@ -1,0 +1,20 @@
+active_period:
+  type: "DateRange"
+  start: "2023-11-15T00:00:00Z"
+
+filters:
+  type_input_value: "Text"
+
+  type_value_filtering: "BlackList"
+  filtering_values: [1,2,3,4]
+
+  max_rate: -1
+  last_unique_check: true
+  max_size: 50
+
+transformations:
+  slice_start: 0
+  slice_end: 100
+
+processing_policy:
+  policy_type: "LastValue"

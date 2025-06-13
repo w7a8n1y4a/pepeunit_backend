@@ -1,12 +1,12 @@
 active_period:
-  type: "FromDate"
+  type: "Permanent"
   start: "2023-11-15T00:00:00Z"
 
 filters:
   type_input_value: "Number"
 
   type_value_filtering: "BlackList"
-  filtering_values: [12.3, 4, 123.4]
+  filtering_values: [12.3, 432, 134.5234]
 
   type_value_threshold: "Range"
   threshold_min: -60
@@ -14,7 +14,7 @@ filters:
 
   max_rate: 0
   last_unique_check: false
-  max_size: 100
+  max_size: 50
 
 transformations:
   multiplication_ratio: 1
