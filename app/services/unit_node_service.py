@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, UploadFile
 from strawberry.file_uploads import Upload
 
 from app import settings
-from app.configs.errors import MqttError, UnitNodeError
+from app.configs.errors import DataPipeError, MqttError, UnitNodeError
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
@@ -374,7 +374,10 @@ class UnitNodeService:
         is_valid_object(unit_node)
 
         if not unit_node.is_data_pipe_active:
-            raise UnitNodeError('Data pipe is not active')
+            raise DataPipeError('Data pipe is not active')
+
+        if not unit_node.data_pipe_yml:
+            raise DataPipeError('Data pipe is not filled')
 
         return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
 

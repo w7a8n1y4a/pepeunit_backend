@@ -9,6 +9,7 @@ import uuid
 
 import pyaes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from fastapi import UploadFile
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
@@ -160,3 +161,7 @@ def obj_serializer(obj):
     if isinstance(obj, uuid.UUID):
         return str(obj)
     raise TypeError(f"Type {type(obj)} not serializable")
+
+
+async def create_upload_file_from_path(file_path: str) -> UploadFile:
+    return UploadFile(filename=file_path.split('/')[-1], file=open(file_path, "rb"), size=os.path.getsize(file_path))

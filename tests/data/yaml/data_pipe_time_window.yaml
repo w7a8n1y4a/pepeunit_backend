@@ -1,6 +1,6 @@
 active_period:
   type: "ToDate"
-  start: "2100-11-15T00:00:00Z"
+  end: "2100-11-15T00:00:00Z"
 
 filters:
   type_input_value: "Text"

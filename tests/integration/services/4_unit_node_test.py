@@ -8,15 +8,17 @@ import httpx
 import pytest
 
 from app import settings
-from app.configs.errors import UnitNodeError, ValidationError
+from app.configs.errors import DataPipeError, UnitNodeError, ValidationError
 from app.configs.rest import get_repo_service, get_unit_node_service, get_unit_service
-from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import ProcessingPolicyType, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.pydantic.unit_node import (
+    DataPipeFilter,
     UnitNodeEdgeCreate,
     UnitNodeFilter,
     UnitNodeSetState,
     UnitNodeUpdate,
 )
+from app.utils.utils import create_upload_file_from_path
 
 
 @pytest.mark.run(order=0)
@@ -51,8 +53,86 @@ async def test_update_unit_node(database, cc) -> None:
             output_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True)
         )
 
+    # check set active data pipe config
+    for target_unit in pytest.units[:5]:
+        count, output_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        )
+
+        update_unit_node = await unit_node_service.update(
+            output_unit_node[0].uuid, UnitNodeUpdate(is_data_pipe_active=True)
+        )
+        assert update_unit_node.is_data_pipe_active == True
+
 
 @pytest.mark.run(order=1)
+async def test_set_data_pipe(database, cc) -> None:
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    yml_files_list = [
+        'tests/data/yaml/data_pipe_aggregation.yaml',
+        'tests/data/yaml/data_pipe_last_value.yaml',
+        'tests/data/yaml/data_pipe_n_records.yaml',
+        'tests/data/yaml/data_pipe_time_window.yaml',
+    ]
+
+    # check set correct yaml
+    for yml_file, target_unit in zip(yml_files_list, pytest.units[:4]):
+
+        count, output_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        )
+
+        await unit_node_service.set_data_pipe_config(
+            output_unit_node[0].uuid, (await create_upload_file_from_path(yml_file))
+        )
+
+    # check bad yaml
+    bad_yml = 'tests/data/yaml/data_pipe_bad.yaml'
+    data = await unit_node_service.check_data_pipe_config((await create_upload_file_from_path(bad_yml)))
+
+    assert len(data) == 2
+
+    # check correct yaml
+    data = await unit_node_service.check_data_pipe_config((await create_upload_file_from_path(yml_files_list[0])))
+
+    assert len(data) == 0
+
+
+@pytest.mark.run(order=2)
+async def test_get_data_pipe_config(database, cc) -> None:
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    _, output_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[0].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+    )
+
+    # check get data pipe
+    config_path = unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
+
+    assert len(config_path) > 0
+    os.remove(config_path)
+
+    # check not filed active data pipe
+    with pytest.raises(DataPipeError):
+        _, output_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=pytest.units[4].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        )
+
+        unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
+
+    # check not active data pipe get config
+    with pytest.raises(DataPipeError):
+        _, output_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=pytest.units[5].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        )
+
+        unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
+
+
+@pytest.mark.run(order=3)
 def test_create_unit_node_edge(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -136,7 +216,7 @@ def test_create_unit_node_edge(database, cc) -> None:
             assert log_dict['value'] == 0
 
 
-@pytest.mark.run(order=2)
+@pytest.mark.run(order=4)
 async def test_set_state_input_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -171,7 +251,7 @@ async def test_set_state_input_unit_node(database, cc) -> None:
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) < 400
 
 
-@pytest.mark.run(order=3)
+@pytest.mark.run(order=5)
 def test_get_unit_node_edge(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -186,7 +266,7 @@ def test_get_unit_node_edge(database, cc) -> None:
     assert len(target_edges) == 2
 
 
-@pytest.mark.run(order=4)
+@pytest.mark.run(order=6)
 def test_delete_unit_node_edge(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -201,7 +281,7 @@ def test_delete_unit_node_edge(database, cc) -> None:
         unit_node_service.delete_node_edge(uuid_pkg.uuid4(), uuid_pkg.uuid4())
 
 
-@pytest.mark.run(order=5)
+@pytest.mark.run(order=7)
 def test_get_many_unit_node(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -214,7 +294,7 @@ def test_get_many_unit_node(database, cc) -> None:
     assert len(units_nodes) >= 8
 
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=8)
 def test_delete_unit(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -228,7 +308,7 @@ def test_delete_unit(database, cc) -> None:
         unit_service.get(target_unit.uuid)
 
 
-@pytest.mark.run(order=7)
+@pytest.mark.run(order=9)
 def test_get_repo_versions(database, cc) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
@@ -238,3 +318,48 @@ def test_get_repo_versions(database, cc) -> None:
     # check get_versions
     versions = repo_service.get_versions(target_unit.uuid)
     assert versions.unit_count == 2
+
+
+@pytest.mark.run(order=10)
+async def test_get_data_pipe_data(database, cc) -> None:
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check data last value
+    count, output_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[1].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+    )
+
+    unit_node = unit_node_service.get(
+        uuid=output_unit_node[0].uuid,
+    )
+
+    assert unit_node.state is not None
+
+    # check data n_records
+    count, output_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[2].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+    )
+
+    unit_node_service.get_data_pipe_data(
+        DataPipeFilter(
+            uuid=output_unit_node[0].uuid,
+            type=ProcessingPolicyType.N_RECORDS,
+        )
+    )
+
+    assert count > 0
+
+    # check data time window
+    count, output_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[3].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+    )
+
+    unit_node_service.get_data_pipe_data(
+        DataPipeFilter(
+            uuid=output_unit_node[0].uuid,
+            type=ProcessingPolicyType.TIME_WINDOW,
+        )
+    )
+
+    assert count > 0
