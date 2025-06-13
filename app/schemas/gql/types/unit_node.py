@@ -1,8 +1,10 @@
 import uuid as uuid_pkg
+from datetime import datetime
+from typing import Union
 
 import strawberry
 
-from app.dto.enum import DataPipeStage
+from app.dto.enum import AggregationFunctions, DataPipeStage, TypeInputValue
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -18,3 +20,43 @@ class UnitNodeEdgeType(TypeInputMixin):
 class DataPipeValidationErrorType(TypeInputMixin):
     stage: DataPipeStage
     message: str
+
+
+@strawberry.type()
+class NRecordsType(TypeInputMixin):
+    id: int
+    uuid: uuid_pkg.UUID
+    unit_node_uuid: uuid_pkg.UUID
+    state: str
+    state_type: TypeInputValue
+    create_datetime: datetime
+    max_count: int
+    size: int
+
+
+@strawberry.type()
+class TimeWindowType(TypeInputMixin):
+    uuid: uuid_pkg.UUID
+    unit_node_uuid: uuid_pkg.UUID
+    state: str
+    state_type: TypeInputValue
+    create_datetime: datetime
+    expiration_datetime: datetime
+    size: int
+
+
+@strawberry.type()
+class AggregationType(TypeInputMixin):
+    uuid: uuid_pkg.UUID
+    unit_node_uuid: uuid_pkg.UUID
+    state: float
+    aggregation_type: AggregationFunctions
+    time_window_size: int
+    create_datetime: datetime
+    start_window_datetime: datetime
+
+
+@strawberry.type()
+class PipeDataResultType(TypeInputMixin):
+    count: int
+    pipe_data: list[Union[NRecordsType, TimeWindowType, AggregationType]]

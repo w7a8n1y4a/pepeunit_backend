@@ -38,6 +38,7 @@ from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.unit_node import (
+    DataPipeFilterInput,
     UnitNodeEdgeCreateInput,
     UnitNodeFilterInput,
     UnitNodeSetStateInput,
@@ -378,7 +379,7 @@ class UnitNodeService:
         return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
 
     def get_data_pipe_data(
-        self, filters: Union[DataPipeFilter]
+        self, filters: Union[DataPipeFilter, DataPipeFilterInput]
     ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation]]]:
         self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
