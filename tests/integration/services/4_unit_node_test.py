@@ -54,7 +54,7 @@ async def test_update_unit_node(database, cc) -> None:
         )
 
     # check set active data pipe config
-    for target_unit in pytest.units[:5]:
+    for target_unit in pytest.units[1:6]:
         count, output_unit_node = unit_node_service.list(
             UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
         )
@@ -78,7 +78,7 @@ async def test_set_data_pipe(database, cc) -> None:
     ]
 
     # check set correct yaml
-    for yml_file, target_unit in zip(yml_files_list, pytest.units[:4]):
+    for yml_file, target_unit in zip(yml_files_list, pytest.units[1:5]):
 
         count, output_unit_node = unit_node_service.list(
             UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
@@ -106,7 +106,7 @@ async def test_get_data_pipe_config(database, cc) -> None:
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     _, output_unit_node = unit_node_service.list(
-        UnitNodeFilter(unit_uuid=pytest.units[0].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        UnitNodeFilter(unit_uuid=pytest.units[1].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
     # check get data pipe
@@ -118,7 +118,7 @@ async def test_get_data_pipe_config(database, cc) -> None:
     # check not filed active data pipe
     with pytest.raises(DataPipeError):
         _, output_unit_node = unit_node_service.list(
-            UnitNodeFilter(unit_uuid=pytest.units[4].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+            UnitNodeFilter(unit_uuid=pytest.units[5].uuid, type=[UnitNodeTypeEnum.OUTPUT])
         )
 
         unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
@@ -126,7 +126,7 @@ async def test_get_data_pipe_config(database, cc) -> None:
     # check not active data pipe get config
     with pytest.raises(DataPipeError):
         _, output_unit_node = unit_node_service.list(
-            UnitNodeFilter(unit_uuid=pytest.units[5].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+            UnitNodeFilter(unit_uuid=pytest.units[6].uuid, type=[UnitNodeTypeEnum.OUTPUT])
         )
 
         unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
@@ -327,7 +327,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
 
     # check data last value
     count, output_unit_node = unit_node_service.list(
-        UnitNodeFilter(unit_uuid=pytest.units[1].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        UnitNodeFilter(unit_uuid=pytest.units[2].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
     unit_node = unit_node_service.get(
@@ -338,7 +338,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
 
     # check data n_records
     count, output_unit_node = unit_node_service.list(
-        UnitNodeFilter(unit_uuid=pytest.units[2].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        UnitNodeFilter(unit_uuid=pytest.units[3].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
     unit_node_service.get_data_pipe_data(
@@ -352,7 +352,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
 
     # check data time window
     count, output_unit_node = unit_node_service.list(
-        UnitNodeFilter(unit_uuid=pytest.units[3].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        UnitNodeFilter(unit_uuid=pytest.units[4].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
     unit_node_service.get_data_pipe_data(
