@@ -37,8 +37,12 @@ class MQTTLoadTest:
         count = 0
 
         while time.time() - self.start_time < self.config.duration:
-            if count % self.config.duplicate_count == 0:
-                message = generate_random_string(self.config.message_size)
+
+            if self.config.value_type == 'Text':
+                if count % self.config.duplicate_count == 0:
+                    message = generate_random_string(self.config.message_size)
+            else:
+                message = count // self.config.duplicate_count
 
             client.publish(topic, message)
             count += 1
