@@ -71,10 +71,10 @@ async def test_set_data_pipe(database, cc) -> None:
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     yml_files_list = [
-        'tests/data/yaml/data_pipe_aggregation.yaml',
-        'tests/data/yaml/data_pipe_last_value.yaml',
-        'tests/data/yaml/data_pipe_n_records.yaml',
-        'tests/data/yaml/data_pipe_time_window.yaml',
+        'tests/data/yaml/integra/data_pipe_aggregation.yaml',
+        'tests/data/yaml/integra/data_pipe_last_value.yaml',
+        'tests/data/yaml/integra/data_pipe_n_records.yaml',
+        'tests/data/yaml/integra/data_pipe_time_window.yaml',
     ]
 
     # check set correct yaml
@@ -89,7 +89,7 @@ async def test_set_data_pipe(database, cc) -> None:
         )
 
     # check bad yaml
-    bad_yml = 'tests/data/yaml/data_pipe_bad.yaml'
+    bad_yml = 'tests/data/yaml/integra/data_pipe_bad.yaml'
     data = await unit_node_service.check_data_pipe_config((await create_upload_file_from_path(bad_yml)))
 
     assert len(data) == 2

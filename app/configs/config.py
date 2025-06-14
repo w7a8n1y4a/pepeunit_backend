@@ -86,8 +86,10 @@ class Settings(BaseSettings):
     test_load_mqtt_duration: int = 120
     test_load_mqtt_unit_count: int = 40
     test_load_mqtt_rps: int = 100
+    test_load_mqtt_value_type: str = 'Text'
     test_load_mqtt_duplicate_count: int = 10
     test_load_mqtt_message_size: int = 128
+    test_load_mqtt_policy_type: str = 'TimeWindow'
     test_load_mqtt_workers: int = 10
 
     locust_headless: bool = True

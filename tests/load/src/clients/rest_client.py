@@ -4,6 +4,7 @@ import logging
 
 import httpx
 
+from app.dto.enum import AggregationFunctions, ProcessingPolicyType
 from tests.load.src.dto.config import LoadTestConfig
 
 
@@ -97,6 +98,20 @@ class RestClient:
 
         logging.warning(f'Created {len(target_units)} env Units')
 
+    async def set_data_pipe(self, target_units: list[dict]):
+        logging.warning('Run set data pipe')
+
+        target_unit_nodes = []
+        for unit in target_units:
+            for node in unit['unit_nodes']:
+                if node['type'] == 'Output' and node['topic_name'] == 'output':
+                    target_unit_nodes.append(node)
+
+        async with httpx.AsyncClient() as client:
+            await self.run_tasks_with_semaphore(client, target_unit_nodes, self.patch_unit_data_pipe)
+
+        logging.warning(f'Set {len(target_unit_nodes)} data pipe')
+
     async def get_units_env(self, target_units: list[dict]):
         logging.warning('Fetch env Units')
 
@@ -111,6 +126,7 @@ class RestClient:
         await self.create_units(target_repo)
         created_units = self.get_units()
         await self.create_units_env(created_units)
+        await self.set_data_pipe(created_units)
         return await self.get_units_env(created_units)
 
     async def run_tasks_with_semaphore(self, client, items, func, *args):
@@ -134,6 +150,28 @@ class RestClient:
         unit_env_link = f'{self.config.url}/pepeunit/api/v1/units/env/{unit["uuid"]}'
         payload = {"env_json_string": "{\"PING_INTERVAL\": 30}"}
         return await client.patch(unit_env_link, json=payload, headers=self.headers)
+
+    async def patch_unit_data_pipe(self, client, unit_node):
+        unit_nodes_update_link = f'{self.config.url}/pepeunit/api/v1/unit_nodes/{unit_node["uuid"]}'
+        payload = {"is_data_pipe_active": True}
+
+        await client.patch(unit_nodes_update_link, json=payload, headers=self.headers)
+
+        set_data_pipe_config = f'{self.config.url}/pepeunit/api/v1/unit_nodes/set_data_pipe_config?uuid={unit_node["uuid"]}&is_bot_auth=false'
+
+        data_pipe_policy = {
+            ProcessingPolicyType.AGGREGATION.value: 'tests/data/yaml/load/data_pipe_aggregation.yaml',
+            ProcessingPolicyType.LAST_VALUE.value: 'tests/data/yaml/load/data_pipe_last_value.yaml',
+            ProcessingPolicyType.N_RECORDS.value: 'tests/data/yaml/load/data_pipe_n_records.yaml',
+            ProcessingPolicyType.TIME_WINDOW.value: 'tests/data/yaml/load/data_pipe_time_window.yaml',
+        }
+
+        file_path = data_pipe_policy[self.config.policy_type]
+        with open(file_path, 'rb') as f:
+
+            files = {'data': (file_path.split('/')[-1], f, "application/yaml")}
+            header = {'x-auth-token': self.token}
+            return await client.post(set_data_pipe_config, files=files, headers=header)
 
     async def get_unit_env(self, client, unit: dict):
         unit_env_link = f'{self.config.url}/pepeunit/api/v1/units/env/{unit["uuid"]}'

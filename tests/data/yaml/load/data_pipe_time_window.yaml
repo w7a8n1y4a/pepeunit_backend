@@ -1,0 +1,21 @@
+active_period:
+  type: "ToDate"
+  end: "2100-11-15T00:00:00Z"
+
+filters:
+  type_input_value: "Text"
+
+  type_value_filtering: "BlackList"
+  filtering_values: ["0","1","2","3","4","5","6","7","8","9"]
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 128
+
+transformations:
+  slice_start: 0
+  slice_end: 100
+
+processing_policy:
+  policy_type: "TimeWindow"
+  time_window_size: 60
