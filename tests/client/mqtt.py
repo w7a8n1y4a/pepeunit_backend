@@ -179,7 +179,7 @@ class MQTTMessageHandler:
 
         if len(struct_topic) == 5:
             self._handle_structured_message(client, msg, struct_topic)
-        elif len(struct_topic) == 2:
+        elif len(struct_topic) == 3:
             self._handle_input_message(client, msg, struct_topic)
 
     @staticmethod
@@ -282,7 +282,7 @@ class MQTTMessageHandler:
         try:
             topic_type, topic_name = self.mqtt_client.unit_file_manager.search_topic_in_schema(struct_topic[1])
 
-            if topic_type == 'input_topic' and topic_name == 'input':
+            if topic_type == 'input_topic' and topic_name == 'input/pepeunit':
                 value = msg.payload.decode()
                 try:
                     value = int(value)
@@ -291,7 +291,7 @@ class MQTTMessageHandler:
                             f'tmp/test_units/{self.mqtt_client.unit.uuid}/log_state.json',
                             {'value': value, 'input_topic': struct_topic},
                         )
-                        self.mqtt_client.publish_to_output_topic('output', str(value))
+                        self.mqtt_client.publish_to_output_topic('output/pepeunit', str(value))
                 except ValueError:
                     pass
         except ValueError:

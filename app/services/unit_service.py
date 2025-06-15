@@ -387,6 +387,10 @@ class UnitService:
 
             elif len_struct in [2, 3]:
                 backend_domain, unit_node_uuid, *_ = struct_topic
+
+                if unit_node_uuid == '+' and self.access_service.current_agent.type == AgentType.BACKEND:
+                    return None
+
                 unit_node_uuid = is_valid_uuid(unit_node_uuid)
 
                 unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))

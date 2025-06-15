@@ -52,7 +52,7 @@ class MqttTestPreparation:
         mqtt_url = self.units[0]['env']['MQTT_URL']
         mqtt_http_type = self.units[0]['env']['HTTP_TYPE']
 
-        link = f"{mqtt_http_type}://{mqtt_url}/api/v5/subscriptions?page=1&limit=50&qos=0"
+        link = f"{mqtt_http_type}://{mqtt_url}/api/v5/subscriptions?page=1&limit=50&qos=0&topic={self.units[0]['env']['PEPEUNIT_URL']}%2F%2B%2Fpepeunit"
 
         data = httpx.get(link, headers=headers)
 

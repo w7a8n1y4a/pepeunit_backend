@@ -29,8 +29,8 @@ class MQTTLoadTest:
         return client
 
     async def publish(self, client, unit):
-        topic_dict = self.get_dict_by_topic(unit, 'output')
-        topic = f"{unit['env']['PEPEUNIT_URL']}/{topic_dict['uuid']}"
+        topic_dict = self.get_dict_by_topic(unit, 'output/pepeunit')
+        topic = f"{unit['env']['PEPEUNIT_URL']}/{topic_dict['uuid']}/pepeunit"
         client.loop_start()
 
         message = generate_random_string(self.config.message_size)

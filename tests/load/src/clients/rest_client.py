@@ -104,7 +104,7 @@ class RestClient:
         target_unit_nodes = []
         for unit in target_units:
             for node in unit['unit_nodes']:
-                if node['type'] == 'Output' and node['topic_name'] == 'output':
+                if node['type'] == 'Output' and node['topic_name'] == 'output/pepeunit':
                     target_unit_nodes.append(node)
 
         async with httpx.AsyncClient() as client:
