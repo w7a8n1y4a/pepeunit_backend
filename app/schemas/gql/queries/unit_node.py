@@ -1,3 +1,4 @@
+import os
 import uuid as uuid_pkg
 from typing import Union
 
@@ -62,3 +63,16 @@ def get_unit_nodes(filters: UnitNodeFilterInput, info: Info) -> UnitNodesResultT
 async def check_data_pipe_config(file: Upload, info: Info) -> list[DataPipeValidationErrorType]:
     unit_node_service = get_unit_node_service_gql(info)
     return [DataPipeValidationErrorType(**item.dict()) for item in await unit_node_service.check_data_pipe_config(file)]
+
+
+@strawberry.field()
+def get_data_pipe_config(uuid: uuid_pkg.UUID, info: Info) -> str:
+    unit_node_service = get_unit_node_service_gql(info)
+    yml_filepath = unit_node_service.get_data_pipe_config(uuid)
+
+    with open(yml_filepath, 'r') as f:
+        file_data = f.read()
+
+    os.remove(yml_filepath)
+
+    return file_data

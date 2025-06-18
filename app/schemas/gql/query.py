@@ -30,6 +30,7 @@ Query = create_type(
         get_pipe_data,
         get_unit_nodes,
         check_data_pipe_config,
+        get_data_pipe_config,
         get_base_metrics,
         get_resource_agents,
     ],
