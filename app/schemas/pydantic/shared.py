@@ -33,10 +33,15 @@ class UnitNodeRead(BaseModel):
     is_rewritable_input: bool
 
     topic_name: str
+    last_update_datetime: datetime
+
+    is_data_pipe_active: bool
+    data_pipe_yml: Optional[str] = None
+    data_pipe_status: Optional[str] = None
+    data_pipe_error: Optional[str] = None
 
     create_datetime: datetime
     state: Optional[str] = None
-    last_update_datetime: datetime
 
     unit_uuid: uuid_pkg.UUID
     creator_uuid: uuid_pkg.UUID
