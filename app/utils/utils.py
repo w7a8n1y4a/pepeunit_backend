@@ -165,3 +165,12 @@ def obj_serializer(obj):
 
 async def create_upload_file_from_path(file_path: str) -> UploadFile:
     return UploadFile(filename=file_path.split('/')[-1], file=open(file_path, "rb"), size=os.path.getsize(file_path))
+
+
+def remove_dict_none(data):
+    if isinstance(data, dict):
+        return {k: remove_dict_none(v) for k, v in data.items() if v is not None}
+    elif isinstance(data, list):
+        return [remove_dict_none(item) for item in data if item is not None]
+    else:
+        return data

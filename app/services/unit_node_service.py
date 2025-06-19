@@ -64,7 +64,7 @@ from app.services.utils import (
     yml_file_to_dict,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
-from app.utils.utils import obj_serializer
+from app.utils.utils import obj_serializer, remove_dict_none
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
@@ -381,7 +381,7 @@ class UnitNodeService:
         if not unit_node.data_pipe_yml:
             raise DataPipeError('Data pipe is not filled')
 
-        return dict_to_yml_file(json.loads(unit_node.data_pipe_yml))
+        return dict_to_yml_file(remove_dict_none(json.loads(unit_node.data_pipe_yml)))
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
