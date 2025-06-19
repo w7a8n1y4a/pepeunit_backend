@@ -61,7 +61,7 @@ async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
 
 
 def dict_to_yml_file(yml_dict: dict) -> str:
-    yaml_content = yaml.safe_dump(yml_dict, allow_unicode=True, default_flow_style=False)
+    yaml_content = yaml.safe_dump(yml_dict, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
     filename = f'tmp/data_pipe_yml_{uuid.uuid4()}'
     with open(filename, 'w', encoding='utf-8') as f:
