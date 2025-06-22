@@ -26,6 +26,7 @@ from app.dto.enum import (
     GlobalPrefixTopic,
     OwnershipType,
     PermissionEntities,
+    ProcessingPolicyType,
     ReservedInputBaseTopic,
     UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
@@ -358,8 +359,7 @@ class UnitNodeService:
 
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
 
-        if not unit_node.is_data_pipe_active:
-            raise UnitNodeError('Data pipe is not active')
+        self.is_valid_active_data_pipe(unit_node)
 
         data_pipe_dict = await yml_file_to_dict(data_pipe)
         data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
@@ -375,11 +375,8 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
-        if not unit_node.is_data_pipe_active:
-            raise DataPipeError('Data pipe is not active')
-
-        if not unit_node.data_pipe_yml:
-            raise DataPipeError('Data pipe is not filled')
+        self.is_valid_active_data_pipe(unit_node)
+        self.is_valid_filled_config(unit_node)
 
         return dict_to_yml_file(remove_dict_none(json.loads(unit_node.data_pipe_yml)))
 
@@ -404,6 +401,31 @@ class UnitNodeService:
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         return self.data_pipe_repository.list(filters=filters)
+
+    def get_data_pipe_data_csv(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        self.is_valid_filled_config(unit_node)
+
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
+
+        is_valid_json(unit_node.data_pipe_yml, "Data Pipe config is bad")
+
+        count, data = self.data_pipe_repository.list(
+            filters=DataPipeFilter(
+                uuid=uuid,
+                type=ProcessingPolicyType(
+                    is_valid_json(unit_node.data_pipe_yml, "Data Pipe config is bad")['processing_policy'][
+                        'policy_type'
+                    ]
+                ),
+            )
+        )
+
+        return self.data_pipe_repository.models_to_csv(data)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -464,3 +486,13 @@ class UnitNodeService:
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
             raise UnitNodeError('This Node {} is not Output'.format(unit_node.uuid))
+
+    @staticmethod
+    def is_valid_active_data_pipe(unit_node: UnitNode) -> None:
+        if not unit_node.is_data_pipe_active:
+            raise DataPipeError('Data pipe is not active')
+
+    @staticmethod
+    def is_valid_filled_config(unit_node: UnitNode) -> None:
+        if not unit_node.data_pipe_yml:
+            raise DataPipeError('Data pipe is not filled')

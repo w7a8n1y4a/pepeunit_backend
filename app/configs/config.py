@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     mqtt_max_len_message_queue: int = 128
     mqtt_max_topic_alias: int = 128
 
+    github_token_name: str = ''
+    github_token_pat: str = ''
+
     test_integration_clear_data: bool = True
     test_integration_private_repo_json: str = ''
 

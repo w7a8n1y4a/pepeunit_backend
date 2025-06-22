@@ -341,7 +341,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
         UnitNodeFilter(unit_uuid=pytest.units[3].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
-    unit_node_service.get_data_pipe_data(
+    count, _ = unit_node_service.get_data_pipe_data(
         DataPipeFilter(
             uuid=output_unit_node[0].uuid,
             type=ProcessingPolicyType.N_RECORDS,
@@ -355,7 +355,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
         UnitNodeFilter(unit_uuid=pytest.units[4].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
-    unit_node_service.get_data_pipe_data(
+    count, _ = unit_node_service.get_data_pipe_data(
         DataPipeFilter(
             uuid=output_unit_node[0].uuid,
             type=ProcessingPolicyType.TIME_WINDOW,

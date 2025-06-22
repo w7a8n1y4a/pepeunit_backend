@@ -1,3 +1,6 @@
+import csv
+import uuid
+from io import StringIO
 from typing import List, Union
 
 from clickhouse_driver import Client
@@ -130,3 +133,23 @@ class DataPipeRepository:
         for table_name in tables:
             query = f"ALTER TABLE {table_name} DELETE WHERE unit_node_uuid IN ({uuid_list})"
             self.client.execute(query)
+
+    @staticmethod
+    def models_to_csv(data: List[Union[NRecords, TimeWindow, Aggregation]]) -> str:
+
+        if not len(data):
+            raise DataPipeError('No data found')
+
+        csv_data = StringIO()
+        writer = csv.writer(csv_data)
+        writer.writerow(data[0].dict().keys())
+        for item in data:
+            writer.writerow(item.dict().values())
+
+        result = csv_data.getvalue()
+
+        file_path = f'tmp/dp_data_{uuid.uuid4()}.csv'
+        with open(file_path, 'w') as f:
+            f.write(result)
+
+        return file_path

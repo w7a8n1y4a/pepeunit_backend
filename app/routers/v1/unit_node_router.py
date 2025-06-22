@@ -72,6 +72,16 @@ def get_data_pipe_data(
     return PipeDataResult(count=count, pipe_data=pipe_data)
 
 
+@router.get("/get_data_pipe_data_csv/{uuid}", response_model=bytes)
+def get_data_pipe_config(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+    csv_filepath = unit_node_service.get_data_pipe_data_csv(uuid)
+
+    def cleanup():
+        os.remove(csv_filepath)
+
+    return FileResponse(csv_filepath, background=BackgroundTask(cleanup))
+
+
 @router.delete("/delete_data_pipe_data/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_data_pipe_data(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
     return unit_node_service.delete_data_pipe_data(uuid)

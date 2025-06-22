@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import httpx
 
+from app import settings
 from app.configs.errors import GitRepoError
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import Credentials
@@ -151,6 +152,8 @@ class GithubPlatformRepository(GitPlatformRepositoryABC):
         credentials = ''
         if self.credentials:
             credentials = f'{self.credentials.username}:{self.credentials.pat_token}@'
+        elif len(settings.github_token_name) > 0 and len(settings.github_token_pat) > 0:
+            credentials = f'{settings.github_token_name}:{settings.github_token_pat}@'
 
         return f'https://{credentials}api.github.com/repos/'
 
