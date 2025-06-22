@@ -5,6 +5,7 @@
 ## Внешние зависимости
 1. `Telegram Bot` и его `Api Key`
 2. Чистая база данных в `Postgresql`
+3. Чистая база данных в `Clickhouse`
 3. Развёрнутый `EMQX MQTT Broker`
 4. `Redis`
 

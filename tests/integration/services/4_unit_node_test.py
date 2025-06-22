@@ -365,7 +365,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
     assert count > 0
 
 
-@pytest.mark.run(order=10)
+@pytest.mark.run(order=11)
 async def test_get_data_pipe_data_csv(database, cc) -> None:
     current_user = pytest.users[0]
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
@@ -380,7 +380,7 @@ async def test_get_data_pipe_data_csv(database, cc) -> None:
     os.remove(file_path)
 
 
-@pytest.mark.run(order=11)
+@pytest.mark.run(order=12)
 async def test_delete_data_pipe_data(database, cc) -> None:
     current_user = pytest.users[0]
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
