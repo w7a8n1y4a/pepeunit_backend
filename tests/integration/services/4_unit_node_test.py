@@ -334,7 +334,22 @@ async def test_get_data_pipe_data(database, cc) -> None:
         uuid=output_unit_node[0].uuid,
     )
 
-    assert unit_node.state is not None
+    # wait set data to db pg
+    inc = 0
+    while True:
+        unit_node = unit_node_service.get(
+            uuid=output_unit_node[0].uuid,
+        )
+
+        if unit_node.state is not None:
+            break
+
+        time.sleep(1)
+
+        if inc > 90:
+            assert False
+
+        inc += 1
 
     # check data n_records
     count, output_unit_node = unit_node_service.list(
