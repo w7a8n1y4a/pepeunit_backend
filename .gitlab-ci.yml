@@ -67,7 +67,7 @@ integration_test:image:dev:
     PROJ: pepeunit-backend-dev
   rules:
     - if: $CI_COMMIT_REF_NAME == "dev" && $CI_PIPELINE_SOURCE != "merge_request_event"
-      when: manual
+      when: on_success
     - when: never
   before_script:
     - echo "Waiting for the backend to be responsive..."

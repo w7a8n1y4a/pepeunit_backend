@@ -366,6 +366,21 @@ async def test_get_data_pipe_data(database, cc) -> None:
 
 
 @pytest.mark.run(order=10)
+async def test_get_data_pipe_data_csv(database, cc) -> None:
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check get csv for n_records
+    count, output_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[3].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+    )
+
+    file_path = unit_node_service.get_data_pipe_data_csv(output_unit_node[0].uuid)
+
+    os.remove(file_path)
+
+
+@pytest.mark.run(order=11)
 async def test_delete_data_pipe_data(database, cc) -> None:
     current_user = pytest.users[0]
     unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
