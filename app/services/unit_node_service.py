@@ -24,6 +24,7 @@ from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    OrderByDate,
     OwnershipType,
     PermissionEntities,
     ProcessingPolicyType,
@@ -422,6 +423,7 @@ class UnitNodeService:
                         'policy_type'
                     ]
                 ),
+                order_by_create_date=OrderByDate.asc,
             )
         )
 

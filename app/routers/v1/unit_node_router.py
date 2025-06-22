@@ -73,7 +73,7 @@ def get_data_pipe_data(
 
 
 @router.get("/get_data_pipe_data_csv/{uuid}", response_model=bytes)
-def get_data_pipe_config(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+def get_data_pipe_data_csv(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
     csv_filepath = unit_node_service.get_data_pipe_data_csv(uuid)
 
     def cleanup():
