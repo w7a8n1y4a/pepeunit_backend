@@ -330,10 +330,6 @@ async def test_get_data_pipe_data(database, cc) -> None:
         UnitNodeFilter(unit_uuid=pytest.units[2].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
-    unit_node = unit_node_service.get(
-        uuid=output_unit_node[0].uuid,
-    )
-
     # wait set data to db pg
     inc = 0
     while True:
@@ -346,7 +342,7 @@ async def test_get_data_pipe_data(database, cc) -> None:
 
         time.sleep(1)
 
-        if inc > 90:
+        if inc > 10:
             assert False
 
         inc += 1
@@ -356,28 +352,50 @@ async def test_get_data_pipe_data(database, cc) -> None:
         UnitNodeFilter(unit_uuid=pytest.units[3].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
-    count, _ = unit_node_service.get_data_pipe_data(
-        DataPipeFilter(
-            uuid=output_unit_node[0].uuid,
-            type=ProcessingPolicyType.N_RECORDS,
+    # wait set data to db сс
+    inc = 0
+    while True:
+        count, _ = unit_node_service.get_data_pipe_data(
+            DataPipeFilter(
+                uuid=output_unit_node[0].uuid,
+                type=ProcessingPolicyType.N_RECORDS,
+            )
         )
-    )
 
-    assert count > 0
+        if count > 0:
+            break
+
+        time.sleep(1)
+
+        if inc > 10:
+            assert False
+
+        inc += 1
 
     # check data time window
     count, output_unit_node = unit_node_service.list(
         UnitNodeFilter(unit_uuid=pytest.units[4].uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
 
-    count, _ = unit_node_service.get_data_pipe_data(
-        DataPipeFilter(
-            uuid=output_unit_node[0].uuid,
-            type=ProcessingPolicyType.TIME_WINDOW,
+    # wait set data to db сс
+    inc = 0
+    while True:
+        count, _ = unit_node_service.get_data_pipe_data(
+            DataPipeFilter(
+                uuid=output_unit_node[0].uuid,
+                type=ProcessingPolicyType.TIME_WINDOW,
+            )
         )
-    )
 
-    assert count > 0
+        if count > 0:
+            break
+
+        time.sleep(1)
+
+        if inc > 10:
+            assert False
+
+        inc += 1
 
 
 @pytest.mark.run(order=11)
