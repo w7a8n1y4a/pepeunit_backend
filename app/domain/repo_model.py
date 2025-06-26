@@ -60,3 +60,8 @@ class Repo(SQLModel, table=True):
     creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
     )
+
+    # to RepositoryRegistry link
+    repository_registry_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('repository_registry.uuid', ondelete='CASCADE'))
+    )
