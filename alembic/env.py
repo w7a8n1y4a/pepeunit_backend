@@ -33,6 +33,7 @@ if config.config_file_name is not None:
 
 from app.domain.permission_model import Permission
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
