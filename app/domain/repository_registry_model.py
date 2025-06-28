@@ -21,6 +21,8 @@ class RepositoryRegistry(SQLModel, table=True):
     repository_url: str = Field(nullable=False, unique=True)
     # this remote repository is Public ?
     is_public_repository: bool = Field(nullable=False, default=True)
+    # assets links by tags
+    releases_data: str = Field(nullable=True, default=None)
     # size on disk in bytes, for git repository
     local_repository_size: int = Field(nullable=False, default=0)
 
