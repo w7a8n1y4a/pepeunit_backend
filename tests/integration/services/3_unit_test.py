@@ -475,8 +475,8 @@ def test_repo_update_firmware_unit(database, cc) -> None:
     # wait bulk update unit
     target_repo = repo_service.get(target_units[0].repo_uuid)
 
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
-    tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
+    commits = repo_service.git_local_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    tags = repo_service.git_local_repository.get_tags_from_all_commits(commits)
 
     inc = 0
     while True:

@@ -33,7 +33,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
 )
 from app.repositories.data_pipe_repository import DataPipeRepository
-from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.git_local_repository import GitLocalRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
@@ -84,7 +84,7 @@ class UnitNodeService:
     ) -> None:
         self.unit_repository = unit_repository
         self.repo_repository = repo_repository
-        self.git_repo_repository = GitRepoRepository()
+        self.git_local_repository = GitLocalRepository()
         self.unit_node_repository = unit_node_repository
         self.unit_log_repository = unit_log_repository
         self.data_pipe_repository = data_pipe_repository
@@ -235,9 +235,9 @@ class UnitNodeService:
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
 
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
+        self.git_local_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
+        target_version, target_tag = self.git_local_repository.get_target_unit_version(repo, unit)
+        schema_dict = self.git_local_repository.get_schema_dict(repo, target_version)
 
         command_to_topic_dict = {
             BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
@@ -256,7 +256,7 @@ class UnitNodeService:
 
                 if repo.is_compilable_repo:
                     links = is_valid_json(repo.releases_data, "releases for compile repo")[target_tag]
-                    platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
+                    platform, link = self.git_local_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link
 

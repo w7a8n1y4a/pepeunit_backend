@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import httpx
 
 from app import settings
 from app.configs.errors import GitRepoError
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode
@@ -12,11 +14,11 @@ from app.utils.utils import aes_gcm_decode
 
 class GitPlatformRepositoryABC(ABC):
 
-    def __init__(self, repo: Repo):
-        self.repo = repo
+    def __init__(self, repository_registry: RepositoryRegistry, repo: Optional[Repo] = None):
+        self.repository_registry = repository_registry
         self.credentials = None
 
-        if not repo.is_public_repository:
+        if not repository_registry.is_public_repository:
             self.credentials = Credentials(
                 **is_valid_json(
                     aes_gcm_decode(repo.cipher_credentials_private_repository), "cipher creeds private repository"
@@ -27,15 +29,15 @@ class GitPlatformRepositoryABC(ABC):
     def get_cloning_url(self) -> str:
         """Get url for cloning"""
 
-        repo_url = self.repo.repo_url
-        if not self.repo.is_public_repository:
+        repository_url = self.repository_registry.repository_url
+        if not self.repository_registry.is_public_repository:
             username = self.credentials.username
             pat_token = self.credentials.pat_token
-            repo_url = repo_url.replace('https://', f"https://{username}:{pat_token}@").replace(
+            repository_url = repository_url.replace('https://', f"https://{username}:{pat_token}@").replace(
                 'http://', f"http://{username}:{pat_token}@"
             )
 
-        return repo_url
+        return repository_url
 
     @abstractmethod
     def _get_api_url(self) -> str:
@@ -45,7 +47,7 @@ class GitPlatformRepositoryABC(ABC):
     @abstractmethod
     def _get_repository_name(self) -> str:
         """Get repository name with group/creator"""
-        _, _, _, *name = self.repo.repo_url.split('/')
+        _, _, _, *name = self.repository_registry.repository_url.split('/')
 
         return '/'.join(name).replace('.git', '')
 
@@ -67,7 +69,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         return super().get_cloning_url()
 
     def _get_api_url(self) -> str:
-        http_str, _, domain, *_ = self.repo.repo_url.split('/')
+        http_str, _, domain, *_ = self.repository_registry.repository_url.split('/')
 
         return f'{http_str}//{domain}/api/v4/projects/'
 

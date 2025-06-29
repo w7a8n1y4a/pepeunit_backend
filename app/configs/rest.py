@@ -9,6 +9,7 @@ from app.configs.db import get_session
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -48,6 +49,7 @@ def get_repo_service(
     is_bot_auth: bool = False,
 ) -> RepoService:
     repo_repository = RepoRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
     unit_repository = UnitRepository(db)
     permission_repository = PermissionRepository(db)
 
@@ -77,6 +79,7 @@ def get_repo_service(
 
     return RepoService(
         repo_repository=repo_repository,
+        repository_registry_repository=repository_registry_repository,
         unit_repository=unit_repository,
         unit_service=UnitService(
             repo_repository=repo_repository,

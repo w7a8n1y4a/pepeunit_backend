@@ -165,14 +165,14 @@ def test_get_available_platforms(database, cc) -> None:
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_tag='0.0.0.0')
     assert len(platforms) == 0
 
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    commits = repo_service.git_local_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
 
     # check get by commit without tag
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=commits[-1]['commit'])
     assert len(platforms) == 0
 
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
-    tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
+    commits = repo_service.git_local_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    tags = repo_service.git_local_repository.get_tags_from_all_commits(commits)
 
     # check get by commit with tag
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=tags[0]['commit'])
@@ -229,7 +229,7 @@ def test_update_local_repo(database, cc) -> None:
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # del local repo
-    repo_service.git_repo_repository.delete_repo(Repo(uuid=pytest.repos[0].uuid))
+    repo_service.git_local_repository.delete_repo(Repo(uuid=pytest.repos[0].uuid))
 
     # check update local repos
     for repo in pytest.repos:

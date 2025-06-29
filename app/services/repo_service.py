@@ -8,10 +8,12 @@ from typing import Optional, Union
 from fastapi import Depends, HTTPException
 
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
-from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.git_local_repository import GitLocalRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.repo import (
     CommitFilterInput,
@@ -45,13 +47,15 @@ class RepoService:
     def __init__(
         self,
         repo_repository: RepoRepository = Depends(),
+        repository_registry_repository: RepositoryRegistryRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
         unit_service: UnitService = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.repo_repository = repo_repository
-        self.git_repo_repository = GitRepoRepository()
+        self.repository_registry_repository = repository_registry_repository
+        self.git_local_repository = GitLocalRepository()
         self.unit_repository = unit_repository
         self.unit_service = unit_service
         self.permission_service = permission_service
@@ -60,27 +64,50 @@ class RepoService:
     def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
         self.access_service.authorization.check_access([AgentType.USER])
 
+        # check repository registry
+        self.repository_registry_repository.is_valid_platform(RepositoryRegistry(platform=data.platform))
+        exist_repository = self.repository_registry_repository.is_valid_url(
+            RepositoryRegistry(repository_url=data.repository_url)
+        )
+
+        # get valid repository registry
+        if exist_repository:
+            repository_registry = exist_repository
+        else:
+            repository_registry = RepositoryRegistry(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+            repository_registry.create_datetime = datetime.datetime.utcnow()
+            repository_registry.last_update_datetime = repository_registry.create_datetime
+            repository_registry = self.repository_registry_repository.create(repository_registry)
+
+        # check repo
         self.repo_repository.is_valid_name(data.name)
-        self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
         self.repo_repository.is_valid_private_repo(data)
-        self.repo_repository.is_valid_platform(data)
 
-        repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+        repo = Repo(
+            creator_uuid=self.access_service.current_agent.uuid,
+            repository_registry_uuid=repository_registry.uuid,
+            **data.dict(),
+        )
 
-        if not repo.is_public_repository:
+        if not repository_registry.is_public_repository:
             repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.credentials.dict()))
 
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
             repo.is_only_tag_update = True
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
         repo.create_datetime = datetime.datetime.utcnow()
         repo.last_update_datetime = repo.create_datetime
         repo = self.repo_repository.create(repo)
-
-        self.git_repo_repository.clone_remote_repo(repo)
         self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), repo)
+
+        self.git_local_repository.clone_remote_repo(repository_registry, repo)
+
+        # set releases data for any repository
+        repository_registry.releases_data = json.dumps(
+            self.git_local_repository.get_releases(repository_registry, repo)
+        )
+        self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -100,11 +127,11 @@ class RepoService:
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
 
-        self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
+        self.git_local_repository.is_valid_branch(repo, filters.repo_branch)
 
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
+        commits = self.git_local_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
 
-        commits_with_tag = self.git_repo_repository.get_tags_from_all_commits(commits) if filters.only_tag else commits
+        commits_with_tag = self.git_local_repository.get_tags_from_all_commits(commits) if filters.only_tag else commits
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
@@ -128,12 +155,12 @@ class RepoService:
                 except KeyError:
                     pass
             elif target_commit:
-                commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
-                commit = self.git_repo_repository.find_by_commit(commits, target_commit)
+                commits = self.git_local_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+                commit = self.git_local_repository.find_by_commit(commits, target_commit)
                 if commit and commit.get('tag'):
                     platforms = releases[commit['tag']]
             else:
-                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo)
+                target_commit, target_tag = self.git_local_repository.get_target_repo_version(repo)
                 platforms = releases[target_tag]
 
         return platforms
@@ -159,7 +186,7 @@ class RepoService:
             self.repo_repository.is_valid_name(data.name, uuid)
 
         if data.default_branch:
-            self.git_repo_repository.is_valid_branch(repo, data.default_branch)
+            self.git_local_repository.is_valid_branch(repo, data.default_branch)
 
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
@@ -170,14 +197,14 @@ class RepoService:
         is_valid_visibility_level(update_repo, [unit[0] for unit in child_units])
 
         if data.default_commit:
-            self.git_repo_repository.is_valid_commit(repo, update_repo.default_branch, data.default_commit)
+            self.git_local_repository.is_valid_commit(repo, update_repo.default_branch, data.default_commit)
 
         self.repo_repository.is_valid_auto_updated_repo(update_repo)
         self.repo_repository.is_valid_no_auto_updated_repo(update_repo)
         self.repo_repository.is_valid_compilable_repo(update_repo)
 
         if update_repo.is_compilable_repo:
-            update_repo.releases_data = json.dumps(self.git_repo_repository.get_releases(update_repo))
+            update_repo.releases_data = json.dumps(self.git_local_repository.get_releases(update_repo))
 
         repo = self.repo_repository.update(uuid, update_repo)
 
@@ -198,12 +225,12 @@ class RepoService:
         repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.dict()))
 
         if repo.is_compilable_repo:
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+            repo.releases_data = json.dumps(self.git_local_repository.get_releases(repo))
 
         repo.last_update_datetime = datetime.datetime.utcnow()
         repo = self.repo_repository.update(uuid, repo)
 
-        self.git_repo_repository.update_credentials(repo)
+        self.git_local_repository.update_credentials(repo)
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -214,7 +241,7 @@ class RepoService:
         is_valid_object(repo)
 
         self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
-        self.git_repo_repository.is_valid_branch(repo, default_branch)
+        self.git_local_repository.is_valid_branch(repo, default_branch)
 
         repo.default_branch = default_branch
         repo.last_update_datetime = datetime.datetime.utcnow()
@@ -231,11 +258,11 @@ class RepoService:
         self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         if repo.is_compilable_repo:
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+            repo.releases_data = json.dumps(self.git_local_repository.get_releases(repo))
 
             repo = self.repo_repository.update(uuid, repo)
 
-        self.git_repo_repository.clone_remote_repo(repo)
+        self.git_local_repository.clone_remote_repo(repo)
 
         return None
 
@@ -291,24 +318,28 @@ class RepoService:
 
         logging.info('run sync local repo storage')
 
-        current_physic_repos = self.git_repo_repository.get_current_repos()
-        current_db_repos = self.repo_repository.get_all_repo()
+        physic_repositories_registry = self.git_local_repository.get_current_repos()
+        db_repositories_registry = self.repository_registry_repository.get_all()
 
-        for repo in current_db_repos:
-            if str(repo.uuid) not in current_physic_repos:
+        for repository_registry in db_repositories_registry:
+            if str(repository_registry.uuid) not in physic_repositories_registry:
                 try:
 
-                    if repo.is_compilable_repo:
-                        repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+                    if repository_registry.is_public_repository:
+                        repository_registry.releases_data = json.dumps(
+                            self.git_local_repository.get_releases(repository_registry)
+                        )
 
-                        repo = self.repo_repository.update(repo.uuid, repo)
+                        repository_registry = self.repository_registry_repository.update(
+                            repository_registry.uuid, repository_registry
+                        )
 
-                    self.git_repo_repository.clone_remote_repo(repo)
+                        self.git_local_repository.clone_remote_repo(repository_registry)
 
-                    logging.info(f'success load: {repo.repo_url}')
+                        logging.info(f'success load: {repository_registry.repository_url}')
 
                 except HTTPException as e:
-                    logging.warning(f'corrupt load: {repo.repo_url} {e.detail}')
+                    logging.warning(f'corrupt load: {repository_registry.repository_url} {e.detail}')
 
         logging.info('end sync local repo storage')
 
@@ -323,7 +354,7 @@ class RepoService:
         count, unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)
 
-        self.git_repo_repository.delete_repo(repo)
+        self.git_local_repository.delete_repo(repo)
         self.repo_repository.delete(repo)
 
         return None
@@ -342,7 +373,7 @@ class RepoService:
     def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
         repo = self.repo_repository.get(repo)
         try:
-            branches = self.git_repo_repository.get_branches(repo)
+            branches = self.git_local_repository.get_branches(repo)
         except:
             branches = []
 

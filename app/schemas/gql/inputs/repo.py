@@ -18,7 +18,7 @@ class RepoCreateInput(TypeInputMixin):
     visibility_level: VisibilityLevel
     name: str
 
-    repo_url: str
+    repository_url: str
     platform: GitPlatform
 
     is_public_repository: bool

@@ -13,6 +13,7 @@ from app import settings
 from app.configs.errors import GitRepoError
 from app.configs.utils import get_directory_size
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
 from app.repositories.git_platform_repository import (
@@ -20,33 +21,34 @@ from app.repositories.git_platform_repository import (
     GitlabPlatformRepository,
     GitPlatformRepositoryABC,
 )
-from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json, is_valid_object
 from app.utils.utils import clean_files_with_pepeignore
 
 
-class GitRepoRepository:
+class GitLocalRepository:
 
     @staticmethod
-    def get_platform(repo: Repo) -> GitPlatformRepositoryABC:
+    def get_platform(repository_registry: RepositoryRegistry, repo: Optional[Repo] = None) -> GitPlatformRepositoryABC:
         platforms_dict = {GitPlatform.GITLAB: GitlabPlatformRepository, GitPlatform.GITHUB: GithubPlatformRepository}
 
-        return platforms_dict[GitPlatform(repo.platform)](repo)
+        return platforms_dict[GitPlatform(repository_registry.platform)](repository_registry, repo)
 
-    def clone_remote_repo(self, repo: Repo) -> None:
-        repo_save_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
+    def clone_remote_repo(self, repository_registry: RepositoryRegistry, repo: Optional[Repo] = None) -> None:
+        repo_save_path = f'{settings.backend_save_repo_path}/{repository_registry.uuid}'
         try:
             shutil.rmtree(repo_save_path)
         except FileNotFoundError:
             pass
 
-        external_repo_size = self.get_platform(repo).get_repo_size()
+        external_repo_size = self.get_platform(repository_registry, repo).get_repo_size()
         self.is_valid_repo_size(external_repo_size)
 
         try:
             # cloning repo by url
             git_repo = GitRepo.clone_from(
-                self.get_platform(repo).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
+                self.get_platform(repository_registry, repo).get_cloning_url(),
+                repo_save_path,
+                env={"GIT_TERMINAL_PROMPT": "0"},
             )
         except GitCommandError:
             raise GitRepoError('No valid repo_url or credentials')
@@ -58,11 +60,19 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
-    def get_releases(self, repo: Repo) -> dict[str, list[tuple[str, str]]]:
-        return self.get_platform(repo).get_releases()
+    def get_releases(
+        self, repository_registry: RepositoryRegistry, repo: Optional[Repo] = None
+    ) -> dict[str, list[tuple[str, str]]]:
+        return self.get_platform(repository_registry, repo).get_releases()
 
-    def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
-        tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
+    @staticmethod
+    def get_tmp_repository(repo: Repo, commit: str) -> str:
+        tmp_path = f'tmp/{uuid_pkg.uuid4()}'
+        current_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
+
+        shutil.copytree(current_path, tmp_path)
+
+        tmp_git_repo = GitRepo(tmp_path)
         tmp_git_repo.git.checkout(commit)
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
@@ -70,43 +80,21 @@ class GitRepoRepository:
 
         return tmp_git_repo_path
 
-    def get_repo(self, repo: Repo) -> GitRepo:
-        repo_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
+    def get_repo(self, repo: Optional[Repo] = None) -> GitRepo:
+        repo_path = f'{settings.backend_save_repo_path}/{repo.repository_registry_uuid}'
         if not os.path.exists(repo_path):
-            self.clone_remote_repo(repo)
+            self.clone_remote_repo(repository_registry, repo)
         return GitRepo(repo_path)
 
-    @staticmethod
-    def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
-        return f'tmp/{gen_uuid}'
-
-    def get_tmp_repo(self, repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
-        tmp_path = self.get_tmp_path(gen_uuid)
-        current_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
-
-        shutil.copytree(current_path, tmp_path)
-
-        return GitRepo(tmp_path)
-
-    @staticmethod
-    def get_url(repo: Repo, data: Optional[Credentials]):
-        repo_url = repo.repo_url
-        if not repo.is_public_repository:
-            repo_url = repo_url.replace('https://', f"https://{data.username}:{data.pat_token}@").replace(
-                'http://', f"http://{data.username}:{data.pat_token}@"
-            )
-
-        return repo_url
-
-    def update_credentials(self, repo: Repo):
+    def update_credentials(self, repository_registry: RepositoryRegistry, repo: Repo):
         try:
-            git_repo = self.get_repo(repo)
+            git_repo = self.get_repo(repository_registry, repo)
         except git.NoSuchPathError:
-            self.clone_remote_repo(repo)
-            git_repo = self.get_repo(repo)
+            self.clone_remote_repo(repository_registry, repo)
+            git_repo = self.get_repo(repository_registry, repo)
 
         for remote in git_repo.remotes:
-            remote.set_url(self.get_platform(repo).get_cloning_url())
+            remote.set_url(self.get_platform(repository_registry, repo).get_cloning_url())
 
     def get_branches(self, repo: Repo) -> list[str]:
         repo = self.get_repo(repo)

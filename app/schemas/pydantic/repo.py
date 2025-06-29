@@ -10,17 +10,32 @@ from pydantic import BaseModel
 from app.dto.enum import GitPlatform, OrderByDate, VisibilityLevel
 
 
+class RepositoryRegistryRead(BaseModel):
+    uuid: uuid_pkg.UUID
+
+    platform: GitPlatform
+    repository_url: str
+
+    is_public_repository: bool
+    local_repository_size: int
+
+    sync_status: Optional[str] = None
+    sync_error: Optional[str] = None
+    sync_last_datetime: Optional[datetime]
+
+    create_datetime: datetime
+    last_update_datetime: datetime
+
+    creator_uuid: Optional[uuid_pkg.UUID] = None
+
+    branches: list[str]
+
+
 class RepoRead(BaseModel):
     uuid: uuid_pkg.UUID
     visibility_level: VisibilityLevel
 
     name: str
-    create_datetime: datetime
-
-    repo_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
@@ -29,11 +44,12 @@ class RepoRead(BaseModel):
 
     is_compilable_repo: bool
 
+    create_datetime: datetime
     last_update_datetime: datetime
 
-    branches: list[str]
-
     creator_uuid: uuid_pkg.UUID
+
+    repository_registry: RepositoryRegistryRead
 
 
 class ReposResult(BaseModel):
@@ -66,7 +82,7 @@ class RepoCreate(BaseModel):
     visibility_level: VisibilityLevel
     name: str
 
-    repo_url: str
+    repository_url: str
     platform: GitPlatform
 
     is_public_repository: bool

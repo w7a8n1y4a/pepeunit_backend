@@ -11,7 +11,7 @@ from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.dto.enum import GitPlatform
-from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.git_local_repository import GitLocalRepository
 from app.repositories.utils import (
     apply_enums,
     apply_ilike_search_string,
@@ -29,7 +29,7 @@ class RepoRepository:
 
     def __init__(self, db: Session = Depends(get_session)) -> None:
         self.db = db
-        self.git_repo_repository = GitRepoRepository()
+        self.git_local_repository = GitLocalRepository()
 
     def create(self, repo: Repo) -> Repo:
         self.db.add(repo)
@@ -64,8 +64,8 @@ class RepoRepository:
             self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
         )
 
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
-        tags = self.git_repo_repository.get_tags_from_all_commits(commits)
+        commits = self.git_local_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+        tags = self.git_local_repository.get_tags_from_all_commits(commits)
 
         versions_list = []
         for commit, count in versions:
@@ -136,31 +136,11 @@ class RepoRepository:
             raise RepoError("Name is not unique")
 
     @staticmethod
-    def is_valid_repo_url(repo: Repo):
-        url = repo.repo_url
-        if url[-4:] != '.git' or not (url.find('https://') == 0 or url.find('http://') == 0):
-            raise RepoError(
-                "Repo URL is not correct check the .git at the end of the link and the correctness of https / http"
-            )
-
-    @staticmethod
     def is_valid_private_repo(data: RepoCreate or RepoUpdate):
         if not data.is_public_repository and (
             not data.credentials or (not data.credentials.username or not data.credentials.pat_token)
         ):
             raise RepoError('No valid credentials')
-
-    @staticmethod
-    def is_private_repository(repo: Repo):
-        if repo.is_public_repository:
-            raise RepoError('Is public repo')
-
-    @staticmethod
-    def is_valid_platform(repo: RepoCreate):
-        if repo.platform not in list(GitPlatform):
-            raise RepoError(
-                'Platform {} is not supported - available: {}'.format(repo.platform, ", ".join(list(GitPlatform)))
-            )
 
     @staticmethod
     def is_valid_compilable_repo(repo: RepoUpdate):
@@ -169,7 +149,7 @@ class RepoRepository:
 
     def is_valid_auto_updated_repo(self, repo: Repo):
         # not commit for last commit or not tags for last tags auto update
-        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo):
+        if repo.is_auto_update_repo and not self.git_local_repository.get_target_repo_version(repo):
             raise RepoError('Invalid auto updated target version')
 
     def is_valid_no_auto_updated_repo(self, repo: Repo):
@@ -178,5 +158,5 @@ class RepoRepository:
 
         # check commit and branch for not auto updated repo
         if not repo.is_auto_update_repo:
-            self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
-            self.git_repo_repository.is_valid_commit(repo, repo.default_branch, repo.default_commit)
+            self.git_local_repository.is_valid_branch(repo, repo.default_branch)
+            self.git_local_repository.is_valid_commit(repo, repo.default_branch, repo.default_commit)
