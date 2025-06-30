@@ -22,7 +22,7 @@ from app.dto.enum import (
     ReservedOutputBaseTopic,
     UnitFirmwareUpdateStatus,
 )
-from app.repositories.git_local_repository import GitLocalRepository
+from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
@@ -104,8 +104,8 @@ async def message_to_topic(client, topic, payload, qos, properties):
                 repo_repository = RepoRepository(db)
                 repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
 
-                git_local_repository = GitLocalRepository()
-                target_commit, target_tag = git_local_repository.get_target_unit_version(repo, unit)
+                git_repo_repository = GitRepoRepository()
+                target_commit, target_tag = git_repo_repository.get_target_unit_version(repo, unit)
 
                 delta = (current_datetime - unit.last_firmware_update_datetime).total_seconds()
                 if target_commit == unit.current_commit_version:
