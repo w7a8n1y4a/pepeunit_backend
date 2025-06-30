@@ -41,13 +41,7 @@ class RepositoryRegistryRepository:
     def get_all(self) -> list[RepositoryRegistry]:
         return self.db.query(RepositoryRegistry).all()
 
-    def is_valid_url(self, repository_registry: RepositoryRegistry) -> Optional[RepositoryRegistry]:
-        url = repository_registry.repository_url
-        if url[-4:] != '.git' or not (url.find('https://') == 0 or url.find('http://') == 0):
-            raise RepositoryRegistryError(
-                "RepositoryRegistry URL is not correct check the .git at the end of the link and the correctness of https / http"
-            )
-
+    def get_by_url(self, repository_registry: RepositoryRegistry) -> Optional[RepositoryRegistry]:
         return (
             self.db.query(RepositoryRegistry)
             .filter(RepositoryRegistry.repository_url == repository_registry.repository_url)
