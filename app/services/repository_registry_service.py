@@ -2,9 +2,9 @@ import datetime
 
 from fastapi import Depends
 
-from app.configs.errors import RepositoryRegistryError
+from app.configs.errors import GitRepoError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
-from app.dto.enum import AgentType, GitPlatform
+from app.dto.enum import AgentType, GitPlatform, RepositoryRegistryStatus
 from app.dto.repository_registry import Credentials, RepositoryRegistryCreate
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
@@ -29,7 +29,18 @@ class RepositoryRegistryService:
         self, repository_registry: RepositoryRegistry, credentials: Credentials | None = None
     ) -> None:
 
-        self.repository_registry_repository.update()
+        try:
+            self.git_repo_repository.clone_remote_repo()
+            repository_registry.sync_status = RepositoryRegistryStatus.UPDATED
+            repository_registry.sync_error = None
+        except GitRepoError as e:
+            repository_registry.sync_status = RepositoryRegistryStatus.ERROR
+            repository_registry.sync_error = e
+
+        repository_registry.releases = self.git_repo_repository.get_releases()
+        repository_registry.local_repository_size = self.git_repo_repository.local_repository_size()
+
+        self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
     def create(self, data: RepositoryRegistryCreate) -> RepositoryRegistry:
         self.access_service.authorization.check_access([AgentType.USER])

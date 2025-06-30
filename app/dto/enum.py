@@ -345,3 +345,13 @@ class AggregationFunctions(str, enum.Enum):
     MIN = "Min"
     MAX = "Max"
     SUM = "Sum"
+
+
+@strawberry.enum
+class RepositoryRegistryStatus(str, enum.Enum):
+    """
+    Types of state RepositoryRegistry
+    """
+
+    UPDATED = 'Updated'
+    ERROR = 'Error'
