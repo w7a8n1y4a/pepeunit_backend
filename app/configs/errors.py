@@ -130,3 +130,13 @@ class CipherError(CustomException):
             message_template="Cipher Error: {}",
             error_code=12,
         )
+
+
+class RepositoryRegistryError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Repository Registry Validation Error: {}",
+            error_code=13,
+        )
