@@ -53,6 +53,17 @@ class RepoRepository:
             repository_registry=RepositoryRegistryDTO(**registry.dict()), **repo.dict()
         )
 
+    def get_all_with_registry(self) -> list[RepoWithRepositoryRegistryDTO]:
+        repos = (
+            self.db.query(Repo, RepositoryRegistry)
+            .join(RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid)
+            .all()
+        )
+        return [
+            RepoWithRepositoryRegistryDTO(repository_registry=RepositoryRegistryDTO(**registry.dict()), **repo.dict())
+            for repo, registry in repos
+        ]
+
     def get_credentials(self, repo: Repo) -> Optional[Credentials]:
         full_repo = self.db.get(Repo, repo.uuid)
         if not full_repo.cipher_credentials_private_repository:

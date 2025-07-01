@@ -292,28 +292,30 @@ class RepoService:
 
     def sync_local_repo_storage(self) -> None:
 
-        logging.info('run sync local repo storage')
+        logging.info('Run sync local repo storage')
 
-        current_physic_repos = self.git_repo_repository.get_current_repos()
-        current_db_repos = self.repo_repository.get_all_repo()
+        local_physic_repository = self.git_repo_repository.get_local_registry()
+        local_registry_state = self.repo_repository.get_all_with_registry()
 
-        for repo in current_db_repos:
-            if str(repo.uuid) not in current_physic_repos:
-                try:
+        updated_public_list = []
+        updated_private_list = []
+        for repo_dto in local_registry_state:
+            if str(repo_dto.get_physic_path_uuid()) not in local_physic_repository:
 
-                    if repo.is_compilable_repo:
-                        repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
+                if (
+                    repo_dto.repository_registry.is_public_repository
+                    and repo_dto.repository_registry.uuid not in updated_public_list
+                ):
+                    updated_public_list.append(repo_dto.repository_registry.uuid)
+                else:
+                    if not repo_dto.repository_registry.is_public_repository:
+                        updated_private_list.append(repo_dto.uuid)
+                    else:
+                        continue
 
-                        repo = self.repo_repository.update(repo.uuid, repo)
+                self.repository_registry_service.sync_external_repository(repo_dto)
 
-                    self.git_repo_repository.clone_remote_repo(repo)
-
-                    logging.info(f'success load: {repo.repo_url}')
-
-                except HTTPException as e:
-                    logging.warning(f'corrupt load: {repo.repo_url} {e.detail}')
-
-        logging.info('end sync local repo storage')
+        logging.info(f'Sync: {len(updated_public_list)} public, {len(updated_private_list)} private')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

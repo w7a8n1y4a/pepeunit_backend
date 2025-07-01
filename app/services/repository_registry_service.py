@@ -7,16 +7,13 @@ from app.configs.errors import GitRepoError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import AgentType, GitPlatform, RepositoryRegistryStatus
 from app.dto.repository_registry import (
-    Credentials,
     RepositoryRegistryCreate,
-    RepositoryRegistryDTO,
     RepoWithRepositoryRegistryDTO,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
-from app.utils.utils import aes_gcm_encode
 
 
 class RepositoryRegistryService:
@@ -38,6 +35,8 @@ class RepositoryRegistryService:
             RepositoryRegistry(uuid=repo_dto.repository_registry.uuid)
         )
 
+        # TODO: здесь надо делать проверку по времени
+        # TODO: здесь надо придумать механизм отмены статуса PROCESSING
         if repository_registry.sync_status == RepositoryRegistryStatus.PROCESSING:
             raise RepositoryRegistryError('Sync is not available, current state is update Processing')
         else:
@@ -52,11 +51,14 @@ class RepositoryRegistryService:
             self.git_repo_repository.clone_remote_repo(repo_dto)
             repository_registry.sync_status = RepositoryRegistryStatus.UPDATED
             repository_registry.sync_error = None
+            repository_registry.sync_last_datetime = datetime.datetime.utcnow()
         except GitRepoError as e:
             repository_registry.sync_status = RepositoryRegistryStatus.ERROR
             repository_registry.sync_error = e.message
 
-        repository_registry.releases = self.git_repo_repository.get_releases(repo_dto)
+        releases = self.git_repo_repository.get_releases(repo_dto)
+        repository_registry.releases_data = json.dumps(releases) if releases else None
+
         repository_registry.local_repository_size = self.git_repo_repository.local_repository_size(repo_dto)
 
         self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
@@ -75,26 +77,6 @@ class RepositoryRegistryService:
             repository_registry.create_datetime = datetime.datetime.utcnow()
             repository_registry.last_update_datetime = repository_registry.create_datetime
             repository_registry = self.repository_registry_repository.create(repository_registry)
-
-        # temporary dto, only for create
-        cipher_credentials = None
-        if data.credentials:
-            cipher_credentials = aes_gcm_encode(json.dumps(data.credentials.dict()))
-
-        repo_dto = RepoWithRepositoryRegistryDTO(
-            uuid=data.uuid,
-            name='',
-            create_datetime=datetime.datetime.utcnow(),
-            cipher_credentials_private_repository=cipher_credentials,
-            is_auto_update_repo=True,
-            is_only_tag_update=True,
-            is_compilable_repo=True,
-            last_update_datetime=datetime.datetime.utcnow(),
-            creator_uuid=self.access_service.current_agent.uuid,
-            repository_registry=RepositoryRegistryDTO(**repository_registry.dict()),
-        )
-
-        self.sync_external_repository(repo_dto)
 
         return repository_registry
 

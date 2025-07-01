@@ -45,12 +45,13 @@ from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
-from app.services.repo_service import RepoService
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s - %(asctime)s - %(message)s",
 )
+logging.getLogger("httpx").setLevel(logging.INFO)
+
 
 recreate_directory(settings.prometheus_multiproc_dir)
 

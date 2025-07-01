@@ -31,11 +31,16 @@ class GitRepoRepository:
     @staticmethod
     def get_platform(repo_dto: RepoWithRepositoryRegistryDTO) -> GitPlatformRepositoryABC:
         platforms_dict = {GitPlatform.GITLAB: GitlabPlatformRepository, GitPlatform.GITHUB: GithubPlatformRepository}
-
         return platforms_dict[GitPlatform(repo_dto.repository_registry.platform)](repo_dto)
 
+    @staticmethod
+    def get_path_physic_repository(repo_dto: RepoWithRepositoryRegistryDTO):
+        return f'{settings.backend_save_repo_path}/{repo_dto.get_physic_path_uuid()}'
+
     def clone_remote_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> None:
-        repo_save_path = f'{settings.backend_save_repo_path}/{repo_dto.repository_registry.uuid}'
+
+        repo_save_path = self.get_path_physic_repository(repo_dto)
+
         try:
             shutil.rmtree(repo_save_path)
         except FileNotFoundError:
@@ -59,10 +64,8 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
-    @staticmethod
-    def local_repository_size(repo_dto: RepoWithRepositoryRegistryDTO) -> int:
-        repo_save_path = f'{settings.backend_save_repo_path}/{repo_dto.repository_registry.uuid}'
-        return get_directory_size(repo_save_path)
+    def local_repository_size(self, repo_dto: RepoWithRepositoryRegistryDTO) -> int:
+        return get_directory_size(self.get_path_physic_repository(repo_dto))
 
     def get_releases(self, repo_dto: RepoWithRepositoryRegistryDTO) -> dict[str, list[tuple[str, str]]]:
 
@@ -83,10 +86,10 @@ class GitRepoRepository:
         return tmp_git_repo_path
 
     def get_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> GitRepo:
-        repo_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
-        if not os.path.exists(repo_path):
+        repo_save_path = self.get_path_physic_repository(repo_dto)
+        if not os.path.exists(repo_save_path):
             self.clone_remote_repo(repo)
-        return GitRepo(repo_path)
+        return GitRepo(repo_save_path)
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
@@ -269,7 +272,7 @@ class GitRepoRepository:
         return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
 
     @staticmethod
-    def get_current_repos() -> list[str]:
+    def get_local_registry() -> list[str]:
         path = settings.backend_save_repo_path
         return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 

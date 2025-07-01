@@ -74,3 +74,9 @@ class RepoWithRepositoryRegistryDTO(BaseModel):
             if self.cipher_credentials_private_repository
             else None
         )
+
+    def get_physic_path_uuid(self) -> uuid_pkg.UUID:
+        if self.repository_registry.is_public_repository:
+            return self.repository_registry.uuid
+        else:
+            return self.uuid
