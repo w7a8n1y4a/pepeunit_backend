@@ -15,6 +15,7 @@ from app.configs.utils import get_directory_size
 from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.dto.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
+from app.dto.repository_registry import RepoWithRepositoryRegistryDTO
 from app.repositories.git_platform_repository import (
     GithubPlatformRepository,
     GitlabPlatformRepository,
@@ -28,25 +29,25 @@ from app.utils.utils import clean_files_with_pepeignore
 class GitRepoRepository:
 
     @staticmethod
-    def get_platform(repo: Repo) -> GitPlatformRepositoryABC:
+    def get_platform(repo_dto: RepoWithRepositoryRegistryDTO) -> GitPlatformRepositoryABC:
         platforms_dict = {GitPlatform.GITLAB: GitlabPlatformRepository, GitPlatform.GITHUB: GithubPlatformRepository}
 
-        return platforms_dict[GitPlatform(repo.platform)](repo)
+        return platforms_dict[GitPlatform(repo_dto.repository_registry.platform)](repo_dto)
 
-    def clone_remote_repo(self, repo: Repo) -> None:
-        repo_save_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
+    def clone_remote_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> None:
+        repo_save_path = f'{settings.backend_save_repo_path}/{repo_dto.repository_registry.uuid}'
         try:
             shutil.rmtree(repo_save_path)
         except FileNotFoundError:
             pass
 
-        external_repo_size = self.get_platform(repo).get_repo_size()
+        external_repo_size = self.get_platform(repo_dto).get_repo_size()
         self.is_valid_repo_size(external_repo_size)
 
         try:
             # cloning repo by url
             git_repo = GitRepo.clone_from(
-                self.get_platform(repo).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
+                self.get_platform(repo_dto).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
             )
         except GitCommandError:
             raise GitRepoError('No valid repo_url or credentials')
@@ -58,8 +59,19 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
-    def get_releases(self, repo: Repo) -> dict[str, list[tuple[str, str]]]:
-        return self.get_platform(repo).get_releases()
+    @staticmethod
+    def local_repository_size(repo_dto: RepoWithRepositoryRegistryDTO) -> int:
+        repo_save_path = f'{settings.backend_save_repo_path}/{repo_dto.repository_registry.uuid}'
+        return get_directory_size(repo_save_path)
+
+    def get_releases(self, repo_dto: RepoWithRepositoryRegistryDTO) -> dict[str, list[tuple[str, str]]]:
+
+        try:
+            releases = self.get_platform(repo_dto).get_releases()
+        except:
+            releases = None
+
+        return releases
 
     def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
         tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
@@ -70,7 +82,7 @@ class GitRepoRepository:
 
         return tmp_git_repo_path
 
-    def get_repo(self, repo: Repo) -> GitRepo:
+    def get_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> GitRepo:
         repo_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
         if not os.path.exists(repo_path):
             self.clone_remote_repo(repo)

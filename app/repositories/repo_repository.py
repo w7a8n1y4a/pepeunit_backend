@@ -9,8 +9,10 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import GitPlatform
+from app.dto.repository_registry import RepositoryRegistryDTO, RepoWithRepositoryRegistryDTO
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -39,6 +41,17 @@ class RepoRepository:
 
     def get(self, repo: Repo) -> Optional[Repo]:
         return self.db.get(Repo, repo.uuid)
+
+    def get_with_registry(self, repo: Repo) -> Optional[RepoWithRepositoryRegistryDTO]:
+        repo, registry = (
+            self.db.query(Repo, RepositoryRegistry)
+            .join(RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid)
+            .filter(Repo.uuid == repo.uuid)
+            .first()
+        )
+        return RepoWithRepositoryRegistryDTO(
+            repository_registry=RepositoryRegistryDTO(**registry.dict()), **repo.dict()
+        )
 
     def get_credentials(self, repo: Repo) -> Optional[Credentials]:
         full_repo = self.db.get(Repo, repo.uuid)

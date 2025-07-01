@@ -33,6 +33,7 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
+from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.thread import _process_bulk_update_repositories
 from app.services.unit_service import UnitService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, token_depends
@@ -46,6 +47,7 @@ class RepoService:
         self,
         repo_repository: RepoRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
+        repository_registry_service: RepositoryRegistryService = Depends(),
         unit_service: UnitService = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
@@ -53,6 +55,7 @@ class RepoService:
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_repository = unit_repository
+        self.repository_registry_service = repository_registry_service
         self.unit_service = unit_service
         self.permission_service = permission_service
         self.access_service = access_service
