@@ -29,6 +29,16 @@ class RepositoryRegistryService:
         self, repository_registry: RepositoryRegistry, credentials: Credentials | None = None
     ) -> None:
 
+        if repository_registry.sync_status == RepositoryRegistryStatus.PROCESSING:
+            raise RepositoryRegistryError('Sync is not available, current state is update Processing')
+        else:
+            repository_registry.sync_status = RepositoryRegistryStatus.PROCESSING
+            repository_registry.sync_error = None
+
+            repository_registry = self.repository_registry_repository.update(
+                repository_registry.uuid, repository_registry
+            )
+
         try:
             self.git_repo_repository.clone_remote_repo()
             repository_registry.sync_status = RepositoryRegistryStatus.UPDATED

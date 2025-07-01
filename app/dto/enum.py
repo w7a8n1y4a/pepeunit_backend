@@ -354,4 +354,5 @@ class RepositoryRegistryStatus(str, enum.Enum):
     """
 
     UPDATED = 'Updated'
+    PROCESSING = 'Processing'
     ERROR = 'Error'
