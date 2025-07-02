@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import logging
@@ -5,11 +6,12 @@ import threading
 import uuid as uuid_pkg
 from typing import Optional, Union
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
+from app.dto.repository_registry import RepositoryRegistryCreate
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
@@ -36,7 +38,7 @@ from app.services.permission_service import PermissionService
 from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.thread import _process_bulk_update_repositories
 from app.services.unit_service import UnitService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, token_depends
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
 from app.utils.utils import aes_gcm_encode
 
@@ -64,26 +66,31 @@ class RepoService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         self.repo_repository.is_valid_name(data.name)
-        self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
-        self.repo_repository.is_valid_private_repo(data)
-        self.repo_repository.is_valid_platform(data)
 
-        repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+        repository_registry = self.repository_registry_service.create(RepositoryRegistryCreate(**data.dict()))
 
-        if not repo.is_public_repository:
+        repo = Repo(
+            creator_uuid=self.access_service.current_agent.uuid,
+            repository_registry_uuid=repository_registry.uuid,
+            **data.dict(),
+        )
+
+        if not repository_registry.is_public_repository:
             repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.credentials.dict()))
 
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
             repo.is_only_tag_update = True
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
         repo.create_datetime = datetime.datetime.utcnow()
         repo.last_update_datetime = repo.create_datetime
         repo = self.repo_repository.create(repo)
+        repo = copy.deepcopy(repo)
 
-        self.git_repo_repository.clone_remote_repo(repo)
         self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), repo)
+
+        repo_dto = self.repo_repository.get_with_registry(repo)
+        self.repository_registry_service.sync_external_repository(repo_dto)
 
         return self.mapper_repo_to_repo_read(repo)
 
@@ -344,11 +351,6 @@ class RepoService:
         count, repos = self.repo_repository.list(filters, restriction=restriction)
         return count, [self.mapper_repo_to_repo_read(repo) for repo in repos]
 
-    def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
-        repo = self.repo_repository.get(repo)
-        try:
-            branches = self.git_repo_repository.get_branches(repo)
-        except:
-            branches = []
-
-        return RepoRead(branches=branches, **repo.dict())
+    @staticmethod
+    def mapper_repo_to_repo_read(repo: Repo) -> RepoRead:
+        return RepoRead(**repo.dict())

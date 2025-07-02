@@ -17,11 +17,6 @@ class RepoRead(BaseModel):
     name: str
     create_datetime: datetime
 
-    repo_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
-
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
     default_commit: Optional[str] = None
@@ -30,8 +25,6 @@ class RepoRead(BaseModel):
     is_compilable_repo: bool
 
     last_update_datetime: datetime
-
-    branches: list[str]
 
     creator_uuid: uuid_pkg.UUID
 
@@ -66,7 +59,7 @@ class RepoCreate(BaseModel):
     visibility_level: VisibilityLevel
     name: str
 
-    repo_url: str
+    repository_url: str
     platform: GitPlatform
 
     is_public_repository: bool
