@@ -249,12 +249,8 @@ class RepoService:
 
         self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
-        if repo.is_compilable_repo:
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
-
-            repo = self.repo_repository.update(uuid, repo)
-
-        self.git_repo_repository.clone_remote_repo(repo)
+        repo_dto = self.repo_repository.get_with_registry(repo)
+        self.repository_registry_service.sync_external_repository(repo_dto)
 
         return None
 
@@ -265,6 +261,8 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
+
+        repo_dto = self.repo_repository.get_with_registry(repo)
 
         if not is_auto_update:
             self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
@@ -280,7 +278,7 @@ class RepoService:
             logging.info(f'Run update unit {unit.uuid}')
 
             try:
-                unit = self.unit_service.sync_state_unit_nodes_for_version(unit, repo)
+                unit = self.unit_service.sync_state_unit_nodes_for_version(unit, repo_dto)
                 self.unit_service.unit_node_service.command_to_input_base_topic(
                     uuid=unit.uuid, command=BackendTopicCommand.UPDATE, is_auto_update=True
                 )

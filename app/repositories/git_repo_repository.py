@@ -76,8 +76,10 @@ class GitRepoRepository:
 
         return releases
 
-    def generate_tmp_git_repo(self, repo: Repo, commit: str, gen_uuid: uuid_pkg.UUID) -> str:
-        tmp_git_repo = self.get_tmp_repo(repo, gen_uuid)
+    def generate_tmp_git_repo(
+        self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str, gen_uuid: uuid_pkg.UUID
+    ) -> str:
+        tmp_git_repo = self.get_tmp_repo(repo_dto, gen_uuid)
         tmp_git_repo.git.checkout(commit)
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
@@ -95,9 +97,9 @@ class GitRepoRepository:
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
         return f'tmp/{gen_uuid}'
 
-    def get_tmp_repo(self, repo: Repo, gen_uuid: uuid_pkg.UUID) -> GitRepo:
+    def get_tmp_repo(self, repo_dto: RepoWithRepositoryRegistryDTO, gen_uuid: uuid_pkg.UUID) -> GitRepo:
         tmp_path = self.get_tmp_path(gen_uuid)
-        current_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
+        current_path = self.get_path_physic_repository(repo_dto)
 
         shutil.copytree(current_path, tmp_path)
 
@@ -215,19 +217,19 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
-    def get_target_unit_version(self, repo: Repo, unit: Unit) -> tuple[str, Optional[str]]:
+    def get_target_unit_version(self, repo_dto: RepoWithRepositoryRegistryDTO, unit: Unit) -> tuple[str, Optional[str]]:
 
         target_commit = None
         if unit.is_auto_update_from_repo_unit:
-            repo_target = self.get_target_repo_version(repo)
+            repo_target = self.get_target_repo_version(repo_dto)
             target_commit = {'commit': repo_target[0], 'tag': repo_target[1]}
         else:
-            self.is_valid_branch(repo, unit.repo_branch)
-            all_commits = self.get_branch_commits_with_tag(repo, unit.repo_branch)
+            self.is_valid_branch(repo_dto, unit.repo_branch)
+            all_commits = self.get_branch_commits_with_tag(repo_dto, unit.repo_branch)
             target_commit = self.find_by_commit(all_commits, unit.repo_commit)
 
             if target_commit:
-                if repo.is_compilable_repo and target_commit['tag'] is None:
+                if repo_dto.is_compilable_repo and target_commit['tag'] is None:
                     raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
@@ -235,8 +237,8 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
-    def get_file(self, repo: Repo, commit: str, path: str) -> io.BytesIO:
-        repo = self.get_repo(repo)
+    def get_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str, path: str) -> io.BytesIO:
+        repo = self.get_repo(repo_dto)
 
         if commit is None:
             raise GitRepoError('Commit not found')
@@ -252,20 +254,20 @@ class GitRepoRepository:
 
         return buffer
 
-    def get_schema_dict(self, repo: Repo, commit: str) -> dict:
+    def get_schema_dict(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> dict:
         target_file = StaticRepoFileName.SCHEMA_EXAMPLE
-        schema_buffer = self.get_file(repo, commit, target_file)
+        schema_buffer = self.get_file(repo_dto, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
-    def get_env_dict(self, repo: Repo, commit: str) -> dict:
+    def get_env_dict(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> dict:
         target_file = StaticRepoFileName.ENV_EXAMPLE
-        schema_buffer = self.get_file(repo, commit, target_file)
+        schema_buffer = self.get_file(repo_dto, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
-    def get_env_example(self, repo: Repo, commit: str) -> dict:
+    def get_env_example(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> dict:
         is_valid_object(commit)
 
-        env_dict = self.get_env_dict(repo, commit)
+        env_dict = self.get_env_dict(repo_dto, commit)
 
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
@@ -281,8 +283,8 @@ class GitRepoRepository:
         shutil.rmtree(f'{settings.backend_save_repo_path}/{repo.uuid}', ignore_errors=True)
         return None
 
-    def is_valid_schema_file(self, repo: Repo, commit: str) -> None:
-        schema_dict = self.get_schema_dict(repo, commit)
+    def is_valid_schema_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> None:
+        schema_dict = self.get_schema_dict(repo_dto, commit)
 
         binding_schema_keys = [i.value for i in DestinationTopicType]
 
@@ -312,8 +314,8 @@ class GitRepoRepository:
         if current_len >= max_value:
             raise GitRepoError('The length {} of the topic title is too long, max: {}'.format(current_len, max_value))
 
-    def is_valid_env_file(self, repo: Repo, commit: str, env: dict) -> None:
-        env_example_dict = self.get_env_dict(repo, commit)
+    def is_valid_env_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str, env: dict) -> None:
+        env_example_dict = self.get_env_dict(repo_dto, commit)
 
         unresolved_set = env_example_dict.keys() - env.keys()
         if unresolved_set != set():
@@ -335,13 +337,13 @@ class GitRepoRepository:
                 return item
         return None
 
-    def is_valid_firmware_platform(self, repo: Repo, unit: Unit, firmware_platform: str):
+    def is_valid_firmware_platform(self, repo_dto: RepoWithRepositoryRegistryDTO, unit: Unit, firmware_platform: str):
 
-        if repo.is_compilable_repo:
-            is_valid_object(repo.releases_data)
+        if repo_dto.is_compilable_repo:
+            is_valid_object(repo_dto.releases_data)
 
-            releases = is_valid_json(repo.releases_data, "releases for compile repo")
-            target_commit, target_tag = self.get_target_unit_version(repo, unit)
+            releases = is_valid_json(repo_dto.releases_data, "releases for compile repo")
+            target_commit, target_tag = self.get_target_unit_version(repo_dto, unit)
 
             target_platforms = releases.get(target_tag)
 

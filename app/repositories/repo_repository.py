@@ -117,7 +117,9 @@ class RepoRepository:
         return self.db.query(Repo).all()
 
     def list(self, filters: RepoFilter, restriction: list[str] = None) -> tuple[int, list[Repo]]:
-        query = self.db.query(Repo)
+        query = self.db.query(Repo, RepositoryRegistry).join(
+            RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid
+        )
 
         filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
         if filters.uuids:
@@ -135,7 +137,7 @@ class RepoRepository:
         if filters.is_auto_update_repo is not None:
             query = query.filter(Repo.is_auto_update_repo == filters.is_auto_update_repo)
 
-        fields = [Repo.name, Repo.repo_url, Repo.default_branch]
+        fields = [Repo.name, RepositoryRegistry.repository_url, Repo.default_branch]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {'visibility_level': Repo.visibility_level}
@@ -147,7 +149,7 @@ class RepoRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return count, query.all()
+        return count, [item[0] for item in query.all()]
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 

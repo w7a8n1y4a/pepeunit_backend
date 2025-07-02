@@ -234,10 +234,11 @@ class UnitNodeService:
             self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        repo_dto = self.repo_repository.get_with_registry(repo)
 
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
+        self.git_repo_repository.is_valid_firmware_platform(repo_dto, unit, unit.target_firmware_platform)
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo_dto, unit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repo_dto, target_version)
 
         command_to_topic_dict = {
             BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
