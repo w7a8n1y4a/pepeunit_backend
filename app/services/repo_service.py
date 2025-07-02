@@ -11,7 +11,7 @@ from fastapi import Depends
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
-from app.dto.repository_registry import RepositoryRegistryCreate
+from app.dto.repository_registry import RepositoryRegistryCreate, RepoWithRepositoryRegistryDTO
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
@@ -110,9 +110,11 @@ class RepoService:
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
 
-        self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
+        repo_dto = self.repo_repository.get_with_registry(repo)
 
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
+        self.git_repo_repository.is_valid_branch(repo_dto, filters.repo_branch)
+
+        commits = self.git_repo_repository.get_branch_commits_with_tag(repo_dto, filters.repo_branch)
 
         commits_with_tag = self.git_repo_repository.get_tags_from_all_commits(commits) if filters.only_tag else commits
 
@@ -128,9 +130,13 @@ class RepoService:
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
 
+        repo_dto = self.repo_repository.get_with_registry(repo)
+
+        print(repo_dto)
+
         platforms = []
-        if repo.is_compilable_repo and repo.releases_data:
-            releases = is_valid_json(repo.releases_data, "releases for compile repo")
+        if repo_dto.is_compilable_repo and repo_dto.repository_registry.releases_data:
+            releases = is_valid_json(repo_dto.repository_registry.releases_data, "releases for compile repo")
 
             if target_tag:
                 try:
@@ -138,12 +144,12 @@ class RepoService:
                 except KeyError:
                     pass
             elif target_commit:
-                commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+                commits = self.git_repo_repository.get_branch_commits_with_tag(repo_dto, repo.default_branch)
                 commit = self.git_repo_repository.find_by_commit(commits, target_commit)
                 if commit and commit.get('tag'):
                     platforms = releases[commit['tag']]
             else:
-                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo)
+                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo_dto)
                 platforms = releases[target_tag]
 
         return platforms
@@ -163,13 +169,15 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
+        repo_dto = self.repo_repository.get_with_registry(repo)
+
         self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         if data.name:
             self.repo_repository.is_valid_name(data.name, uuid)
 
         if data.default_branch:
-            self.git_repo_repository.is_valid_branch(repo, data.default_branch)
+            self.git_repo_repository.is_valid_branch(repo_dto, data.default_branch)
 
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
@@ -180,14 +188,15 @@ class RepoService:
         is_valid_visibility_level(update_repo, [unit[0] for unit in child_units])
 
         if data.default_commit:
-            self.git_repo_repository.is_valid_commit(repo, update_repo.default_branch, data.default_commit)
+            self.git_repo_repository.is_valid_commit(repo_dto, update_repo.default_branch, data.default_commit)
 
-        self.repo_repository.is_valid_auto_updated_repo(update_repo)
-        self.repo_repository.is_valid_no_auto_updated_repo(update_repo)
-        self.repo_repository.is_valid_compilable_repo(update_repo)
+        update_repo_dto = RepoWithRepositoryRegistryDTO(
+            repository_registry=repo_dto.repository_registry, **update_repo.dict()
+        )
 
-        if update_repo.is_compilable_repo:
-            update_repo.releases_data = json.dumps(self.git_repo_repository.get_releases(update_repo))
+        self.repo_repository.is_valid_auto_updated_repo(update_repo_dto)
+        self.repo_repository.is_valid_no_auto_updated_repo(update_repo_dto)
+        self.repo_repository.is_valid_compilable_repo(update_repo_dto)
 
         repo = self.repo_repository.update(uuid, update_repo)
 

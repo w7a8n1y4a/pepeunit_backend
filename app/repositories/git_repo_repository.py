@@ -123,28 +123,28 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.set_url(self.get_platform(repo).get_cloning_url())
 
-    def get_branches(self, repo: Repo) -> list[str]:
-        repo = self.get_repo(repo)
+    def get_branches(self, repo_dto: RepoWithRepositoryRegistryDTO) -> list[str]:
+        repo = self.get_repo(repo_dto)
         return [r.remote_head for r in repo.remote().refs][1:]
 
-    def get_branch_commits(self, repo: Repo, branch: str, depth: int = None) -> list[dict]:
+    def get_branch_commits(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str, depth: int = None) -> list[dict]:
         """
         Get all commits for branch with depth
         """
 
-        self.is_valid_branch(repo, branch)
+        self.is_valid_branch(repo_dto, branch)
 
-        repo = self.get_repo(repo)
+        repo = self.get_repo(repo_dto)
         rev_list = repo.git.rev_list(f'remotes/origin/{branch}', max_count=depth, pretty='%H|%s')
         commits = rev_list.strip().split("\n")
         return [{'commit': line.split('|')[0], 'summary': line.split('|')[1]} for line in commits if '|' in line]
 
-    def get_branch_tags(self, repo: Repo, commits: set) -> list[dict]:
+    def get_branch_tags(self, repo_dto: RepoWithRepositoryRegistryDTO, commits: set) -> list[dict]:
         """
         Get all commits with tags for branch
         """
 
-        repo = self.get_repo(repo)
+        repo = self.get_repo(repo_dto)
         tags = []
         for tag in repo.tags:
             commit_hash = tag.commit.hexsha
@@ -152,13 +152,13 @@ class GitRepoRepository:
                 tags.append({'commit': commit_hash, 'summary': tag.commit.summary, 'tag': tag.name})
         return tags[::-1]
 
-    def get_branch_commits_with_tag(self, repo: Repo, branch: str) -> list[dict]:
+    def get_branch_commits_with_tag(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str) -> list[dict]:
         """
         Get all commits for branch, with tags
         """
 
-        commits = self.get_branch_commits(repo, branch)
-        tags = self.get_branch_tags(repo, {item['commit'] for item in commits})
+        commits = self.get_branch_commits(repo_dto, branch)
+        tags = self.get_branch_tags(repo_dto, {item['commit'] for item in commits})
 
         commits_with_tag = []
         for commit in commits:
@@ -184,30 +184,30 @@ class GitRepoRepository:
                 return item
         return None
 
-    def get_target_repo_version(self, repo: Repo) -> tuple[str, Optional[str]]:
-        self.is_valid_branch(repo, repo.default_branch)
+    def get_target_repo_version(self, repo_dto: RepoWithRepositoryRegistryDTO) -> tuple[str, Optional[str]]:
+        self.is_valid_branch(repo_dto, repo_dto.default_branch)
 
-        all_commits = self.get_branch_commits_with_tag(repo, repo.default_branch)
+        all_commits = self.get_branch_commits_with_tag(repo_dto, repo_dto.default_branch)
         tags = self.get_tags_from_all_commits(all_commits)
 
         target_commit = None
-        if repo.is_auto_update_repo:
-            if repo.is_compilable_repo:
+        if repo_dto.is_auto_update_repo:
+            if repo_dto.is_compilable_repo:
                 if len(tags) != 0:
                     target_commit = tags[0]
             else:
-                if repo.is_only_tag_update:
+                if repo_dto.is_only_tag_update:
                     if len(tags) != 0:
                         target_commit = tags[0]
                 else:
                     target_commit = all_commits[0]
 
         else:
-            self.is_valid_commit(repo, repo.default_branch, repo.default_commit)
+            self.is_valid_commit(repo_dto, repo_dto.default_branch, repo_dto.default_commit)
 
-            target_commit = self.find_by_commit(all_commits, repo.default_commit)
+            target_commit = self.find_by_commit(all_commits, repo_dto.default_commit)
 
-            if repo.is_compilable_repo and target_commit['tag'] is None:
+            if repo_dto.is_compilable_repo and target_commit['tag'] is None:
                 raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
@@ -319,13 +319,13 @@ class GitRepoRepository:
         if unresolved_set != set():
             raise GitRepoError('This env file has {} unresolved variable'.format(unresolved_set))
 
-    def is_valid_branch(self, repo: Repo, branch: str):
-        available_branches = self.get_branches(repo)
+    def is_valid_branch(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str):
+        available_branches = self.get_branches(repo_dto)
         if not branch or branch not in available_branches:
             raise GitRepoError('Branch {} not found, available: {}'.format(branch, available_branches))
 
-    def is_valid_commit(self, repo: Repo, branch: str, commit: str):
-        if commit not in [commit_dict['commit'] for commit_dict in self.get_branch_commits(repo, branch)]:
+    def is_valid_commit(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str, commit: str):
+        if commit not in [commit_dict['commit'] for commit_dict in self.get_branch_commits(repo_dto, branch)]:
             raise GitRepoError('Commit {} not in branch {}'.format(commit, branch))
 
     @staticmethod

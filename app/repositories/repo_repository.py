@@ -88,7 +88,9 @@ class RepoRepository:
             self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
         )
 
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+        repo_dto = self.get_with_registry(repo)
+
+        commits = self.git_repo_repository.get_branch_commits_with_tag(repo_dto, repo.default_branch)
         tags = self.git_repo_repository.get_tags_from_all_commits(commits)
 
         versions_list = []
@@ -187,20 +189,20 @@ class RepoRepository:
             )
 
     @staticmethod
-    def is_valid_compilable_repo(repo: RepoUpdate):
-        if repo.is_compilable_repo and repo.is_auto_update_repo and not repo.is_only_tag_update:
+    def is_valid_compilable_repo(repo_dto: RepoWithRepositoryRegistryDTO):
+        if repo_dto.is_compilable_repo and repo_dto.is_auto_update_repo and not repo_dto.is_only_tag_update:
             raise RepoError('Compiled repositories use only tags when updating automatically')
 
-    def is_valid_auto_updated_repo(self, repo: Repo):
+    def is_valid_auto_updated_repo(self, repo_dto: RepoWithRepositoryRegistryDTO):
         # not commit for last commit or not tags for last tags auto update
-        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo):
+        if repo_dto.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo_dto):
             raise RepoError('Invalid auto updated target version')
 
-    def is_valid_no_auto_updated_repo(self, repo: Repo):
-        if not repo.is_auto_update_repo and (not repo.default_branch or not repo.default_commit):
+    def is_valid_no_auto_updated_repo(self, repo_dto: RepoWithRepositoryRegistryDTO):
+        if not repo_dto.is_auto_update_repo and (not repo_dto.default_branch or not repo_dto.default_commit):
             raise RepoError('Repo updated manually requires branch and commit to be filled out')
 
         # check commit and branch for not auto updated repo
-        if not repo.is_auto_update_repo:
-            self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
-            self.git_repo_repository.is_valid_commit(repo, repo.default_branch, repo.default_commit)
+        if not repo_dto.is_auto_update_repo:
+            self.git_repo_repository.is_valid_branch(repo_dto, repo_dto.default_branch)
+            self.git_repo_repository.is_valid_commit(repo_dto, repo_dto.default_branch, repo_dto.default_commit)
