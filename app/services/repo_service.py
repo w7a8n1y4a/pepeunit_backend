@@ -337,12 +337,14 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
+        repo_dto = self.repo_repository.get_with_registry(repo)
+
         self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
 
         count, unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)
 
-        self.git_repo_repository.delete_repo(repo)
+        self.git_repo_repository.delete_repo(repo_dto)
         self.repo_repository.delete(repo)
 
         return None

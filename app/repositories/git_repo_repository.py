@@ -105,25 +105,11 @@ class GitRepoRepository:
 
         return GitRepo(tmp_path)
 
-    @staticmethod
-    def get_url(repo: Repo, data: Optional[Credentials]):
-        repo_url = repo.repo_url
-        if not repo.is_public_repository:
-            repo_url = repo_url.replace('https://', f"https://{data.username}:{data.pat_token}@").replace(
-                'http://', f"http://{data.username}:{data.pat_token}@"
-            )
-
-        return repo_url
-
-    def update_credentials(self, repo: Repo):
-        try:
-            git_repo = self.get_repo(repo)
-        except git.NoSuchPathError:
-            self.clone_remote_repo(repo)
-            git_repo = self.get_repo(repo)
+    def update_credentials(self, repo_dto: RepoWithRepositoryRegistryDTO):
+        git_repo = self.get_repo(repo_dto)
 
         for remote in git_repo.remotes:
-            remote.set_url(self.get_platform(repo).get_cloning_url())
+            remote.set_url(self.get_platform(repo_dto).get_cloning_url())
 
     def get_branches(self, repo_dto: RepoWithRepositoryRegistryDTO) -> list[str]:
         repo = self.get_repo(repo_dto)
@@ -278,9 +264,8 @@ class GitRepoRepository:
         path = settings.backend_save_repo_path
         return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 
-    @staticmethod
-    def delete_repo(repo: Repo) -> None:
-        shutil.rmtree(f'{settings.backend_save_repo_path}/{repo.uuid}', ignore_errors=True)
+    def delete_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> None:
+        shutil.rmtree(self.get_path_physic_repository(repo_dto), ignore_errors=True)
         return None
 
     def is_valid_schema_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> None:
