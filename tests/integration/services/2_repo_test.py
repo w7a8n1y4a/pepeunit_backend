@@ -2,9 +2,10 @@ import logging
 
 import pytest
 
-from app.configs.errors import GitRepoError, RepoError
+from app.configs.errors import GitRepoError, RepoError, RepositoryRegistryError
 from app.configs.rest import get_repo_service
 from app.domain.repo_model import Repo
+from app.dto.enum import RepositoryRegistryStatus
 from app.schemas.pydantic.repo import CommitFilter, Credentials, RepoCreate, RepoFilter, RepoUpdate
 
 
@@ -34,21 +35,23 @@ def test_create_repo(test_repos, database, cc) -> None:
         repo_service.create(RepoCreate(**test_repos[0]))
 
     # check create repo with bad link
-    with pytest.raises(RepoError):
+    with pytest.raises(RepositoryRegistryError):
         bad_link_repo = RepoCreate(**test_repos[0])
         bad_link_repo.name += 'test'
-        bad_link_repo.repo_url += 't'
+        bad_link_repo.repository_url += 't'
 
         repo_service.create(bad_link_repo)
 
     # check create repo with bad credentials
-    with pytest.raises(RepoError):
-        bad_credentials_repo = RepoCreate(**test_repos[0])
-        bad_credentials_repo.name += 'test'
-        bad_credentials_repo.repo_url += 't'
-        bad_credentials_repo.credentials.pat_token += 't'
+    bad_credentials_repo = RepoCreate(**test_repos[0])
+    bad_credentials_repo.name += 'test'
+    bad_credentials_repo.credentials.pat_token += 't'
 
-        repo_service.create(bad_credentials_repo)
+    bad_credentials_repo = repo_service.create(bad_credentials_repo)
+
+    repo_dto = repo_service.repo_repository.get_with_registry(Repo(uuid=bad_credentials_repo.uuid))
+
+    assert repo_dto.repository_registry.sync_status == RepositoryRegistryStatus.ERROR
 
 
 @pytest.mark.run(order=1)

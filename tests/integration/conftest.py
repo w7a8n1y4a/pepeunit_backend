@@ -150,7 +150,7 @@ def test_repos() -> list[dict]:
         {
             'visibility_level': repo['type'],
             'name': f'test_{inc}_{test_hash}',
-            'repo_url': repo['link'],
+            'repository_url': repo['link'],
             'is_public_repository': repo['is_public'],
             'platform': repo['platform'],
             'is_compilable_repo': repo['compile'] if 'compile' in repo else False,
