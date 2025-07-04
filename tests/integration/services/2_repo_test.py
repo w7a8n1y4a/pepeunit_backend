@@ -5,7 +5,6 @@ import pytest
 from app.configs.errors import GitRepoError, RepoError, RepositoryRegistryError
 from app.configs.rest import get_repo_service
 from app.domain.repo_model import Repo
-from app.dto.enum import RepositoryRegistryStatus
 from app.schemas.pydantic.repo import CommitFilter, Credentials, RepoCreate, RepoFilter, RepoUpdate
 
 
@@ -24,7 +23,9 @@ def test_create_repo(test_repos, database, cc) -> None:
             test_repo['is_only_tag_update'] = True
 
         repo = repo_service.create(RepoCreate(**test_repo))
-        new_repos.append(repo)
+        repo_dto = repo_service.repo_repository.get_with_registry(Repo(uuid=repo.uuid))
+
+        new_repos.append(repo_dto)
 
     assert len(new_repos) >= len(test_repos)
 
@@ -48,10 +49,8 @@ def test_create_repo(test_repos, database, cc) -> None:
     bad_credentials_repo.credentials.pat_token += 't'
 
     bad_credentials_repo = repo_service.create(bad_credentials_repo)
-
-    repo_dto = repo_service.repo_repository.get_with_registry(Repo(uuid=bad_credentials_repo.uuid))
-
-    assert repo_dto.repository_registry.sync_status == RepositoryRegistryStatus.ERROR
+    with pytest.raises(GitRepoError):
+        repo_service.repo_repository.get_with_registry(Repo(uuid=bad_credentials_repo.uuid))
 
 
 @pytest.mark.run(order=1)
@@ -67,7 +66,7 @@ def test_update_repo(database, cc) -> None:
         logging.info(update_repo.uuid)
 
         new_repo_state = RepoUpdate(
-            default_branch=update_repo.branches[0],
+            default_branch=update_repo.repository_registry.branches[0],
             is_only_tag_update=True if update_repo.is_compilable_repo else update_repo.is_only_tag_update,
         )
         repo_service.update(update_repo.uuid, new_repo_state)
@@ -89,10 +88,10 @@ def test_update_repo(database, cc) -> None:
     # check change repo auto update to hand update
     repo = pytest.repos[4]
     logging.info(repo.uuid)
-    commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+    commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.repository_registry.branches[0]))
     new_repo_state = RepoUpdate(
         is_auto_update_repo=False,
-        default_branch=repo.branches[0],
+        default_branch=repo.repository_registry.branches[0],
         default_commit=commits[0].commit,
     )
     update_repo = repo_service.update(repo.uuid, new_repo_state)
@@ -106,11 +105,13 @@ def test_update_repo(database, cc) -> None:
 
         if inc == 0:
 
-            commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+            commits = repo_service.get_branch_commits(
+                repo.uuid, CommitFilter(repo_branch=repo.repository_registry.branches[0])
+            )
 
             new_repo_state = RepoUpdate(
                 is_auto_update_repo=False,
-                default_branch=repo.branches[0],
+                default_branch=repo.repository_registry.branches[0],
                 default_commit=commits[0].commit,
             )
         elif inc == 1:
@@ -122,9 +123,11 @@ def test_update_repo(database, cc) -> None:
 
     # set for compile repo default branch
     new_repo_state = RepoUpdate(
-        default_branch=pytest.repos[-1].branches[0],
+        default_branch=pytest.repos[-1].repository_registry.branches[0],
     )
-    pytest.repos[-1] = repo_service.update(pytest.repos[-1].uuid, new_repo_state)
+
+    repo = repo_service.update(pytest.repos[-1].uuid, new_repo_state)
+    pytest.repos[-1] = repo_service.repo_repository.get_with_registry(Repo(uuid=repo.uuid))
 
 
 @pytest.mark.run(order=2)
@@ -134,10 +137,10 @@ def test_get_commits_repo(database, cc) -> None:
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # check get repo commits - first 10
-    target_repo = repo_service.get(pytest.repos[5].uuid)
+    target_repo = pytest.repos[5]
     logging.info(target_repo.uuid)
     branch_commits = repo_service.get_branch_commits(
-        target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0], limit=1000)
+        target_repo.uuid, CommitFilter(repo_branch=target_repo.repository_registry.branches[0], limit=1000)
     )
 
     # check first commit repo
@@ -145,7 +148,9 @@ def test_get_commits_repo(database, cc) -> None:
 
     # check get commits for bad branch
     with pytest.raises(GitRepoError):
-        repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0] + 'test'))
+        repo_service.get_branch_commits(
+            target_repo.uuid, CommitFilter(repo_branch=target_repo.repository_registry.branches[0] + 'test')
+        )
 
 
 @pytest.mark.run(order=3)
@@ -167,6 +172,8 @@ def test_get_available_platforms(database, cc) -> None:
     # check get with bad tag
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_tag='0.0.0.0')
     assert len(platforms) == 0
+
+    print(type(target_repo))
 
     commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
 

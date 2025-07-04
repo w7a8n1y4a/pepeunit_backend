@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid as uuid_pkg
 
 from fastapi import Depends
 
@@ -12,8 +13,10 @@ from app.dto.repository_registry import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.schemas.pydantic.repository_registry import RepositoryRegistryRead
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
+from app.services.validators import is_valid_object
 
 
 class RepositoryRegistryService:
@@ -79,6 +82,13 @@ class RepositoryRegistryService:
             repository_registry = self.repository_registry_repository.create(repository_registry)
 
         return repository_registry
+
+    def get(self, uuid: uuid_pkg.UUID) -> RepositoryRegistryRead:
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
+        is_valid_object(repository_registry)
+        self.access_service.authorization.check_visibility(repository_registry)
+        return RepositoryRegistryRead(**repository_registry.dict())
 
     @staticmethod
     def is_valid_repo_url(repository_registry: RepositoryRegistryCreate | RepositoryRegistry):

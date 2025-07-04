@@ -42,6 +42,8 @@ class RepositoryRegistryDTO(BaseModel):
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
 
+    branches: list[str] = ()
+
 
 class RepoWithRepositoryRegistryDTO(BaseModel):
     uuid: uuid_pkg.UUID

@@ -89,9 +89,12 @@ class GitRepoRepository:
 
     def get_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> GitRepo:
         repo_save_path = self.get_path_physic_repository(repo_dto)
-        if not os.path.exists(repo_save_path):
-            self.clone_remote_repo(repo)
-        return GitRepo(repo_save_path)
+        try:
+            repo = GitRepo(repo_save_path)
+        except:
+            raise GitRepoError('Physic repository not exist')
+
+        return repo
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
@@ -103,7 +106,12 @@ class GitRepoRepository:
 
         shutil.copytree(current_path, tmp_path)
 
-        return GitRepo(tmp_path)
+        try:
+            repo = GitRepo(tmp_path)
+        except:
+            raise GitRepoError('Physic repository not exist')
+
+        return repo
 
     def update_credentials(self, repo_dto: RepoWithRepositoryRegistryDTO):
         git_repo = self.get_repo(repo_dto)
@@ -112,7 +120,9 @@ class GitRepoRepository:
             remote.set_url(self.get_platform(repo_dto).get_cloning_url())
 
     def get_branches(self, repo_dto: RepoWithRepositoryRegistryDTO) -> list[str]:
+
         repo = self.get_repo(repo_dto)
+
         return [r.remote_head for r in repo.remote().refs][1:]
 
     def get_branch_commits(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str, depth: int = None) -> list[dict]:

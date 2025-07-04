@@ -28,6 +28,8 @@ class RepoRead(BaseModel):
 
     creator_uuid: uuid_pkg.UUID
 
+    repository_registry_uuid: uuid_pkg.UUID
+
 
 class ReposResult(BaseModel):
     count: int

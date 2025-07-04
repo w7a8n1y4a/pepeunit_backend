@@ -89,7 +89,7 @@ class RepoService:
 
         self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), repo)
 
-        repo_dto = self.repo_repository.get_with_registry(repo)
+        repo_dto = self.repo_repository.get_with_registry(repo, False)
         self.repository_registry_service.sync_external_repository(repo_dto)
 
         return self.mapper_repo_to_repo_read(repo)
@@ -131,8 +131,6 @@ class RepoService:
         self.access_service.authorization.check_visibility(repo)
 
         repo_dto = self.repo_repository.get_with_registry(repo)
-
-        print(repo_dto)
 
         platforms = []
         if repo_dto.is_compilable_repo and repo_dto.repository_registry.releases_data:

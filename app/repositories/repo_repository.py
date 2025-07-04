@@ -42,27 +42,38 @@ class RepoRepository:
     def get(self, repo: Repo) -> Optional[Repo]:
         return self.db.get(Repo, repo.uuid)
 
-    def get_with_registry(self, repo: Repo) -> Optional[RepoWithRepositoryRegistryDTO]:
+    def get_with_registry(self, repo: Repo, with_branch: bool = True) -> Optional[RepoWithRepositoryRegistryDTO]:
         repo, registry = (
             self.db.query(Repo, RepositoryRegistry)
             .join(RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid)
             .filter(Repo.uuid == repo.uuid)
             .first()
         )
-        return RepoWithRepositoryRegistryDTO(
+
+        repo_dto = RepoWithRepositoryRegistryDTO(
             repository_registry=RepositoryRegistryDTO(**registry.dict()), **repo.dict()
         )
+        if with_branch:
+            repo_dto.repository_registry.branches = self.git_repo_repository.get_branches(repo_dto)
+        return repo_dto
 
-    def get_all_with_registry(self) -> list[RepoWithRepositoryRegistryDTO]:
+    def get_all_with_registry(self, with_branch: bool = True) -> list[RepoWithRepositoryRegistryDTO]:
         repos = (
             self.db.query(Repo, RepositoryRegistry)
             .join(RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid)
             .all()
         )
-        return [
+
+        repos_dto = [
             RepoWithRepositoryRegistryDTO(repository_registry=RepositoryRegistryDTO(**registry.dict()), **repo.dict())
             for repo, registry in repos
         ]
+
+        if with_branch:
+            for repo_dto in repos_dto:
+                repo_dto.repository_registry.branches = self.git_repo_repository.get_branches(repo_dto)
+
+        return repos_dto
 
     def get_credentials(self, repo: Repo) -> Optional[Credentials]:
         full_repo = self.db.get(Repo, repo.uuid)
