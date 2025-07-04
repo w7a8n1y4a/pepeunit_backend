@@ -9,6 +9,7 @@ from typing import Optional, Union
 from fastapi import Depends
 
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
 from app.dto.repository_registry import RepositoryRegistryCreate, RepoWithRepositoryRegistryDTO
@@ -210,17 +211,24 @@ class RepoService:
         is_valid_object(repo)
 
         self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
-        self.repo_repository.is_private_repository(repo)
+
+        repo_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
+        self.repository_registry_service.repository_registry_repository.is_private_repository(repo_registry)
 
         repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.dict()))
-
-        if repo.is_compilable_repo:
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
         repo.last_update_datetime = datetime.datetime.utcnow()
         repo = self.repo_repository.update(uuid, repo)
 
-        self.git_repo_repository.update_credentials(repo)
+        repo = copy.deepcopy(repo)
+
+        repo_dto = self.repo_repository.get_with_registry(repo)
+        self.git_repo_repository.update_credentials(repo_dto)
+
+        repo_dto = self.repo_repository.get_with_registry(repo)
+        self.repository_registry_service.sync_external_repository(repo_dto)
 
         return self.mapper_repo_to_repo_read(repo)
 

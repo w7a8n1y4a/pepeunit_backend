@@ -190,11 +190,6 @@ class RepoRepository:
             raise RepoError('No valid credentials')
 
     @staticmethod
-    def is_private_repository(repo: Repo):
-        if repo.is_public_repository:
-            raise RepoError('Is public repo')
-
-    @staticmethod
     def is_valid_platform(repo: RepoCreate):
         if repo.platform not in list(GitPlatform):
             raise RepoError(
