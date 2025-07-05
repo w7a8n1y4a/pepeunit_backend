@@ -140,3 +140,13 @@ class RepositoryRegistryError(CustomException):
             message_template="Repository Registry Validation Error: {}",
             error_code=13,
         )
+
+
+class GitPlatformClientError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Git Platform Client Error: {}",
+            error_code=14,
+        )

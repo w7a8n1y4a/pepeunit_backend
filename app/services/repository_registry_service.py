@@ -1,5 +1,7 @@
 import datetime
 import json
+import os
+import shutil
 import uuid as uuid_pkg
 
 from fastapi import Depends
@@ -62,9 +64,7 @@ class RepositoryRegistryService:
 
         repository_registry = self.repository_registry_repository.create(repository_registry)
 
-        self.sync_external_repository(repository_registry)
-
-        return repository_registry
+        return self.sync_external_repository(repository_registry)
 
     def get(self, uuid: uuid_pkg.UUID) -> RepositoryRegistryRead:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
@@ -73,7 +73,7 @@ class RepositoryRegistryService:
         self.access_service.authorization.check_visibility(repository_registry)
         return RepositoryRegistryRead(**repository_registry.dict())
 
-    def sync_external_repository(self, repository_registry: RepositoryRegistry) -> None:
+    def sync_external_repository(self, repository_registry: RepositoryRegistry) -> RepositoryRegistry:
 
         self.is_sync_available(repository_registry)
 
@@ -84,19 +84,34 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
         try:
-            self.git_repo_repository.clone_remote_repo(repository_registry)
+            # get size repository on external platform
+            repository_size = self.get_platform(repository_registry).get_repo_size()
+            self.is_valid_repo_size(repository_size)
+
+            # load Repository to local
+            url = self.get_platform(repository_registry).get_cloning_url()
+            repo_save_path = self.git_repo_repository.get_path_physic_repository(repository_registry)
+            self.git_repo_repository.clone(url, repo_save_path)
+
+            # get releases assets
+            releases = self.get_platform(repository_registry).get_releases()
+            repository_registry.releases_data = json.dumps(releases) if releases else None
+
+            # check real on disk size, delete repo if not valid
+            repository_size = self.git_repo_repository.local_repository_size(repository_registry)
+            self.is_valid_repo_size(
+                repo_size=repository_size,
+                delete_path=self.git_repo_repository.get_path_physic_repository(repository_registry),
+            )
+            repository_registry.local_repository_size = repository_size
+
             repository_registry.sync_status = RepositoryRegistryStatus.UPDATED
             repository_registry.sync_error = None
         except GitRepoError as e:
             repository_registry.sync_status = RepositoryRegistryStatus.ERROR
             repository_registry.sync_error = e.message
 
-        releases = self.git_repo_repository.get_releases(repository_registry)
-        repository_registry.releases_data = json.dumps(releases) if releases else None
-
-        repository_registry.local_repository_size = self.git_repo_repository.local_repository_size(repository_registry)
-
-        self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
+        return self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
     @staticmethod
     def is_valid_repo_url(repository_registry: RepositoryRegistryCreate | RepositoryRegistry):
@@ -135,3 +150,18 @@ class RepositoryRegistryService:
                         delta, settings.backend_min_interval_sync_repository
                     )
                 )
+
+    @staticmethod
+    def is_valid_repo_size(repo_size: int, delete_path: str | None = None) -> None:
+        if repo_size < 0 or repo_size > settings.backend_max_external_repo_size * 2**20:
+            if delete_path:
+                try:
+                    shutil.rmtree(delete_path)
+                except FileNotFoundError:
+                    pass
+
+            raise GitRepoError(
+                'No valid external repo size {} MB, max {} MB'.format(
+                    round(repo_size / 2**20, 2), settings.physic_repo_size
+                )
+            )

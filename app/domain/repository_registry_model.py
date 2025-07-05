@@ -1,4 +1,3 @@
-import json
 import uuid as uuid_pkg
 from datetime import datetime
 
@@ -6,6 +5,8 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
+from app.dto.enum import CredentialStatus
+from app.dto.repository_registry import Credentials, OneRepositoryRegistryCredentials
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode
 
@@ -46,11 +47,30 @@ class RepositoryRegistry(SQLModel, table=True):
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='SET NULL'), nullable=True)
     )
 
-    def get_credentials(self) -> dict | None:
+    def get_credentials(self) -> dict[str, OneRepositoryRegistryCredentials] | None:
         if self.cipher_credentials_private_repository:
-            return is_valid_json(
-                aes_gcm_decode(self.cipher_credentials_private_repository),
-                'Cipher credentials private repository',
-            )
+            return {
+                creator_uuid: OneRepositoryRegistryCredentials(**credentials)
+                for creator_uuid, credentials in is_valid_json(
+                    aes_gcm_decode(self.cipher_credentials_private_repository),
+                    'Cipher credentials private repository',
+                ).items()
+            }
         else:
             return None
+
+    @staticmethod
+    def get_first_valid_credentials(data: dict[str, OneRepositoryRegistryCredentials]) -> Credentials | None:
+        for creator_uuid, credentials in data.items():
+            if credentials.status == CredentialStatus.VALID:
+                return credentials.credentials
+        return None
+
+    @staticmethod
+    def get_credentials_by_user(
+        data: dict[str, OneRepositoryRegistryCredentials], target_user_uuid: str
+    ) -> OneRepositoryRegistryCredentials | None:
+        for user_uuid, credentials in data.items():
+            if user_uuid == target_user_uuid:
+                return credentials
+        return None

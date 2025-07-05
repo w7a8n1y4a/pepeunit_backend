@@ -1,27 +1,44 @@
-import json
 from abc import ABC, abstractmethod
 
 import httpx
 
-from app import settings
-from app.configs.errors import GitRepoError
+from app import AgentType, settings
+from app.configs.errors import GitPlatformClientError
 from app.domain.repository_registry_model import RepositoryRegistry
+from app.dto.enum import CredentialStatus, UserRole
+from app.dto.repository_registry import Credentials
 from app.services.access_service import AccessService
-from app.utils.utils import aes_gcm_decode
 
 
 class GitPlatformClientABC(ABC):
 
     def __init__(self, access_service: AccessService, repository_registry: RepositoryRegistry):
+        self.access_service = access_service
         self.repository_registry = repository_registry
-        self.credentials = None
+        self.credentials = self.get_credentials()
 
-        if not repository_registry.is_public_repository:
-            if repository_registry.cipher_credentials_private_repository:
+    def get_credentials(self) -> Credentials | None:
 
-                credentials = json.dumps(aes_gcm_decode(repository_registry.cipher_credentials_private_repository))
+        credentials_users_dict = self.repository_registry.get_credentials()
 
-                self.credentials = repo_dto.get_credentials()
+        if not self.repository_registry.is_public_repository and not credentials_users_dict:
+            raise GitPlatformClientError('Credentials Not Exists')
+
+        if self.access_service.current_agent.type == AgentType.USER:
+            if self.access_service.current_agent.role == UserRole.USER:
+                credentials = self.repository_registry.get_credentials_by_user(
+                    credentials_users_dict, str(self.access_service.current_agent.uuid)
+                )
+
+                if credentials.status == CredentialStatus.VALID:
+                    return credentials.credentials
+                else:
+                    raise GitPlatformClientError('Credentials status is {}'.format(credentials.status))
+
+            else:
+                self.credentials = self.repository_registry.get_first_valid_credentials(credentials_users_dict)
+
+        return None
 
     @abstractmethod
     def get_cloning_url(self) -> str:
@@ -89,7 +106,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
         try:
             target_id = result_data.json()['id']
         except KeyError:
-            raise GitRepoError('Invalid Credentials')
+            raise GitPlatformClientError('Invalid Credentials')
 
         return target_id
 
@@ -134,7 +151,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
         try:
             repo_size = repo_data.json()['statistics']['repository_size']
         except KeyError:
-            raise GitRepoError('Invalid Credentials')
+            raise GitPlatformClientError('Invalid Credentials')
 
         return repo_size
 
@@ -186,8 +203,8 @@ class GithubPlatformClient(GitPlatformClientABC):
             repo_size = repo_data.json()['size']
         except KeyError:
             if repo_data.status_code == 403:
-                raise GitRepoError('Rate limit external API')
+                raise GitPlatformClientError('Rate limit external API')
             else:
-                raise GitRepoError('Invalid Credentials')
+                raise GitPlatformClientError('Invalid Credentials')
 
         return repo_size * 1024
