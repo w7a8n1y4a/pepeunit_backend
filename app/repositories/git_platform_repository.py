@@ -24,7 +24,10 @@ class GitPlatformClientABC(ABC):
         if not self.repository_registry.is_public_repository and not credentials_users_dict:
             raise GitPlatformClientError('Credentials Not Exists')
 
-        if self.access_service.current_agent.type == AgentType.USER:
+        if (
+            not self.repository_registry.is_public_repository
+            and self.access_service.current_agent.type == AgentType.USER
+        ):
             if self.access_service.current_agent.role == UserRole.USER:
                 credentials = self.repository_registry.get_credentials_by_user(
                     credentials_users_dict, str(self.access_service.current_agent.uuid)

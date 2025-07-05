@@ -1,6 +1,6 @@
 import asyncio
 import hashlib
-import json
+import os
 import queue
 import shutil
 import threading
@@ -14,11 +14,10 @@ from sqlmodel import Session
 from app import settings
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
-from app.domain.repo_model import Repo
-from app.domain.unit_model import Unit
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import VisibilityLevel
-from app.schemas.pydantic.repo import Credentials
+from app.dto.repository_registry import Credentials
 from app.services.validators import is_valid_json
 from tests.client.mqtt import MQTTClient
 
@@ -29,6 +28,7 @@ def pytest_configure():
     pytest.test_hash = test_hash
     pytest.users = []
     pytest.user_tokens_dict = {}
+    pytest.repository_registries = []
     pytest.repos = []
     pytest.units = []
     pytest.edges = []
@@ -51,22 +51,26 @@ def clear_database(database) -> None:
     clear all entity in database with test_hash in field
     """
 
-    # del units
+    # del files
     shutil.rmtree('tmp/test_units', ignore_errors=True)
     shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
+    shutil.rmtree(settings.backend_save_repo_path, ignore_errors=True)
 
-    database.query(Unit).where(Unit.name.ilike(f'%{test_hash}%')).delete()
+    os.mkdir(settings.backend_save_repo_path)
+    open(f'{settings.backend_save_repo_path}/.gitkeep', 'a').close()
 
-    # clear physical repos
-    repos = database.query(Repo).where(Repo.name.ilike(f'%{test_hash}%')).all()
-    for repo in repos:
-        target_del_path = f'{settings.backend_save_repo_path}/{repo.uuid}'
-        try:
-            shutil.rmtree(target_del_path)
-        except FileNotFoundError:
-            pass
+    database.query(RepositoryRegistry).where(
+        RepositoryRegistry.repository_url.in_(
+            [
+                'https://github.com/w7a8n1y4a/github_unit_priv_test.git',
+                'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_priv_test.git',
+                'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
+                'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
+                'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+            ]
+        )
+    ).delete()
 
-    database.query(Repo).where(Repo.uuid.in_([repo.uuid for repo in repos])).delete()
     database.query(User).where(User.login.ilike(f'%{test_hash}%')).delete()
     database.commit()
 
@@ -79,6 +83,58 @@ def test_users() -> list[dict]:
             "password": f'testtest{inc}',
         }
         for inc in range(2)
+    ]
+
+
+@pytest.fixture()
+def test_external_repository() -> list[dict]:
+
+    # get private repository
+    test_external_repository = []
+    try:
+        data = is_valid_json(settings.test_integration_private_repo_json, "Private Repo")
+        if isinstance(data, str):
+            data = is_valid_json(data, "Private Repo")
+    except JSONDecodeError:
+        assert False
+
+    test_external_repository.extend(data['data'])
+
+    # add public repository
+    test_external_repository.extend(
+        [
+            {
+                'is_public': True,
+                'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
+                'platform': 'Github',
+            },
+            {
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
+                'platform': 'Gitlab',
+                'compile': True,
+            },
+            {
+                'is_public': True,
+                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+                'platform': 'Gitlab',
+            },
+        ]
+    )
+
+    return [
+        {
+            'repository_url': repo['link'],
+            'is_public_repository': repo['is_public'],
+            'platform': repo['platform'],
+            'is_compilable_repo': repo['compile'] if 'compile' in repo else False,
+            'credentials': (
+                None
+                if repo['is_public'] == True
+                else Credentials(username=repo['username'], pat_token=repo['pat_token'])
+            ),
+        }
+        for inc, repo in enumerate(test_external_repository)
     ]
 
 
