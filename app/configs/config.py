@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     backend_encrypt_key: str
     backend_static_salt: str
 
+    backend_min_interval_sync_repository: int = 10
+
     backend_state_send_interval: int = 60
     backend_max_external_repo_size: int = 50
     backend_max_cipher_length: int = 1_000_000

@@ -135,7 +135,7 @@ class RepoService:
 
         platforms = []
         if repo_dto.is_compilable_repo and repo_dto.repository_registry.releases_data:
-            releases = is_valid_json(repo_dto.repository_registry.releases_data, "releases for compile repo")
+            releases = is_valid_json(repo_dto.repository_registry.releases_data, "Releases for compile repo")
 
             if target_tag:
                 try:

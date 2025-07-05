@@ -19,6 +19,7 @@ from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.dto.enum import VisibilityLevel
 from app.schemas.pydantic.repo import Credentials
+from app.services.validators import is_valid_json
 from tests.client.mqtt import MQTTClient
 
 test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()[:5]
@@ -87,9 +88,9 @@ def test_repos() -> list[dict]:
     # get private repository
     test_repos = []
     try:
-        data = json.loads(settings.test_integration_private_repo_json)
+        data = is_valid_json(settings.test_integration_private_repo_json, "Private Repo")
         if isinstance(data, str):
-            data = json.loads(data)
+            data = is_valid_json(data, "Private Repo")
     except JSONDecodeError:
         assert False
 

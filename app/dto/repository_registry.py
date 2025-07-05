@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import GitPlatform, RepositoryRegistryStatus
+from app.dto.enum import CredentialStatus, GitPlatform, RepositoryRegistryStatus
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode
 
@@ -12,6 +12,11 @@ from app.utils.utils import aes_gcm_decode
 class Credentials(BaseModel):
     username: str
     pat_token: str
+
+
+class OneRepositoryRegistryCredentials(BaseModel):
+    credentials: Credentials
+    status: CredentialStatus
 
 
 class RepositoryRegistryDTO(BaseModel):
@@ -62,7 +67,7 @@ class RepoWithRepositoryRegistryDTO(BaseModel):
         return (
             Credentials(
                 **is_valid_json(
-                    aes_gcm_decode(self.cipher_credentials_private_repository), "cipher creeds private repository"
+                    aes_gcm_decode(self.cipher_credentials_private_repository), "Cipher creeds private repository"
                 )
             )
             if self.cipher_credentials_private_repository

@@ -13,6 +13,7 @@ import sqlmodel
 
 from sqlalchemy.orm import Session
 
+from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
 # revision identifiers, used by Alembic.
@@ -37,7 +38,7 @@ def upgrade() -> None:
         registry_credentials = {}
         for uuid, cipher_credentials_private_repository, creator_uuid, repository_registry_uuid in repos:
 
-            current_credentials = json.loads(aes_gcm_decode(cipher_credentials_private_repository))
+            current_credentials = is_valid_json(aes_gcm_decode(cipher_credentials_private_repository), "Old credentials struct")
 
             if str(repository_registry_uuid) not in registry_credentials:
                 registry_credentials[str(repository_registry_uuid)] = {}

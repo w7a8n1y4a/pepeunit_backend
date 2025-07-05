@@ -161,7 +161,7 @@ class UnitService:
         target_env_dict = self.git_repo_repository.get_env_dict(repo_dto, target_version)
 
         if unit.cipher_env_dict:
-            current_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "cipher env")
+            current_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "Cipher env")
 
             # create env with default pepeunit vars, and default repo vars
             gen_env_dict = self.gen_env_dict(unit.uuid)
@@ -208,7 +208,7 @@ class UnitService:
         env_dict = self.git_repo_repository.get_env_example(repo, target_commit)
 
         if unit.cipher_env_dict:
-            current_unit_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "cipher env")
+            current_unit_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "Cipher env")
             env_dict = merge_two_dict_first_priority(current_unit_env_dict, env_dict)
 
         target_commit, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)

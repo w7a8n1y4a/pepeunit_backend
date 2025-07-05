@@ -5,23 +5,20 @@ import uuid as uuid_pkg
 from collections import Counter
 from typing import Optional
 
-import git
 from git import Repo as GitRepo
 from git.exc import GitCommandError
 
 from app import settings
 from app.configs.errors import GitRepoError
 from app.configs.utils import get_directory_size
-from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import DestinationTopicType, GitPlatform, ReservedEnvVariableName, StaticRepoFileName
-from app.dto.repository_registry import RepoWithRepositoryRegistryDTO
 from app.repositories.git_platform_repository import (
     GithubPlatformRepository,
     GitlabPlatformRepository,
     GitPlatformRepositoryABC,
 )
-from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json, is_valid_object
 from app.utils.utils import clean_files_with_pepeignore
 
@@ -29,30 +26,32 @@ from app.utils.utils import clean_files_with_pepeignore
 class GitRepoRepository:
 
     @staticmethod
-    def get_platform(repo_dto: RepoWithRepositoryRegistryDTO) -> GitPlatformRepositoryABC:
+    def get_platform(repository_registry: RepositoryRegistry) -> GitPlatformRepositoryABC:
         platforms_dict = {GitPlatform.GITLAB: GitlabPlatformRepository, GitPlatform.GITHUB: GithubPlatformRepository}
-        return platforms_dict[GitPlatform(repo_dto.repository_registry.platform)](repo_dto)
+        return platforms_dict[GitPlatform(repository_registry.platform)](repository_registry)
 
     @staticmethod
-    def get_path_physic_repository(repo_dto: RepoWithRepositoryRegistryDTO):
-        return f'{settings.backend_save_repo_path}/{repo_dto.get_physic_path_uuid()}'
+    def get_path_physic_repository(repository_registry: RepositoryRegistry):
+        return f'{settings.backend_save_repo_path}/{repository_registry.uuid}'
 
-    def clone_remote_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> None:
+    def clone_remote_repo(self, repository_registry: RepositoryRegistry) -> None:
 
-        repo_save_path = self.get_path_physic_repository(repo_dto)
+        repo_save_path = self.get_path_physic_repository(repository_registry)
 
         try:
             shutil.rmtree(repo_save_path)
         except FileNotFoundError:
             pass
 
-        external_repo_size = self.get_platform(repo_dto).get_repo_size()
+        external_repo_size = self.get_platform(repository_registry).get_repo_size()
         self.is_valid_repo_size(external_repo_size)
 
         try:
             # cloning repo by url
             git_repo = GitRepo.clone_from(
-                self.get_platform(repo_dto).get_cloning_url(), repo_save_path, env={"GIT_TERMINAL_PROMPT": "0"}
+                self.get_platform(repository_registry).get_cloning_url(),
+                repo_save_path,
+                env={"GIT_TERMINAL_PROMPT": "0"},
             )
         except GitCommandError:
             raise GitRepoError('No valid repo_url or credentials')
@@ -64,22 +63,22 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
-    def local_repository_size(self, repo_dto: RepoWithRepositoryRegistryDTO) -> int:
-        return get_directory_size(self.get_path_physic_repository(repo_dto))
+    def local_repository_size(self, repository_registry: RepositoryRegistry) -> int:
+        return get_directory_size(self.get_path_physic_repository(repository_registry))
 
-    def get_releases(self, repo_dto: RepoWithRepositoryRegistryDTO) -> dict[str, list[tuple[str, str]]]:
+    def get_releases(self, repository_registry: RepositoryRegistry) -> dict[str, list[tuple[str, str]]]:
 
         try:
-            releases = self.get_platform(repo_dto).get_releases()
+            releases = self.get_platform(repository_registry).get_releases()
         except:
             releases = None
 
         return releases
 
     def generate_tmp_git_repo(
-        self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str, gen_uuid: uuid_pkg.UUID
+        self, repository_registry: RepositoryRegistry, commit: str, gen_uuid: uuid_pkg.UUID
     ) -> str:
-        tmp_git_repo = self.get_tmp_repo(repo_dto, gen_uuid)
+        tmp_git_repo = self.get_tmp_repo(repository_registry, gen_uuid)
         tmp_git_repo.git.checkout(commit)
 
         tmp_git_repo_path = tmp_git_repo.working_tree_dir
@@ -87,8 +86,8 @@ class GitRepoRepository:
 
         return tmp_git_repo_path
 
-    def get_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> GitRepo:
-        repo_save_path = self.get_path_physic_repository(repo_dto)
+    def get_repo(self, repository_registry: RepositoryRegistry) -> GitRepo:
+        repo_save_path = self.get_path_physic_repository(repository_registry)
         try:
             repo = GitRepo(repo_save_path)
         except:
@@ -100,9 +99,9 @@ class GitRepoRepository:
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
         return f'tmp/{gen_uuid}'
 
-    def get_tmp_repo(self, repo_dto: RepoWithRepositoryRegistryDTO, gen_uuid: uuid_pkg.UUID) -> GitRepo:
+    def get_tmp_repo(self, repository_registry: RepositoryRegistry, gen_uuid: uuid_pkg.UUID) -> GitRepo:
         tmp_path = self.get_tmp_path(gen_uuid)
-        current_path = self.get_path_physic_repository(repo_dto)
+        current_path = self.get_path_physic_repository(repository_registry)
 
         shutil.copytree(current_path, tmp_path)
 
@@ -113,36 +112,36 @@ class GitRepoRepository:
 
         return repo
 
-    def update_credentials(self, repo_dto: RepoWithRepositoryRegistryDTO):
-        git_repo = self.get_repo(repo_dto)
+    def update_credentials(self, repository_registry: RepositoryRegistry):
+        git_repo = self.get_repo(repository_registry)
 
         for remote in git_repo.remotes:
-            remote.set_url(self.get_platform(repo_dto).get_cloning_url())
+            remote.set_url(self.get_platform(repository_registry).get_cloning_url())
 
-    def get_branches(self, repo_dto: RepoWithRepositoryRegistryDTO) -> list[str]:
+    def get_branches(self, repository_registry: RepositoryRegistry) -> list[str]:
 
-        repo = self.get_repo(repo_dto)
+        repo = self.get_repo(repository_registry)
 
         return [r.remote_head for r in repo.remote().refs][1:]
 
-    def get_branch_commits(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str, depth: int = None) -> list[dict]:
+    def get_branch_commits(self, repository_registry: RepositoryRegistry, branch: str, depth: int = None) -> list[dict]:
         """
         Get all commits for branch with depth
         """
 
-        self.is_valid_branch(repo_dto, branch)
+        self.is_valid_branch(repository_registry, branch)
 
-        repo = self.get_repo(repo_dto)
+        repo = self.get_repo(repository_registry)
         rev_list = repo.git.rev_list(f'remotes/origin/{branch}', max_count=depth, pretty='%H|%s')
         commits = rev_list.strip().split("\n")
         return [{'commit': line.split('|')[0], 'summary': line.split('|')[1]} for line in commits if '|' in line]
 
-    def get_branch_tags(self, repo_dto: RepoWithRepositoryRegistryDTO, commits: set) -> list[dict]:
+    def get_branch_tags(self, repository_registry: RepositoryRegistry, commits: set) -> list[dict]:
         """
         Get all commits with tags for branch
         """
 
-        repo = self.get_repo(repo_dto)
+        repo = self.get_repo(repository_registry)
         tags = []
         for tag in repo.tags:
             commit_hash = tag.commit.hexsha
@@ -150,13 +149,13 @@ class GitRepoRepository:
                 tags.append({'commit': commit_hash, 'summary': tag.commit.summary, 'tag': tag.name})
         return tags[::-1]
 
-    def get_branch_commits_with_tag(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str) -> list[dict]:
+    def get_branch_commits_with_tag(self, repository_registry: RepositoryRegistry, branch: str) -> list[dict]:
         """
         Get all commits for branch, with tags
         """
 
-        commits = self.get_branch_commits(repo_dto, branch)
-        tags = self.get_branch_tags(repo_dto, {item['commit'] for item in commits})
+        commits = self.get_branch_commits(repository_registry, branch)
+        tags = self.get_branch_tags(repository_registry, {item['commit'] for item in commits})
 
         commits_with_tag = []
         for commit in commits:
@@ -182,30 +181,32 @@ class GitRepoRepository:
                 return item
         return None
 
-    def get_target_repo_version(self, repo_dto: RepoWithRepositoryRegistryDTO) -> tuple[str, Optional[str]]:
-        self.is_valid_branch(repo_dto, repo_dto.default_branch)
+    def get_target_repo_version(self, repository_registry: RepositoryRegistry) -> tuple[str, Optional[str]]:
+        self.is_valid_branch(repository_registry, repository_registry.default_branch)
 
-        all_commits = self.get_branch_commits_with_tag(repo_dto, repo_dto.default_branch)
+        all_commits = self.get_branch_commits_with_tag(repository_registry, repository_registry.default_branch)
         tags = self.get_tags_from_all_commits(all_commits)
 
         target_commit = None
-        if repo_dto.is_auto_update_repo:
-            if repo_dto.is_compilable_repo:
+        if repository_registry.is_auto_update_repo:
+            if repository_registry.is_compilable_repo:
                 if len(tags) != 0:
                     target_commit = tags[0]
             else:
-                if repo_dto.is_only_tag_update:
+                if repository_registry.is_only_tag_update:
                     if len(tags) != 0:
                         target_commit = tags[0]
                 else:
                     target_commit = all_commits[0]
 
         else:
-            self.is_valid_commit(repo_dto, repo_dto.default_branch, repo_dto.default_commit)
+            self.is_valid_commit(
+                repository_registry, repository_registry.default_branch, repository_registry.default_commit
+            )
 
-            target_commit = self.find_by_commit(all_commits, repo_dto.default_commit)
+            target_commit = self.find_by_commit(all_commits, repository_registry.default_commit)
 
-            if repo_dto.is_compilable_repo and target_commit['tag'] is None:
+            if repository_registry.is_compilable_repo and target_commit['tag'] is None:
                 raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
@@ -213,19 +214,19 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
-    def get_target_unit_version(self, repo_dto: RepoWithRepositoryRegistryDTO, unit: Unit) -> tuple[str, Optional[str]]:
+    def get_target_unit_version(self, repository_registry: RepositoryRegistry, unit: Unit) -> tuple[str, Optional[str]]:
 
         target_commit = None
         if unit.is_auto_update_from_repo_unit:
-            repo_target = self.get_target_repo_version(repo_dto)
+            repo_target = self.get_target_repo_version(repository_registry)
             target_commit = {'commit': repo_target[0], 'tag': repo_target[1]}
         else:
-            self.is_valid_branch(repo_dto, unit.repo_branch)
-            all_commits = self.get_branch_commits_with_tag(repo_dto, unit.repo_branch)
+            self.is_valid_branch(repository_registry, unit.repo_branch)
+            all_commits = self.get_branch_commits_with_tag(repository_registry, unit.repo_branch)
             target_commit = self.find_by_commit(all_commits, unit.repo_commit)
 
             if target_commit:
-                if repo_dto.is_compilable_repo and target_commit['tag'] is None:
+                if repository_registry.is_compilable_repo and target_commit['tag'] is None:
                     raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
@@ -233,8 +234,8 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
-    def get_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str, path: str) -> io.BytesIO:
-        repo = self.get_repo(repo_dto)
+    def get_file(self, repository_registry: RepositoryRegistry, commit: str, path: str) -> io.BytesIO:
+        repo = self.get_repo(repository_registry)
 
         if commit is None:
             raise GitRepoError('Commit not found')
@@ -250,20 +251,20 @@ class GitRepoRepository:
 
         return buffer
 
-    def get_schema_dict(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> dict:
+    def get_schema_dict(self, repository_registry: RepositoryRegistry, commit: str) -> dict:
         target_file = StaticRepoFileName.SCHEMA_EXAMPLE
-        schema_buffer = self.get_file(repo_dto, commit, target_file)
+        schema_buffer = self.get_file(repository_registry, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
-    def get_env_dict(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> dict:
+    def get_env_dict(self, repository_registry: RepositoryRegistry, commit: str) -> dict:
         target_file = StaticRepoFileName.ENV_EXAMPLE
-        schema_buffer = self.get_file(repo_dto, commit, target_file)
+        schema_buffer = self.get_file(repository_registry, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
-    def get_env_example(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> dict:
+    def get_env_example(self, repository_registry: RepositoryRegistry, commit: str) -> dict:
         is_valid_object(commit)
 
-        env_dict = self.get_env_dict(repo_dto, commit)
+        env_dict = self.get_env_dict(repository_registry, commit)
 
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
@@ -274,12 +275,12 @@ class GitRepoRepository:
         path = settings.backend_save_repo_path
         return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 
-    def delete_repo(self, repo_dto: RepoWithRepositoryRegistryDTO) -> None:
-        shutil.rmtree(self.get_path_physic_repository(repo_dto), ignore_errors=True)
+    def delete_repo(self, repository_registry: RepositoryRegistry) -> None:
+        shutil.rmtree(self.get_path_physic_repository(repository_registry), ignore_errors=True)
         return None
 
-    def is_valid_schema_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str) -> None:
-        schema_dict = self.get_schema_dict(repo_dto, commit)
+    def is_valid_schema_file(self, repository_registry: RepositoryRegistry, commit: str) -> None:
+        schema_dict = self.get_schema_dict(repository_registry, commit)
 
         binding_schema_keys = [i.value for i in DestinationTopicType]
 
@@ -309,20 +310,22 @@ class GitRepoRepository:
         if current_len >= max_value:
             raise GitRepoError('The length {} of the topic title is too long, max: {}'.format(current_len, max_value))
 
-    def is_valid_env_file(self, repo_dto: RepoWithRepositoryRegistryDTO, commit: str, env: dict) -> None:
-        env_example_dict = self.get_env_dict(repo_dto, commit)
+    def is_valid_env_file(self, repository_registry: RepositoryRegistry, commit: str, env: dict) -> None:
+        env_example_dict = self.get_env_dict(repository_registry, commit)
 
         unresolved_set = env_example_dict.keys() - env.keys()
         if unresolved_set != set():
             raise GitRepoError('This env file has {} unresolved variable'.format(unresolved_set))
 
-    def is_valid_branch(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str):
-        available_branches = self.get_branches(repo_dto)
+    def is_valid_branch(self, repository_registry: RepositoryRegistry, branch: str):
+        available_branches = self.get_branches(repository_registry)
         if not branch or branch not in available_branches:
             raise GitRepoError('Branch {} not found, available: {}'.format(branch, available_branches))
 
-    def is_valid_commit(self, repo_dto: RepoWithRepositoryRegistryDTO, branch: str, commit: str):
-        if commit not in [commit_dict['commit'] for commit_dict in self.get_branch_commits(repo_dto, branch)]:
+    def is_valid_commit(self, repository_registry: RepositoryRegistry, branch: str, commit: str):
+        if commit not in [
+            commit_dict['commit'] for commit_dict in self.get_branch_commits(repository_registry, branch)
+        ]:
             raise GitRepoError('Commit {} not in branch {}'.format(commit, branch))
 
     @staticmethod
@@ -332,13 +335,13 @@ class GitRepoRepository:
                 return item
         return None
 
-    def is_valid_firmware_platform(self, repo_dto: RepoWithRepositoryRegistryDTO, unit: Unit, firmware_platform: str):
+    def is_valid_firmware_platform(self, repository_registry: RepositoryRegistry, unit: Unit, firmware_platform: str):
 
-        if repo_dto.is_compilable_repo:
-            is_valid_object(repo_dto.releases_data)
+        if repository_registry.is_compilable_repo:
+            is_valid_object(repository_registry.releases_data)
 
-            releases = is_valid_json(repo_dto.releases_data, "releases for compile repo")
-            target_commit, target_tag = self.get_target_unit_version(repo_dto, unit)
+            releases = is_valid_json(repository_registry.releases_data, "Releases for compile repo")
+            target_commit, target_tag = self.get_target_unit_version(repository_registry, unit)
 
             target_platforms = releases.get(target_tag)
 

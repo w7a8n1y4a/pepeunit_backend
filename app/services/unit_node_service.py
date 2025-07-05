@@ -256,7 +256,7 @@ class UnitNodeService:
                 update_dict['NEW_COMMIT_VERSION'] = target_version
 
                 if repo.is_compilable_repo:
-                    links = is_valid_json(repo.releases_data, "releases for compile repo")[target_tag]
+                    links = is_valid_json(repo.releases_data, "Releases for compile repo")[target_tag]
                     platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link
@@ -380,7 +380,7 @@ class UnitNodeService:
         self.is_valid_active_data_pipe(unit_node)
         self.is_valid_filled_config(unit_node)
 
-        return dict_to_yml_file(remove_dict_none(json.loads(unit_node.data_pipe_yml)))
+        return dict_to_yml_file(remove_dict_none(is_valid_json(unit_node.data_pipe_yml, "DataPipe config")))
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -414,15 +414,11 @@ class UnitNodeService:
 
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
-        is_valid_json(unit_node.data_pipe_yml, "Data Pipe config is bad")
-
         count, data = self.data_pipe_repository.list(
             filters=DataPipeFilter(
                 uuid=uuid,
                 type=ProcessingPolicyType(
-                    is_valid_json(unit_node.data_pipe_yml, "Data Pipe config is bad")['processing_policy'][
-                        'policy_type'
-                    ]
+                    is_valid_json(unit_node.data_pipe_yml, "DataPipe config")['processing_policy']['policy_type']
                 ),
                 order_by_create_date=OrderByDate.asc,
             )

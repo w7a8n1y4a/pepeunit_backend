@@ -1,3 +1,4 @@
+import json
 import uuid as uuid_pkg
 from datetime import datetime
 
@@ -5,7 +6,8 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
-from app.dto.enum import VisibilityLevel
+from app.services.validators import is_valid_json
+from app.utils.utils import aes_gcm_decode
 
 
 class RepositoryRegistry(SQLModel, table=True):
@@ -43,3 +45,12 @@ class RepositoryRegistry(SQLModel, table=True):
     creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='SET NULL'), nullable=True)
     )
+
+    def get_credentials(self) -> dict | None:
+        if self.cipher_credentials_private_repository:
+            return is_valid_json(
+                aes_gcm_decode(self.cipher_credentials_private_repository),
+                'Cipher credentials private repository',
+            )
+        else:
+            return None

@@ -4,9 +4,11 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
+from app import settings
 from app.configs.errors import GitRepoError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import AgentType, CredentialStatus, GitPlatform, RepositoryRegistryStatus
+from app.repositories.git_platform_repository import GithubPlatformClient, GitlabPlatformClient, GitPlatformClientABC
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.schemas.pydantic.repository_registry import RepositoryRegistryCreate, RepositoryRegistryRead
@@ -28,6 +30,10 @@ class RepositoryRegistryService:
         self.git_repo_repository = GitRepoRepository()
         self.permission_service = permission_service
         self.access_service = access_service
+
+    def get_platform(self, repository_registry: RepositoryRegistry) -> GitPlatformClientABC:
+        platforms_dict = {GitPlatform.GITLAB: GitlabPlatformClient, GitPlatform.GITHUB: GithubPlatformClient}
+        return platforms_dict[GitPlatform(repository_registry.platform)](self.access_service, repository_registry)
 
     def create(self, data: RepositoryRegistryCreate) -> RepositoryRegistry:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -69,31 +75,26 @@ class RepositoryRegistryService:
 
     def sync_external_repository(self, repository_registry: RepositoryRegistry) -> None:
 
-        # TODO: здесь надо делать проверку по времени
-        # TODO: здесь надо придумать механизм отмены статуса PROCESSING
-        if repository_registry.sync_status == RepositoryRegistryStatus.PROCESSING:
-            raise RepositoryRegistryError('Sync is not available, current state is update Processing')
-        else:
-            repository_registry.sync_status = RepositoryRegistryStatus.PROCESSING
-            repository_registry.sync_error = None
+        self.is_sync_available(repository_registry)
 
-            repository_registry = self.repository_registry_repository.update(
-                repository_registry.uuid, repository_registry
-            )
+        repository_registry.sync_status = RepositoryRegistryStatus.PROCESSING
+        repository_registry.sync_error = None
+        repository_registry.sync_last_datetime = datetime.datetime.utcnow()
+
+        repository_registry = self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
         try:
             self.git_repo_repository.clone_remote_repo(repository_registry)
             repository_registry.sync_status = RepositoryRegistryStatus.UPDATED
             repository_registry.sync_error = None
-            repository_registry.sync_last_datetime = datetime.datetime.utcnow()
         except GitRepoError as e:
             repository_registry.sync_status = RepositoryRegistryStatus.ERROR
             repository_registry.sync_error = e.message
 
-        releases = self.git_repo_repository.get_releases(repo_dto)
+        releases = self.git_repo_repository.get_releases(repository_registry)
         repository_registry.releases_data = json.dumps(releases) if releases else None
 
-        repository_registry.local_repository_size = self.git_repo_repository.local_repository_size(repo_dto)
+        repository_registry.local_repository_size = self.git_repo_repository.local_repository_size(repository_registry)
 
         self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
@@ -120,3 +121,17 @@ class RepositoryRegistryService:
                     repository_registry.platform, ", ".join(list(GitPlatform))
                 )
             )
+
+    @staticmethod
+    def is_sync_available(repository_registry: RepositoryRegistry):
+        if (
+            repository_registry.sync_status == RepositoryRegistryStatus.PROCESSING
+            and repository_registry.sync_last_datetime
+        ):
+            delta = (datetime.datetime.utcnow() - repository_registry.last_update_datetime).total_seconds()
+            if delta <= settings.backend_min_interval_sync_repository:
+                raise RepositoryRegistryError(
+                    'Sync is not available, last sync was {} s ago, but it should have taken at least {} s'.format(
+                        delta, settings.backend_min_interval_sync_repository
+                    )
+                )

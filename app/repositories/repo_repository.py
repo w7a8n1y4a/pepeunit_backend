@@ -81,7 +81,7 @@ class RepoRepository:
             return None
         return Credentials(
             **is_valid_json(
-                aes_gcm_decode(full_repo.cipher_credentials_private_repository), "cipher creeds private repository"
+                aes_gcm_decode(full_repo.cipher_credentials_private_repository), "Cipher creeds private repository"
             )
         )
 
