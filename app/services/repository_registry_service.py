@@ -1,13 +1,13 @@
 import datetime
 import json
-import os
+import logging
 import shutil
 import uuid as uuid_pkg
 
 from fastapi import Depends
 
 from app import settings
-from app.configs.errors import GitRepoError, RepositoryRegistryError
+from app.configs.errors import CustomException, GitRepoError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import AgentType, CredentialStatus, GitPlatform, RepositoryRegistryStatus
 from app.repositories.git_platform_repository import GithubPlatformClient, GitlabPlatformClient, GitPlatformClientABC
@@ -107,11 +107,25 @@ class RepositoryRegistryService:
 
             repository_registry.sync_status = RepositoryRegistryStatus.UPDATED
             repository_registry.sync_error = None
-        except GitRepoError as e:
+        except CustomException as e:
             repository_registry.sync_status = RepositoryRegistryStatus.ERROR
             repository_registry.sync_error = e.message
 
         return self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
+
+    def sync_local_repository_storage(self) -> None:
+
+        logging.info('Run sync all repository in RepositoryRegistry')
+
+        local_physic_repository = self.git_repo_repository.get_local_registry()
+        local_repository_registry = self.repository_registry_repository.get_all()
+
+        for repository_registry in local_repository_registry:
+            if str(repository_registry.uuid) not in local_physic_repository:
+                logging.info(f'Run sync RepositoryRegistry: {repository_registry.repository_url}')
+                self.sync_external_repository(repository_registry)
+
+        logging.info('End sync all repository in RepositoryRegistry')
 
     @staticmethod
     def is_valid_repo_url(repository_registry: RepositoryRegistryCreate | RepositoryRegistry):
@@ -155,10 +169,7 @@ class RepositoryRegistryService:
     def is_valid_repo_size(repo_size: int, delete_path: str | None = None) -> None:
         if repo_size < 0 or repo_size > settings.backend_max_external_repo_size * 2**20:
             if delete_path:
-                try:
-                    shutil.rmtree(delete_path)
-                except FileNotFoundError:
-                    pass
+                shutil.rmtree(delete_path, ignore_errors=True)
 
             raise GitRepoError(
                 'No valid external repo size {} MB, max {} MB'.format(

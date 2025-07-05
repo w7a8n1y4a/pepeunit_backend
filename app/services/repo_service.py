@@ -310,33 +310,6 @@ class RepoService:
 
         return None
 
-    def sync_local_repo_storage(self) -> None:
-
-        logging.info('Run sync local repo storage')
-
-        local_physic_repository = self.git_repo_repository.get_local_registry()
-        local_registry_state = self.repo_repository.get_all_with_registry()
-
-        updated_public_list = []
-        updated_private_list = []
-        for repo_dto in local_registry_state:
-            if str(repo_dto.get_physic_path_uuid()) not in local_physic_repository:
-
-                if (
-                    repo_dto.repository_registry.is_public_repository
-                    and repo_dto.repository_registry.uuid not in updated_public_list
-                ):
-                    updated_public_list.append(repo_dto.repository_registry.uuid)
-                else:
-                    if not repo_dto.repository_registry.is_public_repository:
-                        updated_private_list.append(repo_dto.uuid)
-                    else:
-                        continue
-
-                self.repository_registry_service.sync_external_repository(repo_dto)
-
-        logging.info(f'Sync: {len(updated_public_list)} public, {len(updated_private_list)} private')
-
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 

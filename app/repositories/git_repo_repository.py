@@ -26,10 +26,7 @@ class GitRepoRepository:
 
     @staticmethod
     def clone(url: str, repo_save_path: str):
-        try:
-            shutil.rmtree(repo_save_path)
-        except FileNotFoundError:
-            pass
+        shutil.rmtree(repo_save_path, ignore_errors=True)
 
         try:
             # cloning repo by url
@@ -47,6 +44,11 @@ class GitRepoRepository:
 
     def local_repository_size(self, repository_registry: RepositoryRegistry) -> int:
         return get_directory_size(self.get_path_physic_repository(repository_registry))
+
+    @staticmethod
+    def get_local_registry() -> list[str]:
+        path = settings.backend_save_repo_path
+        return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 
     def generate_tmp_git_repo(
         self, repository_registry: RepositoryRegistry, commit: str, gen_uuid: uuid_pkg.UUID
@@ -242,11 +244,6 @@ class GitRepoRepository:
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
         return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
-
-    @staticmethod
-    def get_local_registry() -> list[str]:
-        path = settings.backend_save_repo_path
-        return [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
 
     def delete_repo(self, repository_registry: RepositoryRegistry) -> None:
         shutil.rmtree(self.get_path_physic_repository(repository_registry), ignore_errors=True)
