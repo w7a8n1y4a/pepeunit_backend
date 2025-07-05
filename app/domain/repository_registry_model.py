@@ -21,6 +21,9 @@ class RepositoryRegistry(SQLModel, table=True):
     repository_url: str = Field(nullable=False, unique=True)
     # this remote repository is Public ?
     is_public_repository: bool = Field(nullable=False, default=True)
+    # if is_public_repository=False - cipher creds to load remote repository. Struct after decipher
+    # {"<creator_uuid>": {"credentials": {"username": "", "pat_token": ""}, "status": ""}}
+    cipher_credentials_private_repository: str = Field(nullable=True)
     # assets links by tags
     releases_data: str = Field(nullable=True, default=None)
     # size on disk in bytes, for git repository

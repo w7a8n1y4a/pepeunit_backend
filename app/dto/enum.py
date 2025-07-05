@@ -356,3 +356,13 @@ class RepositoryRegistryStatus(str, enum.Enum):
     UPDATED = 'Updated'
     PROCESSING = 'Processing'
     ERROR = 'Error'
+
+
+@strawberry.enum
+class CredentialStatus(str, enum.Enum):
+    """
+    Types of state CredentialStatus
+    """
+
+    VALID = 'Valid'
+    ERROR = 'Error'
