@@ -48,6 +48,12 @@ class RepositoryRegistryRepository:
             .first()
         )
 
+    def is_unique_url(self, url: str) -> None:
+        repository_registry = self.db.query(RepositoryRegistry).filter(RepositoryRegistry.repository_url == url).first()
+
+        if repository_registry:
+            raise RepositoryRegistryError('Url "{}" is exist'.format(url))
+
     @staticmethod
     def is_private_repository(repository_registry: RepositoryRegistry):
         if repository_registry.is_public_repository:

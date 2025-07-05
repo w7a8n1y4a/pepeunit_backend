@@ -43,6 +43,35 @@ def get_user_service(
     )
 
 
+def get_repository_registry_service(
+    db: Session = Depends(get_session),
+    jwt_token: Optional[str] = Depends(token_depends),
+    is_bot_auth: bool = False,
+) -> RepositoryRegistryService:
+    unit_repository = UnitRepository(db)
+    permission_repository = PermissionRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
+
+    access_service = AccessService(
+        permission_repository=permission_repository,
+        unit_repository=unit_repository,
+        user_repository=UserRepository(db),
+        jwt_token=jwt_token,
+        is_bot_auth=is_bot_auth,
+    )
+
+    permission_service = PermissionService(
+        access_service=access_service,
+        permission_repository=permission_repository,
+    )
+
+    return RepositoryRegistryService(
+        repository_registry_repository=repository_registry_repository,
+        permission_service=permission_service,
+        access_service=access_service,
+    )
+
+
 def get_repo_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),

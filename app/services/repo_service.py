@@ -12,7 +12,7 @@ from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
-from app.dto.repository_registry import RepositoryRegistryCreate, RepoWithRepositoryRegistryDTO
+from app.dto.repository_registry import RepoWithRepositoryRegistryDTO
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository

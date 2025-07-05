@@ -14,14 +14,6 @@ class Credentials(BaseModel):
     pat_token: str
 
 
-class RepositoryRegistryCreate(BaseModel):
-    platform: GitPlatform
-    repository_url: str
-
-    is_public_repository: bool
-    credentials: Optional[Credentials] = None
-
-
 class RepositoryRegistryDTO(BaseModel):
     uuid: uuid_pkg.UUID
 

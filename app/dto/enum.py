@@ -365,4 +365,5 @@ class CredentialStatus(str, enum.Enum):
     """
 
     VALID = 'Valid'
+    NOT_VERIFIED = 'NotVerified'
     ERROR = 'Error'

@@ -5,6 +5,15 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.dto.enum import GitPlatform, RepositoryRegistryStatus
+from app.dto.repository_registry import Credentials
+
+
+class RepositoryRegistryCreate(BaseModel):
+    platform: GitPlatform
+    repository_url: str
+
+    is_public_repository: bool
+    credentials: Optional[Credentials] = None
 
 
 class RepositoryRegistryRead(BaseModel):

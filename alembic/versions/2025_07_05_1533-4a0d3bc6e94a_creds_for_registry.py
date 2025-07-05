@@ -45,7 +45,7 @@ def upgrade() -> None:
             if str(creator_uuid) not in registry_credentials[str(repository_registry_uuid)]:
                 registry_credentials[str(repository_registry_uuid)][str(creator_uuid)] = {
                     "credentials": current_credentials,
-                    "status": "Valid"
+                    "status": "NotVerified"
                 }
 
         for repository_registry_uuid, struct in registry_credentials.items():
