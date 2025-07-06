@@ -1,3 +1,4 @@
+import json
 import uuid as uuid_pkg
 from datetime import datetime
 
@@ -6,9 +7,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 from app.dto.enum import CredentialStatus
-from app.dto.repository_registry import Credentials, OneRepositoryRegistryCredentials
+from app.dto.repository_registry import Credentials
+from app.schemas.pydantic.repository_registry import OneRepositoryRegistryCredentials
 from app.services.validators import is_valid_json
-from app.utils.utils import aes_gcm_decode
+from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
 
 class RepositoryRegistry(SQLModel, table=True):
@@ -46,6 +48,18 @@ class RepositoryRegistry(SQLModel, table=True):
     creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='SET NULL'), nullable=True)
     )
+
+    def set_credentials(self, creator_uuid: uuid_pkg.UUID, data: OneRepositoryRegistryCredentials) -> None:
+        all_repository_credentials = self.get_credentials()
+
+        if not all_repository_credentials:
+            all_repository_credentials = {}
+
+        all_repository_credentials[str(creator_uuid)] = data
+
+        self.cipher_credentials_private_repository = aes_gcm_encode(
+            json.dumps({key: value.dict() for key, value in all_repository_credentials.items()})
+        )
 
     def get_credentials(self) -> dict[str, OneRepositoryRegistryCredentials] | None:
         if self.cipher_credentials_private_repository:

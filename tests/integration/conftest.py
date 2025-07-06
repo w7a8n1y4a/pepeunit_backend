@@ -129,9 +129,7 @@ def test_external_repository() -> list[dict]:
             'platform': repo['platform'],
             'is_compilable_repo': repo['compile'] if 'compile' in repo else False,
             'credentials': (
-                None
-                if repo['is_public'] == True
-                else Credentials(username=repo['username'], pat_token=repo['pat_token'])
+                None if repo['is_public'] == True else {'username': repo['username'], 'pat_token': repo['pat_token']}
             ),
         }
         for inc, repo in enumerate(test_external_repository)

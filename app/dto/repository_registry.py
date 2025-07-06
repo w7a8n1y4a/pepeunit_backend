@@ -4,19 +4,10 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import CredentialStatus, GitPlatform, RepositoryRegistryStatus
+from app.dto.enum import GitPlatform, RepositoryRegistryStatus
+from app.schemas.pydantic.repo import Credentials
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode
-
-
-class Credentials(BaseModel):
-    username: str
-    pat_token: str
-
-
-class OneRepositoryRegistryCredentials(BaseModel):
-    credentials: Credentials
-    status: CredentialStatus
 
 
 class RepositoryRegistryDTO(BaseModel):

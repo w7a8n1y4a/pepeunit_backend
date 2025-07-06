@@ -4,8 +4,17 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import GitPlatform, RepositoryRegistryStatus
-from app.dto.repository_registry import Credentials
+from app.dto.enum import CredentialStatus, GitPlatform, RepositoryRegistryStatus
+
+
+class Credentials(BaseModel):
+    username: str
+    pat_token: str
+
+
+class OneRepositoryRegistryCredentials(BaseModel):
+    credentials: Credentials
+    status: CredentialStatus
 
 
 class RepositoryRegistryCreate(BaseModel):
