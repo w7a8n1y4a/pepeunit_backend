@@ -9,7 +9,7 @@ from fastapi import Depends
 from app import settings
 from app.configs.errors import CustomException, GitRepoError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
-from app.dto.enum import AgentType, CredentialStatus, GitPlatform, RepositoryRegistryStatus
+from app.dto.enum import AgentType, CredentialStatus, GitPlatform, RepositoryRegistryStatus, UserRole
 from app.repositories.git_platform_repository import GithubPlatformClient, GitlabPlatformClient, GitPlatformClientABC
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
@@ -33,9 +33,35 @@ class RepositoryRegistryService:
         self.permission_service = permission_service
         self.access_service = access_service
 
-    def get_platform(self, repository_registry: RepositoryRegistry) -> GitPlatformClientABC:
+    def get_platform(
+        self, repository_registry: RepositoryRegistry, skip_check_credentials: bool = False
+    ) -> GitPlatformClientABC:
         platforms_dict = {GitPlatform.GITLAB: GitlabPlatformClient, GitPlatform.GITHUB: GithubPlatformClient}
-        return platforms_dict[GitPlatform(repository_registry.platform)](self.access_service, repository_registry)
+
+        if not skip_check_credentials:
+            self.is_valid_private_repo(repository_registry)
+
+        credentials = None
+        if not repository_registry.is_public_repository:
+            all_repository_credentials = repository_registry.get_credentials()
+
+            if self.access_service.current_agent.type == AgentType.USER:
+                credentials_with_status = repository_registry.get_credentials_by_user(
+                    all_repository_credentials, str(self.access_service.current_agent.uuid)
+                )
+
+                if credentials_with_status and credentials_with_status.status in (
+                    CredentialStatus.VALID,
+                    CredentialStatus.NOT_VERIFIED,
+                ):
+                    credentials = credentials_with_status.credentials
+                else:
+                    raise RepositoryRegistryError('Credentials has no permission, status is Error')
+
+            elif self.access_service.current_agent.type == AgentType.BACKEND:
+                credentials = repository_registry.get_first_valid_credentials(all_repository_credentials)
+
+        return platforms_dict[GitPlatform(repository_registry.platform)](repository_registry, credentials)
 
     def create(self, data: RepositoryRegistryCreate) -> RepositoryRegistry:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -54,6 +80,22 @@ class RepositoryRegistryService:
                         str(self.access_service.current_agent.uuid): {
                             "credentials": data.credentials.dict(),
                             "status": CredentialStatus.NOT_VERIFIED,
+                        }
+                    }
+                )
+            )
+
+            if self.get_platform(repository_registry, True).is_valid_token():
+                status = CredentialStatus.VALID
+            else:
+                status = CredentialStatus.ERROR
+
+            repository_registry.cipher_credentials_private_repository = aes_gcm_encode(
+                json.dumps(
+                    {
+                        str(self.access_service.current_agent.uuid): {
+                            "credentials": data.credentials.dict(),
+                            "status": status,
                         }
                     }
                 )
@@ -136,11 +178,22 @@ class RepositoryRegistryService:
             )
 
     @staticmethod
-    def is_valid_private_repo(data: RepositoryRegistryCreate | RepositoryRegistryCreate):
-        if not data.is_public_repository and (
-            not data.credentials or (not data.credentials.username or not data.credentials.pat_token)
+    def is_valid_private_repo(data: RepositoryRegistryCreate | RepositoryRegistry):
+        if (
+            isinstance(data, RepositoryRegistryCreate)
+            and not data.is_public_repository
+            and (not data.credentials or (not data.credentials.username or not data.credentials.pat_token))
         ):
             raise RepositoryRegistryError('Credentials is not valid')
+
+        if isinstance(data, RepositoryRegistry) and not data.is_public_repository:
+            all_repository_credentials = data.get_credentials()
+
+            if not all_repository_credentials:
+                raise RepositoryRegistryError('Credentials not Exist')
+
+            if not data.get_first_valid_credentials(all_repository_credentials):
+                raise RepositoryRegistryError('No valid credentials in credential list')
 
     @staticmethod
     def is_valid_platform(repository_registry: RepositoryRegistryCreate | RepositoryRegistry):

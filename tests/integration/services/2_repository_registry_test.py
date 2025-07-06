@@ -28,9 +28,9 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
 
     pytest.repository_registries = new_repositories
 
-    # check create repo with exist name
-    with pytest.raises(RepoError):
-        repo_service.create(RepoCreate(**test_repos[0]))
+    # check create repository with exist url
+    with pytest.raises(RepositoryRegistryError):
+        repository_registry_service.create(RepositoryRegistryCreate(**test_external_repository[0]))
 
     # check create repo with bad link
     with pytest.raises(RepositoryRegistryError):

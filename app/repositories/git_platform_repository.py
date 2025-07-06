@@ -2,46 +2,17 @@ from abc import ABC, abstractmethod
 
 import httpx
 
-from app import AgentType, settings
+from app import settings
 from app.configs.errors import GitPlatformClientError
 from app.domain.repository_registry_model import RepositoryRegistry
-from app.dto.enum import CredentialStatus, UserRole
 from app.dto.repository_registry import Credentials
-from app.services.access_service import AccessService
 
 
 class GitPlatformClientABC(ABC):
 
-    def __init__(self, access_service: AccessService, repository_registry: RepositoryRegistry):
-        self.access_service = access_service
+    def __init__(self, repository_registry: RepositoryRegistry, credentials: Credentials | None = None):
         self.repository_registry = repository_registry
-        self.credentials = self.get_credentials()
-
-    def get_credentials(self) -> Credentials | None:
-
-        credentials_users_dict = self.repository_registry.get_credentials()
-
-        if not self.repository_registry.is_public_repository and not credentials_users_dict:
-            raise GitPlatformClientError('Credentials Not Exists')
-
-        if (
-            not self.repository_registry.is_public_repository
-            and self.access_service.current_agent.type == AgentType.USER
-        ):
-            if self.access_service.current_agent.role == UserRole.USER:
-                credentials = self.repository_registry.get_credentials_by_user(
-                    credentials_users_dict, str(self.access_service.current_agent.uuid)
-                )
-
-                if credentials.status == CredentialStatus.VALID:
-                    return credentials.credentials
-                else:
-                    raise GitPlatformClientError('Credentials status is {}'.format(credentials.status))
-
-            else:
-                self.credentials = self.repository_registry.get_first_valid_credentials(credentials_users_dict)
-
-        return None
+        self.credentials = credentials
 
     @abstractmethod
     def get_cloning_url(self) -> str:
@@ -77,6 +48,11 @@ class GitPlatformClientABC(ABC):
     @abstractmethod
     def get_repo_size(self) -> int:
         """Get release information -> {tag: [(name_package, download_link)]}"""
+        pass
+
+    @abstractmethod
+    def is_valid_token(self) -> bool:
+        """Check valid pat token"""
         pass
 
 
@@ -158,6 +134,24 @@ class GitlabPlatformClient(GitPlatformClientABC):
 
         return repo_size
 
+    def is_valid_token(self) -> bool:
+        repository_id = self._get_repository_id()
+
+        headers = None
+        if self.credentials:
+            headers = {
+                'PRIVATE-TOKEN': self.credentials.pat_token,
+            }
+
+        repo_data = httpx.get(url=f'{self._get_api_url()}{repository_id}', headers=headers)
+
+        try:
+            repo_data.json()['id']
+        except KeyError:
+            return False
+
+        return True
+
 
 class GithubPlatformClient(GitPlatformClientABC):
     """For Github"""
@@ -211,3 +205,15 @@ class GithubPlatformClient(GitPlatformClientABC):
                 raise GitPlatformClientError('Invalid Credentials')
 
         return repo_size * 1024
+
+    def is_valid_token(self) -> bool:
+        headers = {"Accept": "application/vnd.github.v3+json"}
+
+        repo_data = httpx.get(url=f'{self._get_api_url()}{self._get_repository_name()}', headers=headers)
+
+        try:
+            repo_data.json()['id']
+        except KeyError:
+            return False
+
+        return True
