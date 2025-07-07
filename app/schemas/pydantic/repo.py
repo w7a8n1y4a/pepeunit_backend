@@ -86,13 +86,14 @@ class RepoUpdate(BaseModel):
 
 @dataclass
 class RepoFilter:
+    repository_registry_uuid: Optional[uuid_pkg.UUID] = None
+
     uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     creators_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
     search_string: Optional[str] = None
 
-    is_public_repository: Optional[bool] = None
     is_auto_update_repo: Optional[bool] = None
 
     visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])

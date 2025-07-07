@@ -10,10 +10,12 @@ from fastapi import Depends
 from app import settings
 from app.configs.errors import CustomException, GitRepoError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
-from app.dto.enum import AgentType, CredentialStatus, GitPlatform, RepositoryRegistryStatus
+from app.dto.enum import AgentType, CredentialStatus, GitPlatform, OwnershipType, RepositoryRegistryStatus
 from app.repositories.git_platform_repository import GithubPlatformClient, GitlabPlatformClient, GitPlatformClientABC
 from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.repository_registry import (
     Credentials,
     OneRepositoryRegistryCredentials,
@@ -22,7 +24,7 @@ from app.schemas.pydantic.repository_registry import (
 )
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
-from app.services.validators import is_valid_object
+from app.services.validators import is_emtpy_sequence, is_valid_object
 
 
 class RepositoryRegistryService:
@@ -30,10 +32,12 @@ class RepositoryRegistryService:
     def __init__(
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
+        repo_repository: RepoRepository = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.repository_registry_repository = repository_registry_repository
+        self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.permission_service = permission_service
         self.access_service = access_service
@@ -116,6 +120,22 @@ class RepositoryRegistryService:
         is_valid_object(repository_registry)
         self.access_service.authorization.check_visibility(repository_registry)
         return RepositoryRegistryRead(**repository_registry.dict())
+
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
+        is_valid_object(repository_registry)
+
+        self.access_service.authorization.check_ownership(repository_registry, [OwnershipType.CREATOR])
+
+        count, repo_list = self.repo_repository.list(RepoFilter(repository_registry_uuid=uuid))
+        is_emtpy_sequence(repo_list)
+
+        self.git_repo_repository.delete_repo(repository_registry)
+        self.repository_registry_repository.delete(repository_registry)
+
+        return None
 
     def get_credentials(self, uuid: uuid_pkg.UUID) -> Optional[OneRepositoryRegistryCredentials]:
         self.access_service.authorization.check_access([AgentType.USER])

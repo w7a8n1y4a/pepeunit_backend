@@ -48,6 +48,7 @@ def get_repository_registry_service(
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> RepositoryRegistryService:
+    repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
     permission_repository = PermissionRepository(db)
     repository_registry_repository = RepositoryRegistryRepository(db)
@@ -67,6 +68,7 @@ def get_repository_registry_service(
 
     return RepositoryRegistryService(
         repository_registry_repository=repository_registry_repository,
+        repo_repository=repo_repository,
         permission_service=permission_service,
         access_service=access_service,
     )

@@ -132,6 +132,9 @@ class RepoRepository:
             RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid
         )
 
+        if filters.repository_registry_uuid:
+            query = query.filter(Repo.repository_registry_uuid == is_valid_uuid(filters.repository_registry_uuid))
+
         filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
         if filters.uuids:
             query = query.filter(Repo.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
