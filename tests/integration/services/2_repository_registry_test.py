@@ -4,6 +4,7 @@ import pytest
 
 from app.configs.errors import RepositoryRegistryError
 from app.configs.rest import get_repository_registry_service
+from app.dto.enum import CredentialStatus
 from app.schemas.pydantic.repository_registry import Credentials, RepositoryRegistryCreate
 
 
@@ -39,7 +40,7 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
 
 
 @pytest.mark.run(order=1)
-def test_credentials(test_external_repository, database, cc) -> None:
+def test_get_set_credentials(test_external_repository, database, cc) -> None:
 
     current_user = pytest.users[0]
     repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
@@ -92,7 +93,11 @@ def test_credentials(test_external_repository, database, cc) -> None:
         )
 
         # check get credentials for other user
-        two_repository_registry_service.get_credentials(target_repository_registry.uuid)
+        credentials = two_repository_registry_service.get_credentials(target_repository_registry.uuid)
+
+        assert credentials.status == CredentialStatus.VALID.value
 
         # check get credentials for first user
-        repository_registry_service.get_credentials(target_repository_registry.uuid)
+        credentials = repository_registry_service.get_credentials(target_repository_registry.uuid)
+
+        assert credentials.status == CredentialStatus.VALID.value

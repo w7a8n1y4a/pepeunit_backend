@@ -44,3 +44,5 @@ class RepositoryRegistryRead(BaseModel):
     last_update_datetime: datetime
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
+
+    branches: list[str]

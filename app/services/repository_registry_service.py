@@ -285,3 +285,11 @@ class RepositoryRegistryService:
                     round(repo_size / 2**20, 2), settings.physic_repo_size
                 )
             )
+
+    def mapper_registry_to_registry_read(self, repository_registry: RepositoryRegistry) -> RepositoryRegistryRead:
+        try:
+            branches = self.git_repo_repository.get_branches(repository_registry)
+        except:
+            branches = []
+
+        return RepositoryRegistryRead(branches=branches, **repository_registry.dict())
