@@ -3,10 +3,11 @@ from typing import Optional
 
 from app.configs.errors import NoAccessError
 from app.domain.permission_model import PermissionBaseType
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.dto.agent.abc import Agent
-from app.dto.enum import AgentType, OwnershipType, PermissionEntities, UserRole, VisibilityLevel
+from app.dto.enum import AgentType, CredentialStatus, OwnershipType, PermissionEntities, UserRole, VisibilityLevel
 from app.repositories.permission_repository import PermissionRepository
 
 
@@ -49,6 +50,15 @@ class AuthorizationService:
 
     def check_visibility(self, check_entity):
 
+        if isinstance(check_entity, RepositoryRegistry):
+            if check_entity.is_public_repository:
+                return None
+            else:
+                if self.current_agent.type in [AgentType.BOT]:
+                    raise NoAccessError("Private RepositoryRegistry is not allowed")
+                elif self.current_agent.type is [AgentType.BACKEND, AgentType.USER, AgentType.UNIT]:
+                    return None
+
         if self.current_agent.type == AgentType.BACKEND:
             pass
         elif check_entity.visibility_level == VisibilityLevel.PUBLIC:
@@ -65,6 +75,30 @@ class AuthorizationService:
             )
             if not self.permission_repo.check(permission_check):
                 raise NoAccessError("Private visibility level is not allowed")
+
+    def check_create_repo_access(self, check_entity):
+        if not isinstance(check_entity, RepositoryRegistry):
+            raise NoAccessError("Only RepositoryRegistry entity")
+
+        if self.current_agent.type is not AgentType.USER:
+            raise NoAccessError("Create Repo from RepositoryRegistry allowed only for Users")
+
+        if not check_entity.is_public_repository:
+            all_credentials_with_status = check_entity.get_credentials()
+            if not all_credentials_with_status:
+                raise NoAccessError("This RepositoryRegistry has no Credentials")
+
+            current_user_credentials = check_entity.get_credentials_by_user(
+                all_credentials_with_status, str(self.current_agent.uuid)
+            )
+
+            if not current_user_credentials:
+                raise NoAccessError(
+                    "This User has no external Platform Credentials for create Repo from RepositoryRegistry"
+                )
+
+            if current_user_credentials.status != CredentialStatus.VALID:
+                raise NoAccessError("Status Credentials external Platform: {}".format(current_user_credentials.status))
 
     def access_restriction(self, resource_type: Optional[PermissionEntities] = None) -> list[uuid_pkg]:
         return [
