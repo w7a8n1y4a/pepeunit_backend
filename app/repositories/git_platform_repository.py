@@ -5,7 +5,7 @@ import httpx
 from app import settings
 from app.configs.errors import GitPlatformClientError
 from app.domain.repository_registry_model import RepositoryRegistry
-from app.dto.repository_registry import Credentials
+from app.schemas.pydantic.repository_registry import Credentials
 
 
 class GitPlatformClientABC(ABC):

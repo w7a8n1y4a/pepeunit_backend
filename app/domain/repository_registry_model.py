@@ -7,8 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 from app.dto.enum import CredentialStatus
-from app.dto.repository_registry import Credentials
-from app.schemas.pydantic.repository_registry import OneRepositoryRegistryCredentials
+from app.schemas.pydantic.repository_registry import Credentials, OneRepositoryRegistryCredentials
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 

@@ -12,6 +12,7 @@ from app.configs.errors import DataPipeError, MqttError, UnitNodeError
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
@@ -35,6 +36,7 @@ from app.dto.enum import (
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -74,6 +76,7 @@ class UnitNodeService:
     def __init__(
         self,
         unit_repository: UnitRepository = Depends(),
+        repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
@@ -83,6 +86,7 @@ class UnitNodeService:
         access_service: AccessService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
+        self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
@@ -234,11 +238,13 @@ class UnitNodeService:
             self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        repo_dto = self.repo_repository.get_with_registry(repo)
+        repository_registry = self.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
 
-        self.git_repo_repository.is_valid_firmware_platform(repo_dto, unit, unit.target_firmware_platform)
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo_dto, unit)
-        schema_dict = self.git_repo_repository.get_schema_dict(repo_dto, target_version)
+        self.git_repo_repository.is_valid_firmware_platform(repository_registry, unit, unit.target_firmware_platform)
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repository_registry, unit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repository_registry, target_version)
 
         command_to_topic_dict = {
             BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,

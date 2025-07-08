@@ -14,6 +14,7 @@ from fastapi import Depends
 from app import settings
 from app.configs.errors import MqttError, NoAccessError, UnitError
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
@@ -29,7 +30,6 @@ from app.dto.enum import (
     StaticRepoFileName,
     UnitNodeTypeEnum,
 )
-from app.dto.repository_registry import RepoWithRepositoryRegistryDTO
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_log_repository import UnitLogRepository
@@ -149,16 +149,16 @@ class UnitService:
 
         return result_unit
 
-    def sync_state_unit_nodes_for_version(self, unit: Unit, repo_dto: RepoWithRepositoryRegistryDTO) -> Unit:
-        self.git_repo_repository.is_valid_firmware_platform(repo_dto, unit, unit.target_firmware_platform)
+    def sync_state_unit_nodes_for_version(self, unit: Unit, repository_registry: RepositoryRegistry) -> Unit:
+        self.git_repo_repository.is_valid_firmware_platform(repository_registry, unit, unit.target_firmware_platform)
 
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo_dto, unit)
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repository_registry, unit)
 
         if target_version == unit.current_commit_version:
             return self.unit_repository.update(unit.uuid, unit)
 
-        self.git_repo_repository.is_valid_schema_file(repo_dto, target_version)
-        target_env_dict = self.git_repo_repository.get_env_dict(repo_dto, target_version)
+        self.git_repo_repository.is_valid_schema_file(repository_registry, target_version)
+        target_env_dict = self.git_repo_repository.get_env_dict(repository_registry, target_version)
 
         if unit.cipher_env_dict:
             current_env_dict = is_valid_json(aes_gcm_decode(unit.cipher_env_dict), "Cipher env")
@@ -169,7 +169,7 @@ class UnitService:
 
             new_env_dict = merge_two_dict_first_priority(current_env_dict, merged_env_dict)
 
-            self.git_repo_repository.is_valid_env_file(repo_dto, target_version, new_env_dict)
+            self.git_repo_repository.is_valid_env_file(repository_registry, target_version, new_env_dict)
 
             unit.cipher_env_dict = aes_gcm_encode(json.dumps(new_env_dict))
 
@@ -189,7 +189,7 @@ class UnitService:
             if unit_node.type == UnitNodeTypeEnum.OUTPUT
         }
 
-        schema_dict = self.git_repo_repository.get_schema_dict(repo_dto, target_version)
+        schema_dict = self.git_repo_repository.get_schema_dict(repository_registry, target_version)
 
         self.unit_node_service.bulk_update(schema_dict, unit, input_node_dict, output_node_dict)
 

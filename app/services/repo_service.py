@@ -56,9 +56,6 @@ class RepoService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         self.repo_repository.is_valid_name(data.name)
-        self.repo_repository.is_valid_repo_url(Repo(repo_url=data.repo_url))
-        self.repo_repository.is_valid_private_repo(data)
-        self.repo_repository.is_valid_platform(data)
 
         repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
@@ -68,13 +65,11 @@ class RepoService:
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
             repo.is_only_tag_update = True
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
 
         repo.create_datetime = datetime.datetime.utcnow()
         repo.last_update_datetime = repo.create_datetime
         repo = self.repo_repository.create(repo)
 
-        self.git_repo_repository.clone_remote_repo(repo)
         self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), repo)
 
         return self.mapper_repo_to_repo_read(repo)

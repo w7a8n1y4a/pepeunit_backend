@@ -139,6 +139,7 @@ def get_unit_service(
 ) -> UnitService:
     repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
     permission_repository = PermissionRepository(db)
 
     access_service = AccessService(
@@ -166,6 +167,7 @@ def get_unit_service(
     )
 
     return UnitService(
+        repository_registry_repository=repository_registry_repository,
         repo_repository=repo_repository,
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
