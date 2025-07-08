@@ -244,8 +244,6 @@ class RepositoryRegistryService:
         self.git_repo_repository.delete_repo(repository_registry)
         self.repository_registry_repository.delete(repository_registry)
 
-        return None
-
     def sync_external_repository(self, repository_registry: RepositoryRegistry) -> RepositoryRegistry:
 
         self.is_sync_available(repository_registry)

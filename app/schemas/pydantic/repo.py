@@ -35,11 +35,6 @@ class ReposResult(BaseModel):
     repos: list[RepoRead]
 
 
-class Credentials(BaseModel):
-    username: str
-    pat_token: str
-
-
 class TargetVersionRead(BaseModel):
     commit: str
     tag: Optional[str] = None
@@ -48,12 +43,6 @@ class TargetVersionRead(BaseModel):
 class RepoCreate(BaseModel):
     visibility_level: VisibilityLevel
     name: str
-
-    repository_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
-    credentials: Optional[Credentials] = None
 
     is_compilable_repo: bool
 

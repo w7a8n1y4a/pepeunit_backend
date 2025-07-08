@@ -195,8 +195,6 @@ class RepoService:
 
         threading.Thread(target=_process_bulk_update_units_firmware, daemon=True).start()
 
-        return None
-
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -210,8 +208,6 @@ class RepoService:
 
         self.git_repo_repository.delete_repo(repo)
         self.repo_repository.delete(repo)
-
-        return None
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> tuple[int, list[RepoRead]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
