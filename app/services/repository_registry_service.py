@@ -17,6 +17,8 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.repository_registry import (
+    CommitFilter,
+    CommitRead,
     Credentials,
     OneRepositoryRegistryCredentials,
     RepositoryRegistryCreate,
@@ -25,7 +27,7 @@ from app.schemas.pydantic.repository_registry import (
 )
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
-from app.services.validators import is_emtpy_sequence, is_valid_object
+from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object
 
 
 class RepositoryRegistryService:
@@ -121,6 +123,55 @@ class RepositoryRegistryService:
         is_valid_object(repository_registry)
         self.access_service.authorization.check_visibility(repository_registry)
         return repository_registry
+
+    def get_branch_commits(self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter]) -> list[CommitRead]:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
+        is_valid_object(repository_registry)
+        self.access_service.authorization.check_visibility(repository_registry)
+
+        self.git_repo_repository.is_valid_branch(repository_registry, filters.repo_branch)
+
+        commits = self.git_repo_repository.get_branch_commits_with_tag(repository_registry, filters.repo_branch)
+
+        commits_with_tag = self.git_repo_repository.get_tags_from_all_commits(commits) if filters.only_tag else commits
+
+        return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
+
+    def get_available_platforms(
+        self,
+        uuid: uuid_pkg.UUID,
+        target_branch: str,
+        target_commit: Optional[str] = None,
+        target_tag: Optional[str] = None,
+    ) -> list[tuple[str, str]]:
+
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
+        is_valid_object(repository_registry)
+        self.access_service.authorization.check_visibility(repository_registry)
+
+        platforms = []
+        if repository_registry.releases_data:
+            releases = is_valid_json(repository_registry.releases_data, "Releases for compile repo")
+
+            if target_tag:
+                try:
+                    platforms = releases[target_tag]
+                except KeyError:
+                    pass
+            elif target_commit:
+                commits = self.git_repo_repository.get_branch_commits_with_tag(repository_registry, target_branch)
+                commit = self.git_repo_repository.find_by_commit(commits, target_commit)
+                if commit and commit.get('tag'):
+                    platforms = releases[commit['tag']]
+            else:
+                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repository_registry)
+                platforms = releases[target_tag]
+
+        return platforms
 
     def get_credentials(self, uuid: uuid_pkg.UUID) -> Optional[OneRepositoryRegistryCredentials]:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -234,6 +285,18 @@ class RepositoryRegistryService:
             repository_registry.sync_error = e.message
 
         return self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
+
+    def update_local_repository(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
+        is_valid_object(repository_registry)
+
+        self.access_service.authorization.check_repository_registry_access(repository_registry)
+
+        self.sync_external_repository(repository_registry)
+
+        return None
 
     def sync_local_repository_storage(self) -> None:
 

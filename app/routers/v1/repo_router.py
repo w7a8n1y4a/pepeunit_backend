@@ -11,8 +11,6 @@ from app.configs.db import get_hand_session
 from app.configs.rest import get_repo_service
 from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
-    CommitFilter,
-    CommitRead,
     Credentials,
     PlatformRead,
     RepoCreate,
@@ -39,7 +37,7 @@ def automatic_update_repositories():
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 repo_service = get_repo_service(db, cc, None)
-                repo_service.bulk_update_repositories(is_auto_update=True)
+                repo_service.bulk_update_units_firmware(is_auto_update=True)
 
     else:
         logging.info('Skip update without lock')
@@ -117,7 +115,7 @@ def update_units_firmware(uuid: uuid_pkg.UUID, repo_service: RepoService = Depen
 
 @router.post("/bulk_update", status_code=status.HTTP_204_NO_CONTENT)
 def bulk_update(repo_service: RepoService = Depends(get_repo_service)):
-    return repo_service.bulk_update_repositories()
+    return repo_service.bulk_update_units_firmware()
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

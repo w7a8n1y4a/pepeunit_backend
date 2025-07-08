@@ -51,13 +51,12 @@ class AuthorizationService:
     def check_visibility(self, check_entity):
 
         if isinstance(check_entity, RepositoryRegistry):
-            if check_entity.is_public_repository:
-                return None
-            else:
+            if not check_entity.is_public_repository:
                 if self.current_agent.type in [AgentType.BOT]:
                     raise NoAccessError("Private RepositoryRegistry is not allowed")
                 elif self.current_agent.type is [AgentType.BACKEND, AgentType.USER, AgentType.UNIT]:
                     return None
+            return None
 
         if self.current_agent.type == AgentType.BACKEND:
             pass
@@ -76,12 +75,12 @@ class AuthorizationService:
             if not self.permission_repo.check(permission_check):
                 raise NoAccessError("Private visibility level is not allowed")
 
-    def check_create_repo_access(self, check_entity):
+    def check_repository_registry_access(self, check_entity):
         if not isinstance(check_entity, RepositoryRegistry):
             raise NoAccessError("Only RepositoryRegistry entity")
 
         if self.current_agent.type is not AgentType.USER:
-            raise NoAccessError("Create Repo from RepositoryRegistry allowed only for Users")
+            raise NoAccessError("RepositoryRegistry operation allowed only for Users")
 
         if not check_entity.is_public_repository:
             all_credentials_with_status = check_entity.get_credentials()
@@ -94,7 +93,7 @@ class AuthorizationService:
 
             if not current_user_credentials:
                 raise NoAccessError(
-                    "This User has no external Platform Credentials for create Repo from RepositoryRegistry"
+                    "This User has no external Platform Credentials for operation with RepositoryRegistry"
                 )
 
             if current_user_credentials.status != CredentialStatus.VALID:

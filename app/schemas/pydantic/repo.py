@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import Query
-from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import BaseModel
 
 from app.dto.enum import GitPlatform, OrderByDate, VisibilityLevel
@@ -39,12 +38,6 @@ class ReposResult(BaseModel):
 class Credentials(BaseModel):
     username: str
     pat_token: str
-
-
-class CommitRead(BaseModel):
-    commit: str
-    summary: str
-    tag: Optional[str] = None
 
 
 class TargetVersionRead(BaseModel):
@@ -106,14 +99,6 @@ class RepoFilter:
 
     def dict(self):
         return self.__dict__
-
-
-class CommitFilter(Filter):
-    repo_branch: str
-    only_tag: bool = False
-
-    offset: Optional[int] = 0
-    limit: Optional[int] = 10
 
 
 class RepoVersionRead(BaseModel):

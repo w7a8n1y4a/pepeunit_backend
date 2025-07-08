@@ -44,7 +44,7 @@ def update_units_firmware(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
 @strawberry.mutation()
 def bulk_update(info: Info) -> NoneType:
     repo_service = get_repo_service_gql(info)
-    repo_service.bulk_update_repositories()
+    repo_service.bulk_update_units_firmware()
     return NoneType()
 
 

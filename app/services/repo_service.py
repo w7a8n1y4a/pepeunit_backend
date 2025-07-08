@@ -3,9 +3,9 @@ import json
 import logging
 import threading
 import uuid as uuid_pkg
-from typing import Optional, Union
+from typing import Union
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
@@ -14,16 +14,11 @@ from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.repo import (
-    CommitFilterInput,
-    CredentialsInput,
     RepoCreateInput,
     RepoFilterInput,
     RepoUpdateInput,
 )
 from app.schemas.pydantic.repo import (
-    CommitFilter,
-    CommitRead,
-    Credentials,
     RepoCreate,
     RepoFilter,
     RepoRead,
@@ -33,10 +28,10 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
-from app.services.thread import _process_bulk_update_repositories
+from app.services.thread import _process_bulk_update_units_firmware
 from app.services.unit_service import UnitService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict, token_depends
-from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
+from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
+from app.services.validators import is_emtpy_sequence, is_valid_object, is_valid_visibility_level
 from app.utils.utils import aes_gcm_encode
 
 
@@ -91,53 +86,6 @@ class RepoService:
         self.access_service.authorization.check_visibility(repo)
         return self.mapper_repo_to_repo_read(repo)
 
-    def get_branch_commits(
-        self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]
-    ) -> list[CommitRead]:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repo = self.repo_repository.get(Repo(uuid=uuid))
-        is_valid_object(repo)
-        self.access_service.authorization.check_visibility(repo)
-
-        self.git_repo_repository.is_valid_branch(repo, filters.repo_branch)
-
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, filters.repo_branch)
-
-        commits_with_tag = self.git_repo_repository.get_tags_from_all_commits(commits) if filters.only_tag else commits
-
-        return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
-
-    def get_available_platforms(
-        self, uuid: uuid_pkg.UUID, target_commit: Optional[str] = None, target_tag: Optional[str] = None
-    ) -> list[tuple[str, str]]:
-
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repo = self.repo_repository.get(Repo(uuid=uuid))
-        is_valid_object(repo)
-        self.access_service.authorization.check_visibility(repo)
-
-        platforms = []
-        if repo.is_compilable_repo and repo.releases_data:
-            releases = is_valid_json(repo.releases_data, "releases for compile repo")
-
-            if target_tag:
-                try:
-                    platforms = releases[target_tag]
-                except KeyError:
-                    pass
-            elif target_commit:
-                commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
-                commit = self.git_repo_repository.find_by_commit(commits, target_commit)
-                if commit and commit.get('tag'):
-                    platforms = releases[commit['tag']]
-            else:
-                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo)
-                platforms = releases[target_tag]
-
-        return platforms
-
     def get_versions(self, uuid: uuid_pkg.UUID) -> RepoVersionsRead:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
 
@@ -186,27 +134,6 @@ class RepoService:
 
         return self.mapper_repo_to_repo_read(repo)
 
-    def update_credentials(self, uuid: uuid_pkg.UUID, data: Union[Credentials, CredentialsInput]) -> RepoRead:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repo = self.repo_repository.get(Repo(uuid=uuid))
-        is_valid_object(repo)
-
-        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
-        self.repo_repository.is_private_repository(repo)
-
-        repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.dict()))
-
-        if repo.is_compilable_repo:
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
-
-        repo.last_update_datetime = datetime.datetime.utcnow()
-        repo = self.repo_repository.update(uuid, repo)
-
-        self.git_repo_repository.update_credentials(repo)
-
-        return self.mapper_repo_to_repo_read(repo)
-
     def update_default_branch(self, uuid: uuid_pkg.UUID, default_branch: str) -> RepoRead:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -221,23 +148,6 @@ class RepoService:
         repo = self.repo_repository.update(uuid, repo)
 
         return self.mapper_repo_to_repo_read(repo)
-
-    def update_local_repo(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repo = self.repo_repository.get(Repo(uuid=uuid))
-        is_valid_object(repo)
-
-        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
-
-        if repo.is_compilable_repo:
-            repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
-
-            repo = self.repo_repository.update(uuid, repo)
-
-        self.git_repo_repository.clone_remote_repo(repo)
-
-        return None
 
     def update_units_firmware(self, uuid: uuid_pkg.UUID, is_auto_update: bool = False) -> None:
 
@@ -279,38 +189,13 @@ class RepoService:
 
         logging.info(result)
 
-    def bulk_update_repositories(self, is_auto_update: bool = False) -> None:
+    def bulk_update_units_firmware(self, is_auto_update: bool = False) -> None:
         if not is_auto_update:
             self.access_service.authorization.check_access([AgentType.USER], [UserRole.ADMIN])
 
-        threading.Thread(target=_process_bulk_update_repositories, daemon=True).start()
+        threading.Thread(target=_process_bulk_update_units_firmware, daemon=True).start()
 
         return None
-
-    def sync_local_repo_storage(self) -> None:
-
-        logging.info('run sync local repo storage')
-
-        current_physic_repos = self.git_repo_repository.get_current_repos()
-        current_db_repos = self.repo_repository.get_all_repo()
-
-        for repo in current_db_repos:
-            if str(repo.uuid) not in current_physic_repos:
-                try:
-
-                    if repo.is_compilable_repo:
-                        repo.releases_data = json.dumps(self.git_repo_repository.get_releases(repo))
-
-                        repo = self.repo_repository.update(repo.uuid, repo)
-
-                    self.git_repo_repository.clone_remote_repo(repo)
-
-                    logging.info(f'success load: {repo.repo_url}')
-
-                except HTTPException as e:
-                    logging.warning(f'corrupt load: {repo.repo_url} {e.detail}')
-
-        logging.info('end sync local repo storage')
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
