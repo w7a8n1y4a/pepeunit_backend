@@ -201,7 +201,6 @@ class RepoService:
         count, unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
         is_emtpy_sequence(unit_list)
 
-        self.git_repo_repository.delete_repo(repo)
         self.repo_repository.delete(repo)
 
     def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> tuple[int, list[RepoRead]]:
@@ -215,11 +214,6 @@ class RepoService:
         count, repos = self.repo_repository.list(filters, restriction=restriction)
         return count, [self.mapper_repo_to_repo_read(repo) for repo in repos]
 
-    def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
-        repo = self.repo_repository.get(repo)
-        try:
-            branches = self.git_repo_repository.get_branches(repo)
-        except:
-            branches = []
-
-        return RepoRead(branches=branches, **repo.dict())
+    @staticmethod
+    def mapper_repo_to_repo_read(repo: Repo) -> RepoRead:
+        return RepoRead(**repo.dict())
