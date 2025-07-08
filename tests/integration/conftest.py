@@ -17,7 +17,7 @@ from app.configs.db import get_session
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import VisibilityLevel
-from app.dto.repository_registry import Credentials
+from app.schemas.pydantic.repository_registry import Credentials
 from app.services.validators import is_valid_json
 from tests.client.mqtt import MQTTClient
 

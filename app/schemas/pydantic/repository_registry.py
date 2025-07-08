@@ -10,11 +10,6 @@ from pydantic import BaseModel
 from app.dto.enum import CredentialStatus, GitPlatform, OrderByDate, RepositoryRegistryStatus
 
 
-class PlatformRead(BaseModel):
-    name: str
-    link: str
-
-
 class Credentials(BaseModel):
     username: str
     pat_token: str

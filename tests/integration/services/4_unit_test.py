@@ -21,7 +21,7 @@ from app.configs.rest import get_repo_service, get_unit_service
 from app.domain.repo_model import Repo
 from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
 from app.repositories.unit_log_repository import UnitLogRepository
-from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
+from app.schemas.pydantic.repo import RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode
 

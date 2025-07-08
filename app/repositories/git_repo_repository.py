@@ -156,10 +156,12 @@ class GitRepoRepository:
                 return item
         return None
 
-    def get_target_repo_version(self, repository_registry: RepositoryRegistry) -> tuple[str, Optional[str]]:
-        self.is_valid_branch(repository_registry, repository_registry.default_branch)
+    def get_target_repo_version(
+        self, repository_registry: RepositoryRegistry, target_branch: str, target_base_commit: str
+    ) -> tuple[str, Optional[str]]:
+        self.is_valid_branch(repository_registry, target_branch)
 
-        all_commits = self.get_branch_commits_with_tag(repository_registry, repository_registry.default_branch)
+        all_commits = self.get_branch_commits_with_tag(repository_registry, target_branch)
         tags = self.get_tags_from_all_commits(all_commits)
 
         target_commit = None
@@ -175,11 +177,9 @@ class GitRepoRepository:
                     target_commit = all_commits[0]
 
         else:
-            self.is_valid_commit(
-                repository_registry, repository_registry.default_branch, repository_registry.default_commit
-            )
+            self.is_valid_commit(repository_registry, target_branch, target_base_commit)
 
-            target_commit = self.find_by_commit(all_commits, repository_registry.default_commit)
+            target_commit = self.find_by_commit(all_commits, target_base_commit)
 
             if repository_registry.is_compilable_repo and target_commit['tag'] is None:
                 raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))

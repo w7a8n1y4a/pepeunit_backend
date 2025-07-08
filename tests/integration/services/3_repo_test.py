@@ -5,7 +5,7 @@ import pytest
 from app.configs.errors import GitRepoError, RepoError, RepositoryRegistryError
 from app.configs.rest import get_repo_service
 from app.domain.repo_model import Repo
-from app.schemas.pydantic.repo import CommitFilter, Credentials, RepoCreate, RepoFilter, RepoUpdate
+from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate
 
 
 @pytest.mark.run(order=0)

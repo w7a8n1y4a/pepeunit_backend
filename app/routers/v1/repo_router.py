@@ -1,6 +1,7 @@
 import logging
 import time
 import uuid as uuid_pkg
+from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
@@ -10,6 +11,7 @@ from app.configs.db import get_hand_session
 from app.configs.rest import get_repo_service
 from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
+    PlatformRead,
     RepoCreate,
     RepoFilter,
     RepoRead,
@@ -61,6 +63,19 @@ def get(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_servic
 def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoService = Depends(get_repo_service)):
     count, repos = repo_service.list(filters)
     return ReposResult(count=count, repos=repos)
+
+
+@router.get("/available_platforms/{uuid}", response_model=list[PlatformRead])
+def get_available_platforms(
+    uuid: uuid_pkg.UUID,
+    target_commit: Optional[str] = None,
+    target_tag: Optional[str] = None,
+    repo_service: RepoService = Depends(get_repo_service),
+):
+    return [
+        PlatformRead(name=platform[0], link=platform[1])
+        for platform in repo_service.get_available_platforms(uuid, target_commit, target_tag)
+    ]
 
 
 @router.get("/versions/{uuid}", response_model=RepoVersionsRead)

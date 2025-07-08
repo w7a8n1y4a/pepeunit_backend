@@ -139,40 +139,6 @@ class RepositoryRegistryService:
 
         return [CommitRead(**item) for item in commits_with_tag][filters.offset : filters.offset + filters.limit]
 
-    def get_available_platforms(
-        self,
-        uuid: uuid_pkg.UUID,
-        target_branch: str,
-        target_commit: Optional[str] = None,
-        target_tag: Optional[str] = None,
-    ) -> list[tuple[str, str]]:
-
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
-        is_valid_object(repository_registry)
-        self.access_service.authorization.check_visibility(repository_registry)
-
-        platforms = []
-        if repository_registry.releases_data:
-            releases = is_valid_json(repository_registry.releases_data, "Releases for compile repo")
-
-            if target_tag:
-                try:
-                    platforms = releases[target_tag]
-                except KeyError:
-                    pass
-            elif target_commit:
-                commits = self.git_repo_repository.get_branch_commits_with_tag(repository_registry, target_branch)
-                commit = self.git_repo_repository.find_by_commit(commits, target_commit)
-                if commit and commit.get('tag'):
-                    platforms = releases[commit['tag']]
-            else:
-                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repository_registry)
-                platforms = releases[target_tag]
-
-        return platforms
-
     def get_credentials(self, uuid: uuid_pkg.UUID) -> Optional[OneRepositoryRegistryCredentials]:
         self.access_service.authorization.check_access([AgentType.USER])
 

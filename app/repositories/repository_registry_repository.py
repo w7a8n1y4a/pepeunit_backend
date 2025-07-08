@@ -77,7 +77,7 @@ class RepositoryRegistryRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return count, [item[0] for item in query.all()]
+        return count, query.all()
 
     def is_unique_url(self, url: str) -> None:
         repository_registry = self.db.query(RepositoryRegistry).filter(RepositoryRegistry.repository_url == url).first()

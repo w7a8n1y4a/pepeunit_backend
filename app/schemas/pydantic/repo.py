@@ -6,7 +6,12 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel
 
-from app.dto.enum import GitPlatform, OrderByDate, VisibilityLevel
+from app.dto.enum import OrderByDate, VisibilityLevel
+
+
+class PlatformRead(BaseModel):
+    name: str
+    link: str
 
 
 class RepoRead(BaseModel):
