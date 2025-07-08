@@ -1,12 +1,16 @@
 from typing import Optional
 
 from fastapi import Depends
+from fastapi.params import Query
 from sqlmodel import Session
 
 from app.configs.db import get_session
 from app.configs.errors import RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import GitPlatform
+from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
+from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
+from app.services.validators import is_valid_uuid
 
 
 class RepositoryRegistryRepository:
@@ -47,6 +51,33 @@ class RepositoryRegistryRepository:
             .filter(RepositoryRegistry.repository_url == repository_registry.repository_url)
             .first()
         )
+
+    def list(
+        self, filters: RepositoryRegistryFilter, restriction: list[str] = None
+    ) -> tuple[int, list[RepositoryRegistry]]:
+        query = self.db.query(RepositoryRegistry)
+
+        filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+        if filters.uuids:
+            query = query.filter(RepositoryRegistry.uuid.in_([is_valid_uuid(item) for item in filters.uuids]))
+
+        if filters.creator_uuid:
+            query = query.filter(RepositoryRegistry.creator_uuid == is_valid_uuid(filters.creator_uuid))
+
+        if filters.is_public_repository is not None:
+            query = query.filter(RepositoryRegistry.is_public_repository == filters.is_public_repository)
+
+        fields = [RepositoryRegistry.repository_url]
+        query = apply_ilike_search_string(query, filters, fields)
+
+        fields = {
+            'order_by_create_date': RepositoryRegistry.create_datetime,
+            'order_by_last_update': RepositoryRegistry.last_update_datetime,
+        }
+        query = apply_orders_by(query, filters, fields)
+
+        count, query = apply_offset_and_limit(query, filters)
+        return count, [item[0] for item in query.all()]
 
     def is_unique_url(self, url: str) -> None:
         repository_registry = self.db.query(RepositoryRegistry).filter(RepositoryRegistry.repository_url == url).first()

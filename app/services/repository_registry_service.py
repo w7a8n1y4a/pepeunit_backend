@@ -20,6 +20,7 @@ from app.schemas.pydantic.repository_registry import (
     Credentials,
     OneRepositoryRegistryCredentials,
     RepositoryRegistryCreate,
+    RepositoryRegistryFilter,
     RepositoryRegistryRead,
 )
 from app.services.access_service import AccessService
@@ -114,28 +115,12 @@ class RepositoryRegistryService:
 
         return self.sync_external_repository(repository_registry)
 
-    def get(self, uuid: uuid_pkg.UUID) -> RepositoryRegistryRead:
+    def get(self, uuid: uuid_pkg.UUID) -> RepositoryRegistry:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
         repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
         is_valid_object(repository_registry)
         self.access_service.authorization.check_visibility(repository_registry)
-        return RepositoryRegistryRead(**repository_registry.dict())
-
-    def delete(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
-        is_valid_object(repository_registry)
-
-        self.access_service.authorization.check_ownership(repository_registry, [OwnershipType.CREATOR])
-
-        count, repo_list = self.repo_repository.list(RepoFilter(repository_registry_uuid=uuid))
-        is_emtpy_sequence(repo_list)
-
-        self.git_repo_repository.delete_repo(repository_registry)
-        self.repository_registry_repository.delete(repository_registry)
-
-        return None
+        return repository_registry
 
     def get_credentials(self, uuid: uuid_pkg.UUID) -> Optional[OneRepositoryRegistryCredentials]:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -185,6 +170,30 @@ class RepositoryRegistryService:
         )
 
         self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
+
+    def list(self, filters: Union[RepositoryRegistryFilter]) -> tuple[int, list[RepositoryRegistry]]:
+        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+
+        if self.access_service.current_agent.type == AgentType.BOT:
+            filters.is_public_repository = True
+
+        return self.repository_registry_repository.list(filters)
+
+    def delete(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
+        is_valid_object(repository_registry)
+
+        self.access_service.authorization.check_ownership(repository_registry, [OwnershipType.CREATOR])
+
+        count, repo_list = self.repo_repository.list(RepoFilter(repository_registry_uuid=uuid))
+        is_emtpy_sequence(repo_list)
+
+        self.git_repo_repository.delete_repo(repository_registry)
+        self.repository_registry_repository.delete(repository_registry)
+
+        return None
 
     def sync_external_repository(self, repository_registry: RepositoryRegistry) -> RepositoryRegistry:
 

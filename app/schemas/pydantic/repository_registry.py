@@ -1,10 +1,12 @@
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel
 
-from app.dto.enum import CredentialStatus, GitPlatform, RepositoryRegistryStatus
+from app.dto.enum import CredentialStatus, GitPlatform, OrderByDate, RepositoryRegistryStatus
 
 
 class Credentials(BaseModel):
@@ -46,3 +48,22 @@ class RepositoryRegistryRead(BaseModel):
     creator_uuid: Optional[uuid_pkg.UUID] = None
 
     branches: list[str]
+
+
+@dataclass
+class RepositoryRegistryFilter:
+    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+
+    creator_uuid: Optional[uuid_pkg.UUID] = None
+    search_string: Optional[str] = None
+
+    is_public_repository: Optional[bool] = None
+
+    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
+
+    offset: Optional[int] = None
+    limit: Optional[int] = None
+
+    def dict(self):
+        return self.__dict__
