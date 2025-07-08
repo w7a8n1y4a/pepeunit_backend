@@ -10,6 +10,11 @@ from pydantic import BaseModel
 from app.dto.enum import CredentialStatus, GitPlatform, OrderByDate, RepositoryRegistryStatus
 
 
+class PlatformRead(BaseModel):
+    name: str
+    link: str
+
+
 class Credentials(BaseModel):
     username: str
     pat_token: str
@@ -49,6 +54,11 @@ class RepositoryRegistryRead(BaseModel):
     creator_uuid: Optional[uuid_pkg.UUID] = None
 
     branches: list[str]
+
+
+class RepositoriesRegistryResult(BaseModel):
+    count: int
+    repositories_registry: list[RepositoryRegistryRead]
 
 
 @dataclass

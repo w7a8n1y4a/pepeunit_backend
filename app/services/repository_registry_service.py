@@ -296,8 +296,6 @@ class RepositoryRegistryService:
 
         self.sync_external_repository(repository_registry)
 
-        return None
-
     def sync_local_repository_storage(self) -> None:
 
         logging.info('Run sync all repository in RepositoryRegistry')
