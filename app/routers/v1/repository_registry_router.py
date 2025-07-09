@@ -9,7 +9,6 @@ from app.schemas.pydantic.repository_registry import (
     CommitRead,
     Credentials,
     OneRepositoryRegistryCredentials,
-    PlatformRead,
     RepositoriesRegistryResult,
     RepositoryRegistryCreate,
     RepositoryRegistryFilter,

@@ -157,6 +157,7 @@ def get_unit_service(
 
     unit_node_service = UnitNodeService(
         unit_repository=unit_repository,
+        repository_registry_repository=repository_registry_repository,
         repo_repository=repo_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_log_repository=UnitLogRepository(client),

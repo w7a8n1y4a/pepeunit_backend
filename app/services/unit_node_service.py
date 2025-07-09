@@ -242,8 +242,10 @@ class UnitNodeService:
             RepositoryRegistry(uuid=repo.repository_registry_uuid)
         )
 
-        self.git_repo_repository.is_valid_firmware_platform(repository_registry, unit, unit.target_firmware_platform)
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repository_registry, unit)
+        self.git_repo_repository.is_valid_firmware_platform(
+            repo, repository_registry, unit, unit.target_firmware_platform
+        )
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, repository_registry, unit)
         schema_dict = self.git_repo_repository.get_schema_dict(repository_registry, target_version)
 
         command_to_topic_dict = {
@@ -262,7 +264,7 @@ class UnitNodeService:
                 update_dict['NEW_COMMIT_VERSION'] = target_version
 
                 if repo.is_compilable_repo:
-                    links = is_valid_json(repo.releases_data, "Releases for compile repo")[target_tag]
+                    links = is_valid_json(repository_registry.releases_data, "Releases for compile repo")[target_tag]
                     platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link
