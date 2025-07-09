@@ -100,6 +100,7 @@ def get_repo_service(
 
     unit_node_service = UnitNodeService(
         unit_repository=unit_repository,
+        repository_registry_repository=repository_registry_repository,
         repo_repository=repo_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_log_repository=UnitLogRepository(client),
@@ -187,6 +188,7 @@ def get_unit_node_service(
 ) -> UnitNodeService:
     unit_repository = UnitRepository(db)
     permission_repository = PermissionRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
 
     access_service = AccessService(
         permission_repository=permission_repository,
@@ -203,6 +205,7 @@ def get_unit_node_service(
 
     return UnitNodeService(
         unit_repository=unit_repository,
+        repository_registry_repository=repository_registry_repository,
         repo_repository=RepoRepository(db),
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),

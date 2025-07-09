@@ -176,21 +176,6 @@ class RepoService:
 
         return self.mapper_repo_to_repo_read(repo)
 
-    def update_default_branch(self, uuid: uuid_pkg.UUID, default_branch: str) -> RepoRead:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        repo = self.repo_repository.get(Repo(uuid=uuid))
-        is_valid_object(repo)
-
-        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
-        self.git_repo_repository.is_valid_branch(repo, default_branch)
-
-        repo.default_branch = default_branch
-        repo.last_update_datetime = datetime.datetime.utcnow()
-        repo = self.repo_repository.update(uuid, repo)
-
-        return self.mapper_repo_to_repo_read(repo)
-
     def update_units_firmware(self, uuid: uuid_pkg.UUID, is_auto_update: bool = False) -> None:
 
         if not is_auto_update:
@@ -198,6 +183,11 @@ class RepoService:
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
+
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
+        is_valid_object(repository_registry)
 
         if not is_auto_update:
             self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
@@ -213,7 +203,7 @@ class RepoService:
             logging.info(f'Run update unit {unit.uuid}')
 
             try:
-                unit = self.unit_service.sync_state_unit_nodes_for_version(unit, repo)
+                unit = self.unit_service.sync_state_unit_nodes_for_version(repo, unit, repository_registry)
                 self.unit_service.unit_node_service.command_to_input_base_topic(
                     uuid=unit.uuid, command=BackendTopicCommand.UPDATE, is_auto_update=True
                 )

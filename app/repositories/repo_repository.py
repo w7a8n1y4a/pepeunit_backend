@@ -115,7 +115,7 @@ class RepoRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return count, query.all()
+        return count, [repo for repo, _ in query.all()]
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 
