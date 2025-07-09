@@ -136,7 +136,7 @@ def test_get_set_credentials(test_external_repository, database, cc) -> None:
 
 
 @pytest.mark.run(order=3)
-def test_get_many_repo(database, cc) -> None:
+def test_get_many_repository(database, cc) -> None:
     current_user = pytest.users[0]
     repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
@@ -175,7 +175,7 @@ def test_get_many_repo(database, cc) -> None:
 
 
 @pytest.mark.run(order=4)
-def test_update_local_repo(database, cc) -> None:
+def test_update_local_repository(database, cc) -> None:
 
     current_user = pytest.users[0]
     repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])

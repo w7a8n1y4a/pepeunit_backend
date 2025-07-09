@@ -99,9 +99,14 @@ class RepoService:
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
 
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
+        is_valid_object(repository_registry)
+
         platforms = []
-        if repo.is_compilable_repo and repo.releases_data:
-            releases = is_valid_json(repo.releases_data, "releases for compile repo")
+        if repo.is_compilable_repo and repository_registry.releases_data:
+            releases = is_valid_json(repository_registry.releases_data, "releases for compile repo")
 
             if target_tag:
                 try:
@@ -109,12 +114,12 @@ class RepoService:
                 except KeyError:
                     pass
             elif target_commit:
-                commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+                commits = self.git_repo_repository.get_branch_commits_with_tag(repository_registry, repo.default_branch)
                 commit = self.git_repo_repository.find_by_commit(commits, target_commit)
                 if commit and commit.get('tag'):
                     platforms = releases[commit['tag']]
             else:
-                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repo)
+                target_commit, target_tag = self.git_repo_repository.get_target_repo_version(repository_registry, repo)
                 platforms = releases[target_tag]
 
         return platforms
@@ -245,7 +250,7 @@ class RepoService:
 
         self.repo_repository.delete(repo)
 
-    def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> tuple[int, list[RepoRead]]:
+    def list(self, filters: Union[RepoFilter, RepoFilterInput]) -> tuple[int, list[Repo]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
         restriction = self.access_service.authorization.access_restriction(resource_type=PermissionEntities.REPO)
 
@@ -254,7 +259,7 @@ class RepoService:
         )
 
         count, repos = self.repo_repository.list(filters, restriction=restriction)
-        return count, [self.mapper_repo_to_repo_read(repo) for repo in repos]
+        return count, repos
 
     @staticmethod
     def mapper_repo_to_repo_read(repo: Repo) -> RepoRead:
