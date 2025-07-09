@@ -22,9 +22,6 @@ class Repo(SQLModel, table=True):
     # datetime Create Repo
     create_datetime: datetime = Field(nullable=False)
 
-    # if is_public_repository=False - cipher creds to load remote repository
-    cipher_credentials_private_repository: str = Field(nullable=True)
-
     # default branch - need for auto and hand updates
     default_branch: str = Field(nullable=True)
 

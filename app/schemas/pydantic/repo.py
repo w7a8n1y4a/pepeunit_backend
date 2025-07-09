@@ -46,6 +46,8 @@ class TargetVersionRead(BaseModel):
 
 
 class RepoCreate(BaseModel):
+    repository_registry_uuid: uuid_pkg.UUID
+
     visibility_level: VisibilityLevel
     name: str
 

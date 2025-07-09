@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import logging
@@ -8,6 +9,7 @@ from typing import Optional, Union
 from fastapi import Depends
 
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import AgentType, BackendTopicCommand, OwnershipType, PermissionEntities, UserRole
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -28,11 +30,11 @@ from app.schemas.pydantic.repo import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
+from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.thread import _process_bulk_update_units_firmware
 from app.services.unit_service import UnitService
 from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
 from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object, is_valid_visibility_level
-from app.utils.utils import aes_gcm_encode
 
 
 class RepoService:
@@ -41,6 +43,7 @@ class RepoService:
         self,
         repo_repository: RepoRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
+        repository_registry_service: RepositoryRegistryService = Depends(),
         unit_service: UnitService = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
@@ -48,19 +51,23 @@ class RepoService:
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_repository = unit_repository
+        self.repository_registry_service = repository_registry_service
         self.unit_service = unit_service
         self.permission_service = permission_service
         self.access_service = access_service
 
-    def create(self, data: Union[RepoCreate, RepoCreateInput]) -> RepoRead:
+    def create(self, data: Union[RepoCreate, RepoCreateInput]) -> Repo:
         self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=data.repository_registry_uuid)
+        )
+        is_valid_object(repository_registry)
+        self.access_service.authorization.check_repository_registry_access(repository_registry)
 
         self.repo_repository.is_valid_name(data.name)
 
         repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
-
-        if not repo.is_public_repository:
-            repo.cipher_credentials_private_repository = aes_gcm_encode(json.dumps(data.credentials.dict()))
 
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
@@ -69,10 +76,11 @@ class RepoService:
         repo.create_datetime = datetime.datetime.utcnow()
         repo.last_update_datetime = repo.create_datetime
         repo = self.repo_repository.create(repo)
+        repo = copy.deepcopy(repo)
 
         self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), repo)
 
-        return self.mapper_repo_to_repo_read(repo)
+        return repo
 
     def get(self, uuid: uuid_pkg.UUID) -> RepoRead:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])

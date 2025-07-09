@@ -2,10 +2,11 @@ import logging
 
 import pytest
 
-from app.configs.errors import GitRepoError, RepoError, RepositoryRegistryError
-from app.configs.rest import get_repo_service
+from app.configs.errors import GitRepoError, NoAccessError, RepoError, RepositoryRegistryError
+from app.configs.rest import get_repo_service, get_repository_registry_service
 from app.domain.repo_model import Repo
 from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate
+from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
 
 
 @pytest.mark.run(order=0)
@@ -13,6 +14,7 @@ def test_create_repo(test_repos, database, cc) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # create test repos
     new_repos = []
@@ -22,10 +24,13 @@ def test_create_repo(test_repos, database, cc) -> None:
         if test_repo['is_compilable_repo'] and test_repo.get('is_auto_update_repo'):
             test_repo['is_only_tag_update'] = True
 
-        repo = repo_service.create(RepoCreate(**test_repo))
-        repo_dto = repo_service.repo_repository.get_with_registry(Repo(uuid=repo.uuid))
+        count, repository_registry = repository_registry_service.list(
+            RepositoryRegistryFilter(search_string=test_repo['repository_url'])
+        )
 
-        new_repos.append(repo_dto)
+        repo = repo_service.create(RepoCreate(repository_registry_uuid=repository_registry[0].uuid, **test_repo))
+
+        new_repos.append(repo)
 
     assert len(new_repos) >= len(test_repos)
 
@@ -33,24 +38,16 @@ def test_create_repo(test_repos, database, cc) -> None:
 
     # check create repo with exist name
     with pytest.raises(RepoError):
-        repo_service.create(RepoCreate(**test_repos[0]))
+        repo_service.create(RepoCreate(**pytest.repos[0].dict()))
 
-    # check create repo with bad link
-    with pytest.raises(RepositoryRegistryError):
-        bad_link_repo = RepoCreate(**test_repos[0])
-        bad_link_repo.name += 'test'
-        bad_link_repo.repository_url += 't'
+    current_user = pytest.users[1]
+    two_repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
-        repo_service.create(bad_link_repo)
-
-    # check create repo with bad credentials
-    bad_credentials_repo = RepoCreate(**test_repos[0])
+    # check create repo without credentials
+    bad_credentials_repo = RepoCreate(**pytest.repos[1].dict())
     bad_credentials_repo.name += 'test'
-    bad_credentials_repo.credentials.pat_token += 't'
-
-    bad_credentials_repo = repo_service.create(bad_credentials_repo)
-    with pytest.raises(GitRepoError):
-        repo_service.repo_repository.get_with_registry(Repo(uuid=bad_credentials_repo.uuid))
+    with pytest.raises(NoAccessError):
+        two_repo_service.create(bad_credentials_repo)
 
 
 @pytest.mark.run(order=1)

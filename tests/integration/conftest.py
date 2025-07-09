@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import os
 import queue
 import shutil
@@ -200,7 +201,6 @@ def test_repos() -> list[dict]:
             },
         ]
     )
-
     return [
         {
             'visibility_level': repo['type'],
