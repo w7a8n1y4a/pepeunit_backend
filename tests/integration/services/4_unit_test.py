@@ -17,11 +17,12 @@ from app.configs.errors import (
     UnitError,
     ValidationError,
 )
-from app.configs.rest import get_repo_service, get_unit_service
+from app.configs.rest import get_repo_service, get_repository_registry_service, get_unit_service
 from app.domain.repo_model import Repo
 from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.repo import RepoUpdate
+from app.schemas.pydantic.repository_registry import CommitFilter
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode
 
@@ -31,6 +32,7 @@ def test_create_unit(database, cc) -> None:
 
     current_user = pytest.users[0]
     unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # create auto updated unit
     new_units = []
@@ -49,8 +51,12 @@ def test_create_unit(database, cc) -> None:
     # create no auto updated units, with all visibility levels
     for inc, test_repo in enumerate([pytest.repos[-4]] + pytest.repos[-4:-1] * 2 + [pytest.repos[-1]]):
         logging.info(test_repo.uuid)
-        repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
-        commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+            repository_registry_service.get(test_repo.repository_registry_uuid)
+        )
+        commits = repository_registry_service.get_branch_commits(
+            repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+        )
 
         unit = unit_service.create(
             UnitCreate(
@@ -58,7 +64,7 @@ def test_create_unit(database, cc) -> None:
                 visibility_level=test_repo.visibility_level,
                 name=f'test_{inc+1}_{pytest.test_hash}',
                 is_auto_update_from_repo_unit=False,
-                repo_branch=test_repo.branches[0],
+                repo_branch=repository_registry.branches[0],
                 repo_commit=commits[0].commit,
                 target_firmware_platform='Universal' if test_repo.is_compilable_repo else None,
             )

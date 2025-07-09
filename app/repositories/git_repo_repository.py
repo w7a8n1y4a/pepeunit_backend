@@ -188,11 +188,13 @@ class GitRepoRepository:
 
         return target_commit['commit'], target_commit['tag']
 
-    def get_target_unit_version(self, repository_registry: RepositoryRegistry, unit: Unit) -> tuple[str, Optional[str]]:
+    def get_target_unit_version(
+        self, repo: Repo, repository_registry: RepositoryRegistry, unit: Unit
+    ) -> tuple[str, Optional[str]]:
 
         target_commit = None
         if unit.is_auto_update_from_repo_unit:
-            repo_target = self.get_target_repo_version(repository_registry)
+            repo_target = self.get_target_repo_version(repository_registry, repo)
             target_commit = {'commit': repo_target[0], 'tag': repo_target[1]}
         else:
             self.is_valid_branch(repository_registry, unit.repo_branch)
@@ -200,7 +202,7 @@ class GitRepoRepository:
             target_commit = self.find_by_commit(all_commits, unit.repo_commit)
 
             if target_commit:
-                if repository_registry.is_compilable_repo and target_commit['tag'] is None:
+                if repo.is_compilable_repo and target_commit['tag'] is None:
                     raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:
@@ -304,13 +306,15 @@ class GitRepoRepository:
                 return item
         return None
 
-    def is_valid_firmware_platform(self, repository_registry: RepositoryRegistry, unit: Unit, firmware_platform: str):
+    def is_valid_firmware_platform(
+        self, repo: Repo, repository_registry: RepositoryRegistry, unit: Unit, firmware_platform: str
+    ):
 
-        if repository_registry.is_compilable_repo:
+        if repo.is_compilable_repo:
             is_valid_object(repository_registry.releases_data)
 
             releases = is_valid_json(repository_registry.releases_data, "Releases for compile repo")
-            target_commit, target_tag = self.get_target_unit_version(repository_registry, unit)
+            target_commit, target_tag = self.get_target_unit_version(repo, repository_registry, unit)
 
             target_platforms = releases.get(target_tag)
 

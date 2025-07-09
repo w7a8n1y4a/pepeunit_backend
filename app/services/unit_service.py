@@ -32,6 +32,7 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -59,6 +60,7 @@ class UnitService:
     def __init__(
         self,
         unit_repository: UnitRepository = Depends(),
+        repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
@@ -67,6 +69,7 @@ class UnitService:
         unit_node_service: UnitNodeService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
+        self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
@@ -83,22 +86,29 @@ class UnitService:
         is_valid_object(repo)
         is_valid_visibility_level(repo, [data])
 
-        self.repo_repository.is_valid_auto_updated_repo(repo)
-        self.is_valid_no_auto_updated_unit(repo, data)
+        repository_registry = self.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
+        is_valid_object(repository_registry)
+
+        self.repo_repository.is_valid_auto_updated_repo(repo, repository_registry)
+        self.is_valid_no_auto_updated_unit(repository_registry, data)
 
         if data.is_auto_update_from_repo_unit:
-            self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
+            self.git_repo_repository.is_valid_branch(repository_registry, repo.default_branch)
         else:
-            self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
-            self.git_repo_repository.is_valid_schema_file(repo, data.repo_commit)
-            self.git_repo_repository.get_env_dict(repo, data.repo_commit)
+            self.git_repo_repository.is_valid_branch(repository_registry, data.repo_branch)
+            self.git_repo_repository.is_valid_schema_file(repository_registry, data.repo_commit)
+            self.git_repo_repository.get_env_dict(repository_registry, data.repo_commit)
 
         unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
+        self.git_repo_repository.is_valid_firmware_platform(
+            repo, repository_registry, unit, unit.target_firmware_platform
+        )
 
-        target_commit = self.git_repo_repository.get_target_unit_version(repo, unit)[0]
+        target_commit = self.git_repo_repository.get_target_unit_version(repo, repository_registry, unit)[0]
 
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_commit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repository_registry, target_commit)
 
         unit.create_datetime = datetime.datetime.utcnow()
         unit.last_update_datetime = unit.create_datetime
@@ -132,14 +142,21 @@ class UnitService:
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         is_valid_visibility_level(repo, [unit_update])
 
-        self.is_valid_no_auto_updated_unit(repo, unit_update)
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit_update, unit_update.target_firmware_platform)
+        repository_registry = self.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
+        is_valid_object(repository_registry)
+
+        self.is_valid_no_auto_updated_unit(repository_registry, unit_update)
+        self.git_repo_repository.is_valid_firmware_platform(
+            repo, repository_registry, unit_update, unit_update.target_firmware_platform
+        )
 
         unit_update.last_update_datetime = datetime.datetime.utcnow()
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
 
-        result_unit = self.sync_state_unit_nodes_for_version(result_unit, repo)
+        result_unit = self.sync_state_unit_nodes_for_version(result_unit, repository_registry)
 
         self.unit_node_service.command_to_input_base_topic(
             uuid=result_unit.uuid,
@@ -506,14 +523,14 @@ class UnitService:
             ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.backend_state_send_interval,
         }
 
-    def is_valid_no_auto_updated_unit(self, repo: Repo, data: Union[Unit, UnitCreate]):
+    def is_valid_no_auto_updated_unit(self, repository_registry: RepositoryRegistry, data: Union[Unit, UnitCreate]):
         if not data.is_auto_update_from_repo_unit and (not data.repo_branch or not data.repo_commit):
             raise UnitError('Unit updated manually requires branch and commit to be filled out')
 
         # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
-            self.git_repo_repository.is_valid_branch(repo, data.repo_branch)
-            self.git_repo_repository.is_valid_commit(repo, data.repo_branch, data.repo_commit)
+            self.git_repo_repository.is_valid_branch(repository_registry, data.repo_branch)
+            self.git_repo_repository.is_valid_commit(repository_registry, data.repo_branch, data.repo_commit)
 
     @staticmethod
     def mapper_unit_to_unit_read(unit: tuple[Unit, List[dict]]) -> UnitRead:
