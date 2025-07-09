@@ -139,8 +139,13 @@ class RepoService:
         if data.name:
             self.repo_repository.is_valid_name(data.name, uuid)
 
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
+        is_valid_object(repository_registry)
+
         if data.default_branch:
-            self.git_repo_repository.is_valid_branch(repo, data.default_branch)
+            self.git_repo_repository.is_valid_branch(repository_registry, data.default_branch)
 
         repo_update_dict = merge_two_dict_first_priority(remove_none_value_dict(data.dict()), repo.dict())
 
@@ -151,14 +156,13 @@ class RepoService:
         is_valid_visibility_level(update_repo, [unit[0] for unit in child_units])
 
         if data.default_commit:
-            self.git_repo_repository.is_valid_commit(repo, update_repo.default_branch, data.default_commit)
+            self.git_repo_repository.is_valid_commit(
+                repository_registry, update_repo.default_branch, data.default_commit
+            )
 
-        self.repo_repository.is_valid_auto_updated_repo(update_repo)
-        self.repo_repository.is_valid_no_auto_updated_repo(update_repo)
+        self.repo_repository.is_valid_auto_updated_repo(update_repo, repository_registry)
+        self.repo_repository.is_valid_no_auto_updated_repo(update_repo, repository_registry)
         self.repo_repository.is_valid_compilable_repo(update_repo)
-
-        if update_repo.is_compilable_repo:
-            update_repo.releases_data = json.dumps(self.git_repo_repository.get_releases(update_repo))
 
         repo = self.repo_repository.update(uuid, update_repo)
 

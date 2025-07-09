@@ -11,6 +11,7 @@ from git.exc import GitCommandError
 from app import settings
 from app.configs.errors import GitRepoError
 from app.configs.utils import get_directory_size
+from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import DestinationTopicType, ReservedEnvVariableName, StaticRepoFileName
@@ -156,32 +157,30 @@ class GitRepoRepository:
                 return item
         return None
 
-    def get_target_repo_version(
-        self, repository_registry: RepositoryRegistry, target_branch: str, target_base_commit: str
-    ) -> tuple[str, Optional[str]]:
-        self.is_valid_branch(repository_registry, target_branch)
+    def get_target_repo_version(self, repository_registry: RepositoryRegistry, repo: Repo) -> tuple[str, Optional[str]]:
+        self.is_valid_branch(repository_registry, repo.default_branch)
 
-        all_commits = self.get_branch_commits_with_tag(repository_registry, target_branch)
+        all_commits = self.get_branch_commits_with_tag(repository_registry, repo.default_branch)
         tags = self.get_tags_from_all_commits(all_commits)
 
         target_commit = None
-        if repository_registry.is_auto_update_repo:
-            if repository_registry.is_compilable_repo:
+        if repo.is_auto_update_repo:
+            if repo.is_compilable_repo:
                 if len(tags) != 0:
                     target_commit = tags[0]
             else:
-                if repository_registry.is_only_tag_update:
+                if repo.is_only_tag_update:
                     if len(tags) != 0:
                         target_commit = tags[0]
                 else:
                     target_commit = all_commits[0]
 
         else:
-            self.is_valid_commit(repository_registry, target_branch, target_base_commit)
+            self.is_valid_commit(repository_registry, repo.default_branch, repo.default_commit)
 
-            target_commit = self.find_by_commit(all_commits, target_base_commit)
+            target_commit = self.find_by_commit(all_commits, repo.default_commit)
 
-            if repository_registry.is_compilable_repo and target_commit['tag'] is None:
+            if repo.is_compilable_repo and target_commit['tag'] is None:
                 raise GitRepoError('Commit {} without Tag'.format(target_commit['commit']))
 
         if not target_commit:

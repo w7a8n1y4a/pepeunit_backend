@@ -11,7 +11,6 @@ from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
-from app.dto.enum import GitPlatform
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -135,16 +134,16 @@ class RepoRepository:
         if repo.is_compilable_repo and repo.is_auto_update_repo and not repo.is_only_tag_update:
             raise RepoError('Compiled repositories use only tags when updating automatically')
 
-    def is_valid_auto_updated_repo(self, repo: Repo):
+    def is_valid_auto_updated_repo(self, repo: Repo, repository_registry: RepositoryRegistry):
         # not commit for last commit or not tags for last tags auto update
-        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo):
+        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repository_registry, repo):
             raise RepoError('Invalid auto updated target version')
 
-    def is_valid_no_auto_updated_repo(self, repo: Repo):
+    def is_valid_no_auto_updated_repo(self, repo: Repo, repository_registry: RepositoryRegistry):
         if not repo.is_auto_update_repo and (not repo.default_branch or not repo.default_commit):
             raise RepoError('Repo updated manually requires branch and commit to be filled out')
 
         # check commit and branch for not auto updated repo
         if not repo.is_auto_update_repo:
-            self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
-            self.git_repo_repository.is_valid_commit(repo, repo.default_branch, repo.default_commit)
+            self.git_repo_repository.is_valid_branch(repository_registry, repo.default_branch)
+            self.git_repo_repository.is_valid_commit(repository_registry, repo.default_branch, repo.default_commit)
