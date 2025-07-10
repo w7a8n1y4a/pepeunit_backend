@@ -1,15 +1,9 @@
-import logging
-import time
 import uuid as uuid_pkg
 from typing import Optional
 
 from fastapi import APIRouter, Depends, status
-from fastapi_utilities import repeat_at
 
-from app.configs.clickhouse import get_hand_clickhouse_client
-from app.configs.db import get_hand_session
 from app.configs.rest import get_repo_service
-from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
     PlatformRead,
     RepoCreate,
@@ -22,27 +16,6 @@ from app.schemas.pydantic.repo import (
 from app.services.repo_service import RepoService
 
 router = APIRouter()
-
-
-@router.on_event('startup')
-@repeat_at(cron='0 * * * *')
-def automatic_update_repositories():
-    lock_fd = acquire_file_lock('tmp/update_repos.lock')
-
-    time.sleep(10)
-
-    if lock_fd:
-        logging.info('Run update with lock')
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                repo_service = get_repo_service(db, cc, None)
-                repo_service.bulk_update_units_firmware(is_auto_update=True)
-
-    else:
-        logging.info('Skip update without lock')
-
-    if lock_fd:
-        lock_fd.close()
 
 
 @router.post(
