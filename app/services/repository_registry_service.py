@@ -228,6 +228,7 @@ class RepositoryRegistryService:
             # load Repository to local
             url = self.get_platform(repository_registry).get_cloning_url()
             repo_save_path = self.git_repo_repository.get_path_physic_repository(repository_registry)
+            print(repo_save_path)
             self.git_repo_repository.clone(url, repo_save_path)
 
             # get releases assets
