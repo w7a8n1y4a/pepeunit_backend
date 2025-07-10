@@ -64,12 +64,7 @@ class GitRepoRepository:
 
     def get_repo(self, repository_registry: RepositoryRegistry) -> GitRepo:
         repo_save_path = self.get_path_physic_repository(repository_registry)
-        try:
-            repo = GitRepo(repo_save_path)
-        except:
-            raise GitRepoError('Physic repository not exist')
-
-        return repo
+        return GitRepo(repo_save_path)
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
