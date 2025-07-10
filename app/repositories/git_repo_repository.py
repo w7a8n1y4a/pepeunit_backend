@@ -88,12 +88,6 @@ class GitRepoRepository:
 
         return repo
 
-    def update_credentials(self, repository_registry: RepositoryRegistry):
-        git_repo = self.get_repo(repository_registry)
-
-        for remote in git_repo.remotes:
-            remote.set_url(self.get_platform(repository_registry).get_cloning_url())
-
     def get_branches(self, repository_registry: RepositoryRegistry) -> list[str]:
 
         repo = self.get_repo(repository_registry)

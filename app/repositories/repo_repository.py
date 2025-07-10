@@ -20,7 +20,7 @@ from app.repositories.utils import (
     apply_restriction,
 )
 from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate, RepoVersionRead, RepoVersionsRead
-from app.services.validators import is_valid_string_with_rules, is_valid_uuid
+from app.services.validators import is_valid_object, is_valid_string_with_rules, is_valid_uuid
 
 
 class RepoRepository:
@@ -53,7 +53,12 @@ class RepoRepository:
             self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
         )
 
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+        repository_registry = (
+            self.db.query(RepositoryRegistry).filter(RepositoryRegistry.uuid == repo.repository_registry_uuid).first()
+        )
+        is_valid_object(repository_registry)
+
+        commits = self.git_repo_repository.get_branch_commits_with_tag(repository_registry, repo.default_branch)
         tags = self.git_repo_repository.get_tags_from_all_commits(commits)
 
         versions_list = []
