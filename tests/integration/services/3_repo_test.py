@@ -2,10 +2,10 @@ import logging
 
 import pytest
 
-from app.configs.errors import GitRepoError, RepoError
-from app.configs.rest import get_repo_service
-from app.domain.repo_model import Repo
-from app.schemas.pydantic.repo import CommitFilter, Credentials, RepoCreate, RepoFilter, RepoUpdate
+from app.configs.errors import GitRepoError, NoAccessError, RepoError
+from app.configs.rest import get_repo_service, get_repository_registry_service
+from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate
+from app.schemas.pydantic.repository_registry import CommitFilter, RepositoryRegistryFilter
 
 
 @pytest.mark.run(order=0)
@@ -13,6 +13,7 @@ def test_create_repo(test_repos, database, cc) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # create test repos
     new_repos = []
@@ -22,7 +23,12 @@ def test_create_repo(test_repos, database, cc) -> None:
         if test_repo['is_compilable_repo'] and test_repo.get('is_auto_update_repo'):
             test_repo['is_only_tag_update'] = True
 
-        repo = repo_service.create(RepoCreate(**test_repo))
+        count, repository_registry = repository_registry_service.list(
+            RepositoryRegistryFilter(search_string=test_repo['repository_url'])
+        )
+
+        repo = repo_service.create(RepoCreate(repository_registry_uuid=repository_registry[0].uuid, **test_repo))
+
         new_repos.append(repo)
 
     assert len(new_repos) >= len(test_repos)
@@ -31,24 +37,16 @@ def test_create_repo(test_repos, database, cc) -> None:
 
     # check create repo with exist name
     with pytest.raises(RepoError):
-        repo_service.create(RepoCreate(**test_repos[0]))
+        repo_service.create(RepoCreate(**pytest.repos[0].dict()))
 
-    # check create repo with bad link
-    with pytest.raises(RepoError):
-        bad_link_repo = RepoCreate(**test_repos[0])
-        bad_link_repo.name += 'test'
-        bad_link_repo.repo_url += 't'
+    current_user = pytest.users[1]
+    two_repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
-        repo_service.create(bad_link_repo)
-
-    # check create repo with bad credentials
-    with pytest.raises(RepoError):
-        bad_credentials_repo = RepoCreate(**test_repos[0])
-        bad_credentials_repo.name += 'test'
-        bad_credentials_repo.repo_url += 't'
-        bad_credentials_repo.credentials.pat_token += 't'
-
-        repo_service.create(bad_credentials_repo)
+    # check create repo without credentials
+    bad_credentials_repo = RepoCreate(**pytest.repos[1].dict())
+    bad_credentials_repo.name += 'test'
+    with pytest.raises(NoAccessError):
+        two_repo_service.create(bad_credentials_repo)
 
 
 @pytest.mark.run(order=1)
@@ -58,13 +56,18 @@ def test_update_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # set default branch for all repos
     for update_repo in pytest.repos:
         logging.info(update_repo.uuid)
 
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+            repository_registry_service.get(update_repo.repository_registry_uuid)
+        )
+
         new_repo_state = RepoUpdate(
-            default_branch=update_repo.branches[0],
+            default_branch=repository_registry.branches[0],
             is_only_tag_update=True if update_repo.is_compilable_repo else update_repo.is_only_tag_update,
         )
         repo_service.update(update_repo.uuid, new_repo_state)
@@ -85,11 +88,16 @@ def test_update_repo(database, cc) -> None:
 
     # check change repo auto update to hand update
     repo = pytest.repos[4]
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(repo.repository_registry_uuid)
+    )
     logging.info(repo.uuid)
-    commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+    commits = repository_registry_service.get_branch_commits(
+        repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+    )
     new_repo_state = RepoUpdate(
         is_auto_update_repo=False,
-        default_branch=repo.branches[0],
+        default_branch=repository_registry.branches[0],
         default_commit=commits[0].commit,
     )
     update_repo = repo_service.update(repo.uuid, new_repo_state)
@@ -103,11 +111,16 @@ def test_update_repo(database, cc) -> None:
 
         if inc == 0:
 
-            commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+            repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+                repository_registry_service.get(repo.repository_registry_uuid)
+            )
+            commits = repository_registry_service.get_branch_commits(
+                repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+            )
 
             new_repo_state = RepoUpdate(
                 is_auto_update_repo=False,
-                default_branch=repo.branches[0],
+                default_branch=repository_registry.branches[0],
                 default_commit=commits[0].commit,
             )
         elif inc == 1:
@@ -118,10 +131,14 @@ def test_update_repo(database, cc) -> None:
         repo_service.update(repo.uuid, new_repo_state)
 
     # set for compile repo default branch
-    new_repo_state = RepoUpdate(
-        default_branch=pytest.repos[-1].branches[0],
+    target_repo = pytest.repos[-1]
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
     )
-    pytest.repos[-1] = repo_service.update(pytest.repos[-1].uuid, new_repo_state)
+    new_repo_state = RepoUpdate(
+        default_branch=repository_registry.branches[0],
+    )
+    pytest.repos[-1] = repo_service.update(target_repo.uuid, new_repo_state)
 
 
 @pytest.mark.run(order=2)
@@ -129,12 +146,16 @@ def test_get_commits_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # check get repo commits - first 10
     target_repo = repo_service.get(pytest.repos[5].uuid)
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
+    )
     logging.info(target_repo.uuid)
-    branch_commits = repo_service.get_branch_commits(
-        target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0], limit=1000)
+    branch_commits = repository_registry_service.get_branch_commits(
+        repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0], limit=1000)
     )
 
     # check first commit repo
@@ -142,7 +163,9 @@ def test_get_commits_repo(database, cc) -> None:
 
     # check get commits for bad branch
     with pytest.raises(GitRepoError):
-        repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0] + 'test'))
+        repository_registry_service.get_branch_commits(
+            repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0] + 'test')
+        )
 
 
 @pytest.mark.run(order=3)
@@ -150,6 +173,7 @@ def test_get_available_platforms(database, cc) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     target_repo = pytest.repos[-1]
 
@@ -165,13 +189,23 @@ def test_get_available_platforms(database, cc) -> None:
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_tag='0.0.0.0')
     assert len(platforms) == 0
 
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
+    )
+    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(
+        repository_registry, target_repo.default_branch
+    )
 
     # check get by commit without tag
     platforms = repo_service.get_available_platforms(target_repo.uuid, target_commit=commits[-1]['commit'])
     assert len(platforms) == 0
 
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
+    )
+    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(
+        repository_registry, target_repo.default_branch
+    )
     tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
 
     # check get by commit with tag
@@ -180,32 +214,11 @@ def test_get_available_platforms(database, cc) -> None:
 
 
 @pytest.mark.run(order=4)
-def test_update_credentials_repo(test_repos, database, cc) -> None:
-
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
-
-    # change to invalid credentials for gitlab and github
-    for inc, repo in enumerate(pytest.repos[:1]):
-        logging.info(repo.uuid)
-
-        # change to invalid credentials
-        with pytest.raises(GitRepoError):
-            repo_service.update_credentials(repo.uuid, Credentials(username='test', pat_token='test'))
-
-        # check update local repo with bad credentials
-        with pytest.raises(GitRepoError):
-            repo_service.update_local_repo(repo.uuid)
-
-        # change credentials to normal
-        repo_service.update_credentials(repo.uuid, test_repos[inc]['credentials'])
-
-
-@pytest.mark.run(order=5)
 def test_update_default_branch_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # set default branch
     for repo in pytest.repos:
@@ -213,31 +226,23 @@ def test_update_default_branch_repo(database, cc) -> None:
 
         logging.info(repo.uuid)
 
-        if len(full_repo.branches) > 0:
-            repo_service.update(repo.uuid, RepoUpdate(default_branch=full_repo.branches[0]))
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+            repository_registry_service.get(full_repo.repository_registry_uuid)
+        )
+
+        if len(repository_registry.branches) > 0:
+            repo_service.update(repo.uuid, RepoUpdate(default_branch=repository_registry.branches[0]))
 
     # set bad default branch
     with pytest.raises(GitRepoError):
         full_repo = repo_service.get(pytest.repos[-1].uuid)
-        repo_service.update(repo.uuid, RepoUpdate(default_branch=full_repo.branches[0] + 't'))
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+            repository_registry_service.get(full_repo.repository_registry_uuid)
+        )
+        repo_service.update(full_repo.uuid, RepoUpdate(default_branch=repository_registry.branches[0] + 't'))
 
 
-@pytest.mark.run(order=6)
-def test_update_local_repo(database, cc) -> None:
-
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
-
-    # del local repo
-    repo_service.git_repo_repository.delete_repo(Repo(uuid=pytest.repos[0].uuid))
-
-    # check update local repos
-    for repo in pytest.repos:
-        logging.info(repo.uuid)
-        repo_service.update_local_repo(repo.uuid)
-
-
-@pytest.mark.run(order=7)
+@pytest.mark.run(order=5)
 def test_delete_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -247,7 +252,7 @@ def test_delete_repo(database, cc) -> None:
     repo_service.delete(pytest.repos[3].uuid)
 
 
-@pytest.mark.run(order=8)
+@pytest.mark.run(order=6)
 def test_get_many_repo(database, cc) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])

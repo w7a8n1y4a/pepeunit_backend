@@ -4,10 +4,14 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import Query
-from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import BaseModel
 
-from app.dto.enum import GitPlatform, OrderByDate, VisibilityLevel
+from app.dto.enum import OrderByDate, VisibilityLevel
+
+
+class PlatformRead(BaseModel):
+    name: str
+    link: str
 
 
 class RepoRead(BaseModel):
@@ -16,11 +20,6 @@ class RepoRead(BaseModel):
 
     name: str
     create_datetime: datetime
-
-    repo_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
@@ -31,9 +30,9 @@ class RepoRead(BaseModel):
 
     last_update_datetime: datetime
 
-    branches: list[str]
-
     creator_uuid: uuid_pkg.UUID
+
+    repository_registry_uuid: uuid_pkg.UUID
 
 
 class ReposResult(BaseModel):
@@ -41,36 +40,16 @@ class ReposResult(BaseModel):
     repos: list[RepoRead]
 
 
-class Credentials(BaseModel):
-    username: str
-    pat_token: str
-
-
-class CommitRead(BaseModel):
-    commit: str
-    summary: str
-    tag: Optional[str] = None
-
-
 class TargetVersionRead(BaseModel):
     commit: str
     tag: Optional[str] = None
 
 
-class PlatformRead(BaseModel):
-    name: str
-    link: str
-
-
 class RepoCreate(BaseModel):
+    repository_registry_uuid: uuid_pkg.UUID
+
     visibility_level: VisibilityLevel
     name: str
-
-    repo_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
-    credentials: Optional[Credentials] = None
 
     is_compilable_repo: bool
 
@@ -91,13 +70,14 @@ class RepoUpdate(BaseModel):
 
 @dataclass
 class RepoFilter:
+    repository_registry_uuid: Optional[uuid_pkg.UUID] = None
+
     uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     creators_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
     search_string: Optional[str] = None
 
-    is_public_repository: Optional[bool] = None
     is_auto_update_repo: Optional[bool] = None
 
     visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
@@ -110,14 +90,6 @@ class RepoFilter:
 
     def dict(self):
         return self.__dict__
-
-
-class CommitFilter(Filter):
-    repo_branch: str
-    only_tag: bool = False
-
-    offset: Optional[int] = 0
-    limit: Optional[int] = 10
 
 
 class RepoVersionRead(BaseModel):

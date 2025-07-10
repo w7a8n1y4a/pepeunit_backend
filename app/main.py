@@ -18,13 +18,12 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context
 from app.configs.redis import get_redis_session
-from app.configs.rest import get_repo_service
+from app.configs.rest import get_repository_registry_service
 from app.configs.utils import (
     acquire_file_lock,
     is_valid_ip_address,
@@ -45,12 +44,13 @@ from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
-from app.services.repo_service import RepoService
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s - %(asctime)s - %(message)s",
 )
+logging.getLogger("httpx").setLevel(logging.INFO)
+
 
 recreate_directory(settings.prometheus_multiproc_dir)
 
@@ -125,9 +125,10 @@ async def _lifespan(_app: FastAPI):
             logging.info(f'Success set TG bot webhook url')
 
         with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                repo_service = get_repo_service(db, cc, None)
-                repo_service.sync_local_repo_storage()
+            repository_registry_service = get_repository_registry_service(
+                db, AgentBackend(name=settings.backend_domain).generate_agent_token()
+            )
+            repository_registry_service.sync_local_repository_storage()
 
         mqtt_run_lock.close()
 

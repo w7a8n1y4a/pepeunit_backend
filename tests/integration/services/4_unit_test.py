@@ -17,11 +17,12 @@ from app.configs.errors import (
     UnitError,
     ValidationError,
 )
-from app.configs.rest import get_repo_service, get_unit_service
+from app.configs.rest import get_repo_service, get_repository_registry_service, get_unit_service
 from app.domain.repo_model import Repo
 from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
 from app.repositories.unit_log_repository import UnitLogRepository
-from app.schemas.pydantic.repo import CommitFilter, RepoUpdate
+from app.schemas.pydantic.repo import RepoUpdate
+from app.schemas.pydantic.repository_registry import CommitFilter
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode
 
@@ -31,6 +32,7 @@ def test_create_unit(database, cc) -> None:
 
     current_user = pytest.users[0]
     unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # create auto updated unit
     new_units = []
@@ -49,8 +51,12 @@ def test_create_unit(database, cc) -> None:
     # create no auto updated units, with all visibility levels
     for inc, test_repo in enumerate([pytest.repos[-4]] + pytest.repos[-4:-1] * 2 + [pytest.repos[-1]]):
         logging.info(test_repo.uuid)
-        repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
-        commits = repo_service.get_branch_commits(test_repo.uuid, CommitFilter(repo_branch=test_repo.branches[0]))
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+            repository_registry_service.get(test_repo.repository_registry_uuid)
+        )
+        commits = repository_registry_service.get_branch_commits(
+            repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+        )
 
         unit = unit_service.create(
             UnitCreate(
@@ -58,7 +64,7 @@ def test_create_unit(database, cc) -> None:
                 visibility_level=test_repo.visibility_level,
                 name=f'test_{inc+1}_{pytest.test_hash}',
                 is_auto_update_from_repo_unit=False,
-                repo_branch=test_repo.branches[0],
+                repo_branch=repository_registry.branches[0],
                 repo_commit=commits[0].commit,
                 target_firmware_platform='Universal' if test_repo.is_compilable_repo else None,
             )
@@ -128,6 +134,7 @@ def test_update_unit(database, cc) -> None:
 
     current_user = pytest.users[0]
     unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
 
     # check change name to new
     test_unit = pytest.units[0]
@@ -166,12 +173,20 @@ def test_update_unit(database, cc) -> None:
 
     target_unit = pytest.units[0]
     target_repo = repo_service.get(target_unit.repo_uuid)
-    commits = repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0]))
+
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
+    )
+    commits = repository_registry_service.get_branch_commits(
+        repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+    )
 
     unit_service.update(
         pytest.units[0].uuid,
         UnitUpdate(
-            is_auto_update_from_repo_unit=False, repo_branch=target_repo.branches[0], repo_commit=commits[0].commit
+            is_auto_update_from_repo_unit=False,
+            repo_branch=repository_registry.branches[0],
+            repo_commit=commits[0].commit,
         ),
     )
 
@@ -320,6 +335,7 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
 
     unit_service = get_unit_service(database, cc, token)
     repo_service = get_repo_service(database, cc, token)
+    repository_registry_service = get_repository_registry_service(database, token)
 
     target_units = pytest.units[1:]
 
@@ -356,8 +372,12 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
         logging.info(unit.uuid)
 
         repo = repo_service.get(unit.repo_uuid)
-        commits = repo_service.get_branch_commits(
-            repo.uuid, CommitFilter(repo_branch=repo.branches[0], only_tag=repo.is_only_tag_update)
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+            repository_registry_service.get(repo.repository_registry_uuid)
+        )
+        commits = repository_registry_service.get_branch_commits(
+            repository_registry.uuid,
+            CommitFilter(repo_branch=repository_registry.branches[0], only_tag=repo.is_only_tag_update),
         )
         target_version = commits[1].commit
         target_versions.append(target_version)
@@ -404,7 +424,12 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
 
     # check update with bad env
     repo = repo_service.get(target_unit.repo_uuid)
-    commits = repo_service.get_branch_commits(repo.uuid, CommitFilter(repo_branch=repo.branches[0]))
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(repo.repository_registry_uuid)
+    )
+    commits = repository_registry_service.get_branch_commits(
+        repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+    )
     target_version = commits[0].commit
 
     assert set_unit_new_commit(token, target_unit, target_version) == 200
@@ -439,6 +464,7 @@ def test_repo_update_firmware_unit(database, cc) -> None:
 
     unit_service = get_unit_service(database, cc, token)
     repo_service = get_repo_service(database, cc, token)
+    repository_registry_service = get_repository_registry_service(database, token)
 
     target_units = pytest.units[-4:-1]
 
@@ -449,7 +475,12 @@ def test_repo_update_firmware_unit(database, cc) -> None:
 
     # hand update repo
     target_repo = repo_service.get(target_units[0].repo_uuid)
-    commits = repo_service.get_branch_commits(target_repo.uuid, CommitFilter(repo_branch=target_repo.branches[0]))
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
+    )
+    commits = repository_registry_service.get_branch_commits(
+        repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0])
+    )
     target_version = commits[0].commit
     assert set_repo_new_commit(token, target_repo, RepoUpdate(default_commit=target_version)) < 400
 
@@ -475,7 +506,13 @@ def test_repo_update_firmware_unit(database, cc) -> None:
     # wait bulk update unit
     target_repo = repo_service.get(target_units[0].repo_uuid)
 
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(target_repo, target_repo.default_branch)
+    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(target_repo.repository_registry_uuid)
+    )
+
+    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(
+        repository_registry, target_repo.default_branch
+    )
     tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
 
     inc = 0

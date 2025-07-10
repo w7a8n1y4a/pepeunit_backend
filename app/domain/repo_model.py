@@ -22,16 +22,6 @@ class Repo(SQLModel, table=True):
     # datetime Create Repo
     create_datetime: datetime = Field(nullable=False)
 
-    # link to remote repository
-    repo_url: str = Field(nullable=False)
-    # type of remote hosting
-    platform: str = Field(nullable=False)
-
-    # this remote repository is Public ?
-    is_public_repository: bool = Field(nullable=False, default=True)
-    # if is_public_repository=False - cipher creds to load remote repository
-    cipher_credentials_private_repository: str = Field(nullable=True)
-
     # default branch - need for auto and hand updates
     default_branch: str = Field(nullable=True)
 
@@ -39,8 +29,6 @@ class Repo(SQLModel, table=True):
     # if is_compilable_repo == True - user will see only tags for updates, app archive: only env and schema
     # if is_compilable_repo == False - user will see all commits for updates, app archive: full repo inside archives
     is_compilable_repo: bool = Field(nullable=False, default=False)
-    # assets links by tags
-    releases_data: str = Field(nullable=True, default=None)
 
     # this repository is auto updated?
     is_auto_update_repo: bool = Field(nullable=False, default=True)
@@ -59,4 +47,9 @@ class Repo(SQLModel, table=True):
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+    )
+
+    # to RepositoryRegistry link
+    repository_registry_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True), ForeignKey('repository_registry.uuid', ondelete='CASCADE'), nullable=False)
     )

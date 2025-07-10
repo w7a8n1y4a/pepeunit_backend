@@ -5,7 +5,7 @@ from app.configs.db import get_hand_session
 from app.schemas.pydantic.repo import RepoFilter
 
 
-def _process_bulk_update_repositories():
+def _process_bulk_update_units_firmware():
     from app.configs.rest import get_repo_service
 
     with get_hand_session() as db:

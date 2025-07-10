@@ -17,6 +17,7 @@ from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.services.validators import is_valid_json
 
 
 class UnitNodeBotRouter(BaseBotRouter):
@@ -166,7 +167,7 @@ class UnitNodeBotRouter(BaseBotRouter):
             text += '\nState:\n\n'
 
             try:
-                unit_state = json.loads(unit_node.state)
+                unit_state = is_valid_json(unit_node.state, "UnitNode state")
                 text += json.dumps(unit_state, indent=4)
 
             except JSONDecodeError:

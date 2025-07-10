@@ -23,12 +23,11 @@ from app.utils.utils import generate_random_string, password_to_hash
 class UserService:
     def __init__(
         self,
-        db: Session = Depends(get_session),
-        jwt_token: Optional[str] = Depends(token_depends),
-        is_bot_auth: bool = False,
+        user_repository: UserRepository = Depends(),
+        access_service: AccessService = Depends(),
     ) -> None:
-        self.user_repository = UserRepository(db)
-        self.access_service = AccessService(db, jwt_token, is_bot_auth)
+        self.user_repository = user_repository
+        self.access_service = access_service
 
     def __init__(self, user_repository: UserRepository = Depends(), access_service: AccessService = Depends()) -> None:
         self.user_repository = user_repository

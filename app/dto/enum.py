@@ -345,3 +345,25 @@ class AggregationFunctions(str, enum.Enum):
     MIN = "Min"
     MAX = "Max"
     SUM = "Sum"
+
+
+@strawberry.enum
+class RepositoryRegistryStatus(str, enum.Enum):
+    """
+    Types of state RepositoryRegistry
+    """
+
+    UPDATED = 'Updated'
+    PROCESSING = 'Processing'
+    ERROR = 'Error'
+
+
+@strawberry.enum
+class CredentialStatus(str, enum.Enum):
+    """
+    Types of state CredentialStatus
+    """
+
+    VALID = 'Valid'
+    NOT_VERIFIED = 'NotVerified'
+    ERROR = 'Error'

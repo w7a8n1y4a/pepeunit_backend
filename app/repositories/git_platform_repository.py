@@ -3,32 +3,23 @@ from abc import ABC, abstractmethod
 import httpx
 
 from app import settings
-from app.configs.errors import GitRepoError
-from app.domain.repo_model import Repo
-from app.schemas.pydantic.repo import Credentials
-from app.services.validators import is_valid_json
-from app.utils.utils import aes_gcm_decode
+from app.configs.errors import GitPlatformClientError
+from app.domain.repository_registry_model import RepositoryRegistry
+from app.schemas.pydantic.repository_registry import Credentials
 
 
-class GitPlatformRepositoryABC(ABC):
+class GitPlatformClientABC(ABC):
 
-    def __init__(self, repo: Repo):
-        self.repo = repo
-        self.credentials = None
-
-        if not repo.is_public_repository:
-            self.credentials = Credentials(
-                **is_valid_json(
-                    aes_gcm_decode(repo.cipher_credentials_private_repository), "cipher creeds private repository"
-                )
-            )
+    def __init__(self, repository_registry: RepositoryRegistry, credentials: Credentials | None = None):
+        self.repository_registry = repository_registry
+        self.credentials = credentials
 
     @abstractmethod
     def get_cloning_url(self) -> str:
         """Get url for cloning"""
 
-        repo_url = self.repo.repo_url
-        if not self.repo.is_public_repository:
+        repo_url = self.repository_registry.repository_url
+        if not self.repository_registry.is_public_repository:
             username = self.credentials.username
             pat_token = self.credentials.pat_token
             repo_url = repo_url.replace('https://', f"https://{username}:{pat_token}@").replace(
@@ -45,7 +36,7 @@ class GitPlatformRepositoryABC(ABC):
     @abstractmethod
     def _get_repository_name(self) -> str:
         """Get repository name with group/creator"""
-        _, _, _, *name = self.repo.repo_url.split('/')
+        _, _, _, *name = self.repository_registry.repository_url.split('/')
 
         return '/'.join(name).replace('.git', '')
 
@@ -59,15 +50,20 @@ class GitPlatformRepositoryABC(ABC):
         """Get release information -> {tag: [(name_package, download_link)]}"""
         pass
 
+    @abstractmethod
+    def is_valid_token(self) -> bool:
+        """Check valid pat token"""
+        pass
 
-class GitlabPlatformRepository(GitPlatformRepositoryABC):
+
+class GitlabPlatformClient(GitPlatformClientABC):
     """For Gitlab"""
 
     def get_cloning_url(self) -> str:
         return super().get_cloning_url()
 
     def _get_api_url(self) -> str:
-        http_str, _, domain, *_ = self.repo.repo_url.split('/')
+        http_str, _, domain, *_ = self.repository_registry.repository_url.split('/')
 
         return f'{http_str}//{domain}/api/v4/projects/'
 
@@ -89,7 +85,7 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         try:
             target_id = result_data.json()['id']
         except KeyError:
-            raise GitRepoError('Invalid Credentials')
+            raise GitPlatformClientError('Invalid Credentials')
 
         return target_id
 
@@ -134,12 +130,30 @@ class GitlabPlatformRepository(GitPlatformRepositoryABC):
         try:
             repo_size = repo_data.json()['statistics']['repository_size']
         except KeyError:
-            raise GitRepoError('Invalid Credentials')
+            raise GitPlatformClientError('Invalid Credentials')
 
         return repo_size
 
+    def is_valid_token(self) -> bool:
+        repository_id = self._get_repository_id()
 
-class GithubPlatformRepository(GitPlatformRepositoryABC):
+        headers = None
+        if self.credentials:
+            headers = {
+                'PRIVATE-TOKEN': self.credentials.pat_token,
+            }
+
+        repo_data = httpx.get(url=f'{self._get_api_url()}{repository_id}', headers=headers)
+
+        try:
+            repo_data.json()['id']
+        except KeyError:
+            return False
+
+        return True
+
+
+class GithubPlatformClient(GitPlatformClientABC):
     """For Github"""
 
     def get_cloning_url(self) -> str:
@@ -186,8 +200,20 @@ class GithubPlatformRepository(GitPlatformRepositoryABC):
             repo_size = repo_data.json()['size']
         except KeyError:
             if repo_data.status_code == 403:
-                raise GitRepoError('Rate limit external API')
+                raise GitPlatformClientError('Rate limit external API')
             else:
-                raise GitRepoError('Invalid Credentials')
+                raise GitPlatformClientError('Invalid Credentials')
 
         return repo_size * 1024
+
+    def is_valid_token(self) -> bool:
+        headers = {"Accept": "application/vnd.github.v3+json"}
+
+        repo_data = httpx.get(url=f'{self._get_api_url()}{self._get_repository_name()}', headers=headers)
+
+        try:
+            repo_data.json()['id']
+        except KeyError:
+            return False
+
+        return True

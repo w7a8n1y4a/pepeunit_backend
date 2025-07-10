@@ -9,8 +9,8 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
-from app.dto.enum import GitPlatform
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -19,9 +19,8 @@ from app.repositories.utils import (
     apply_orders_by,
     apply_restriction,
 )
-from app.schemas.pydantic.repo import Credentials, RepoCreate, RepoFilter, RepoUpdate, RepoVersionRead, RepoVersionsRead
-from app.services.validators import is_valid_json, is_valid_string_with_rules, is_valid_uuid
-from app.utils.utils import aes_gcm_decode
+from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate, RepoVersionRead, RepoVersionsRead
+from app.services.validators import is_valid_object, is_valid_string_with_rules, is_valid_uuid
 
 
 class RepoRepository:
@@ -40,16 +39,6 @@ class RepoRepository:
     def get(self, repo: Repo) -> Optional[Repo]:
         return self.db.get(Repo, repo.uuid)
 
-    def get_credentials(self, repo: Repo) -> Optional[Credentials]:
-        full_repo = self.db.get(Repo, repo.uuid)
-        if not full_repo.cipher_credentials_private_repository:
-            return None
-        return Credentials(
-            **is_valid_json(
-                aes_gcm_decode(full_repo.cipher_credentials_private_repository), "cipher creeds private repository"
-            )
-        )
-
     def get_all_count(self) -> int:
         return self.db.query(Repo).count()
 
@@ -64,7 +53,12 @@ class RepoRepository:
             self.db.query(Unit).filter(Unit.current_commit_version != None, Unit.repo_uuid == repo.uuid).count()
         )
 
-        commits = self.git_repo_repository.get_branch_commits_with_tag(repo, repo.default_branch)
+        repository_registry = (
+            self.db.query(RepositoryRegistry).filter(RepositoryRegistry.uuid == repo.repository_registry_uuid).first()
+        )
+        is_valid_object(repository_registry)
+
+        commits = self.git_repo_repository.get_branch_commits_with_tag(repository_registry, repo.default_branch)
         tags = self.git_repo_repository.get_tags_from_all_commits(commits)
 
         versions_list = []
@@ -91,7 +85,12 @@ class RepoRepository:
         return self.db.query(Repo).all()
 
     def list(self, filters: RepoFilter, restriction: list[str] = None) -> tuple[int, list[Repo]]:
-        query = self.db.query(Repo)
+        query = self.db.query(Repo, RepositoryRegistry).join(
+            RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid
+        )
+
+        if filters.repository_registry_uuid:
+            query = query.filter(Repo.repository_registry_uuid == is_valid_uuid(filters.repository_registry_uuid))
 
         filters.uuids = filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
         if filters.uuids:
@@ -109,7 +108,7 @@ class RepoRepository:
         if filters.is_auto_update_repo is not None:
             query = query.filter(Repo.is_auto_update_repo == filters.is_auto_update_repo)
 
-        fields = [Repo.name, Repo.repo_url, Repo.default_branch]
+        fields = [Repo.name, RepositoryRegistry.repository_url, Repo.default_branch]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {'visibility_level': Repo.visibility_level}
@@ -121,7 +120,7 @@ class RepoRepository:
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return count, query.all()
+        return count, [repo for repo, _ in query.all()]
 
     def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
 
@@ -136,47 +135,20 @@ class RepoRepository:
             raise RepoError("Name is not unique")
 
     @staticmethod
-    def is_valid_repo_url(repo: Repo):
-        url = repo.repo_url
-        if url[-4:] != '.git' or not (url.find('https://') == 0 or url.find('http://') == 0):
-            raise RepoError(
-                "Repo URL is not correct check the .git at the end of the link and the correctness of https / http"
-            )
-
-    @staticmethod
-    def is_valid_private_repo(data: RepoCreate or RepoUpdate):
-        if not data.is_public_repository and (
-            not data.credentials or (not data.credentials.username or not data.credentials.pat_token)
-        ):
-            raise RepoError('No valid credentials')
-
-    @staticmethod
-    def is_private_repository(repo: Repo):
-        if repo.is_public_repository:
-            raise RepoError('Is public repo')
-
-    @staticmethod
-    def is_valid_platform(repo: RepoCreate):
-        if repo.platform not in list(GitPlatform):
-            raise RepoError(
-                'Platform {} is not supported - available: {}'.format(repo.platform, ", ".join(list(GitPlatform)))
-            )
-
-    @staticmethod
     def is_valid_compilable_repo(repo: RepoUpdate):
         if repo.is_compilable_repo and repo.is_auto_update_repo and not repo.is_only_tag_update:
             raise RepoError('Compiled repositories use only tags when updating automatically')
 
-    def is_valid_auto_updated_repo(self, repo: Repo):
+    def is_valid_auto_updated_repo(self, repo: Repo, repository_registry: RepositoryRegistry):
         # not commit for last commit or not tags for last tags auto update
-        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repo):
+        if repo.is_auto_update_repo and not self.git_repo_repository.get_target_repo_version(repository_registry, repo):
             raise RepoError('Invalid auto updated target version')
 
-    def is_valid_no_auto_updated_repo(self, repo: Repo):
+    def is_valid_no_auto_updated_repo(self, repo: Repo, repository_registry: RepositoryRegistry):
         if not repo.is_auto_update_repo and (not repo.default_branch or not repo.default_commit):
             raise RepoError('Repo updated manually requires branch and commit to be filled out')
 
         # check commit and branch for not auto updated repo
         if not repo.is_auto_update_repo:
-            self.git_repo_repository.is_valid_branch(repo, repo.default_branch)
-            self.git_repo_repository.is_valid_commit(repo, repo.default_branch, repo.default_commit)
+            self.git_repo_repository.is_valid_branch(repository_registry, repo.default_branch)
+            self.git_repo_repository.is_valid_commit(repository_registry, repo.default_branch, repo.default_commit)

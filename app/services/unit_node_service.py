@@ -12,6 +12,7 @@ from app.configs.errors import DataPipeError, MqttError, UnitNodeError
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
@@ -35,6 +36,7 @@ from app.dto.enum import (
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -74,6 +76,7 @@ class UnitNodeService:
     def __init__(
         self,
         unit_repository: UnitRepository = Depends(),
+        repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
@@ -83,6 +86,7 @@ class UnitNodeService:
         access_service: AccessService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
+        self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_node_repository = unit_node_repository
@@ -234,10 +238,15 @@ class UnitNodeService:
             self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        repository_registry = self.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+        )
 
-        self.git_repo_repository.is_valid_firmware_platform(repo, unit, unit.target_firmware_platform)
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, unit)
-        schema_dict = self.git_repo_repository.get_schema_dict(repo, target_version)
+        self.git_repo_repository.is_valid_firmware_platform(
+            repo, repository_registry, unit, unit.target_firmware_platform
+        )
+        target_version, target_tag = self.git_repo_repository.get_target_unit_version(repo, repository_registry, unit)
+        schema_dict = self.git_repo_repository.get_schema_dict(repository_registry, target_version)
 
         command_to_topic_dict = {
             BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
@@ -255,7 +264,7 @@ class UnitNodeService:
                 update_dict['NEW_COMMIT_VERSION'] = target_version
 
                 if repo.is_compilable_repo:
-                    links = is_valid_json(repo.releases_data, "releases for compile repo")[target_tag]
+                    links = is_valid_json(repository_registry.releases_data, "Releases for compile repo")[target_tag]
                     platform, link = self.git_repo_repository.find_by_platform(links, unit.target_firmware_platform)
 
                     update_dict['COMPILED_FIRMWARE_LINK'] = link
@@ -379,7 +388,7 @@ class UnitNodeService:
         self.is_valid_active_data_pipe(unit_node)
         self.is_valid_filled_config(unit_node)
 
-        return dict_to_yml_file(remove_dict_none(json.loads(unit_node.data_pipe_yml)))
+        return dict_to_yml_file(remove_dict_none(is_valid_json(unit_node.data_pipe_yml, "DataPipe config")))
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -413,15 +422,11 @@ class UnitNodeService:
 
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
 
-        is_valid_json(unit_node.data_pipe_yml, "Data Pipe config is bad")
-
         count, data = self.data_pipe_repository.list(
             filters=DataPipeFilter(
                 uuid=uuid,
                 type=ProcessingPolicyType(
-                    is_valid_json(unit_node.data_pipe_yml, "Data Pipe config is bad")['processing_policy'][
-                        'policy_type'
-                    ]
+                    is_valid_json(unit_node.data_pipe_yml, "DataPipe config")['processing_policy']['policy_type']
                 ),
                 order_by_create_date=OrderByDate.asc,
             )

@@ -13,6 +13,7 @@ from app.configs.db import get_hand_session
 from app.configs.errors import MqttError, UpdateError
 from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.agent.abc import AgentBackend
 from app.dto.clickhouse.log import UnitLog
@@ -24,6 +25,7 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
@@ -86,7 +88,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
     if destination == DestinationTopicType.OUTPUT_BASE_TOPIC and topic_name == ReservedOutputBaseTopic.STATE:
         with get_hand_session() as db:
             unit_repository = UnitRepository(db)
-            unit_state_dict = get_only_reserved_keys(is_valid_json(payload.decode(), "hardware state"))
+            unit_state_dict = get_only_reserved_keys(is_valid_json(payload.decode(), "Hardware state"))
 
             unit = unit_repository.get(Unit(uuid=unit_uuid))
             is_valid_object(unit)
@@ -104,8 +106,13 @@ async def message_to_topic(client, topic, payload, qos, properties):
                 repo_repository = RepoRepository(db)
                 repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
 
+                repository_registry_repository = RepositoryRegistryRepository(db)
+                repository_registry = repository_registry_repository.get(
+                    RepositoryRegistry(uuid=repo.repository_registry_uuid)
+                )
+
                 git_repo_repository = GitRepoRepository()
-                target_commit, target_tag = git_repo_repository.get_target_unit_version(repo, unit)
+                target_commit, target_tag = git_repo_repository.get_target_unit_version(repo, repository_registry, unit)
 
                 delta = (current_datetime - unit.last_firmware_update_datetime).total_seconds()
                 if target_commit == unit.current_commit_version:
@@ -139,7 +146,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
                     unit_repository = UnitRepository(db)
                     unit_log_repository = UnitLogRepository(cc)
 
-                    log_data = is_valid_json(payload.decode(), "unit hardware log")
+                    log_data = is_valid_json(payload.decode(), "Unit hardware log")
 
                     unit = unit_repository.get(Unit(uuid=unit_uuid))
                     is_valid_object(unit)

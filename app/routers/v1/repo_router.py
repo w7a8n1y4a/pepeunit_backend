@@ -11,9 +11,6 @@ from app.configs.db import get_hand_session
 from app.configs.rest import get_repo_service
 from app.configs.utils import acquire_file_lock
 from app.schemas.pydantic.repo import (
-    CommitFilter,
-    CommitRead,
-    Credentials,
     PlatformRead,
     RepoCreate,
     RepoFilter,
@@ -39,7 +36,7 @@ def automatic_update_repositories():
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 repo_service = get_repo_service(db, cc, None)
-                repo_service.bulk_update_repositories(is_auto_update=True)
+                repo_service.bulk_update_units_firmware(is_auto_update=True)
 
     else:
         logging.info('Skip update without lock')
@@ -68,15 +65,6 @@ def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoServi
     return ReposResult(count=count, repos=repos)
 
 
-@router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
-def get_branch_commits(
-    uuid: uuid_pkg.UUID,
-    filters: CommitFilter = Depends(CommitFilter),
-    repo_service: RepoService = Depends(get_repo_service),
-):
-    return repo_service.get_branch_commits(uuid, filters)
-
-
 @router.get("/available_platforms/{uuid}", response_model=list[PlatformRead])
 def get_available_platforms(
     uuid: uuid_pkg.UUID,
@@ -100,16 +88,6 @@ def update(uuid: uuid_pkg.UUID, data: RepoUpdate, repo_service: RepoService = De
     return repo_service.update(uuid, data)
 
 
-@router.patch("/credentials/{uuid}", response_model=RepoRead)
-def update_credentials(uuid: uuid_pkg.UUID, data: Credentials, repo_service: RepoService = Depends(get_repo_service)):
-    return repo_service.update_credentials(uuid, data)
-
-
-@router.patch("/update_local_repo/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def update_local_repo(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)):
-    return repo_service.update_local_repo(uuid)
-
-
 @router.patch("/update_units_firmware/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def update_units_firmware(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)):
     return repo_service.update_units_firmware(uuid)
@@ -117,7 +95,7 @@ def update_units_firmware(uuid: uuid_pkg.UUID, repo_service: RepoService = Depen
 
 @router.post("/bulk_update", status_code=status.HTTP_204_NO_CONTENT)
 def bulk_update(repo_service: RepoService = Depends(get_repo_service)):
-    return repo_service.bulk_update_repositories()
+    return repo_service.bulk_update_units_firmware()
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

@@ -9,6 +9,7 @@ from app.configs.db import get_session
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -18,6 +19,7 @@ from app.services.access_service import AccessService
 from app.services.metrics_service import MetricsService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
+from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.unit_node_service import UnitNodeService
 from app.services.unit_service import UnitService
 from app.services.user_service import UserService
@@ -41,6 +43,37 @@ def get_user_service(
     )
 
 
+def get_repository_registry_service(
+    db: Session = Depends(get_session),
+    jwt_token: Optional[str] = Depends(token_depends),
+    is_bot_auth: bool = False,
+) -> RepositoryRegistryService:
+    repo_repository = RepoRepository(db)
+    unit_repository = UnitRepository(db)
+    permission_repository = PermissionRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
+
+    access_service = AccessService(
+        permission_repository=permission_repository,
+        unit_repository=unit_repository,
+        user_repository=UserRepository(db),
+        jwt_token=jwt_token,
+        is_bot_auth=is_bot_auth,
+    )
+
+    permission_service = PermissionService(
+        access_service=access_service,
+        permission_repository=permission_repository,
+    )
+
+    return RepositoryRegistryService(
+        repository_registry_repository=repository_registry_repository,
+        repo_repository=repo_repository,
+        permission_service=permission_service,
+        access_service=access_service,
+    )
+
+
 def get_repo_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
@@ -50,6 +83,7 @@ def get_repo_service(
     repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
     permission_repository = PermissionRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
 
     access_service = AccessService(
         permission_repository=permission_repository,
@@ -66,6 +100,7 @@ def get_repo_service(
 
     unit_node_service = UnitNodeService(
         unit_repository=unit_repository,
+        repository_registry_repository=repository_registry_repository,
         repo_repository=repo_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_log_repository=UnitLogRepository(client),
@@ -78,6 +113,11 @@ def get_repo_service(
     return RepoService(
         repo_repository=repo_repository,
         unit_repository=unit_repository,
+        repository_registry_service=RepositoryRegistryService(
+            repository_registry_repository=repository_registry_repository,
+            permission_service=permission_service,
+            access_service=access_service,
+        ),
         unit_service=UnitService(
             repo_repository=repo_repository,
             unit_repository=unit_repository,
@@ -100,6 +140,7 @@ def get_unit_service(
 ) -> UnitService:
     repo_repository = RepoRepository(db)
     unit_repository = UnitRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
     permission_repository = PermissionRepository(db)
 
     access_service = AccessService(
@@ -117,6 +158,7 @@ def get_unit_service(
 
     unit_node_service = UnitNodeService(
         unit_repository=unit_repository,
+        repository_registry_repository=repository_registry_repository,
         repo_repository=repo_repository,
         unit_node_repository=UnitNodeRepository(db),
         unit_log_repository=UnitLogRepository(client),
@@ -127,6 +169,7 @@ def get_unit_service(
     )
 
     return UnitService(
+        repository_registry_repository=repository_registry_repository,
         repo_repository=repo_repository,
         unit_repository=unit_repository,
         unit_node_repository=UnitNodeRepository(db),
@@ -145,6 +188,7 @@ def get_unit_node_service(
 ) -> UnitNodeService:
     unit_repository = UnitRepository(db)
     permission_repository = PermissionRepository(db)
+    repository_registry_repository = RepositoryRegistryRepository(db)
 
     access_service = AccessService(
         permission_repository=permission_repository,
@@ -161,6 +205,7 @@ def get_unit_node_service(
 
     return UnitNodeService(
         unit_repository=unit_repository,
+        repository_registry_repository=repository_registry_repository,
         repo_repository=RepoRepository(db),
         unit_node_repository=UnitNodeRepository(db),
         unit_node_edge_repository=UnitNodeEdgeRepository(db),
