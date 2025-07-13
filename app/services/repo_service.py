@@ -82,12 +82,12 @@ class RepoService:
 
         return repo
 
-    def get(self, uuid: uuid_pkg.UUID) -> RepoRead:
+    def get(self, uuid: uuid_pkg.UUID) -> Repo:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
-        return self.mapper_repo_to_repo_read(repo)
+        return repo
 
     def get_available_platforms(
         self, uuid: uuid_pkg.UUID, target_commit: Optional[str] = None, target_tag: Optional[str] = None
@@ -133,7 +133,7 @@ class RepoService:
 
         return self.repo_repository.get_versions(repo)
 
-    def update(self, uuid: uuid_pkg.UUID, data: Union[RepoUpdate, RepoUpdateInput]) -> RepoRead:
+    def update(self, uuid: uuid_pkg.UUID, data: Union[RepoUpdate, RepoUpdateInput]) -> Repo:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -174,7 +174,7 @@ class RepoService:
         if not repo.is_auto_update_repo and repo.default_commit is not None and repo.default_branch is not None:
             self.update_units_firmware(repo.uuid, is_auto_update=True)
 
-        return self.mapper_repo_to_repo_read(repo)
+        return repo
 
     def update_units_firmware(self, uuid: uuid_pkg.UUID, is_auto_update: bool = False) -> None:
 
@@ -250,7 +250,3 @@ class RepoService:
 
         count, repos = self.repo_repository.list(filters, restriction=restriction)
         return count, repos
-
-    @staticmethod
-    def mapper_repo_to_repo_read(repo: Repo) -> RepoRead:
-        return RepoRead(**repo.dict())
