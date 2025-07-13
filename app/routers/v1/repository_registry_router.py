@@ -100,6 +100,13 @@ def update_local_repository(
     return repository_registry_service.update_local_repository(uuid)
 
 
+@router.patch("/backend_force_sync_local_repository_storage", status_code=status.HTTP_204_NO_CONTENT)
+def update_local_repository(
+    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+):
+    return repository_registry_service.backend_force_sync_local_repository_storage()
+
+
 @router.get("", response_model=RepositoriesRegistryResult)
 def get_repos(
     filters: RepositoryRegistryFilter = Depends(RepositoryRegistryFilter),

@@ -274,6 +274,11 @@ class RepositoryRegistryService:
 
         logging.info('End sync all repository in RepositoryRegistry')
 
+    def backend_force_sync_local_repository_storage(self) -> None:
+        self.access_service.authorization.check_access([AgentType.BACKEND])
+
+        self.sync_local_repository_storage()
+
     @staticmethod
     def is_valid_repo_url(repository_registry: RepositoryRegistryCreate | RepositoryRegistry):
         url = repository_registry.repository_url

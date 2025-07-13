@@ -1,11 +1,14 @@
 import logging
 import os
 
+import httpx
 import pytest
 
+from app import settings
 from app.configs.errors import GitRepoError, RepositoryRegistryError
 from app.configs.rest import get_repository_registry_service
 from app.domain.repository_registry_model import RepositoryRegistry
+from app.dto.agent.abc import AgentBackend
 from app.dto.enum import CredentialStatus, RepositoryRegistryStatus
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
@@ -17,6 +20,16 @@ from app.schemas.pydantic.repository_registry import (
 
 @pytest.mark.run(order=0)
 def test_create_repository_registry(test_external_repository, database, cc) -> None:
+
+    def backend_force_sync_local_repository_storage(token: str) -> int:
+        headers = {'accept': 'application/json', 'x-auth-token': token}
+
+        url = f'{settings.backend_link_prefix_and_v1}/repository_registry/backend_force_sync_local_repository_storage'
+
+        # send over http, in tests not work mqtt pub and sub
+        r = httpx.patch(url, headers=headers, timeout=60)
+
+        return r.status_code
 
     current_user = pytest.users[0]
     repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
@@ -35,6 +48,9 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
         new_repositories.append(repository_registry)
 
     assert len(new_repositories) >= len(test_external_repository)
+
+    backend_token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+    assert backend_force_sync_local_repository_storage(backend_token) < 400
 
     pytest.repository_registries = new_repositories
 
