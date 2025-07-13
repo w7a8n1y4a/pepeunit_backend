@@ -107,7 +107,7 @@ def test_create_unit(database, cc) -> None:
 
     # check create without env_example and schema_example.json
     with pytest.raises(GitRepoError):
-        test_repo = pytest.repos[1]
+        test_repo = pytest.repos[0]
 
         unit_service.create(
             UnitCreate(

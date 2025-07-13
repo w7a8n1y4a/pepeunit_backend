@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from app.configs.errors import GitRepoError, NoAccessError, RepoError
+from app.configs.errors import GitRepoError, NoAccessError, RepoError, ValidationError
 from app.configs.rest import get_repo_service, get_repository_registry_service
 from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate
 from app.schemas.pydantic.repository_registry import CommitFilter, RepositoryRegistryFilter
@@ -249,10 +249,24 @@ def test_delete_repo(database, cc) -> None:
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # del repo
-    repo_service.delete(pytest.repos[3].uuid)
+    repo_service.delete(pytest.repos[1].uuid)
 
 
 @pytest.mark.run(order=6)
+def test_delete_repository_registry(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
+
+    # check del with repos
+    with pytest.raises(ValidationError):
+        repository_registry_service.delete(pytest.repository_registries[-1].uuid)
+
+    # del repository registry
+    repository_registry_service.delete(pytest.repository_registries[1].uuid)
+
+
+@pytest.mark.run(order=7)
 def test_get_many_repo(database, cc) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])

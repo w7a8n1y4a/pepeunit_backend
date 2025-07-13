@@ -313,10 +313,10 @@ def test_get_repo_versions(database, cc) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
-    target_unit = pytest.repos[6]
+    target_repo = pytest.repos[6]
 
     # check get_versions
-    versions = repo_service.get_versions(target_unit.uuid)
+    versions = repo_service.get_versions(target_repo.uuid)
     assert versions.unit_count == 2
 
 

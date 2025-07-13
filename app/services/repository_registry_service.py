@@ -205,6 +205,7 @@ class RepositoryRegistryService:
         self.access_service.authorization.check_ownership(repository_registry, [OwnershipType.CREATOR])
 
         count, repo_list = self.repo_repository.list(RepoFilter(repository_registry_uuid=uuid))
+        print(repo_list)
         is_emtpy_sequence(repo_list)
 
         self.git_repo_repository.delete_repo(repository_registry)
