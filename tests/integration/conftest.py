@@ -55,10 +55,11 @@ def clear_database(database) -> None:
     # del files
     shutil.rmtree('tmp/test_units', ignore_errors=True)
     shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
-    shutil.rmtree(settings.backend_save_repo_path, ignore_errors=True)
 
-    os.mkdir(settings.backend_save_repo_path)
-    open(f'{settings.backend_save_repo_path}/.gitkeep', 'a').close()
+    for item in os.listdir(settings.backend_save_repo_path):
+        item_path = os.path.join(settings.backend_save_repo_path, item)
+        if os.path.isdir(item_path):
+            shutil.rmtree(item_path, ignore_errors=True)
 
     database.query(RepositoryRegistry).where(
         RepositoryRegistry.repository_url.in_(

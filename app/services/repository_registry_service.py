@@ -113,14 +113,7 @@ class RepositoryRegistryService:
         repository_registry.create_datetime = datetime.datetime.utcnow()
         repository_registry.last_update_datetime = repository_registry.create_datetime
 
-        try:
-            print("before create", repository_registry.uuid)
-        except:
-            print("before create", repository_registry)
-
         repository_registry = self.repository_registry_repository.create(repository_registry)
-
-        print("create func", repository_registry.uuid)
 
         return self.sync_external_repository(repository_registry)
 
@@ -227,8 +220,6 @@ class RepositoryRegistryService:
 
         repository_registry = self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
-        print("after first update", repository_registry.uuid)
-
         try:
             # get size repository on external platform
             repository_size = self.get_platform(repository_registry).get_repo_size()
@@ -236,9 +227,7 @@ class RepositoryRegistryService:
 
             # load Repository to local
             url = self.get_platform(repository_registry).get_cloning_url()
-            print("before get path", repository_registry.uuid)
             repo_save_path = self.git_repo_repository.get_path_physic_repository(repository_registry)
-            print(repo_save_path)
             self.git_repo_repository.clone(url, repo_save_path)
 
             # get releases assets

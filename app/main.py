@@ -3,6 +3,7 @@ import json
 import logging
 from contextlib import asynccontextmanager
 
+import aiogram.exceptions
 import uvicorn
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.base import DefaultKeyBuilder
@@ -118,11 +119,14 @@ async def _lifespan(_app: FastAPI):
             await bot.delete_webhook()
 
             logging.info(f'Set new TG bot webhook url: {webhook_url}')
-            await bot.set_webhook(
-                url=webhook_url, drop_pending_updates=True, allowed_updates=dp.resolve_used_update_types()
-            )
-
-            logging.info(f'Success set TG bot webhook url')
+            try:
+                await bot.set_webhook(
+                    url=webhook_url, drop_pending_updates=True, allowed_updates=dp.resolve_used_update_types()
+                )
+                logging.info(f'Success set TG bot webhook url')
+            except aiogram.exceptions.TelegramBadRequest as e:
+                print(e.__dict__)
+                logging.info(f'Error set TG bot webhook url')
 
         with get_hand_session() as db:
             repository_registry_service = get_repository_registry_service(
