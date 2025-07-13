@@ -1,4 +1,5 @@
 import logging
+import os
 
 import pytest
 
@@ -26,6 +27,10 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
         logging.info(test_repository['repository_url'])
 
         repository_registry = repository_registry_service.create(RepositoryRegistryCreate(**test_repository))
+
+        assert os.path.exists(
+            repository_registry_service.git_repo_repository.get_path_physic_repository(repository_registry)
+        )
 
         new_repositories.append(repository_registry)
 
