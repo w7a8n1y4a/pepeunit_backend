@@ -8,6 +8,7 @@ from app.configs.rest import (
     get_metrics_service,
     get_permission_service,
     get_repo_service,
+    get_repository_registry_service,
     get_unit_node_service,
     get_unit_service,
     get_user_service,
@@ -15,6 +16,7 @@ from app.configs.rest import (
 from app.services.metrics_service import MetricsService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
+from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.unit_node_service import UnitNodeService
 from app.services.unit_service import UnitService
 from app.services.user_service import UserService
@@ -33,6 +35,12 @@ def get_user_service_gql(info: Info) -> UserService:
     db = info.context.get('db')
     jwt_token = info.context['jwt_token']
     return get_user_service(db, jwt_token)
+
+
+def get_repository_registry_service_gql(info: Info) -> RepositoryRegistryService:
+    db = info.context.get('db')
+    jwt_token = info.context['jwt_token']
+    return get_repository_registry_service(db, jwt_token)
 
 
 def get_repo_service_gql(info: Info) -> RepoService:
