@@ -26,21 +26,124 @@ from app.services.user_service import UserService
 from app.services.utils import token_depends
 
 
+class ServiceFactory:
+    def __init__(
+        self, db: Session, client: Optional[Client] = None, jwt_token: Optional[str] = None, is_bot_auth: bool = False
+    ):
+        self.db = db
+        self.client = client
+        self.jwt_token = jwt_token
+        self.is_bot_auth = is_bot_auth
+
+        # Initialize repositories
+        self.user_repository = UserRepository(db)
+        self.unit_repository = UnitRepository(db)
+        self.permission_repository = PermissionRepository(db)
+        self.repo_repository = RepoRepository(db)
+        self.repository_registry_repository = RepositoryRegistryRepository(db)
+        self.unit_node_repository = UnitNodeRepository(db)
+        self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
+        self.unit_log_repository = UnitLogRepository(client) if client else None
+        self.data_pipe_repository = DataPipeRepository(client) if client else None
+
+        # Initialize services
+        self.access_service = AccessService(
+            permission_repository=self.permission_repository,
+            unit_repository=self.unit_repository,
+            user_repository=self.user_repository,
+            jwt_token=jwt_token,
+            is_bot_auth=is_bot_auth,
+        )
+
+        self.permission_service = PermissionService(
+            access_service=self.access_service,
+            permission_repository=self.permission_repository,
+        )
+
+    def get_user_service(self) -> UserService:
+        return UserService(
+            user_repository=self.user_repository,
+            access_service=self.access_service,
+        )
+
+    def get_repository_registry_service(self) -> RepositoryRegistryService:
+        return RepositoryRegistryService(
+            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
+            permission_service=self.permission_service,
+            access_service=self.access_service,
+        )
+
+    def get_repo_service(self) -> RepoService:
+        return RepoService(
+            repo_repository=self.repo_repository,
+            unit_repository=self.unit_repository,
+            repository_registry_service=self.get_repository_registry_service(),
+            unit_service=UnitService(
+                repo_repository=self.repo_repository,
+                unit_repository=self.unit_repository,
+                unit_node_repository=self.unit_node_repository,
+                unit_log_repository=self.unit_log_repository,
+                access_service=self.access_service,
+                permission_service=self.permission_service,
+                unit_node_service=self.get_unit_node_service(),
+            ),
+            permission_service=self.permission_service,
+            access_service=self.access_service,
+        )
+
+    def get_unit_service(self) -> UnitService:
+        return UnitService(
+            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
+            unit_repository=self.unit_repository,
+            unit_node_repository=self.unit_node_repository,
+            unit_log_repository=self.unit_log_repository,
+            access_service=self.access_service,
+            permission_service=self.permission_service,
+            unit_node_service=self.get_unit_node_service(),
+        )
+
+    def get_unit_node_service(self) -> UnitNodeService:
+        return UnitNodeService(
+            unit_repository=self.unit_repository,
+            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
+            unit_node_repository=self.unit_node_repository,
+            unit_node_edge_repository=self.unit_node_edge_repository,
+            unit_log_repository=self.unit_log_repository,
+            data_pipe_repository=self.data_pipe_repository,
+            permission_service=self.permission_service,
+            access_service=self.access_service,
+        )
+
+    def get_metrics_service(self) -> MetricsService:
+        return MetricsService(
+            repo_repository=self.repo_repository,
+            unit_repository=self.unit_repository,
+            unit_node_repository=self.unit_node_repository,
+            unit_node_edge_repository=self.unit_node_edge_repository,
+            user_repository=self.user_repository,
+            access_service=self.access_service,
+        )
+
+    def get_permission_service(self) -> PermissionService:
+        return self.permission_service
+
+
+def create_service_factory(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+    is_bot_auth: bool = False,
+) -> ServiceFactory:
+    return ServiceFactory(db, client, jwt_token, is_bot_auth)
+
+
 def get_user_service(
     db: Session = Depends(get_session), jwt_token: Optional[str] = Depends(token_depends), is_bot_auth: bool = False
 ) -> UserService:
-    user_repository = UserRepository(db)
-
-    return UserService(
-        user_repository=user_repository,
-        access_service=AccessService(
-            permission_repository=PermissionRepository(db),
-            unit_repository=UnitRepository(db),
-            user_repository=user_repository,
-            jwt_token=jwt_token,
-            is_bot_auth=is_bot_auth,
-        ),
-    )
+    return create_service_factory(db, None, jwt_token, is_bot_auth).get_user_service()
 
 
 def get_repository_registry_service(
@@ -48,30 +151,7 @@ def get_repository_registry_service(
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> RepositoryRegistryService:
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    permission_repository = PermissionRepository(db)
-    repository_registry_repository = RepositoryRegistryRepository(db)
-
-    access_service = AccessService(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-        is_bot_auth=is_bot_auth,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    return RepositoryRegistryService(
-        repository_registry_repository=repository_registry_repository,
-        repo_repository=repo_repository,
-        permission_service=permission_service,
-        access_service=access_service,
-    )
+    return create_service_factory(db, None, jwt_token, is_bot_auth).get_repository_registry_service()
 
 
 def get_repo_service(
@@ -80,56 +160,7 @@ def get_repo_service(
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> RepoService:
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    permission_repository = PermissionRepository(db)
-    repository_registry_repository = RepositoryRegistryRepository(db)
-
-    access_service = AccessService(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-        is_bot_auth=is_bot_auth,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    unit_node_service = UnitNodeService(
-        unit_repository=unit_repository,
-        repository_registry_repository=repository_registry_repository,
-        repo_repository=repo_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        data_pipe_repository=DataPipeRepository(client),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        access_service=access_service,
-        permission_service=permission_service,
-    )
-
-    return RepoService(
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        repository_registry_service=RepositoryRegistryService(
-            repository_registry_repository=repository_registry_repository,
-            permission_service=permission_service,
-            access_service=access_service,
-        ),
-        unit_service=UnitService(
-            repo_repository=repo_repository,
-            unit_repository=unit_repository,
-            unit_node_repository=UnitNodeRepository(db),
-            unit_log_repository=UnitLogRepository(client),
-            access_service=access_service,
-            permission_service=permission_service,
-            unit_node_service=unit_node_service,
-        ),
-        permission_service=permission_service,
-        access_service=access_service,
-    )
+    return create_service_factory(db, client, jwt_token, is_bot_auth).get_repo_service()
 
 
 def get_unit_service(
@@ -138,46 +169,7 @@ def get_unit_service(
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> UnitService:
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    repository_registry_repository = RepositoryRegistryRepository(db)
-    permission_repository = PermissionRepository(db)
-
-    access_service = AccessService(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-        is_bot_auth=is_bot_auth,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    unit_node_service = UnitNodeService(
-        unit_repository=unit_repository,
-        repository_registry_repository=repository_registry_repository,
-        repo_repository=repo_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        data_pipe_repository=DataPipeRepository(client),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        permission_service=permission_service,
-        access_service=access_service,
-    )
-
-    return UnitService(
-        repository_registry_repository=repository_registry_repository,
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        access_service=access_service,
-        permission_service=permission_service,
-        unit_node_service=unit_node_service,
-    )
+    return create_service_factory(db, client, jwt_token, is_bot_auth).get_unit_service()
 
 
 def get_unit_node_service(
@@ -186,34 +178,7 @@ def get_unit_node_service(
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> UnitNodeService:
-    unit_repository = UnitRepository(db)
-    permission_repository = PermissionRepository(db)
-    repository_registry_repository = RepositoryRegistryRepository(db)
-
-    access_service = AccessService(
-        permission_repository=permission_repository,
-        unit_repository=unit_repository,
-        user_repository=UserRepository(db),
-        jwt_token=jwt_token,
-        is_bot_auth=is_bot_auth,
-    )
-
-    permission_service = PermissionService(
-        access_service=access_service,
-        permission_repository=permission_repository,
-    )
-
-    return UnitNodeService(
-        unit_repository=unit_repository,
-        repository_registry_repository=repository_registry_repository,
-        repo_repository=RepoRepository(db),
-        unit_node_repository=UnitNodeRepository(db),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        unit_log_repository=UnitLogRepository(client),
-        data_pipe_repository=DataPipeRepository(client),
-        permission_service=permission_service,
-        access_service=access_service,
-    )
+    return create_service_factory(db, client, jwt_token, is_bot_auth).get_unit_node_service()
 
 
 def get_metrics_service(
@@ -221,36 +186,10 @@ def get_metrics_service(
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> MetricsService:
-    repo_repository = RepoRepository(db)
-    unit_repository = UnitRepository(db)
-    user_repository = UserRepository(db)
-
-    return MetricsService(
-        repo_repository=repo_repository,
-        unit_repository=unit_repository,
-        unit_node_repository=UnitNodeRepository(db),
-        unit_node_edge_repository=UnitNodeEdgeRepository(db),
-        user_repository=user_repository,
-        access_service=AccessService(
-            permission_repository=PermissionRepository(db),
-            unit_repository=unit_repository,
-            user_repository=user_repository,
-            jwt_token=jwt_token,
-            is_bot_auth=is_bot_auth,
-        ),
-    )
+    return create_service_factory(db, None, jwt_token, is_bot_auth).get_metrics_service()
 
 
 def get_permission_service(
     db: Session = Depends(get_session), jwt_token: Optional[str] = Depends(token_depends), is_bot_auth: bool = False
 ) -> PermissionService:
-    return PermissionService(
-        access_service=AccessService(
-            permission_repository=PermissionRepository(db),
-            unit_repository=UnitRepository(db),
-            user_repository=UserRepository(db),
-            jwt_token=jwt_token,
-            is_bot_auth=is_bot_auth,
-        ),
-        permission_repository=PermissionRepository(db),
-    )
+    return create_service_factory(db, None, jwt_token, is_bot_auth).get_permission_service()
