@@ -10,17 +10,18 @@ from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
 @strawberry.type()
+class PlatformType(TypeInputMixin):
+    name: str
+    link: str
+
+
+@strawberry.type()
 class RepoType(TypeInputMixin):
     uuid: uuid_pkg.UUID
     visibility_level: VisibilityLevel
 
     name: str
     create_datetime: datetime
-
-    repo_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
 
     default_branch: Optional[str] = None
     is_auto_update_repo: bool
@@ -31,9 +32,9 @@ class RepoType(TypeInputMixin):
 
     last_update_datetime: datetime
 
-    branches: list[str]
-
     creator_uuid: uuid_pkg.UUID
+
+    repository_registry_uuid: uuid_pkg.UUID
 
 
 @strawberry.type()
@@ -53,12 +54,6 @@ class CommitType(TypeInputMixin):
 class TargetVersionType(TypeInputMixin):
     commit: str
     tag: Optional[str] = None
-
-
-@strawberry.type()
-class PlatformType(TypeInputMixin):
-    name: str
-    link: str
 
 
 @strawberry.type()

@@ -5,9 +5,8 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_repo_service_gql
-from app.schemas.gql.inputs.repo import CommitFilterInput, RepoFilterInput
+from app.schemas.gql.inputs.repo import RepoFilterInput
 from app.schemas.gql.types.repo import (
-    CommitType,
     PlatformType,
     ReposResultType,
     RepoType,
@@ -27,12 +26,6 @@ def get_repos(filters: RepoFilterInput, info: Info) -> ReposResultType:
     repo_service = get_repo_service_gql(info)
     count, repos = repo_service.list(filters)
     return ReposResultType(count=count, repos=[RepoType(**repo.dict()) for repo in repos])
-
-
-@strawberry.field()
-def get_branch_commits(uuid: uuid_pkg.UUID, filters: CommitFilterInput, info: Info) -> list[CommitType]:
-    repo_service = get_repo_service_gql(info)
-    return [CommitType(**commit.dict()) for commit in repo_service.get_branch_commits(uuid, filters)]
 
 
 @strawberry.field()

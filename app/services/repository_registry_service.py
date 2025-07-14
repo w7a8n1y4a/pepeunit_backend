@@ -15,6 +15,12 @@ from app.repositories.git_platform_repository import GithubPlatformClient, Gitla
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.schemas.gql.inputs.repository_registry import (
+    CommitFilterInput,
+    CredentialsInput,
+    RepositoryRegistryCreateInput,
+    RepositoryRegistryFilterInput,
+)
 from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
@@ -78,7 +84,7 @@ class RepositoryRegistryService:
 
         return platforms_dict[GitPlatform(repository_registry.platform)](repository_registry, credentials)
 
-    def create(self, data: RepositoryRegistryCreate) -> RepositoryRegistry:
+    def create(self, data: Union[RepositoryRegistryCreate, RepositoryRegistryCreateInput]) -> RepositoryRegistry:
         self.access_service.authorization.check_access([AgentType.USER])
 
         self.is_valid_repo_url(data)
@@ -124,7 +130,9 @@ class RepositoryRegistryService:
         self.access_service.authorization.check_visibility(repository_registry)
         return repository_registry
 
-    def get_branch_commits(self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter]) -> list[CommitRead]:
+    def get_branch_commits(
+        self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]
+    ) -> list[CommitRead]:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
@@ -157,7 +165,7 @@ class RepositoryRegistryService:
 
         return user_credentials
 
-    def set_credentials(self, uuid: uuid_pkg.UUID, data: Union[Credentials]) -> None:
+    def set_credentials(self, uuid: uuid_pkg.UUID, data: Union[Credentials, CredentialsInput]) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repository_registry = self.repository_registry_repository.get(RepositoryRegistry(uuid=uuid))
@@ -188,7 +196,9 @@ class RepositoryRegistryService:
 
         self.repository_registry_repository.update(repository_registry.uuid, repository_registry)
 
-    def list(self, filters: Union[RepositoryRegistryFilter]) -> tuple[int, list[RepositoryRegistry]]:
+    def list(
+        self, filters: Union[RepositoryRegistryFilter, RepositoryRegistryFilterInput]
+    ) -> tuple[int, list[RepositoryRegistry]]:
         self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
 
         if self.access_service.current_agent.type == AgentType.BOT:

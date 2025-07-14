@@ -4,7 +4,7 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_repo_service_gql
-from app.schemas.gql.inputs.repo import CredentialsInput, RepoCreateInput, RepoUpdateInput
+from app.schemas.gql.inputs.repo import RepoCreateInput, RepoUpdateInput
 from app.schemas.gql.types.repo import RepoType
 from app.schemas.gql.types.shared import NoneType
 
@@ -19,19 +19,6 @@ def create_repo(info: Info, repo: RepoCreateInput) -> RepoType:
 def update_repo(info: Info, uuid: uuid_pkg.UUID, repo: RepoUpdateInput) -> RepoType:
     repo_service = get_repo_service_gql(info)
     return RepoType(**repo_service.update(uuid, repo).dict())
-
-
-@strawberry.mutation()
-def update_repo_credentials(info: Info, uuid: uuid_pkg.UUID, data: CredentialsInput) -> RepoType:
-    repo_service = get_repo_service_gql(info)
-    return RepoType(**repo_service.update_credentials(uuid, data).dict())
-
-
-@strawberry.mutation()
-def update_local_repo(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
-    repo_service = get_repo_service_gql(info)
-    repo_service.update_local_repo(uuid)
-    return NoneType()
 
 
 @strawberry.mutation()

@@ -8,21 +8,11 @@ from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
 @strawberry.input()
-class CredentialsInput(TypeInputMixin):
-    username: str
-    pat_token: str
-
-
-@strawberry.input()
 class RepoCreateInput(TypeInputMixin):
+    repository_registry_uuid: uuid_pkg.UUID
+
     visibility_level: VisibilityLevel
     name: str
-
-    repo_url: str
-    platform: GitPlatform
-
-    is_public_repository: bool
-    credentials: Optional[CredentialsInput] = None
 
     is_compilable_repo: bool
 
@@ -44,13 +34,14 @@ class RepoUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoFilterInput(TypeInputMixin):
+    repository_registry_uuid: Optional[uuid_pkg.UUID] = None
+
     uuids: Optional[list[uuid_pkg.UUID]] = tuple()
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
     creators_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
     search_string: Optional[str] = None
 
-    is_public_repository: Optional[bool] = None
     is_auto_update_repo: Optional[bool] = None
 
     visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
@@ -60,12 +51,3 @@ class RepoFilterInput(TypeInputMixin):
 
     offset: Optional[int] = None
     limit: Optional[int] = None
-
-
-@strawberry.input()
-class CommitFilterInput(TypeInputMixin):
-    repo_branch: str
-    only_tag: bool = False
-
-    offset: Optional[int] = 0
-    limit: Optional[int] = 10
