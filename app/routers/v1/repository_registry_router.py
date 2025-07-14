@@ -101,7 +101,7 @@ def update_local_repository(
 
 
 @router.patch("/backend_force_sync_local_repository_storage", status_code=status.HTTP_204_NO_CONTENT)
-def update_local_repository(
+def backend_force_sync(
     repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
 ):
     return repository_registry_service.backend_force_sync_local_repository_storage()
