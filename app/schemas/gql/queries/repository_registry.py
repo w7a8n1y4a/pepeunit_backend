@@ -19,7 +19,10 @@ from app.schemas.gql.types.repository_registry import (
 @strawberry.field()
 def get_repository_registry(uuid: uuid_pkg.UUID, info: Info) -> RepositoryRegistryType:
     repository_registry_service = get_repository_registry_service_gql(info)
-    return RepositoryRegistryType(**repository_registry_service.get(uuid).dict())
+    repository = repository_registry_service.get(uuid)
+    return RepositoryRegistryType(
+        branches=repository_registry_service.mapper_registry_to_registry_read(repository).branches, **repository.dict()
+    )
 
 
 @strawberry.field()
@@ -39,5 +42,11 @@ def get_repositories_registry(filters: RepositoryRegistryFilterInput, info: Info
     repository_registry_service = get_repository_registry_service_gql(info)
     count, repositories_registry = repository_registry_service.list(filters)
     return RepositoriesRegistryResultType(
-        count=count, repos=[RepositoryRegistryType(**repo.dict()) for repo in repositories_registry]
+        count=count,
+        repositories_registry=[
+            RepositoryRegistryType(
+                branches=repository_registry_service.mapper_registry_to_registry_read(repo).branches, **repo.dict()
+            )
+            for repo in repositories_registry
+        ],
     )

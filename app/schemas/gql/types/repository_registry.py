@@ -30,6 +30,7 @@ class RepositoryRegistryType(TypeInputMixin):
 
     creator_uuid: Optional[uuid_pkg.UUID] = None
 
+    cipher_credentials_private_repository: strawberry.Private[object]
     branches: list[str]
 
 

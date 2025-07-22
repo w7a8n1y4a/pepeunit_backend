@@ -5,7 +5,7 @@ from typing import Optional
 import strawberry
 from strawberry import field
 
-from app.dto.enum import GitPlatform, VisibilityLevel
+from app.dto.enum import VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
