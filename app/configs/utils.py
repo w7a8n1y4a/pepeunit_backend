@@ -47,7 +47,7 @@ def is_valid_ip_address(domain: str) -> bool:
 
 
 def get_directory_size(directory: str) -> int:
-    return sum(f.stat().st_size for f in Path(directory).rglob('*') if f.is_file())
+    return sum(f.stat().st_size for f in Path(directory).rglob('**/*') if f.is_file())
 
 
 def acquire_file_lock(file_lock: str):
