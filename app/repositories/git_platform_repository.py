@@ -135,18 +135,18 @@ class GitlabPlatformClient(GitPlatformClientABC):
         return repo_size
 
     def is_valid_token(self) -> bool:
-        repository_id = self._get_repository_id()
-
         headers = None
         if self.credentials:
             headers = {
                 'PRIVATE-TOKEN': self.credentials.pat_token,
             }
 
-        repo_data = httpx.get(url=f'{self._get_api_url()}{repository_id}', headers=headers)
+        result_data = httpx.get(
+            url=self._get_api_url() + self._get_repository_name().replace('/', '%2F'), headers=headers
+        )
 
         try:
-            repo_data.json()['id']
+            result_data.json()['id']
         except KeyError:
             return False
 
