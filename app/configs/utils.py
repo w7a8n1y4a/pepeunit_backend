@@ -47,7 +47,13 @@ def is_valid_ip_address(domain: str) -> bool:
 
 
 def get_directory_size(directory: str) -> int:
-    return sum(f.stat().st_size for f in Path(directory).rglob('**/*') if f.is_file())
+    total_size = 0
+    for entry in os.scandir(directory):
+        if entry.is_file(follow_symlinks=False):  # Игнорируем симлинки
+            total_size += entry.stat().st_size
+        elif entry.is_dir(follow_symlinks=False):  # Рекурсивный обход поддиректорий
+            total_size += get_directory_size(entry.path)
+    return total_size
 
 
 def acquire_file_lock(file_lock: str):
