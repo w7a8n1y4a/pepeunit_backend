@@ -99,7 +99,7 @@ class RepositoryRegistryService:
                 self.access_service.current_agent.uuid,
                 OneRepositoryRegistryCredentials(
                     status=CredentialStatus.NOT_VERIFIED,
-                    credentials=data.credentials,
+                    credentials=Credentials(**data.credentials.dict()),
                 ),
             )
 
@@ -112,7 +112,7 @@ class RepositoryRegistryService:
                 self.access_service.current_agent.uuid,
                 OneRepositoryRegistryCredentials(
                     status=status,
-                    credentials=data.credentials,
+                    credentials=Credentials(**data.credentials.dict()),
                 ),
             )
 
