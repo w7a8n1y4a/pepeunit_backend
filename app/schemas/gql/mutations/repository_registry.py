@@ -14,7 +14,10 @@ def create_repository_registry(
     info: Info, repository_registry: RepositoryRegistryCreateInput
 ) -> RepositoryRegistryType:
     repository_registry_service = get_repository_registry_service_gql(info)
-    return RepositoryRegistryType(**repository_registry_service.create(repository_registry).dict())
+    repository = repository_registry_service.create(repository_registry)
+    return RepositoryRegistryType(
+        branches=repository_registry_service.mapper_registry_to_registry_read(repository).branches, **repository.dict()
+    )
 
 
 @strawberry.mutation()
