@@ -4,11 +4,11 @@ import logging
 import uuid as uuid_pkg
 from typing import Union
 
-from fastapi import Depends, HTTPException, UploadFile
+from fastapi import Depends, UploadFile
 from strawberry.file_uploads import Upload
 
 from app import settings
-from app.configs.errors import DataPipeError, MqttError, UnitNodeError
+from app.configs.errors import CustomException, CustomPermissionError, DataPipeError, MqttError, UnitNodeError
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
@@ -314,17 +314,17 @@ class UnitNodeService:
 
         try:
             self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), input_node)
-        except HTTPException:
+        except CustomPermissionError:
             pass
 
         try:
             self.permission_service.create_by_domains(Unit(uuid=input_node.unit_uuid), output_node)
-        except HTTPException:
+        except CustomPermissionError:
             pass
 
         try:
             self.permission_service.create_by_domains(Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid))
-        except HTTPException:
+        except CustomPermissionError:
             pass
 
         unit_node_edge = self.unit_node_edge_repository.create(new_edge)
@@ -453,8 +453,8 @@ class UnitNodeService:
 
         try:
             self.permission_service.delete(output_node.unit_uuid, input_uuid, is_api=False)
-        except HTTPException as ex:
-            logging.info(ex.detail)
+        except CustomException as ex:
+            logging.info(ex.message)
             # At the time of deletion, the user may have already deleted access,
             # so there should be immunity to this error.
             pass
