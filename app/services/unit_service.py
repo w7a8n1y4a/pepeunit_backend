@@ -116,6 +116,7 @@ class UnitService:
         unit_deepcopy = copy.deepcopy(unit)
 
         self.permission_service.create_by_domains(User(uuid=self.access_service.current_agent.uuid), unit)
+        self.permission_service.create_by_domains(unit, Repo(uuid=unit.repo_uuid))
         self.permission_service.create_by_domains(unit, unit)
 
         self.unit_node_service.bulk_create(schema_dict, unit, False)
