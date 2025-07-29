@@ -106,6 +106,9 @@ class PermissionService:
         if agent.uuid == resource.creator_uuid:
             raise CustomPermissionError('The creator of the resource cannot remove his access to the resource')
 
+        if isinstance(agent, Unit) and isinstance(resource, Repo) and resource.uuid == agent.repo_uuid:
+            raise CustomPermissionError('You cannot remove Unit\'s access to the parent Repo')
+
         if isinstance(agent, Unit) and isinstance(resource, UnitNode) and resource.unit_uuid == agent.uuid:
             raise CustomPermissionError('You cannot remove a Unit\'s access to its child UnitNodes')
 
