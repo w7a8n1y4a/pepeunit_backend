@@ -10,7 +10,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_repo_service
+from app.configs.rest import get_repo_service, get_repository_registry_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -189,14 +189,17 @@ class RepoBotRouter(BaseBotRouter):
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
+                repository_registry_service = get_repository_registry_service(db, str(callback.from_user.id), True)
 
                 text = ''
                 match decrees_type:
                     case DecreesNames.LOCAL_UPDATE:
-                        text = 'Local repository update successfully started'
-                        repo_service.update_local_repo(repo_uuid)
+                        text = 'Success Local repository update'
+                        repo = repo_service.get(repo_uuid)
+                        repository_registry = repository_registry_service.get(repo.repository_registry_uuid)
+                        repository_registry_service.update_local_repository(repository_registry.uuid)
                     case DecreesNames.RELATED_UNIT:
-                        text = 'Linked Unit update has started successfully'
+                        text = 'Success linked Unit update'
                         repo_service.update_units_firmware(repo_uuid)
 
         await callback.answer(parse_mode='Markdown')
