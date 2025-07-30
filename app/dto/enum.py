@@ -214,6 +214,7 @@ class CommandNames(str, enum.Enum):
 
     START = 'start'
     HELP = 'help'
+    REGISTRY = 'registry'
     REPO = 'repo'
     UNIT = 'unit'
     INFO = 'info'
@@ -226,6 +227,7 @@ class EntityNames(str, enum.Enum):
     Commands supported by the bot
     """
 
+    REGISTRY = 'Registry'
     REPO = 'Repo'
     UNIT = 'Unit'
     UNIT_NODE = 'UnitNode'
@@ -367,3 +369,13 @@ class CredentialStatus(str, enum.Enum):
     VALID = 'Valid'
     NOT_VERIFIED = 'NotVerified'
     ERROR = 'Error'
+
+
+@strawberry.enum
+class RepositoryRegistryType(str, enum.Enum):
+    """
+    Types of log levels
+    """
+
+    PRIVATE = 'Private'
+    PUBLIC = 'Public'

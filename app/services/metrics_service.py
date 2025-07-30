@@ -3,6 +3,7 @@ from fastapi import Depends
 
 from app.dto.enum import AgentType
 from app.repositories.repo_repository import RepoRepository
+from app.repositories.repository_registry_repository import RepositoryRegistryRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -17,6 +18,7 @@ class MetricsService:
 
     def __init__(
         self,
+        repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
@@ -24,6 +26,7 @@ class MetricsService:
         user_repository: UserRepository = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
+        self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.unit_repository = unit_repository
         self.unit_node_repository = unit_node_repository
@@ -41,6 +44,7 @@ class MetricsService:
 
         metrics = BaseMetricsRead(
             user_count=self.user_repository.get_all_count(),
+            repository_registry_count=self.repository_registry_repository.get_all_count(),
             repo_count=self.repo_repository.get_all_count(),
             unit_count=self.unit_repository.get_all_count(),
             unit_node_count=self.unit_node_repository.get_all_count(),

@@ -2,6 +2,7 @@ from typing import Union
 from uuid import UUID
 
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -10,7 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_repo_service
+from app.configs.rest import get_repo_service, get_repository_registry_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -137,31 +138,45 @@ class RepoBotRouter(BaseBotRouter):
 
         text = f'*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*'
 
-        if versions and versions.unit_count:
-            text += f'\n```text\nTotal Units this Repo - {versions.unit_count}\n\n'
+        text += f'\n```text\n'
 
-            table = [['№', 'Version', 'Unit Count']]
+        table = [
+            ['Param', 'Value'],
+            ['Default Branch', self.header_name_limit(repo.default_branch) if repo.default_branch else None],
+            ['Compilable ?', repo.is_compilable_repo],
+            ['Auto-update ?', repo.is_auto_update_repo],
+            ['Tags only ?', repo.is_only_tag_update],
+        ]
+
+        if not repo.is_auto_update_repo:
+            table.append(['Default Commit', self.git_hash_limit(repo.default_commit) if repo.default_commit else None])
+
+        if versions and versions.unit_count:
+            table.append(['Total Units', versions.unit_count])
+
+            table_version = [['№', 'Version', 'Unit Count']]
 
             for inc, version in enumerate(versions.versions):
-                table.append(
+                table_version.append(
                     [inc, version.tag if version.tag else self.git_hash_limit(version.commit), version.unit_count]
                 )
 
-            text += make_monospace_table_with_title(table, 'Version distribution')
+        text += make_monospace_table_with_title(table, 'Base Info')
 
-            text += '```'
+        text += '\n'
+
+        if versions and versions.unit_count:
+            text += make_monospace_table_with_title(table_version, 'Version distribution')
+
+        text += '```'
 
         keyboard = []
         if is_creator:
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        text='🫀 Update Local Repo',
-                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
-                    ),
-                    InlineKeyboardButton(
                         text='📈 Update Related Unit',
-                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
+                        callback_data=f'{self.entity_name}_decres_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
                     ),
                 ],
             )
@@ -169,17 +184,28 @@ class RepoBotRouter(BaseBotRouter):
         keyboard.extend(
             [
                 [
+                    InlineKeyboardButton(
+                        text='⚡️ Registry',
+                        callback_data=f'{EntityNames.REGISTRY}_uuid_{repo.repository_registry_uuid}_{filters.page}',
+                    ),
                     InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
                 ],
                 [
                     InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                    InlineKeyboardButton(
+                        text='↻ Refresh',
+                        callback_data=f'{self.entity_name}_uuid_{repo.uuid}_{filters.page}',
+                    ),
                     InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
                 ],
             ]
         )
 
         await callback.answer(parse_mode='Markdown')
-        await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
+        try:
+            await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
+        except TelegramBadRequest:
+            pass
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
 
@@ -192,11 +218,8 @@ class RepoBotRouter(BaseBotRouter):
 
                 text = ''
                 match decrees_type:
-                    case DecreesNames.LOCAL_UPDATE:
-                        text = 'Local repository update successfully started'
-                        repo_service.update_local_repo(repo_uuid)
                     case DecreesNames.RELATED_UNIT:
-                        text = 'Linked Unit update has started successfully'
+                        text = 'Success linked Unit update'
                         repo_service.update_units_firmware(repo_uuid)
 
         await callback.answer(parse_mode='Markdown')
