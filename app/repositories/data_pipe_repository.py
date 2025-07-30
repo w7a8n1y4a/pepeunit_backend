@@ -1,5 +1,8 @@
 import csv
+import os
+import shutil
 import uuid
+import zipfile
 from io import StringIO
 from typing import List, Union
 
@@ -148,8 +151,17 @@ class DataPipeRepository:
 
         result = csv_data.getvalue()
 
-        file_path = f'tmp/dp_data_{uuid.uuid4()}.csv'
+        target_uuid = uuid.uuid4()
+        file_name = f'dp_data_{target_uuid}.csv'
+        file_path = f'tmp/{file_name}'
+        zip_path = f'tmp/dp_data_{target_uuid}.zip'
+
         with open(file_path, 'w') as f:
             f.write(result)
 
-        return file_path
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(file_path, arcname=file_name)
+
+        os.remove(file_path)
+
+        return zip_path
