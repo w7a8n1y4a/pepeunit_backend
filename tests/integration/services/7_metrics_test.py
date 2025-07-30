@@ -13,6 +13,7 @@ def test_get_metrics(database) -> None:
 
     assert metrics.user_count >= 2
     assert metrics.unit_count >= 7
+    assert metrics.repository_registry_count >= 2
     assert metrics.repo_count >= 6
     assert metrics.unit_node_count >= 14
     assert metrics.unit_node_edge_count >= 1

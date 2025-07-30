@@ -119,6 +119,7 @@ class ServiceFactory:
 
     def get_metrics_service(self) -> MetricsService:
         return MetricsService(
+            repository_registry_repository=self.repository_registry_repository,
             repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
             unit_node_repository=self.unit_node_repository,
