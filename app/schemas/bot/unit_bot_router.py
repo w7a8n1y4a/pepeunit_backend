@@ -169,8 +169,9 @@ class UnitBotRouter(BaseBotRouter):
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 unit_service = get_unit_service(db, cc, str(callback.from_user.id), True)
+                repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
                 unit = unit_service.mapper_unit_to_unit_type((unit_service.get(unit_uuid), []))
-
+                repo = repo_service.get(unit.repo_uuid)
                 try:
                     target_version = unit_service.get_target_version(unit_uuid)
                 except Exception:
@@ -185,8 +186,25 @@ class UnitBotRouter(BaseBotRouter):
 
         text = f'*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*'
 
-        if target_version or unit.unit_state:
-            text += f'\n```text\n'
+        text += f'\n```text\n'
+
+        table = [
+            ['Param', 'Value'],
+            ['Auto-update ?', unit.is_auto_update_from_repo_unit],
+        ]
+
+        if not unit.is_auto_update_from_repo_unit:
+            table.append(['Branch', self.header_name_limit(unit.repo_branch) if unit.repo_branch else None])
+
+        table.append(['Compilable ?', repo.is_compilable_repo])
+
+        if repo.is_compilable_repo:
+            table.append(
+                [
+                    'Compilable Platform',
+                    self.header_name_limit(unit.target_firmware_platform) if unit.target_firmware_platform else None,
+                ]
+            )
 
         if target_version:
 
@@ -202,19 +220,23 @@ class UnitBotRouter(BaseBotRouter):
             else:
                 status = unit.firmware_update_status
 
-            table = [['Update', 'Current', 'Target'], [status, current_version, target_version]]
-
-            text += make_monospace_table_with_title(table, 'Version')
+            table.extend(
+                [
+                    ['Current Version', current_version],
+                    ['Target Version', target_version],
+                    ['Update status', status],
+                ]
+            )
 
             if unit.firmware_update_status == UnitFirmwareUpdateStatus.REQUEST_SENT:
-                table = [[unit.last_firmware_update_datetime.strftime("%Y-%m-%d %H:%M:%S")]]
-
-                text += '\n'
-                text += make_monospace_table_with_title(table, 'Request Time')
+                table.append(['Request Update', unit.last_firmware_update_datetime.strftime("%Y-%m-%d %H:%M:%S")])
 
             if unit.firmware_update_status == UnitFirmwareUpdateStatus.ERROR and unit.firmware_update_error:
-                text += '\n'
-                text += make_monospace_table_with_title([[unit.firmware_update_error]], 'Update Error')
+                table.append(['Update Error', unit.firmware_update_error])
+
+        text += make_monospace_table_with_title(table, 'Base Info', lengths=[15, 35])
+
+        text += '\n'
 
         if unit.unit_state:
             table = []
@@ -256,9 +278,7 @@ class UnitBotRouter(BaseBotRouter):
             text += '\n'
             text += make_monospace_table_with_title(table, 'Unit State')
 
-        if target_version or unit.unit_state:
-
-            text += '```'
+        text += '```'
 
         keyboard = []
 

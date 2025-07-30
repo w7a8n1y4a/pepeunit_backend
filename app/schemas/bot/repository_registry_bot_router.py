@@ -150,7 +150,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                 (
                     repository_registry.sync_last_datetime.strftime("%Y-%m-%d %H:%M:%S")
                     if repository_registry.sync_last_datetime
-                    else '-'
+                    else None
                 ),
             ],
             ['Sync error', repository_registry.sync_error],
@@ -162,7 +162,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             if credentials:
                 table.append(['Creds status', credentials.status.value.capitalize()])
 
-        text += make_monospace_table_with_title(table, 'Registry info')
+        text += make_monospace_table_with_title(table, 'Base Info')
 
         text += '```'
 

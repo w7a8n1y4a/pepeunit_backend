@@ -2,6 +2,7 @@ from typing import Union
 from uuid import UUID
 
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -137,19 +138,37 @@ class RepoBotRouter(BaseBotRouter):
 
         text = f'*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*'
 
-        if versions and versions.unit_count:
-            text += f'\n```text\nTotal Units this Repo - {versions.unit_count}\n\n'
+        text += f'\n```text\n'
 
-            table = [['№', 'Version', 'Unit Count']]
+        table = [
+            ['Param', 'Value'],
+            ['Default Branch', self.header_name_limit(repo.default_branch) if repo.default_branch else None],
+            ['Compilable ?', repo.is_compilable_repo],
+            ['Auto-update ?', repo.is_auto_update_repo],
+            ['Tags only ?', repo.is_only_tag_update],
+        ]
+
+        if not repo.is_auto_update_repo:
+            table.append(['Default Commit', self.git_hash_limit(repo.default_commit) if repo.default_commit else None])
+
+        if versions and versions.unit_count:
+            table.append(['Total Units', versions.unit_count])
+
+            table_version = [['№', 'Version', 'Unit Count']]
 
             for inc, version in enumerate(versions.versions):
-                table.append(
+                table_version.append(
                     [inc, version.tag if version.tag else self.git_hash_limit(version.commit), version.unit_count]
                 )
 
-            text += make_monospace_table_with_title(table, 'Version distribution')
+        text += make_monospace_table_with_title(table, 'Base Info')
 
-            text += '```'
+        text += '\n'
+
+        if versions and versions.unit_count:
+            text += make_monospace_table_with_title(table_version, 'Version distribution')
+
+        text += '```'
 
         keyboard = []
         if is_creator:
@@ -173,13 +192,20 @@ class RepoBotRouter(BaseBotRouter):
                 ],
                 [
                     InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
+                    InlineKeyboardButton(
+                        text='↻ Refresh',
+                        callback_data=f'{self.entity_name}_uuid_{repo.uuid}_{filters.page}',
+                    ),
                     InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/repo/{repo.uuid}'),
                 ],
             ]
         )
 
         await callback.answer(parse_mode='Markdown')
-        await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
+        try:
+            await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
+        except TelegramBadRequest:
+            pass
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
 
