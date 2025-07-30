@@ -267,7 +267,7 @@ class UnitBotRouter(BaseBotRouter):
                 [
                     InlineKeyboardButton(
                         text='💰 Get Env',
-                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.GET_ENV}_{unit.uuid}',
+                        callback_data=f'{self.entity_name}_decres_{DecreesNames.GET_ENV}_{unit.uuid}',
                     ),
                 ]
             )
@@ -286,7 +286,7 @@ class UnitBotRouter(BaseBotRouter):
                     [
                         InlineKeyboardButton(
                             text=command_mqtt_dict[command],
-                            callback_data=f'{self.entity_name}_decrees_{command_mqtt_dict[command]}_{unit.uuid}',
+                            callback_data=f'{self.entity_name}_decres_{command_mqtt_dict[command]}_{unit.uuid}',
                         )
                         for command in list(commands)
                     ]
@@ -298,7 +298,7 @@ class UnitBotRouter(BaseBotRouter):
                     [
                         InlineKeyboardButton(
                             text=f'💾 {command}',
-                            callback_data=f'{self.entity_name}_decrees_{command}_{unit.uuid}',
+                            callback_data=f'{self.entity_name}_decres_{command}_{unit.uuid}',
                         )
                         for command in commands
                     ]

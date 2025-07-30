@@ -37,6 +37,7 @@ from app.routers.v1.endpoints import api_router
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
 from app.schemas.bot.repo_bot_router import RepoBotRouter
+from app.schemas.bot.repository_registry_bot_router import RepositoryRegistryBotRouter
 from app.schemas.bot.start_help import base_router
 from app.schemas.bot.unit_bot_router import UnitBotRouter
 from app.schemas.bot.unit_log_bot_router import UnitLogBotRouter
@@ -269,6 +270,7 @@ dp = Dispatcher(bot=bot, storage=storage)
 
 dp.include_router(info_router)
 dp.include_router(base_router)
+dp.include_router(RepositoryRegistryBotRouter().router)
 dp.include_router(RepoBotRouter().router)
 dp.include_router(UnitBotRouter().router)
 dp.include_router(UnitNodeBotRouter().router)

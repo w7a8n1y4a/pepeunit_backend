@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union
 
+import aiogram.exceptions
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -9,7 +10,11 @@ from fastapi import Query
 from pydantic import BaseModel, field_validator
 
 from app import settings
-from app.dto.enum import EntityNames, LogLevel, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import EntityNames, LogLevel, RepositoryRegistryType, UnitNodeTypeEnum, VisibilityLevel
+
+
+class RepositoryRegistryStates(StatesGroup):
+    waiting_for_search = State()
 
 
 class RepoStates(StatesGroup):
@@ -29,6 +34,7 @@ class BaseBotFilters(BaseModel):
     visibility_levels: list[str] = Query([item.value for item in VisibilityLevel])
     unit_types: list[str] = Query([item.value for item in UnitNodeTypeEnum])
     log_levels: list[str] = Query([item.value for item in LogLevel])
+    repository_types: list[str] = Query([item.value for item in RepositoryRegistryType])
     is_only_my_entity: bool = False
     search_string: Optional[str] = None
     previous_filters: Optional["BaseBotFilters"] = None
@@ -95,8 +101,8 @@ class BaseBotRouter(ABC):
         self.router.callback_query(F.data == f"{self.entity_name}_search")(self.handle_search)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(self.toggle_filter)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(self.handle_entity_click)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_decrees_"))(self.handle_entity_decrees)
-        if self.states_group in (RepoStates, UnitStates, UnitNodeStates):
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_decres_"))(self.handle_entity_decrees)
+        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates):
             self.router.message(self.states_group.waiting_for_search)(self.process_search)
 
     @staticmethod
@@ -120,7 +126,7 @@ class BaseBotRouter(ABC):
 
     async def handle_search(self, callback: types.CallbackQuery, state: FSMContext):
 
-        if self.states_group in (RepoStates, UnitStates, UnitNodeStates):
+        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates):
             await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
             await state.set_state(self.states_group.waiting_for_search)
         else:
@@ -132,28 +138,34 @@ class BaseBotRouter(ABC):
             BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
         )
 
-        *_, target = callback.data.split('_')
+        entity, *_, target = callback.data.split('_')
 
         if target == 'mine':
             filters.is_only_my_entity = not filters.is_only_my_entity
         else:
-            if target in [item.value for item in VisibilityLevel]:
+            if entity != EntityNames.REGISTRY and target in [item.value for item in VisibilityLevel]:
                 if target in filters.visibility_levels:
                     filters.visibility_levels.remove(target)
                 else:
                     filters.visibility_levels.append(target)
 
-            if target in [item.value for item in UnitNodeTypeEnum]:
+            elif target in [item.value for item in UnitNodeTypeEnum]:
                 if target in filters.unit_types:
                     filters.unit_types.remove(target)
                 else:
                     filters.unit_types.append(target)
 
-            if target in [item.value for item in LogLevel]:
+            elif target in [item.value for item in LogLevel]:
                 if target in filters.log_levels:
                     filters.log_levels.remove(target)
                 else:
                     filters.log_levels.append(target)
+
+            elif target in [item.value for item in RepositoryRegistryType]:
+                if target in filters.repository_types:
+                    filters.repository_types.remove(target)
+                else:
+                    filters.repository_types.append(target)
 
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)
@@ -176,6 +188,23 @@ class BaseBotRouter(ABC):
     @staticmethod
     def header_name_limit(data: str) -> str:
         return data[: settings.telegram_header_entity_length]
+
+    @staticmethod
+    def registry_name_limit(data: str, coefficient: float = 1) -> str:
+        return data[-int(settings.telegram_header_entity_length * coefficient) :]
+
+    @staticmethod
+    def registry_url_small(data: str) -> str:
+        return data.replace('https://' if data.find('https://') == 0 else 'http://', '')[:-4]
+
+    @staticmethod
+    def registry_type_to_bool(data: list[RepositoryRegistryType]) -> bool | None:
+        result = None
+        if RepositoryRegistryType.PUBLIC in data and RepositoryRegistryType.PRIVATE not in data:
+            result = True
+        if RepositoryRegistryType.PRIVATE in data and RepositoryRegistryType.PUBLIC not in data:
+            result = False
+        return result
 
     @staticmethod
     def git_hash_limit(data: str) -> str:

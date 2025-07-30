@@ -156,12 +156,8 @@ class RepoBotRouter(BaseBotRouter):
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        text='🫀 Update Local Repo',
-                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.LOCAL_UPDATE}_{repo.uuid}',
-                    ),
-                    InlineKeyboardButton(
                         text='📈 Update Related Unit',
-                        callback_data=f'{self.entity_name}_decrees_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
+                        callback_data=f'{self.entity_name}_decres_{DecreesNames.RELATED_UNIT}_{repo.uuid}',
                     ),
                 ],
             )
@@ -169,6 +165,10 @@ class RepoBotRouter(BaseBotRouter):
         keyboard.extend(
             [
                 [
+                    InlineKeyboardButton(
+                        text='⚡️ Registry',
+                        callback_data=f'{EntityNames.REGISTRY}_uuid_{repo.repository_registry_uuid}_{filters.page}',
+                    ),
                     InlineKeyboardButton(text='✨ Units', callback_data=f'{EntityNames.UNIT}_repo_{repo.uuid}'),
                 ],
                 [
@@ -189,15 +189,9 @@ class RepoBotRouter(BaseBotRouter):
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
-                repository_registry_service = get_repository_registry_service(db, str(callback.from_user.id), True)
 
                 text = ''
                 match decrees_type:
-                    case DecreesNames.LOCAL_UPDATE:
-                        text = 'Success Local repository update'
-                        repo = repo_service.get(repo_uuid)
-                        repository_registry = repository_registry_service.get(repo.repository_registry_uuid)
-                        repository_registry_service.update_local_repository(repository_registry.uuid)
                     case DecreesNames.RELATED_UNIT:
                         text = 'Success linked Unit update'
                         repo_service.update_units_firmware(repo_uuid)
