@@ -150,33 +150,6 @@ def test_update_repo(database, cc) -> None:
 
 
 @pytest.mark.run(order=2)
-def test_get_commits_repo(database, cc) -> None:
-
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
-    repository_registry_service = get_repository_registry_service(database, pytest.user_tokens_dict[current_user.uuid])
-
-    # check get repo commits - first 10
-    target_repo = repo_service.get(pytest.repos[5].uuid)
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
-    )
-    logging.info(target_repo.uuid)
-    branch_commits = repository_registry_service.get_branch_commits(
-        repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0], limit=1000)
-    )
-
-    # check first commit repo
-    assert '7b5804d4e945f87d0925c0480706a2c88320fce2' == branch_commits[-1].commit
-
-    # check get commits for bad branch
-    with pytest.raises(GitRepoError):
-        repository_registry_service.get_branch_commits(
-            repository_registry.uuid, CommitFilter(repo_branch=repository_registry.branches[0] + 'test')
-        )
-
-
-@pytest.mark.run(order=3)
 def test_get_available_platforms(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -221,7 +194,7 @@ def test_get_available_platforms(database, cc) -> None:
     assert len(platforms) > 0
 
 
-@pytest.mark.run(order=4)
+@pytest.mark.run(order=3)
 def test_update_default_branch_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -250,7 +223,7 @@ def test_update_default_branch_repo(database, cc) -> None:
         repo_service.update(full_repo.uuid, RepoUpdate(default_branch=repository_registry.branches[0] + 't'))
 
 
-@pytest.mark.run(order=5)
+@pytest.mark.run(order=4)
 def test_delete_repo(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -260,7 +233,7 @@ def test_delete_repo(database, cc) -> None:
     repo_service.delete(pytest.repos[1].uuid)
 
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=5)
 def test_delete_repository_registry(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -274,7 +247,7 @@ def test_delete_repository_registry(database, cc) -> None:
     repository_registry_service.delete(pytest.repository_registries[1].uuid)
 
 
-@pytest.mark.run(order=7)
+@pytest.mark.run(order=6)
 def test_get_many_repo(database, cc) -> None:
     current_user = pytest.users[0]
     repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])

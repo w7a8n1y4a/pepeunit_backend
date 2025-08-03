@@ -270,7 +270,7 @@ class RepositoryRegistryService:
 
         self.sync_external_repository(repository_registry)
 
-    def sync_local_repository_storage(self) -> None:
+    def sync_local_repository_storage(self, force: bool = False) -> None:
 
         logging.info('Run sync all repository in RepositoryRegistry')
 
@@ -278,7 +278,7 @@ class RepositoryRegistryService:
         local_repository_registry = self.repository_registry_repository.get_all()
 
         for repository_registry in local_repository_registry:
-            if str(repository_registry.uuid) not in local_physic_repository:
+            if force or (str(repository_registry.uuid) not in local_physic_repository):
                 logging.info(f'Run sync RepositoryRegistry: {repository_registry.repository_url}')
                 self.sync_external_repository(repository_registry)
 

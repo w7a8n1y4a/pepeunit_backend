@@ -46,6 +46,26 @@ def automatic_update_repositories():
         lock_fd.close()
 
 
+@router.on_event('startup')
+@repeat_at(cron='30 * * * *')
+def automatic_update_registry():
+    lock_fd = acquire_file_lock('tmp/update_registry.lock')
+
+    time.sleep(10)
+
+    if lock_fd:
+        logging.info('Run update with lock')
+        with get_hand_session() as db:
+            repository_registry_service = get_repository_registry_service(db, None)
+            repository_registry_service.sync_local_repository_storage(True)
+
+    else:
+        logging.info('Skip update without lock')
+
+    if lock_fd:
+        lock_fd.close()
+
+
 @router.post(
     "",
     response_model=RepositoryRegistryRead,
