@@ -4,6 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import aiogram.exceptions
+import httpx
 import uvicorn
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.base import DefaultKeyBuilder
@@ -108,18 +109,27 @@ async def _lifespan(_app: FastAPI):
             logging.info(f'Run polling')
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
-        if is_valid_ip_address(settings.backend_domain):
-            asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
-
-        logging.info(f'Get current TG bot webhook info')
-
-        if not is_valid_ip_address(settings.backend_domain):
+        async def run_webhook_bot(dp, bot):
             webhook_url = f'{settings.backend_link_prefix_and_v1}/bot'
 
             logging.info(f'Delete webhook before set new webhook')
             await bot.delete_webhook()
 
-            logging.info(f'Set new TG bot webhook url: {webhook_url}')
+            inc = 0
+            while True:
+                result = httpx.post(
+                    f'{settings.backend_link_prefix_and_v1}/bot', headers={'Content-Type': 'application/json'}
+                )
+                if result.status_code == 422:
+                    break
+
+                await asyncio.sleep(2)
+
+                if inc > 10:
+                    raise Exception('Webhook route not valid')
+
+                inc += 1
+
             try:
                 await bot.set_webhook(
                     url=webhook_url, drop_pending_updates=True, allowed_updates=dp.resolve_used_update_types()
@@ -128,6 +138,11 @@ async def _lifespan(_app: FastAPI):
             except aiogram.exceptions.TelegramBadRequest as e:
                 print(e.__dict__)
                 logging.info(f'Error set TG bot webhook url')
+
+        if is_valid_ip_address(settings.backend_domain):
+            asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
+        else:
+            asyncio.get_event_loop().create_task(run_webhook_bot(dp, bot), name='run_webhook_bot')
 
         with get_hand_session() as db:
             repository_registry_service = get_repository_registry_service(
