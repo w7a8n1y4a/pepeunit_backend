@@ -27,7 +27,15 @@ def test_create_repo(test_repos, database, cc) -> None:
             RepositoryRegistryFilter(search_string=test_repo['repository_url'])
         )
 
-        repo = repo_service.create(RepoCreate(repository_registry_uuid=repository_registry[0].uuid, **test_repo))
+        repository_registry = repository_registry_service.mapper_registry_to_registry_read(repository_registry[0])
+
+        repo = repo_service.create(
+            RepoCreate(
+                repository_registry_uuid=repository_registry.uuid,
+                default_branch=repository_registry.branches[0],
+                **test_repo,
+            )
+        )
 
         new_repos.append(repo)
 

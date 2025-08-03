@@ -3,13 +3,14 @@ from typing import Optional
 
 import strawberry
 
-from app.dto.enum import GitPlatform, OrderByDate, VisibilityLevel
+from app.dto.enum import OrderByDate, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
 @strawberry.input()
 class RepoCreateInput(TypeInputMixin):
     repository_registry_uuid: uuid_pkg.UUID
+    default_branch: str
 
     visibility_level: VisibilityLevel
     name: str

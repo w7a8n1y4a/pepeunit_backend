@@ -1,6 +1,5 @@
 import copy
 import datetime
-import json
 import logging
 import threading
 import uuid as uuid_pkg
@@ -23,7 +22,6 @@ from app.schemas.gql.inputs.repo import (
 from app.schemas.pydantic.repo import (
     RepoCreate,
     RepoFilter,
-    RepoRead,
     RepoUpdate,
     RepoVersionsRead,
 )
@@ -66,6 +64,7 @@ class RepoService:
         self.access_service.authorization.check_repository_registry_access(repository_registry)
 
         self.repo_repository.is_valid_name(data.name)
+        self.git_repo_repository.is_valid_branch(repository_registry, data.default_branch)
 
         repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
 
