@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.routers.v1.grafana import router as grafana_router
 from app.routers.v1.metrics_router import router as metrics_router
 from app.routers.v1.permission_router import router as permission_router
 from app.routers.v1.repo_router import router as repo_router
@@ -20,6 +21,7 @@ routers = (
     (unit_node_router, 'unit_nodes', 'unit_nodes'),
     (metrics_router, 'metrics', 'metrics'),
     (permission_router, 'permission', 'permission'),
+    (grafana_router, "grafana", "grafana"),
 )
 
 for router, prefix, tag in routers:

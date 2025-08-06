@@ -301,48 +301,6 @@ async def bot_webhook(update: dict):
 
 Instrumentator().instrument(app).expose(app, endpoint=f'{settings.backend_app_prefix}/metrics')
 
-
-@app.api_route(
-    f"{settings.backend_app_prefix}/grafana/{{path:path}}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"]
-)
-async def proxy_to_grafana(request: Request, path: str):
-    headers = dict(request.headers)
-    headers["X-WEBAUTH-USER"] = 'test'
-    headers["X-WEBAUTH-EMAIL"] = 'test@test.test'
-    headers["X-WEBAUTH-NAME"] = 'test'
-    headers["X-WEBAUTH-ROLE"] = 'Admin'
-
-    """
-    [server]
-    root_url = http://localhost:8555/pepeunit/grafana/
-    serve_from_sub_path = true
-    
-    
-    [auth.proxy]
-    enabled = true
-    header_name = X-WEBAUTH-USER
-    header_property = username
-    auto_sign_up = true
-    headers = Email:X-WEBAUTH-EMAIL,Name:X-WEBAUTH-NAME,Role:X-WEBAUTH-ROLE
-    
-    [auth]
-    disable_login_form = true  # Чтобы не мешала форма логина Grafana
-    """
-
-    headers.pop("authorization", None)
-
-    async with httpx.AsyncClient() as client:
-        response = await client.request(
-            method=request.method,
-            url=f"http://127.0.0.1:3000/pepeunit/grafana/{path}",
-            headers=headers,
-            params=dict(request.query_params),
-            content=await request.body(),
-        )
-
-    return Response(content=response.content, status_code=response.status_code, headers=dict(response.headers))
-
-
 app.include_router(api_router, prefix=f'{settings.backend_app_prefix}{settings.backend_api_v1_prefix}')
 
 mqtt.init_app(app)

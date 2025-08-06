@@ -379,3 +379,14 @@ class RepositoryRegistryType(str, enum.Enum):
 
     PRIVATE = 'Private'
     PUBLIC = 'Public'
+
+
+@strawberry.enum
+class GrafanaUserRole(str, enum.Enum):
+    """
+    Role User for Grafana
+    """
+
+    VIEWER = 'Viewer'
+    EDITOR = 'Editor'
+    ADMIN = 'Admin'
