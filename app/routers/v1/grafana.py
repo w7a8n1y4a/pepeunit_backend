@@ -1,8 +1,9 @@
+import random
 import time
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
 from starlette.responses import JSONResponse
 
@@ -55,8 +56,9 @@ def authorize(
         "scope": scope,
         "nonce": nonce,
         "issued_at": time.time(),
-        "user": {"sub": "1234", "name": "Grafana User", "email": "grafana@example.com", "role": "Viewer"},
+        "user": {"sub": "1234", "name": "Grafana User", "email": "grafana@example.com", "role": "Admin"},
     }
+    print()
 
     redirect_url = f"{redirect_uri}?code={code}&state={state}"
     return RedirectResponse(url=redirect_url)
@@ -70,8 +72,9 @@ def token(
     client_id: str = Form(...),
     client_secret: str = Form(...),
 ):
-
-    if code not in auth_codes:
+    print(auth_codes)
+    print(access_tokens)
+    if code not in auth_codes.keys():
         return JSONResponse(status_code=400, content={"error": "invalid_grant"})
 
     # Выдать "токен"
@@ -99,3 +102,43 @@ def userinfo(request: Request):
 
     user = access_tokens[token]["user"]
     return {"sub": user["sub"], "name": user["name"], "email": user["email"], "role": user["role"]}
+
+
+@router.get("/api/tasks")
+async def get_tasks(format: str = Query("table")):
+    if format == "timeseries":
+        now = int(time.time()) * 1000  # текущее время в мс
+        interval_ms = 15 * 60 * 1000  # 15 минут
+        days = 5  # полгода
+        points_count = days * 24 * 4  # 4 точки в час
+
+        def generate_series(ref_id, name):
+            timestamps = []
+            values = []
+            for i in range(points_count):
+                ts = now - (points_count - i) * interval_ms
+                timestamps.append(ts)
+                values.append(random.randint(0, 10))  # или реальные данные
+            return {
+                "refId": ref_id,
+                "series": [
+                    {
+                        "name": name,
+                        "fields": [
+                            {"name": "Time", "type": "time", "values": timestamps},
+                            {"name": "Value", "type": "number", "values": values},
+                        ],
+                    }
+                ],
+            }
+
+        data = [generate_series("A", "one"), generate_series("B", "test")]
+        return JSONResponse(content=data)
+
+    elif format == "table":
+        tasks = [
+            {"id": 1, "title": "Сделать отчёт", "status": "в процессе"},
+            {"id": 2, "title": "Проверить почту", "status": "завершено"},
+            {"id": 3, "title": "Созвон с командой", "status": "в ожидании"},
+        ]
+        return JSONResponse(content=tasks)
