@@ -1,6 +1,7 @@
 import random
 import time
 import uuid
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Query, Request
@@ -21,8 +22,12 @@ access_tokens = {}
 root_url = http://localhost:3000/pepeunit/grafana/
 serve_from_sub_path = true
 
+[organizations]
+allow_organization_creation = true
+
+
 [auth]
-disable_login_form = true
+disable_login_form = true  # Чтобы не мешала форма логина Grafana
 
 [auth.generic_oauth]
 enabled = true
@@ -107,33 +112,27 @@ def userinfo(request: Request):
 @router.get("/api/tasks")
 async def get_tasks(format: str = Query("table")):
     if format == "timeseries":
-        now = int(time.time()) * 1000  # текущее время в мс
-        interval_ms = 15 * 60 * 1000  # 15 минут
-        days = 5  # полгода
-        points_count = days * 24 * 4  # 4 точки в час
+        now = datetime.now()
 
-        def generate_series(ref_id, name):
+        now_aligned = now.replace(minute=0, second=0, microsecond=0)
+        interval = timedelta(minutes=60)
+        days = 90
+        points_count = days * 24
+
+        def generate_series():
             timestamps = []
             values = []
+            start_time = now_aligned - interval * (points_count - 1)
             for i in range(points_count):
-                ts = now - (points_count - i) * interval_ms
-                timestamps.append(ts)
-                values.append(random.randint(0, 10))  # или реальные данные
+                ts_dt = start_time + interval * i
+                ts_ms = int(ts_dt.timestamp() * 1000)
+                timestamps.append(ts_ms)
+                values.append(random.randint(0, 35))
             return {
-                "refId": ref_id,
-                "series": [
-                    {
-                        "name": name,
-                        "fields": [
-                            {"name": "Time", "type": "time", "values": timestamps},
-                            {"name": "Value", "type": "number", "values": values},
-                        ],
-                    }
-                ],
+                "feeds": [{"time": timestamp, "value": value} for timestamp, value in zip(timestamps, values)],
             }
 
-        data = [generate_series("A", "one"), generate_series("B", "test")]
-        return JSONResponse(content=data)
+        return JSONResponse(content=generate_series())
 
     elif format == "table":
         tasks = [
