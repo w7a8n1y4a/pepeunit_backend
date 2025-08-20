@@ -4,66 +4,93 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+import requests  # добавляем для вызова Grafana API
+from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import RedirectResponse
 from starlette.responses import JSONResponse
-
-from app import settings
-from app.configs.errors import NoAccessError
-from app.configs.rest import get_user_service
-from app.services.user_service import UserService
 
 router = APIRouter()
 auth_codes = {}
 access_tokens = {}
 
-"""
-[server]
-root_url = http://localhost:3000/pepeunit/grafana/
-serve_from_sub_path = true
-
-[organizations]
-allow_organization_creation = true
+# === настройки для Grafana API ===
+GRAFANA_URL = "http://localhost:3000"  # адрес твоей Grafana
+GRAFANA_ADMIN_TOKEN = "Basic YWRtaW46cGFzc3dvcmQ="
 
 
-[auth]
-disable_login_form = true  # Чтобы не мешала форма логина Grafana
+def create_org_if_not_exists(org_name: str, user_email: str, role: str = "Admin"):
+    headers = {"Authorization": GRAFANA_ADMIN_TOKEN, "Content-Type": "application/json"}
 
-[auth.generic_oauth]
-enabled = true
-name = Pepeunit
-allow_sign_up = true
-client_id = grafana-client
-client_secret = dummy
-scopes = openid profile email
-auth_url = http://192.168.0.22:8555/pepeunit/api/v1/grafana/oidc/authorize
-token_url = http://192.168.0.22:8555/pepeunit/api/v1/grafana/oidc/token
-api_url = http://192.168.0.22:8555/pepeunit/api/v1/grafana/oidc/userinfo
-email_attribute_path = email
-login_attribute_path = name
-role_attribute_path = role
-role_attribute_strict = true
+    # Получаем список организаций
+    resp = requests.get(f"{GRAFANA_URL}/api/orgs", headers=headers)
+    resp.raise_for_status()
+    orgs = resp.json()
 
+    existing = next((o for o in orgs if o["name"] == org_name), None)
+    if not existing:
+        # Создаём новую организацию
+        resp = requests.post(f"{GRAFANA_URL}/api/orgs", headers=headers, json={"name": org_name})
+        resp.raise_for_status()
+        org_id = resp.json().get("orgId")
+    else:
+        org_id = existing["id"]
 
-"""
+    # Создаём пользователя, если его нет
+    resp = requests.post(
+        f"{GRAFANA_URL}/api/admin/users",
+        headers=headers,
+        json={"name": user_email.split("@")[0], "email": user_email, "login": user_email, "password": "TempPass123!"},
+    )
+    if resp.status_code not in (200, 409):  # 409 = уже существует
+        resp.raise_for_status()
+
+    # Добавляем пользователя в организацию
+    resp = requests.post(
+        f"{GRAFANA_URL}/api/orgs/{org_id}/users",
+        headers=headers,
+        json={"loginOrEmail": user_email, "role": role},
+    )
+    print(resp.json())
+
+    if resp.status_code not in (200, 409):
+        resp.raise_for_status()
+
+    return org_id
 
 
 @router.get("/oidc/authorize")
 def authorize(
     response_type: str, client_id: str, redirect_uri: str, scope: str, state: str, nonce: Optional[str] = None
 ):
+    print(redirect_uri)
+    print('one', client_id)
     """
     Простая авторизация: возвращает редирект с "кодом" обратно в Grafana.
     """
     code = str(uuid.uuid4())
+
+    # создаём уникального юзера
+    user_id = str(uuid.uuid4())
+    user_email = f"user_{user_id[:8]}@example.com"
+    user_name = f"GrafanaUser-{user_id[:8]}"
+    org_name = f"org-{user_id[:8]}"
+
+    # Создаём организацию в Grafana (если нет)
+    create_org_if_not_exists(org_name, user_email, role="Admin")
+
     auth_codes[code] = {
         "client_id": client_id,
         "scope": scope,
         "nonce": nonce,
         "issued_at": time.time(),
-        "user": {"sub": "1234", "name": "Grafana User", "email": "grafana@example.com", "role": "Admin"},
+        "user": {
+            "sub": user_id,
+            "name": user_name,
+            "email": user_email,
+            "role": "Admin",  # чтобы гарантировать создание организации
+            "organization": org_name,
+        },
     }
-    print()
 
     redirect_url = f"{redirect_uri}?code={code}&state={state}"
     return RedirectResponse(url=redirect_url)
@@ -77,12 +104,10 @@ def token(
     client_id: str = Form(...),
     client_secret: str = Form(...),
 ):
-    print(auth_codes)
-    print(access_tokens)
+    print('two', code)
     if code not in auth_codes.keys():
         return JSONResponse(status_code=400, content={"error": "invalid_grant"})
 
-    # Выдать "токен"
     access_token = str(uuid.uuid4())
     id_token = str(uuid.uuid4())
     access_tokens[access_token] = auth_codes.pop(code)
@@ -97,7 +122,9 @@ def token(
 
 @router.get("/oidc/userinfo")
 def userinfo(request: Request):
+    print('three')
     auth = request.headers.get("Authorization")
+    print(auth)
     if not auth or not auth.startswith("Bearer "):
         return JSONResponse(status_code=401, content={"error": "invalid_token"})
 
@@ -106,14 +133,20 @@ def userinfo(request: Request):
         return JSONResponse(status_code=401, content={"error": "invalid_token"})
 
     user = access_tokens[token]["user"]
-    return {"sub": user["sub"], "name": user["name"], "email": user["email"], "role": user["role"]}
+
+    return {
+        "sub": user["sub"],
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"],
+        "organization": user["organization"],
+    }
 
 
 @router.get("/api/tasks")
 async def get_tasks(format: str = Query("table")):
     if format == "timeseries":
         now = datetime.now()
-
         now_aligned = now.replace(minute=0, second=0, microsecond=0)
         interval = timedelta(minutes=60)
         days = 90
