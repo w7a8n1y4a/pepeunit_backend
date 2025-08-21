@@ -14,6 +14,7 @@ Mutation = create_type(
         update_user,
         block_user,
         unblock_user,
+        delete_user_cookies,
         create_repo,
         update_repo,
         delete_repo,

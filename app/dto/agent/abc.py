@@ -37,6 +37,12 @@ class Agent(ABC, BaseModel):
             token = jwt.encode(
                 {"domain": settings.backend_domain, "type": self.type}, settings.backend_secret_key, "HS256"
             )
+        elif self.type == AgentType.GRAFANA:
+            token = jwt.encode(
+                {"uuid": str(self.uuid), "type": self.type, 'exp': access_token_exp},
+                settings.backend_secret_key,
+                "HS256",
+            )
         else:
             raise NoAccessError("Unknown agent type")
 
@@ -68,4 +74,9 @@ class AgentBackend(Agent):
         default_factory=lambda: uuid_pkg.uuid5(uuid_pkg.NAMESPACE_DNS, settings.backend_domain)
     )
     type: AgentType = AgentType.BACKEND
+    status: AgentStatus = AgentStatus.VERIFIED
+
+
+class AgentGrafana(Agent):
+    type: AgentType = AgentType.GRAFANA
     status: AgentStatus = AgentStatus.VERIFIED
