@@ -9,7 +9,7 @@ from app import settings
 from app.configs.db import get_session
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
-from app.dto.agent.abc import AgentUser
+from app.dto.agent.abc import AgentGrafana, AgentUser
 from app.dto.enum import AgentType, UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
@@ -65,6 +65,12 @@ class UserService:
         is_valid_password(data.password, user)
 
         return AgentUser(**user.dict()).generate_agent_token()
+
+    def get_grafana_token(self) -> str:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        current_user = self.access_service.current_agent
+        return AgentGrafana(uuid=current_user.uuid, name=current_user.login).generate_agent_token()
 
     def update(self, data: Union[UserUpdate, UserUpdateInput]) -> User:
         self.access_service.authorization.check_access([AgentType.USER])

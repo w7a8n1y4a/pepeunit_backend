@@ -60,6 +60,7 @@ class AgentType(str, enum.Enum):
     USER = 'User'
     UNIT = 'Unit'
     BACKEND = 'Backend'
+    GRAFANA = 'Grafana'
 
 
 @strawberry.enum
@@ -390,3 +391,12 @@ class GrafanaUserRole(str, enum.Enum):
     VIEWER = 'Viewer'
     EDITOR = 'Editor'
     ADMIN = 'Admin'
+
+
+@strawberry.enum
+class CookieName(str, enum.Enum):
+    """
+    All Cookies names
+    """
+
+    PEPEUNIT_GRAFANA = 'PepeunitGrafana'

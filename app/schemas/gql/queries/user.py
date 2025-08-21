@@ -1,9 +1,12 @@
 import uuid as uuid_pkg
 
 import strawberry
+from strawberry.http.typevars import Response
 from strawberry.types import Info
 
+from app import settings
 from app.configs.gql import get_user_service_gql
+from app.dto.enum import CookieName
 from app.schemas.gql.inputs.user import UserAuthInput, UserFilterInput
 from app.schemas.gql.types.user import UsersResultType, UserType
 
@@ -18,6 +21,24 @@ def get_user(uuid: uuid_pkg.UUID, info: Info) -> UserType:
 def get_token(data: UserAuthInput, info: Info) -> str:
     user_service = get_user_service_gql(info)
     return user_service.get_token(data)
+
+
+@strawberry.field()
+def get_grafana_token(info: Info) -> str:
+    user_service = get_user_service_gql(info)
+
+    token = user_service.get_grafana_token()
+
+    response: Response = info.context["response"]
+    response.set_cookie(
+        key=CookieName.PEPEUNIT_GRAFANA.value,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=settings.backend_secure,
+    )
+
+    return token
 
 
 @strawberry.field()

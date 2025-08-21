@@ -1,9 +1,11 @@
 import uuid as uuid_pkg
 
 import strawberry
+from strawberry.http.typevars import Response
 from strawberry.types import Info
 
 from app.configs.gql import get_user_service_gql
+from app.dto.enum import CookieName
 from app.schemas.gql.inputs.user import UserCreateInput, UserUpdateInput
 from app.schemas.gql.types.shared import NoneType
 from app.schemas.gql.types.user import UserType
@@ -33,4 +35,12 @@ def block_user(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
 def unblock_user(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
     user_service = get_user_service_gql(info)
     user_service.unblock(uuid)
+    return NoneType()
+
+
+@strawberry.mutation()
+def delete_user_cookies(info: Info) -> NoneType:
+    response: Response = info.context["response"]
+    response.delete_cookie(CookieName.PEPEUNIT_GRAFANA.value)
+
     return NoneType()

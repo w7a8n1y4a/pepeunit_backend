@@ -13,6 +13,7 @@ Query = create_type(
     [
         get_user,
         get_token,
+        get_grafana_token,
         get_verification_user,
         get_users,
         get_repo,
