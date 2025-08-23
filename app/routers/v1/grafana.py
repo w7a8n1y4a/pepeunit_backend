@@ -60,6 +60,28 @@ def create_org_if_not_exists(user: User):
     if resp.status_code not in (200, 409):
         resp.raise_for_status()
 
+    datasource_payload = {
+        "name": "InfinityAPI",
+        "type": "yesoreyeram-infinity-datasource",
+        "access": "proxy",
+        "url": f"{settings.backend_link_prefix_and_v1}/grafana/api/tasks",
+        "jsonData": {
+            "auth_method": None,
+            "customHealthCheckEnabled": True,
+            "customHealthCheckUrl": settings.backend_link_prefix,
+        },
+    }
+
+    headers['X-Grafana-Org-Id'] = str(org_id)
+    resp = httpx.post(
+        f"{settings.backend_link}/grafana/api/datasources",
+        headers=headers,
+        json=datasource_payload,
+    )
+
+    if resp.status_code not in (200, 409):
+        resp.raise_for_status()
+
     return org_id
 
 
