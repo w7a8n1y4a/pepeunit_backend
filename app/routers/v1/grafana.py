@@ -64,7 +64,7 @@ def create_org_if_not_exists(user: User):
         "name": "InfinityAPI",
         "type": "yesoreyeram-infinity-datasource",
         "access": "proxy",
-        "url": f"{settings.backend_link_prefix_and_v1}/grafana/api/tasks",
+        "url": f"{settings.backend_link_prefix_and_v1}/grafana/infinity/datasource",
         "jsonData": {
             "auth_method": None,
             "customHealthCheckEnabled": True,
@@ -160,7 +160,7 @@ async def userinfo(request: Request):
     return json.loads(auth_data)['user']
 
 
-@router.get("/api/tasks")
+@router.get("/infinity/datasource")
 async def get_tasks(format: str = Query("table")):
     if format == "timeseries":
         now = datetime.now()
