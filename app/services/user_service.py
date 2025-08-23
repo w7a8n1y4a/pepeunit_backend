@@ -52,7 +52,7 @@ class UserService:
         return self.user_repository.create(user)
 
     def get(self, uuid: uuid_pkg.UUID) -> User:
-        self.access_service.authorization.check_access([AgentType.USER])
+        self.access_service.authorization.check_access([AgentType.USER, AgentType.GRAFANA])
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
         return user

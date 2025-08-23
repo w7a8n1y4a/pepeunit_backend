@@ -24,4 +24,7 @@ class User(SQLModel, table=True):
     # cipher dynamic salt for hashed password
     cipher_dynamic_salt: str = Field(nullable=False)
 
+    # uuid name in grafana organisation, unique for all users
+    grafana_org_name: uuid_pkg.UUID = Field(nullable=False, default_factory=uuid_pkg.uuid4)
+
     create_datetime: datetime = Field(nullable=False)
