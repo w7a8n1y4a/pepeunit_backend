@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     github_token_name: str = ''
     github_token_pat: str = ''
 
+    gf_admin_user: str = ''
+    gf_admin_password: str = ''
+
     test_integration_clear_data: bool = True
     test_integration_private_repo_json: str = ''
 
