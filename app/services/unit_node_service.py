@@ -70,6 +70,7 @@ from app.services.utils import (
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
 from app.utils.utils import obj_serializer, remove_dict_none
 from app.validators.data_pipe import is_valid_data_pipe_config
+from app.validators.data_pipe_user_csv import StreamingCSVValidator
 
 
 class UnitNodeService:
@@ -433,6 +434,23 @@ class UnitNodeService:
         )
 
         return self.data_pipe_repository.models_to_csv(data)
+
+    async def set_data_pipe_data_csv(self, uuid: uuid_pkg.UUID, data_csv: Union[Upload, UploadFile]) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
+
+        self.is_valid_active_data_pipe(unit_node)
+
+        data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
+
+        validator = StreamingCSVValidator(data_pipe_entity)
+        await validator.validate_streaming(data_csv)
+
+        # TODO: добавить быстрое сохранение в клик с генерацией всего самого нужного
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

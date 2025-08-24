@@ -82,6 +82,13 @@ def get_data_pipe_data_csv(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeServi
     return FileResponse(csv_filepath, background=BackgroundTask(cleanup))
 
 
+@router.post("/set_data_pipe_data_csv", status_code=status.HTTP_204_NO_CONTENT)
+async def set_data_pipe_data_csv(
+    uuid: uuid_pkg.UUID, data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
+):
+    return await unit_node_service.set_data_pipe_data_csv(uuid, data)
+
+
 @router.delete("/delete_data_pipe_data/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_data_pipe_data(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
     return unit_node_service.delete_data_pipe_data(uuid)
