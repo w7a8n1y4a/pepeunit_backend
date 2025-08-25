@@ -6,6 +6,7 @@ import os
 import string
 import time
 import uuid
+from typing import AsyncGenerator, TypeVar
 
 import pyaes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -174,3 +175,17 @@ def remove_dict_none(data):
         return [remove_dict_none(item) for item in data if item is not None]
     else:
         return data
+
+
+T = TypeVar("T")
+
+
+async def async_chunked(a_gen: AsyncGenerator[T, None], size: int):
+    batch = []
+    async for item in a_gen:
+        batch.append(item)
+        if len(batch) >= size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch

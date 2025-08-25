@@ -69,7 +69,7 @@ from app.services.utils import (
     yml_file_to_dict,
 )
 from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid, is_valid_visibility_level
-from app.utils.utils import obj_serializer, remove_dict_none
+from app.utils.utils import async_chunked, obj_serializer, remove_dict_none
 from app.validators.data_pipe import is_valid_data_pipe_config
 from app.validators.data_pipe_user_csv import StreamingCSVValidator
 
@@ -448,9 +448,15 @@ class UnitNodeService:
 
         data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
 
-        one = []
-        async for item in StreamingCSVValidator(data_pipe_entity).validate_streaming(unit_node.uuid, data_csv):
-            one.append(item)
+        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
+            raise DataPipeError("LastValue policy is not available")
+
+        self.data_pipe_repository.bulk_delete([unit_node.uuid])
+
+        async for batch in async_chunked(
+            StreamingCSVValidator(data_pipe_entity).iter_validated_streaming(unit_node.uuid, data_csv), 2000
+        ):
+            self.data_pipe_repository.bulk_create(data_pipe_entity.processing_policy.policy_type, batch)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

@@ -9,6 +9,7 @@ from typing import List, Union
 from clickhouse_driver import Client
 from fastapi import Depends
 from fastapi.params import Query
+from pydantic import BaseModel
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.errors import DataPipeError
@@ -26,6 +27,16 @@ class DataPipeRepository:
     def __init__(self, client: Client = Depends(get_clickhouse_client)) -> None:
         self.client = client
         self.orm = ClickhouseOrm(client)
+
+    def bulk_create(self, policy: ProcessingPolicyType, data: list[BaseModel]):
+
+        table_names = {
+            ProcessingPolicyType.AGGREGATION: 'aggregation_entry',
+            ProcessingPolicyType.N_RECORDS: 'n_last_entry',
+            ProcessingPolicyType.TIME_WINDOW: 'window_entry',
+        }
+
+        self.orm.insert(table_names[policy], data)
 
     @staticmethod
     def _get_type(policy: ProcessingPolicyType):

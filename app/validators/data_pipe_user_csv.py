@@ -35,7 +35,7 @@ class StreamingCSVValidator:
         self.config = config
         self.current_row = 0
 
-    async def validate_streaming(
+    async def iter_validated_streaming(
         self, unit_node_uuid: uuid_pkg.UUID, upload_file: Union[Upload, UploadFile]
     ) -> AsyncGenerator[Union[TimeWindow, NRecords, Aggregation], None]:
         content = await upload_file.read()
