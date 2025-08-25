@@ -1,14 +1,18 @@
 import csv
 import enum
+import uuid as uuid_pkg
 from datetime import datetime, timedelta
 from io import StringIO
-from typing import Union
+from typing import AsyncGenerator, Union
 
 from fastapi import UploadFile
 from strawberry.file_uploads import Upload
 
 from app import settings
 from app.configs.errors import DataPipeError
+from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.n_records import NRecords
+from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
     ActivePeriodType,
     FilterTypeValueFiltering,
@@ -31,7 +35,9 @@ class StreamingCSVValidator:
         self.config = config
         self.current_row = 0
 
-    async def validate_streaming(self, upload_file: Union[Upload, UploadFile]):
+    async def validate_streaming(
+        self, unit_node_uuid: uuid_pkg.UUID, upload_file: Union[Upload, UploadFile]
+    ) -> AsyncGenerator[Union[TimeWindow, NRecords, Aggregation], None]:
         content = await upload_file.read()
         csv_content = content.decode('utf-8')
 
@@ -63,12 +69,50 @@ class StreamingCSVValidator:
             self.check_n_last_entry()
             self.check_aggregation_entry(row, create_datetime, end_window_datetime, previous_end_window_datetime)
 
+            match self.config.processing_policy.policy_type:
+                case ProcessingPolicyType.TIME_WINDOW:
+                    expiration_datetime = create_datetime + timedelta(
+                        seconds=self.config.processing_policy.time_window_size
+                    )
+                    yield TimeWindow(
+                        uuid=uuid_pkg.uuid4(),
+                        unit_node_uuid=unit_node_uuid,
+                        state=str(state),
+                        state_type=self.config.filters.type_input_value,
+                        create_datetime=create_datetime,
+                        expiration_datetime=expiration_datetime,
+                        size=len(str(state)),
+                    )
+
+                case ProcessingPolicyType.N_RECORDS:
+                    yield NRecords(
+                        id=self.current_row,
+                        uuid=uuid_pkg.uuid4(),
+                        unit_node_uuid=unit_node_uuid,
+                        state=str(state),
+                        state_type=self.config.filters.type_input_value,
+                        create_datetime=create_datetime,
+                        max_count=self.config.processing_policy.n_records_count,
+                        size=len(str(state)),
+                    )
+
+                case ProcessingPolicyType.AGGREGATION:
+                    start_window_datetime = self._parse_datetime(row[AvailableCSVKeys.START_WINDOW_DATETIME.value])
+                    yield Aggregation(
+                        uuid=uuid_pkg.uuid4(),
+                        unit_node_uuid=unit_node_uuid,
+                        state=float(state),
+                        aggregation_type=self.config.processing_policy.aggregation_functions,
+                        time_window_size=self.config.processing_policy.time_window_size,
+                        create_datetime=create_datetime,
+                        start_window_datetime=start_window_datetime,
+                        end_window_datetime=end_window_datetime,
+                    )
+
             previous_create_datetime = create_datetime
             previous_state = state
             if self.config.processing_policy.policy_type == ProcessingPolicyType.AGGREGATION:
                 previous_end_window_datetime = end_window_datetime
-
-        return True
 
     def check_window_entry(self, create_datetime: datetime) -> None:
         if self.config.processing_policy.policy_type == ProcessingPolicyType.TIME_WINDOW:
@@ -119,12 +163,12 @@ class StreamingCSVValidator:
                 raise DataPipeError(
                     f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - start_window_datetime"
                 )
-
-            actual_delta = (end_window_datetime - previous_end_window_datetime).total_seconds()
-            if actual_delta != self.config.processing_policy.time_window_size:
-                raise DataPipeError(
-                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - previous_end_window_datetime"
-                )
+            if previous_end_window_datetime:
+                actual_delta = (end_window_datetime - previous_end_window_datetime).total_seconds()
+                if actual_delta % self.config.processing_policy.time_window_size != 0:
+                    raise DataPipeError(
+                        f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - previous_end_window_datetime"
+                    )
 
     def check_active_period(self, create_datetime: datetime) -> None:
 

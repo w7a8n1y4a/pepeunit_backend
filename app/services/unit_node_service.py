@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import time
 import uuid as uuid_pkg
 from typing import Union
 
@@ -447,10 +448,9 @@ class UnitNodeService:
 
         data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
 
-        validator = StreamingCSVValidator(data_pipe_entity)
-        await validator.validate_streaming(data_csv)
-
-        # TODO: добавить быстрое сохранение в клик с генерацией всего самого нужного
+        one = []
+        async for item in StreamingCSVValidator(data_pipe_entity).validate_streaming(unit_node.uuid, data_csv):
+            one.append(item)
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
