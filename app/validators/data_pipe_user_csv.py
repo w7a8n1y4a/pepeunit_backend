@@ -65,12 +65,10 @@ class StreamingCSVValidator:
             self.check_last_unique(state, previous_state)
             self.check_max_size(state)
 
-            self.check_window_entry(create_datetime)
-            self.check_n_last_entry()
-            self.check_aggregation_entry(row, create_datetime, end_window_datetime, previous_end_window_datetime)
-
             match self.config.processing_policy.policy_type:
                 case ProcessingPolicyType.TIME_WINDOW:
+                    self.check_window_entry(create_datetime)
+
                     expiration_datetime = create_datetime + timedelta(
                         seconds=self.config.processing_policy.time_window_size
                     )
@@ -85,6 +83,8 @@ class StreamingCSVValidator:
                     )
 
                 case ProcessingPolicyType.N_RECORDS:
+                    self.check_n_last_entry()
+
                     yield NRecords(
                         id=self.current_row,
                         uuid=uuid_pkg.uuid4(),
@@ -97,6 +97,10 @@ class StreamingCSVValidator:
                     )
 
                 case ProcessingPolicyType.AGGREGATION:
+                    self.check_aggregation_entry(
+                        row, create_datetime, end_window_datetime, previous_end_window_datetime
+                    )
+
                     start_window_datetime = self._parse_datetime(row[AvailableCSVKeys.START_WINDOW_DATETIME.value])
                     yield Aggregation(
                         uuid=uuid_pkg.uuid4(),
@@ -115,21 +119,19 @@ class StreamingCSVValidator:
                 previous_end_window_datetime = end_window_datetime
 
     def check_window_entry(self, create_datetime: datetime) -> None:
-        if self.config.processing_policy.policy_type == ProcessingPolicyType.TIME_WINDOW:
-            datetime_now = datetime.utcnow()
-            if create_datetime > datetime_now or create_datetime < datetime_now - timedelta(
-                seconds=self.config.processing_policy.time_window_size
-            ):
-                raise DataPipeError(
-                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: create_datetime is outside the range of valid values from time_window_size"
-                )
+        datetime_now = datetime.utcnow()
+        if create_datetime > datetime_now or create_datetime < datetime_now - timedelta(
+            seconds=self.config.processing_policy.time_window_size
+        ):
+            raise DataPipeError(
+                f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: create_datetime is outside the range of valid values from time_window_size"
+            )
 
     def check_n_last_entry(self) -> None:
-        if self.config.processing_policy.policy_type == ProcessingPolicyType.N_RECORDS:
-            if self.current_row > self.config.processing_policy.n_records_count:
-                raise DataPipeError(
-                    f"For {self.config.processing_policy.policy_type.value}: number of records exceeds limit n_records_count"
-                )
+        if self.current_row > self.config.processing_policy.n_records_count:
+            raise DataPipeError(
+                f"For {self.config.processing_policy.policy_type.value}: number of records exceeds limit n_records_count"
+            )
 
     def check_aggregation_entry(
         self,
@@ -139,36 +141,35 @@ class StreamingCSVValidator:
         previous_end_window_datetime: datetime | None,
     ) -> None:
 
-        if self.config.processing_policy.policy_type == ProcessingPolicyType.AGGREGATION:
-            start_window_datetime = self._parse_datetime(row[AvailableCSVKeys.START_WINDOW_DATETIME.value])
+        start_window_datetime = self._parse_datetime(row[AvailableCSVKeys.START_WINDOW_DATETIME.value])
 
-            if start_window_datetime.second != 0 or end_window_datetime.second != 0:
-                raise DataPipeError(
-                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: start_window_datetime or end_window_datetime have seconds"
-                )
+        if start_window_datetime.second != 0 or end_window_datetime.second != 0:
+            raise DataPipeError(
+                f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: start_window_datetime or end_window_datetime have seconds"
+            )
 
-            if end_window_datetime < start_window_datetime:
-                raise DataPipeError(
-                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: end_window_datetime < start_window_datetime"
-                )
+        if end_window_datetime < start_window_datetime:
+            raise DataPipeError(
+                f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: end_window_datetime < start_window_datetime"
+            )
 
-            actual_delta = (create_datetime - end_window_datetime).total_seconds()
-            if abs(actual_delta) >= settings.time_window_sizes[0]:
-                raise DataPipeError(
-                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: The difference between create_datetime and end_window_datetime is greater than the minimum time_window_sizes"
-                )
+        actual_delta = (create_datetime - end_window_datetime).total_seconds()
+        if abs(actual_delta) >= settings.time_window_sizes[0]:
+            raise DataPipeError(
+                f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: The difference between create_datetime and end_window_datetime is greater than the minimum time_window_sizes"
+            )
 
-            actual_delta = (end_window_datetime - start_window_datetime).total_seconds()
-            if actual_delta != self.config.processing_policy.time_window_size:
+        actual_delta = (end_window_datetime - start_window_datetime).total_seconds()
+        if actual_delta != self.config.processing_policy.time_window_size:
+            raise DataPipeError(
+                f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - start_window_datetime"
+            )
+        if previous_end_window_datetime:
+            actual_delta = (end_window_datetime - previous_end_window_datetime).total_seconds()
+            if actual_delta % self.config.processing_policy.time_window_size != 0:
                 raise DataPipeError(
-                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - start_window_datetime"
+                    f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - previous_end_window_datetime"
                 )
-            if previous_end_window_datetime:
-                actual_delta = (end_window_datetime - previous_end_window_datetime).total_seconds()
-                if actual_delta % self.config.processing_policy.time_window_size != 0:
-                    raise DataPipeError(
-                        f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - previous_end_window_datetime"
-                    )
 
     def check_active_period(self, create_datetime: datetime) -> None:
 

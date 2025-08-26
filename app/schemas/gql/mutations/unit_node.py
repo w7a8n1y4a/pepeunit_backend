@@ -43,6 +43,13 @@ async def set_data_pipe_config(uuid: uuid_pkg.UUID, file: Upload, info: Info) ->
 
 
 @strawberry.mutation()
+async def set_data_pipe_data_csv(uuid: uuid_pkg.UUID, file: Upload, info: Info) -> NoneType:
+    unit_node_service = get_unit_node_service_gql(info)
+    await unit_node_service.set_data_pipe_data_csv(uuid, file)
+    return NoneType()
+
+
+@strawberry.mutation()
 def delete_data_pipe_data(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
     unit_node_service = get_unit_node_service_gql(info)
     unit_node_service.delete_data_pipe_data(uuid)

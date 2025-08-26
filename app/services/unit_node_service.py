@@ -454,7 +454,7 @@ class UnitNodeService:
         self.data_pipe_repository.bulk_delete([unit_node.uuid])
 
         async for batch in async_chunked(
-            StreamingCSVValidator(data_pipe_entity).iter_validated_streaming(unit_node.uuid, data_csv), 2000
+            StreamingCSVValidator(data_pipe_entity).iter_validated_streaming(unit_node.uuid, data_csv), 5000
         ):
             self.data_pipe_repository.bulk_create(data_pipe_entity.processing_policy.policy_type, batch)
 
