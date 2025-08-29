@@ -2,6 +2,7 @@ import csv
 import os
 import uuid
 import zipfile
+from datetime import datetime
 from io import StringIO
 from typing import List, Union
 
@@ -111,6 +112,10 @@ class DataPipeRepository:
 
         if filters.end_create_datetime:
             query += f" AND create_datetime <= '{filters.end_create_datetime}'"
+
+        if filters.relative_interval:
+            current_datetime = datetime.utcnow()
+            query += f" AND create_datetime >= '{current_datetime - filters.relative_interval}'"
 
         count = len(self.client.execute(query, {'uuid': filters.uuid, 'search_string': f'%{filters.search_string}%'}))
 

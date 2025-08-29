@@ -486,6 +486,7 @@ class UnitNodeService:
                 type=data_pipe_entity.processing_policy.policy_type,
                 start_agg_window_datetime=filters.start_agg_datetime,
                 end_agg_window_datetime=filters.end_agg_datetime,
+                relative_time=filters.relative_time,
                 order_by_create_date=filters.order_by_create_date,
                 offset=filters.offset,
                 limit=filters.limit,

@@ -6,6 +6,7 @@ import strawberry
 
 from app.dto.enum import AggregationFunctions, OrderByDate, ProcessingPolicyType, UnitNodeTypeEnum, VisibilityLevel
 from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.utils.utils import parse_interval
 
 
 @strawberry.input()
@@ -61,7 +62,13 @@ class DataPipeFilterInput(TypeInputMixin):
     start_create_datetime: Optional[datetime] = None
     end_create_datetime: Optional[datetime] = None
 
+    relative_time: Optional[str] = None
+
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    @property
+    def relative_interval(self):
+        return parse_interval(self.relative_time) if self.relative_time else None

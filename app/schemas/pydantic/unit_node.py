@@ -18,6 +18,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
     VisibilityLevel,
 )
+from app.utils.utils import parse_interval
 
 
 class UnitNodeUpdate(BaseModel):
@@ -84,10 +85,16 @@ class DataPipeFilter:
     start_create_datetime: Optional[datetime.datetime] = None
     end_create_datetime: Optional[datetime.datetime] = None
 
+    relative_time: Optional[str] = None
+
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    @property
+    def relative_interval(self):
+        return parse_interval(self.relative_time) if self.relative_time else None
 
     def dict(self):
         return self.__dict__
@@ -110,10 +117,16 @@ class DatasourceFilter:
     start_create_datetime: Optional[datetime.datetime] = None
     end_create_datetime: Optional[datetime.datetime] = None
 
+    relative_time: Optional[str] = None
+
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
     offset: Optional[int] = None
     limit: Optional[int] = None
+
+    @property
+    def relative_interval(self):
+        return parse_interval(self.relative_time) if self.relative_time else None
 
     def dict(self):
         return self.__dict__

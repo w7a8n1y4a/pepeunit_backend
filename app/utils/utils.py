@@ -6,10 +6,11 @@ import os
 import string
 import time
 import uuid
-from typing import AsyncGenerator, TypeVar
+from typing import AsyncGenerator, TypeVar, Union
 
 import pyaes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from dateutil.relativedelta import relativedelta
 from fastapi import UploadFile
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
@@ -189,3 +190,22 @@ async def async_chunked(a_gen: AsyncGenerator[T, None], size: int):
             batch = []
     if batch:
         yield batch
+
+
+def parse_interval(s: str) -> Union[datetime.timedelta, relativedelta]:
+    value, unit = int(s[:-1]), s[-1]
+    match unit:
+        case "s":
+            return datetime.timedelta(seconds=value)
+        case "m":
+            return datetime.timedelta(minutes=value)
+        case "h":
+            return datetime.timedelta(hours=value)
+        case "d":
+            return datetime.timedelta(days=value)
+        case "M":
+            return relativedelta(months=value)
+        case "y":
+            return relativedelta(years=value)
+        case _:
+            raise ValueError(f"Unknown interval: {s}")
