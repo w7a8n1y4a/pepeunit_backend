@@ -7,7 +7,7 @@ from app import settings
 from app.configs.errors import NoAccessError
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.dto.agent.abc import Agent, AgentBackend, AgentBot, AgentGrafana, AgentUnit, AgentUser
+from app.dto.agent.abc import Agent, AgentBackend, AgentBot, AgentGrafana, AgentGrafanaUnitNode, AgentUnit, AgentUser
 from app.dto.enum import AgentStatus, AgentType
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
@@ -68,6 +68,9 @@ class JwtAuthService(AuthService):
 
         elif data.get("type") == AgentType.GRAFANA:
             agent = AgentGrafana(uuid=data['uuid'], name='grafana')
+
+        elif data.get("type") == AgentType.GRAFANA_UNIT_NODE:
+            agent = AgentGrafanaUnitNode(uuid=data['uuid'], name='grafana')
 
         else:
             raise NoAccessError("Invalid agent type")

@@ -1,4 +1,5 @@
 import os
+import uuid
 import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, UploadFile, status
@@ -10,6 +11,7 @@ from app.schemas.pydantic.shared import UnitNodeRead, UnitNodesResult
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
     DataPipeValidationErrorRead,
+    DatasourceFilter,
     PipeDataResult,
     UnitNodeEdgeCreate,
     UnitNodeEdgeRead,
@@ -17,6 +19,7 @@ from app.schemas.pydantic.unit_node import (
     UnitNodeSetState,
     UnitNodeUpdate,
 )
+from app.schemas.pydantic.user import AccessToken
 from app.services.unit_node_service import UnitNodeService
 
 router = APIRouter()
@@ -87,6 +90,20 @@ async def set_data_pipe_data_csv(
     uuid: uuid_pkg.UUID, data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
 ):
     return await unit_node_service.set_data_pipe_data_csv(uuid, data)
+
+
+@router.get("/datasource/")
+async def datasource(
+    filters: DatasourceFilter = Depends(DatasourceFilter),
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
+):
+    return unit_node_service.get_datasource_data(filters)
+
+
+# TODO: delete
+@router.get("/get_grafana_token/", response_model=AccessToken)
+def get_grafana_token(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+    return AccessToken(token=unit_node_service.get_grafana_unit_node_token(uuid))
 
 
 @router.delete("/delete_data_pipe_data/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

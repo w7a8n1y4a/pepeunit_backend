@@ -43,6 +43,12 @@ class Agent(ABC, BaseModel):
                 settings.backend_secret_key,
                 "HS256",
             )
+        elif self.type == AgentType.GRAFANA_UNIT_NODE:
+            token = jwt.encode(
+                {"uuid": str(self.uuid), "type": self.type},
+                settings.backend_secret_key,
+                "HS256",
+            )
         else:
             raise NoAccessError("Unknown agent type")
 
@@ -79,4 +85,9 @@ class AgentBackend(Agent):
 
 class AgentGrafana(Agent):
     type: AgentType = AgentType.GRAFANA
+    status: AgentStatus = AgentStatus.VERIFIED
+
+
+class AgentGrafanaUnitNode(Agent):
+    type: AgentType = AgentType.GRAFANA_UNIT_NODE
     status: AgentStatus = AgentStatus.VERIFIED

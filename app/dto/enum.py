@@ -61,6 +61,7 @@ class AgentType(str, enum.Enum):
     UNIT = 'Unit'
     BACKEND = 'Backend'
     GRAFANA = 'Grafana'
+    GRAFANA_UNIT_NODE = 'GrafanaUnitNode'
 
 
 @strawberry.enum
@@ -348,6 +349,12 @@ class AggregationFunctions(str, enum.Enum):
     MIN = "Min"
     MAX = "Max"
     SUM = "Sum"
+
+
+@strawberry.enum
+class DatasourceFormat(str, enum.Enum):
+    TIMESERIES = "timeseries"
+    TABLE = "table"
 
 
 @strawberry.enum

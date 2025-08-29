@@ -18,6 +18,7 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
+from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.time_window import TimeWindow
@@ -53,6 +54,8 @@ from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
     DataPipeValidationErrorRead,
+    DatasourceFilter,
+    DatasourceTimeseries,
     UnitNodeEdgeCreate,
     UnitNodeFilter,
     UnitNodeSetState,
@@ -457,6 +460,42 @@ class UnitNodeService:
             StreamingCSVValidator(data_pipe_entity).iter_validated_streaming(unit_node.uuid, data_csv), 5000
         ):
             self.data_pipe_repository.bulk_create(data_pipe_entity.processing_policy.policy_type, batch)
+
+    def get_grafana_unit_node_token(self, uuid: uuid_pkg.UUID) -> str:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
+        is_valid_object(unit_node)
+
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
+
+        return AgentGrafanaUnitNode(uuid=uuid, name=unit_node.topic_name).generate_agent_token()
+
+    def get_datasource_data(self, filters: DatasourceFilter) -> list[DatasourceTimeseries]:
+        self.access_service.authorization.check_access([AgentType.GRAFANA_UNIT_NODE])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=self.access_service.current_agent.uuid))
+        is_valid_object(unit_node)
+
+        self.is_valid_active_data_pipe(unit_node)
+        data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
+
+        count, data = self.data_pipe_repository.list(
+            DataPipeFilter(
+                uuid=self.access_service.current_agent.uuid,
+                type=data_pipe_entity.processing_policy.policy_type,
+                start_agg_window_datetime=filters.start_agg_datetime,
+                end_agg_window_datetime=filters.end_agg_datetime,
+                order_by_create_date=filters.order_by_create_date,
+                offset=filters.offset,
+                limit=filters.limit,
+            )
+        )
+
+        return [
+            DatasourceTimeseries(time=int(item.end_window_datetime.timestamp() * 1000), value=item.state)
+            for item in data
+        ]
 
     def delete_node_edge(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

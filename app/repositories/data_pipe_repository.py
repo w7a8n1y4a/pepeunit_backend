@@ -1,6 +1,5 @@
 import csv
 import os
-import shutil
 import uuid
 import zipfile
 from io import StringIO
@@ -102,10 +101,10 @@ class DataPipeRepository:
                 query += f" AND time_window_size = {filters.time_window_size}"
 
             if filters.start_agg_window_datetime:
-                query += f" AND start_window_datetime >= '{filters.start_agg_window_datetime}'"
+                query += f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
 
             if filters.end_agg_window_datetime:
-                query += f" AND start_window_datetime <= '{filters.end_agg_window_datetime}'"
+                query += f" AND end_window_datetime <= '{filters.end_agg_window_datetime}'"
 
         if filters.start_create_datetime:
             query += f" AND create_datetime >= '{filters.start_create_datetime}'"

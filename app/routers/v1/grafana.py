@@ -64,7 +64,7 @@ def create_org_if_not_exists(user: User):
         "name": "InfinityAPI",
         "type": "yesoreyeram-infinity-datasource",
         "access": "proxy",
-        "url": f"{settings.backend_link_prefix_and_v1}/grafana/infinity/datasource",
+        "url": f"{settings.backend_link_prefix_and_v1}/unit_nodes/datasource/",
         "jsonData": {
             "auth_method": None,
             "customHealthCheckEnabled": True,
@@ -158,36 +158,3 @@ async def userinfo(request: Request):
     await redis.delete(f'grafana:{code}')
 
     return json.loads(auth_data)['user']
-
-
-@router.get("/infinity/datasource")
-async def get_tasks(format: str = Query("table")):
-    if format == "timeseries":
-        now = datetime.now()
-        now_aligned = now.replace(minute=0, second=0, microsecond=0)
-        interval = timedelta(minutes=60)
-        days = 90
-        points_count = days * 24
-
-        def generate_series():
-            timestamps = []
-            values = []
-            start_time = now_aligned - interval * (points_count - 1)
-            for i in range(points_count):
-                ts_dt = start_time + interval * i
-                ts_ms = int(ts_dt.timestamp() * 1000)
-                timestamps.append(ts_ms)
-                values.append(random.randint(0, 35))
-            return {
-                "feeds": [{"time": timestamp, "value": value} for timestamp, value in zip(timestamps, values)],
-            }
-
-        return JSONResponse(content=generate_series())
-
-    elif format == "table":
-        tasks = [
-            {"id": 1, "title": "Сделать отчёт", "status": "в процессе"},
-            {"id": 2, "title": "Проверить почту", "status": "завершено"},
-            {"id": 3, "title": "Созвон с командой", "status": "в ожидании"},
-        ]
-        return JSONResponse(content=tasks)
