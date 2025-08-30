@@ -4,23 +4,24 @@ import uuid
 import requests
 
 # Конфигурация
-GRAFANA_URL = "http://localhost:3000/pepeunit/grafana"  # URL Grafana
-API_KEY = ""  # Токен авторизации
+GRAFANA_URL = "https://localunit.pepeunit.com/grafana"  # URL Grafana
+API_KEY = "YWRtaW46cGFzc3dvcmQ="  # Токен авторизации
 
-headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+headers = {"Authorization": f"Basic {API_KEY}", "Content-Type": "application/json"}
+headers['X-Grafana-Org-Id'] = str(2)
 
-# Имя вашего источника данных Infinity в Grafana
-DATASOURCE_NAME = "Infinity"
+test_uuid = str('5d0e2300-d7a4-4d3d-9c70-5dcc9910a8ae')
 
+print(test_uuid)
 dashboard = {
     "dashboard": {
         "id": None,
-        "uid": None,
-        "title": f"Tasks {str(uuid.uuid4())[:10]}",
+        "uid": test_uuid,
+        "title": f"Tasks {test_uuid[:10]}",
         "tags": ["tasks", "infinity"],
         "timezone": "browser",
         "schemaVersion": 30,
-        "version": 0,
+        "version": 2,
         "refresh": "5s",
         "panels": [
             {
