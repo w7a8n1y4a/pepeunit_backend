@@ -21,7 +21,7 @@ dashboard = {
         "tags": ["tasks", "infinity"],
         "timezone": "browser",
         "schemaVersion": 30,
-        "version": 2,
+        "version": 10,
         "refresh": "5s",
         "panels": [
             {
