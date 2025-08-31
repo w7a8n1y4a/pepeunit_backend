@@ -6,7 +6,10 @@ from sqlmodel import Session
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
+from app.repositories.dashboard_panel_repository import DashboardPanelRepository
+from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
+from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import RepositoryRegistryRepository
@@ -16,6 +19,7 @@ from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
+from app.services.grafana_service import GrafanaService
 from app.services.metrics_service import MetricsService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
@@ -45,6 +49,9 @@ class ServiceFactory:
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
         self.unit_log_repository = UnitLogRepository(client) if client else None
         self.data_pipe_repository = DataPipeRepository(client) if client else None
+        self.dashboard_repository = DashboardRepository(db)
+        self.dashboard_panel_repository = DashboardPanelRepository(db)
+        self.panels_unit_nodes_repository = PanelsUnitNodesRepository(db)
 
         # Initialize services
         self.access_service = AccessService(
@@ -117,6 +124,16 @@ class ServiceFactory:
             access_service=self.access_service,
         )
 
+    def get_grafana_service(self) -> GrafanaService:
+        return GrafanaService(
+            dashboard_repository=self.dashboard_repository,
+            dashboard_panel_repository=self.dashboard_panel_repository,
+            panels_unit_nodes_repository=self.panels_unit_nodes_repository,
+            unit_node_repository=self.unit_node_repository,
+            access_service=self.access_service,
+            unit_node_service=self.get_unit_node_service(),
+        )
+
     def get_metrics_service(self) -> MetricsService:
         return MetricsService(
             repository_registry_repository=self.repository_registry_repository,
@@ -180,6 +197,14 @@ def get_unit_node_service(
     is_bot_auth: bool = False,
 ) -> UnitNodeService:
     return create_service_factory(db, client, jwt_token, is_bot_auth).get_unit_node_service()
+
+
+def get_grafana_service(
+    db: Session = Depends(get_session),
+    jwt_token: Optional[str] = Depends(token_depends),
+    is_bot_auth: bool = False,
+) -> GrafanaService:
+    return create_service_factory(db, None, jwt_token, is_bot_auth).get_grafana_service()
 
 
 def get_metrics_service(

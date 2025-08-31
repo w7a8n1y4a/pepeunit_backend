@@ -1,22 +1,22 @@
 import base64
 import json
-import random
 import time
 import uuid
-from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from starlette.responses import JSONResponse
 
 from app import settings
 from app.configs.db import get_hand_session
 from app.configs.redis import get_redis_session
-from app.configs.rest import get_user_service
+from app.configs.rest import get_grafana_service, get_unit_node_service, get_user_service
 from app.domain.user_model import User
 from app.dto.enum import CookieName, GrafanaUserRole
+from app.schemas.pydantic.grafana import DatasourceFilter
+from app.services.grafana_service import GrafanaService
 from app.utils.utils import generate_random_string
 
 router = APIRouter()
@@ -64,7 +64,7 @@ def create_org_if_not_exists(user: User):
         "name": "InfinityAPI",
         "type": "yesoreyeram-infinity-datasource",
         "access": "proxy",
-        "url": f"{settings.backend_link_prefix_and_v1}/unit_nodes/datasource/",
+        "url": f"{settings.backend_link_prefix_and_v1}/grafana/datasource/",
         "jsonData": {
             "auth_method": None,
             "customHealthCheckEnabled": True,
@@ -158,3 +158,11 @@ async def userinfo(request: Request):
     await redis.delete(f'grafana:{code}')
 
     return json.loads(auth_data)['user']
+
+
+@router.get("/datasource/")
+async def datasource(
+    filters: DatasourceFilter = Depends(DatasourceFilter),
+    grafana_service: GrafanaService = Depends(get_grafana_service),
+):
+    return grafana_service.get_datasource_data(filters)

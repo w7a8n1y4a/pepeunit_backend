@@ -5,6 +5,7 @@ from strawberry.types import Info
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.configs.rest import (
+    get_grafana_service,
     get_metrics_service,
     get_permission_service,
     get_repo_service,
@@ -13,6 +14,7 @@ from app.configs.rest import (
     get_unit_service,
     get_user_service,
 )
+from app.services.grafana_service import GrafanaService
 from app.services.metrics_service import MetricsService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
@@ -62,6 +64,12 @@ def get_unit_node_service_gql(info: Info) -> UnitNodeService:
     clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
     return get_unit_node_service(db, clickhouse_client, jwt_token)
+
+
+def get_grafana_service_gql(info: Info) -> GrafanaService:
+    db = info.context.get('db')
+    jwt_token = info.context['jwt_token']
+    return get_grafana_service(db, jwt_token)
 
 
 def get_metrics_service_gql(info: Info) -> MetricsService:
