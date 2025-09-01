@@ -16,6 +16,7 @@ from app.dto.enum import (
 from app.repositories.dashboard_panel_repository import DashboardPanelRepository
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
+from app.repositories.grafana_repository import GrafanaRepository
 from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.schemas.pydantic.grafana import (
@@ -48,6 +49,7 @@ class GrafanaService:
         self.dashboard_repository = dashboard_repository
         self.dashboard_panel_repository = dashboard_panel_repository
         self.panels_unit_nodes_repository = panels_unit_nodes_repository
+        self.grafana_repository = GrafanaRepository()
         self.unit_node_repository = unit_node_repository
         self.data_pipe_repository = data_pipe_repository
         self.access_service = access_service
@@ -97,9 +99,9 @@ class GrafanaService:
     def create_dashboard_panel(self, data: Union[DashboardPanelCreate]) -> DashboardPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
-        dashboard_panel = self.dashboard_repository.get(Dashboard(uuid=data.dashboard_uuid))
-        is_valid_object(dashboard_panel)
-        self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
+        dashboard = self.dashboard_repository.get(Dashboard(uuid=data.dashboard_uuid))
+        is_valid_object(dashboard)
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
 
         if not is_valid_string_with_rules(data.title):
             raise GrafanaError('Title is not correct')
@@ -134,3 +136,17 @@ class GrafanaService:
         )
 
         return self.panels_unit_nodes_repository.create(panel_unit_node)
+
+    def sync_dashboard(self, uuid) -> Dashboard:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
+        is_valid_object(dashboard)
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+
+        # TODO: получение данных для генерации
+        # TODO: автоматический подбор типа таргета в панели, на основе DataPipe
+        # TODO: генерация json для создания dashboard
+        # TODO: Запрос к grafana от имени администратора в нужную компанию
+        # TODO: Сохранение результатов запроса в dashboard
+        # TODO: Отдать с уже обновлёнными статусами
