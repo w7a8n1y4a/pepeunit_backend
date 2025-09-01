@@ -407,3 +407,12 @@ class CookieName(str, enum.Enum):
     """
 
     PEPEUNIT_GRAFANA = 'PepeunitGrafana'
+
+
+@strawberry.enum
+class DashboardPanelType(str, enum.Enum):
+    """
+    All dashboard panel types
+    """
+
+    HOURLY_HEATMAP = 'marcusolsson-hourly-heatmap-panel'

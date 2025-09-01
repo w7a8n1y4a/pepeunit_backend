@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import DatasourceFormat, OrderByDate
+from app.dto.enum import DashboardPanelType, DatasourceFormat, OrderByDate
 from app.utils.utils import parse_interval
 
 
@@ -81,3 +81,20 @@ class PanelsUnitNodesFilter:
 
     def dict(self):
         return self.__dict__
+
+
+class DashboardCreate(BaseModel):
+    name: str
+
+
+class DashboardPanelCreate(BaseModel):
+    dashboard_uuid: uuid_pkg.UUID
+
+    title: str
+    type: DashboardPanelType
+
+
+class LinkUnitNodeToPanel(BaseModel):
+    unit_node_uuid: uuid_pkg.UUID
+    dashboard_panels_uuid: uuid_pkg.UUID
+    is_last_data: bool

@@ -1,23 +1,36 @@
+import datetime
 import json
+from typing import Union
 
 from fastapi import Depends
 
+from app.configs.errors import GrafanaError
+from app.domain.dashboard_model import Dashboard
+from app.domain.dashboard_panel_model import DashboardPanel
+from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_node_model import UnitNode
 from app.dto.enum import (
     AgentType,
+    OwnershipType,
 )
 from app.repositories.dashboard_panel_repository import DashboardPanelRepository
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
-from app.schemas.pydantic.grafana import DatasourceFilter, DatasourceTimeseries
+from app.schemas.pydantic.grafana import (
+    DashboardCreate,
+    DashboardPanelCreate,
+    DatasourceFilter,
+    DatasourceTimeseries,
+    LinkUnitNodeToPanel,
+)
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
 )
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
-from app.services.validators import is_valid_object
+from app.services.validators import is_valid_object, is_valid_string_with_rules
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
@@ -66,3 +79,58 @@ class GrafanaService:
             DatasourceTimeseries(time=int(item.end_window_datetime.timestamp() * 1000), value=item.state)
             for item in data
         ]
+
+    def create_dashboard(self, data: Union[DashboardCreate]) -> Dashboard:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        if not is_valid_string_with_rules(data.name):
+            raise GrafanaError('Name is not correct')
+
+        dashboard = Dashboard(
+            name=data.name,
+            create_datetime=datetime.datetime.utcnow(),
+            creator_uuid=self.access_service.current_agent.uuid,
+        )
+
+        return self.dashboard_repository.create(dashboard)
+
+    def create_dashboard_panel(self, data: Union[DashboardPanelCreate]) -> DashboardPanel:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard_panel = self.dashboard_repository.get(Dashboard(uuid=data.dashboard_uuid))
+        is_valid_object(dashboard_panel)
+        self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
+
+        if not is_valid_string_with_rules(data.title):
+            raise GrafanaError('Title is not correct')
+
+        dashboard_panel = DashboardPanel(
+            title=data.title,
+            type=data.type,
+            create_datetime=datetime.datetime.utcnow(),
+            creator_uuid=self.access_service.current_agent.uuid,
+            dashboard_uuid=data.dashboard_uuid,
+        )
+
+        return self.dashboard_panel_repository.create(dashboard_panel)
+
+    def link_unit_node_to_panel(self, data: Union[LinkUnitNodeToPanel]) -> PanelsUnitNodes:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=data.unit_node_uuid))
+        is_valid_object(unit_node)
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
+
+        dashboard = self.dashboard_panel_repository.get(DashboardPanel(uuid=data.dashboard_panels_uuid))
+        is_valid_object(dashboard)
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+
+        panel_unit_node = PanelsUnitNodes(
+            is_last_data=data.is_last_data,
+            create_datetime=datetime.datetime.utcnow(),
+            creator_uuid=self.access_service.current_agent.uuid,
+            unit_node_uuid=data.unit_node_uuid,
+            dashboard_panels_uuid=data.dashboard_panels_uuid,
+        )
+
+        return self.panels_unit_nodes_repository.create(panel_unit_node)

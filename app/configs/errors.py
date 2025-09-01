@@ -150,3 +150,13 @@ class GitPlatformClientError(CustomException):
             message_template="Git Platform Client Error: {}",
             error_code=14,
         )
+
+
+class GrafanaError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Grafana Error: {}",
+            error_code=14,
+        )
