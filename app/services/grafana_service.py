@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid as uuid_pkg
 from typing import Union
 
 from fastapi import Depends
@@ -21,7 +22,9 @@ from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesReposit
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
+    DashboardFilter,
     DashboardPanelCreate,
+    DashboardPanelsResult,
     DatasourceFilter,
     DatasourceTimeseries,
     LinkUnitNodeToPanel,
@@ -123,9 +126,12 @@ class GrafanaService:
         is_valid_object(unit_node)
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
 
-        dashboard = self.dashboard_panel_repository.get(DashboardPanel(uuid=data.dashboard_panels_uuid))
-        is_valid_object(dashboard)
-        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+        dashboard_panel = self.dashboard_panel_repository.get(DashboardPanel(uuid=data.dashboard_panels_uuid))
+        is_valid_object(dashboard_panel)
+        self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
+
+        # TODO: проверка лимита числа unit_node для одной панели
+        # TODO: добавить валидацию что unit_node подходит своим DataPipe для текущей панели
 
         panel_unit_node = PanelsUnitNodes(
             is_last_data=data.is_last_data,
@@ -137,7 +143,39 @@ class GrafanaService:
 
         return self.panels_unit_nodes_repository.create(panel_unit_node)
 
-    def sync_dashboard(self, uuid) -> Dashboard:
+    def get_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
+        is_valid_object(dashboard)
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+
+        return dashboard
+
+    def list_dashboards(self, uuid: uuid_pkg.UUID, filters: Union[DashboardFilter]) -> tuple[int, list[Dashboard]]:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
+        is_valid_object(dashboard)
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+
+        count, dashboards = self.dashboard_repository.list(
+            filters=filters,
+            creator_uuid=self.access_service.current_agent.uuid,
+        )
+
+        return count, dashboards
+
+    def get_dashboard_panels(self, uuid: uuid_pkg.UUID) -> DashboardPanelsResult:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
+        is_valid_object(dashboard)
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+
+        return self.dashboard_repository.get_dashboard_panels(uuid)
+
+    def sync_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))

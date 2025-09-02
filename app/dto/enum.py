@@ -416,3 +416,14 @@ class DashboardPanelType(str, enum.Enum):
     """
 
     HOURLY_HEATMAP = 'marcusolsson-hourly-heatmap-panel'
+
+
+@strawberry.enum
+class DashboardStatus(str, enum.Enum):
+    """
+    Types of state Dashboard sync
+    """
+
+    SUCCESS = 'Success'
+    PROCESSING = 'Processing'
+    ERROR = 'Error'

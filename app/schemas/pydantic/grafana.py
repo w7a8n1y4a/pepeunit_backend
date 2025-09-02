@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import DashboardPanelType, DatasourceFormat, OrderByDate
+from app.dto.enum import DashboardPanelType, DashboardStatus, DatasourceFormat, OrderByDate
 from app.utils.utils import parse_interval
 
 
@@ -69,20 +69,6 @@ class DashboardPanelFilter:
         return self.__dict__
 
 
-@dataclass
-class PanelsUnitNodesFilter:
-    unit_node_uuid: Optional[uuid_pkg.UUID] = None
-    dashboard_panels_uuid: Optional[uuid_pkg.UUID] = None
-
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
-
-    def dict(self):
-        return self.__dict__
-
-
 class DashboardCreate(BaseModel):
     name: str
 
@@ -98,3 +84,50 @@ class LinkUnitNodeToPanel(BaseModel):
     unit_node_uuid: uuid_pkg.UUID
     dashboard_panels_uuid: uuid_pkg.UUID
     is_last_data: bool
+
+
+class DashboardRead(BaseModel):
+    uuid: uuid_pkg.UUID
+    grafana_uuid: uuid_pkg.UUID
+
+    name: str
+    create_datetime: datetime.datetime
+
+    dashboard_url: Optional[str] = None
+    inc_last_version: Optional[int] = None
+
+    sync_status: Optional[DashboardStatus] = None
+    sync_error: Optional[str] = None
+    sync_last_datetime: Optional[datetime.datetime] = None
+
+    creator_uuid: uuid_pkg.UUID
+
+
+class DashboardsResult(BaseModel):
+    count: int
+    dashboards: list[DashboardRead]
+
+
+class UnitNodeForPanel(BaseModel):
+    uuid: uuid_pkg.UUID
+    is_last_data: bool
+    unit_with_unit_node_name: str
+
+
+class DashboardPanelsRead(BaseModel):
+    uuid: uuid_pkg.UUID
+
+    type: DashboardPanelType
+
+    title: str
+    create_datetime: datetime.datetime
+
+    creator_uuid: uuid_pkg.UUID
+    dashboard_uuid: uuid_pkg.UUID
+
+    unit_nodes_for_panel: list[UnitNodeForPanel]
+
+
+class DashboardPanelsResult(BaseModel):
+    count: int
+    dashboard_panels: list[DashboardPanelsRead]
