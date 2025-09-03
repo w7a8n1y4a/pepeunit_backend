@@ -6,6 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.dto.enum import DashboardPanelType, DashboardStatus, DatasourceFormat, OrderByDate
+from app.schemas.pydantic.shared import UnitNodeRead
 from app.utils.utils import parse_interval
 
 
@@ -109,7 +110,7 @@ class DashboardsResult(BaseModel):
 
 
 class UnitNodeForPanel(BaseModel):
-    uuid: uuid_pkg.UUID
+    unit_node: UnitNodeRead
     is_last_data: bool
     unit_with_unit_node_name: str
 
@@ -130,4 +131,4 @@ class DashboardPanelsRead(BaseModel):
 
 class DashboardPanelsResult(BaseModel):
     count: int
-    dashboard_panels: list[DashboardPanelsRead]
+    panels: list[DashboardPanelsRead]

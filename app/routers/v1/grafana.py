@@ -94,8 +94,11 @@ async def authorize(
         user_service = get_user_service(db=db, jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value, None))
 
         current_user = user_service.get(user_service.access_service.current_agent.uuid)
+        org_id = create_org_if_not_exists(current_user)
 
-    create_org_if_not_exists(current_user)
+        if current_user.grafana_org_id is None:
+            current_user.grafana_org_id = str(org_id)
+            user_service.user_repository.update(current_user.uuid, current_user)
 
     redis = await anext(get_redis_session())
 

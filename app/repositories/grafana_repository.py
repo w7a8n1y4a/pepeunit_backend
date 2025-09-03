@@ -1,6 +1,5 @@
 import base64
 import copy
-import json
 from typing import List
 
 import httpx
@@ -8,6 +7,11 @@ import httpx
 from app import settings
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
+from app.dto.agent.abc import AgentGrafana
+from app.schemas.pydantic.grafana import DashboardPanelsRead, UnitNodeForPanel
+from app.schemas.pydantic.shared import UnitNodeRead
+from app.services.utils import yml_file_to_dict
+from app.validators.data_pipe import is_valid_data_pipe_config
 
 
 class GrafanaRepository:
@@ -19,7 +23,7 @@ class GrafanaRepository:
 
     base_grafana_url: str = f"{settings.backend_link}/grafana"
 
-    def generate_dashboard(self, dashboard: Dashboard, panels: List[DashboardPanel]) -> dict:
+    def generate_dashboard(self, dashboard: Dashboard, panels: list[DashboardPanelsRead]) -> dict:
         return {
             "dashboard": {
                 "id": None,
@@ -42,16 +46,23 @@ class GrafanaRepository:
                             {
                                 "datasource": "yesoreyeram-infinity-datasource",
                                 "refId": "A",
-                                "format": "table",
+                                "format": self.get_targets_format_by_data_pipe(unit_node),
                                 "json": {"type": "json", "parser": "JSONata", "rootSelector": "$"},
                                 "url": "",
                                 "url_options": {
                                     "method": "GET",
                                     "data": "",
-                                    "headers": [{"key": "header-key", "value": "header-value"}],
+                                    "headers": [
+                                        {
+                                            "x-access-token": AgentGrafana(
+                                                uuid=unit_node.uuid, name='grafana'
+                                            ).generate_agent_token()
+                                        }
+                                    ],
                                     "params": [{"key": "format", "value": "table"}],
                                 },
                             }
+                            for unit_node in panel.unit_nodes_for_panel
                         ],
                         "fieldConfig": {"defaults": {}, "overrides": []},
                     }
@@ -61,12 +72,16 @@ class GrafanaRepository:
             "overwrite": True,
         }
 
-    def sync_dashboard(self, current_org: int, dashboard: Dashboard, panels: List[DashboardPanel]):
+    def sync_dashboard(self, current_org: str, dashboard_dict: dict):
         headers_deepcopy = copy.deepcopy(self.headers)
-        headers_deepcopy['X-Grafana-Org-Id'] = str(current_org)
+        headers_deepcopy['X-Grafana-Org-Id'] = current_org
 
         response = httpx.post(
             f'{self.base_grafana_url}/api/dashboards/db',
             headers=headers_deepcopy,
-            data=self.generate_dashboard(dashboard, panels),
+            data=dashboard_dict,
         )
+
+    async def get_targets_format_by_data_pipe(self, unit_node: UnitNodeForPanel):
+        data_pipe_dict = await yml_file_to_dict(unit_node.unit_node.data_pipe_yml)
+        data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)

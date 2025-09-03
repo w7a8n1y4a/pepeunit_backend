@@ -173,7 +173,8 @@ class GrafanaService:
         is_valid_object(dashboard)
         self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
 
-        return self.dashboard_repository.get_dashboard_panels(uuid)
+        count, panels = self.dashboard_repository.get_dashboard_panels(uuid)
+        return DashboardPanelsResult(count=count, panels=panels)
 
     def sync_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -182,9 +183,11 @@ class GrafanaService:
         is_valid_object(dashboard)
         self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
 
-        # TODO: получение данных для генерации
+        count, panels = self.dashboard_repository.get_dashboard_panels(uuid)
+        dashboard_dict = self.grafana_repository.generate_dashboard(dashboard, panels)
+        self.grafana_repository.sync_dashboard(self.access_service.current_agent.grafana_org_id, dashboard_dict)
+
         # TODO: автоматический подбор типа таргета в панели, на основе DataPipe
-        # TODO: генерация json для создания dashboard
-        # TODO: Запрос к grafana от имени администратора в нужную компанию
+
         # TODO: Сохранение результатов запроса в dashboard
         # TODO: Отдать с уже обновлёнными статусами
