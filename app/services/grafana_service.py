@@ -12,6 +12,7 @@ from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_node_model import UnitNode
 from app.dto.enum import (
     AgentType,
+    DashboardStatus,
     OwnershipType,
 )
 from app.repositories.dashboard_panel_repository import DashboardPanelRepository
@@ -176,7 +177,7 @@ class GrafanaService:
         count, panels = self.dashboard_repository.get_dashboard_panels(uuid)
         return DashboardPanelsResult(count=count, panels=panels)
 
-    def sync_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
+    async def sync_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
@@ -184,10 +185,22 @@ class GrafanaService:
         self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
 
         count, panels = self.dashboard_repository.get_dashboard_panels(uuid)
-        dashboard_dict = self.grafana_repository.generate_dashboard(dashboard, panels)
-        self.grafana_repository.sync_dashboard(self.access_service.current_agent.grafana_org_id, dashboard_dict)
+        dashboard_dict = await self.grafana_repository.generate_dashboard(dashboard, panels)
 
-        # TODO: автоматический подбор типа таргета в панели, на основе DataPipe
+        dashboard.sync_status = DashboardStatus.PROCESSING
+        dashboard.sync_error = None
+        dashboard.sync_last_datetime = datetime.datetime.utcnow()
 
-        # TODO: Сохранение результатов запроса в dashboard
-        # TODO: Отдать с уже обновлёнными статусами
+        try:
+            sync_result = self.grafana_repository.sync_dashboard(
+                self.access_service.current_agent.grafana_org_id, dashboard_dict
+            )
+            dashboard.dashboard_url = sync_result['url']
+            dashboard.inc_last_version = sync_result['version']
+            dashboard.sync_status = DashboardStatus.SUCCESS
+            dashboard.sync_error = None
+        except Exception as e:
+            dashboard.sync_status = DashboardStatus.ERROR
+            dashboard.sync_error = str(e)
+
+        return self.dashboard_repository.update(dashboard.uuid, dashboard)
