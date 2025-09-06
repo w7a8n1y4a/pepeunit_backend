@@ -109,9 +109,9 @@ class GrafanaRepository:
                 "schemaVersion": 30,
                 "refresh": "1m",
                 "panels": panels_list,
-                "overwrite": True,
                 "time": {"from": "now-60d", "to": "now"},
-            }
+            },
+            "overwrite": True,
         }
 
     def sync_dashboard(self, current_org: str, dashboard_dict: dict) -> dict:
