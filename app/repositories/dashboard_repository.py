@@ -12,7 +12,7 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
-from app.schemas.pydantic.grafana import DashboardFilter, DashboardPanelsRead, DashboardPanelsResult, UnitNodeForPanel
+from app.schemas.pydantic.grafana import DashboardFilter, DashboardPanelsRead, UnitNodeForPanel
 
 
 class DashboardRepository(BaseRepository):
@@ -50,7 +50,6 @@ class DashboardRepository(BaseRepository):
             .all()
         )
 
-        # TODO: перепроверить
         return len(query), [
             DashboardPanelsRead(
                 uuid=panel.uuid,

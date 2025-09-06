@@ -5,6 +5,7 @@ from typing import Union
 
 from fastapi import Depends
 
+from app import settings
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
@@ -131,8 +132,7 @@ class GrafanaService:
         is_valid_object(dashboard_panel)
         self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
 
-        # TODO: проверка лимита числа unit_node для одной панели
-        # TODO: добавить валидацию что unit_node подходит своим DataPipe для текущей панели
+        self.is_valid_unit_node_in_panel_count(dashboard_panel.uuid)
 
         panel_unit_node = PanelsUnitNodes(
             is_last_data=data.is_last_data,
@@ -204,3 +204,8 @@ class GrafanaService:
             dashboard.sync_error = str(e)
 
         return self.dashboard_repository.update(dashboard.uuid, dashboard)
+
+    def is_valid_unit_node_in_panel_count(self, uuid: uuid_pkg.UUID):
+        limit = settings.gf_limit_unit_node_per_one_panel
+        if self.dashboard_panel_repository.get_count_unit_for_panel(uuid) > limit:
+            raise GrafanaError('Limit UnitNode for one panel is {}'.format(limit))

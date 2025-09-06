@@ -14,8 +14,6 @@ from app.utils.utils import parse_interval
 class DatasourceFilter:
     format: DatasourceFormat
 
-    time_window_size: Optional[int] = None
-
     start_agg_datetime: Optional[datetime.datetime] = None
     end_agg_datetime: Optional[datetime.datetime] = None
 

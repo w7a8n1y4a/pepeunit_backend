@@ -1,8 +1,11 @@
+import uuid as uuid_pkg
+
 from fastapi import Depends
 from sqlmodel import Session
 
 from app.configs.db import get_session
 from app.domain.dashboard_panel_model import DashboardPanel
+from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.grafana import DashboardPanelFilter
@@ -29,3 +32,11 @@ class DashboardPanelRepository(BaseRepository):
 
         count, query = apply_offset_and_limit(query, filters)
         return count, query.all()
+
+    def get_count_unit_for_panel(self, uuid: uuid_pkg.UUID) -> int:
+        return (
+            self.db.query(PanelsUnitNodes)
+            .join(DashboardPanel, PanelsUnitNodes.dashboard_panels_uuid == DashboardPanel.uuid)
+            .filter(DashboardPanel.uuid == uuid)
+            .count()
+        )
