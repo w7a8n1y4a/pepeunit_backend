@@ -1,4 +1,5 @@
 import uuid as uuid_pkg
+from collections import defaultdict
 from typing import List, Optional
 
 from fastapi import Depends
@@ -13,6 +14,7 @@ from app.domain.unit_node_model import UnitNode
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.grafana import DashboardFilter, DashboardPanelsRead, UnitNodeForPanel
+from app.schemas.pydantic.shared import UnitNodeRead
 
 
 class DashboardRepository(BaseRepository):
@@ -41,31 +43,42 @@ class DashboardRepository(BaseRepository):
     def get_dashboard_panels(self, uuid: uuid_pkg.UUID) -> tuple[int, List[DashboardPanelsRead]]:
 
         query = (
-            self.db.query(Dashboard)
-            .join(DashboardPanel, Dashboard.uuid == DashboardPanel.dashboard_uuid)
-            .join(PanelsUnitNodes, DashboardPanel.uuid == PanelsUnitNodes.dashboard_panels_uuid)
-            .join(UnitNode, PanelsUnitNodes.unit_node_uuid == UnitNode.uuid)
-            .join(Unit, UnitNode.unit_uuid == Unit.uuid)
-            .filter(Dashboard.uuid == uuid)
+            self.db.query(DashboardPanel, PanelsUnitNodes, UnitNode, Unit)
+            .outerjoin(PanelsUnitNodes, DashboardPanel.uuid == PanelsUnitNodes.dashboard_panels_uuid, full=True)
+            .outerjoin(UnitNode, PanelsUnitNodes.unit_node_uuid == UnitNode.uuid, full=True)
+            .outerjoin(Unit, UnitNode.unit_uuid == Unit.uuid, full=True)
+            .filter(DashboardPanel.dashboard_uuid == uuid)
             .all()
         )
 
-        return len(query), [
-            DashboardPanelsRead(
-                uuid=panel.uuid,
-                type=panel.type,
-                title=panel.title,
-                create_datetime=panel.create_datetime,
-                creator_uuid=panel.creator_uuid,
-                dashboard_uuid=panel.dashboard_uuid,
-                unit_nodes_for_panel=[
+        panels_dict: dict[uuid_pkg.UUID, dict] = defaultdict(lambda: {"panel": None, "unit_nodes": []})
+
+        for panel, panel_unit_node, unit_node, unit in query:
+            if panels_dict[panel.uuid]["panel"] is None:
+                panels_dict[panel.uuid]["panel"] = panel
+
+            if unit_node:
+                panels_dict[panel.uuid]["unit_nodes"].append(
                     UnitNodeForPanel(
-                        unit_node=un,
-                        is_last_data=un.is_last_data,
-                        unit_with_unit_node_name=f"{un.unit.name} - {un.name}",
+                        unit_node=UnitNodeRead(**unit_node.dict()),
+                        is_last_data=bool(panel_unit_node and panel_unit_node.is_last_data),
+                        unit_with_unit_node_name=f"{unit.name}.{unit_node.topic_name}",
                     )
-                    for un in [pun.unit_node for pun in panel.panels_unit_nodes]
-                ],
+                )
+
+        panels = []
+        for panel_uuid, data in panels_dict.items():
+            panel = data["panel"]
+            panels.append(
+                DashboardPanelsRead(
+                    uuid=panel.uuid,
+                    type=panel.type,
+                    title=panel.title,
+                    create_datetime=panel.create_datetime,
+                    creator_uuid=panel.creator_uuid,
+                    dashboard_uuid=panel.dashboard_uuid,
+                    unit_nodes_for_panel=data["unit_nodes"],
+                )
             )
-            for panel in query
-        ]
+
+        return len(panels), panels

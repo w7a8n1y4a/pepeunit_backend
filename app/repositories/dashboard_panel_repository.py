@@ -4,8 +4,10 @@ from fastapi import Depends
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
+from app.domain.unit_node_model import UnitNode
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.grafana import DashboardPanelFilter
@@ -34,9 +36,14 @@ class DashboardPanelRepository(BaseRepository):
         return count, query.all()
 
     def get_count_unit_for_panel(self, uuid: uuid_pkg.UUID) -> int:
+        return self.db.query(PanelsUnitNodes).filter(PanelsUnitNodes.dashboard_panels_uuid == uuid).count()
+
+    def check_unique_unit_node_for_panel(self, dashboard_panel: Dashboard, unit_node: UnitNode) -> int:
         return (
             self.db.query(PanelsUnitNodes)
-            .join(DashboardPanel, PanelsUnitNodes.dashboard_panels_uuid == DashboardPanel.uuid)
-            .filter(DashboardPanel.uuid == uuid)
+            .filter(
+                PanelsUnitNodes.dashboard_panels_uuid == dashboard_panel.uuid,
+                PanelsUnitNodes.unit_node_uuid == unit_node.uuid,
+            )
             .count()
         )

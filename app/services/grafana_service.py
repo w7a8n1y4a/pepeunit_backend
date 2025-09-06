@@ -10,6 +10,7 @@ from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
+from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.dto.enum import (
     AgentType,
@@ -22,6 +23,7 @@ from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.grafana_repository import GrafanaRepository
 from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
+from app.repositories.unit_repository import UnitRepository
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
@@ -30,7 +32,9 @@ from app.schemas.pydantic.grafana import (
     DatasourceFilter,
     DatasourceTimeseries,
     LinkUnitNodeToPanel,
+    UnitNodeForPanel,
 )
+from app.schemas.pydantic.shared import UnitNodeRead
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
 )
@@ -46,6 +50,7 @@ class GrafanaService:
         dashboard_repository: DashboardRepository = Depends(),
         dashboard_panel_repository: DashboardPanelRepository = Depends(),
         panels_unit_nodes_repository: PanelsUnitNodesRepository = Depends(),
+        unit_repository: UnitRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
         access_service: AccessService = Depends(),
@@ -55,6 +60,7 @@ class GrafanaService:
         self.dashboard_panel_repository = dashboard_panel_repository
         self.panels_unit_nodes_repository = panels_unit_nodes_repository
         self.grafana_repository = GrafanaRepository()
+        self.unit_repository = unit_repository
         self.unit_node_repository = unit_node_repository
         self.data_pipe_repository = data_pipe_repository
         self.access_service = access_service
@@ -121,7 +127,7 @@ class GrafanaService:
 
         return self.dashboard_panel_repository.create(dashboard_panel)
 
-    def link_unit_node_to_panel(self, data: Union[LinkUnitNodeToPanel]) -> PanelsUnitNodes:
+    def link_unit_node_to_panel(self, data: Union[LinkUnitNodeToPanel]) -> UnitNodeForPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=data.unit_node_uuid))
@@ -132,6 +138,7 @@ class GrafanaService:
         is_valid_object(dashboard_panel)
         self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
 
+        self.check_unique_unit_node_for_panel(dashboard_panel, unit_node)
         self.is_valid_unit_node_in_panel_count(dashboard_panel.uuid)
 
         panel_unit_node = PanelsUnitNodes(
@@ -142,7 +149,15 @@ class GrafanaService:
             dashboard_panels_uuid=data.dashboard_panels_uuid,
         )
 
-        return self.panels_unit_nodes_repository.create(panel_unit_node)
+        panel_unit_node = self.panels_unit_nodes_repository.create(panel_unit_node)
+
+        unit = self.unit_repository.get(Unit(uuid=unit_node.unit_uuid))
+
+        return UnitNodeForPanel(
+            unit_node=UnitNodeRead(**unit_node.dict()),
+            is_last_data=panel_unit_node.is_last_data,
+            unit_with_unit_node_name=unit.name + '.' + unit_node.topic_name,
+        )
 
     def get_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -153,12 +168,8 @@ class GrafanaService:
 
         return dashboard
 
-    def list_dashboards(self, uuid: uuid_pkg.UUID, filters: Union[DashboardFilter]) -> tuple[int, list[Dashboard]]:
+    def list_dashboards(self, filters: Union[DashboardFilter]) -> tuple[int, list[Dashboard]]:
         self.access_service.authorization.check_access([AgentType.USER])
-
-        dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
-        is_valid_object(dashboard)
-        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
 
         count, dashboards = self.dashboard_repository.list(
             filters=filters,
@@ -205,7 +216,11 @@ class GrafanaService:
 
         return self.dashboard_repository.update(dashboard.uuid, dashboard)
 
+    def check_unique_unit_node_for_panel(self, dashboard_panel: Dashboard, unit_node: UnitNode):
+        if self.dashboard_panel_repository.check_unique_unit_node_for_panel(dashboard_panel, unit_node):
+            raise GrafanaError('This UnitNode is not unique for this Panel')
+
     def is_valid_unit_node_in_panel_count(self, uuid: uuid_pkg.UUID):
         limit = settings.gf_limit_unit_node_per_one_panel
-        if self.dashboard_panel_repository.get_count_unit_for_panel(uuid) > limit:
+        if self.dashboard_panel_repository.get_count_unit_for_panel(uuid) >= limit:
             raise GrafanaError('Limit UnitNode for one panel is {}'.format(limit))

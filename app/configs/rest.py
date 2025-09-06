@@ -129,7 +129,9 @@ class ServiceFactory:
             dashboard_repository=self.dashboard_repository,
             dashboard_panel_repository=self.dashboard_panel_repository,
             panels_unit_nodes_repository=self.panels_unit_nodes_repository,
+            unit_repository=self.unit_repository,
             unit_node_repository=self.unit_node_repository,
+            data_pipe_repository=self.data_pipe_repository,
             access_service=self.access_service,
             unit_node_service=self.get_unit_node_service(),
         )
@@ -201,10 +203,11 @@ def get_unit_node_service(
 
 def get_grafana_service(
     db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
     is_bot_auth: bool = False,
 ) -> GrafanaService:
-    return create_service_factory(db, None, jwt_token, is_bot_auth).get_grafana_service()
+    return create_service_factory(db, client, jwt_token, is_bot_auth).get_grafana_service()
 
 
 def get_metrics_service(

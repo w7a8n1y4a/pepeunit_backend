@@ -138,6 +138,10 @@ def format_validation_error_dict(e: ValidationError) -> list[DataPipeValidationE
 def is_valid_data_pipe_config(
     data: dict, is_business_validator: bool = False
 ) -> DataPipeConfig | list[DataPipeValidationErrorRead]:
+
+    if data is None:
+        raise DataPipeError("DataPipe is None")
+
     if is_business_validator:
         try:
             return DataPipeConfig.model_validate(data)

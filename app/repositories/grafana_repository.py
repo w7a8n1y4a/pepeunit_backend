@@ -1,15 +1,15 @@
 import base64
 import copy
+import json
 import string
 
 import httpx
 
 from app import settings
 from app.domain.dashboard_model import Dashboard
-from app.dto.agent.abc import AgentGrafana
+from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.enum import DatasourceFormat, ProcessingPolicyType
 from app.schemas.pydantic.grafana import DashboardPanelsRead, UnitNodeForPanel
-from app.services.utils import yml_file_to_dict
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
@@ -59,10 +59,21 @@ class GrafanaRepository:
                         "method": "GET",
                         "data": "",
                         "headers": [
-                            {"x-access-token": AgentGrafana(uuid=unit_node.uuid, name='grafana').generate_agent_token()}
+                            {
+                                "key": "x-auth-token",
+                                "value": AgentGrafanaUnitNode(
+                                    uuid=unit_node.unit_node.uuid, name='grafana'
+                                ).generate_agent_token(),
+                            }
                         ],
-                        "params": [await self.get_params(unit_node)],
+                        "params": [
+                            {"key": key, "value": value} for key, value in (await self.get_params(unit_node)).items()
+                        ],
                     },
+                    "columns": [
+                        {"selector": "time", "text": "", "type": "timestamp_epoch"},
+                        {"selector": "value", "text": "", "type": "number"},
+                    ],
                 }
                 targets_list.append(target_dict)
 
@@ -71,7 +82,16 @@ class GrafanaRepository:
                 "title": panel.title,
                 "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
                 "options": {
+                    "from": "0",
+                    "legendGradientQuality": "high",
+                    "showCellBorder": False,
                     "showHeader": True,
+                    "showLegend": True,
+                    "showTooltip": True,
+                    "showValueIndicator": False,
+                    "timeFieldName": "Time",
+                    "to": "0",
+                    "valueFieldName": "Value",
                 },
                 "fieldConfig": {"defaults": {}, "overrides": []},
                 "targets": targets_list,
@@ -82,15 +102,15 @@ class GrafanaRepository:
         return {
             "dashboard": {
                 "id": None,
-                "uid": dashboard.grafana_uuid,
+                "uid": str(dashboard.grafana_uuid),
                 "title": dashboard.name,
                 "tags": [dashboard.name],
                 "timezone": "browser",
                 "schemaVersion": 30,
-                "version": 1,
                 "refresh": "1m",
                 "panels": panels_list,
                 "overwrite": True,
+                "time": {"from": "now-60d", "to": "now"},
             }
         }
 
@@ -98,15 +118,18 @@ class GrafanaRepository:
         headers_deepcopy = copy.deepcopy(self.headers)
         headers_deepcopy['X-Grafana-Org-Id'] = current_org
 
-        return httpx.post(
+        response = httpx.post(
             f'{self.base_grafana_url}/api/dashboards/db',
             headers=headers_deepcopy,
-            data=dashboard_dict,
-        ).json()
+            data=json.dumps(dashboard_dict),
+        )
+
+        response.raise_for_status()
+
+        return response.json()
 
     async def get_params(self, unit_node: UnitNodeForPanel) -> dict:
-
-        data_pipe_dict = await yml_file_to_dict(unit_node.unit_node.data_pipe_yml)
+        data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
         data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
 
         params = {
@@ -130,7 +153,7 @@ class GrafanaRepository:
 
     @staticmethod
     async def get_targets_format_by_data_pipe(unit_node: UnitNodeForPanel) -> DatasourceFormat:
-        data_pipe_dict = await yml_file_to_dict(unit_node.unit_node.data_pipe_yml)
+        data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
         data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
 
         if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:

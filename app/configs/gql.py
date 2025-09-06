@@ -68,8 +68,9 @@ def get_unit_node_service_gql(info: Info) -> UnitNodeService:
 
 def get_grafana_service_gql(info: Info) -> GrafanaService:
     db = info.context.get('db')
+    clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-    return get_grafana_service(db, jwt_token)
+    return get_grafana_service(db, clickhouse_client, jwt_token)
 
 
 def get_metrics_service_gql(info: Info) -> MetricsService:
