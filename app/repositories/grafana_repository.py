@@ -50,7 +50,7 @@ class GrafanaRepository:
             for ref_id, unit_node in self.enumerate_refid(panel.unit_nodes_for_panel):
 
                 target_dict = {
-                    "datasource": "yesoreyeram-infinity-datasource",
+                    "datasource": "InfinityAPI",
                     "refId": ref_id,
                     "format": await self.get_targets_format_by_data_pipe(unit_node),
                     "json": {"type": "json", "parser": "JSONata", "rootSelector": "$"},
@@ -81,18 +81,7 @@ class GrafanaRepository:
                 "type": panel.type,
                 "title": panel.title,
                 "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
-                "options": {
-                    "from": "0",
-                    "legendGradientQuality": "high",
-                    "showCellBorder": False,
-                    "showHeader": True,
-                    "showLegend": True,
-                    "showTooltip": True,
-                    "showValueIndicator": False,
-                    "timeFieldName": "Time",
-                    "to": "0",
-                    "valueFieldName": "Value",
-                },
+                "options": {},
                 "fieldConfig": {"defaults": {}, "overrides": []},
                 "targets": targets_list,
             }
