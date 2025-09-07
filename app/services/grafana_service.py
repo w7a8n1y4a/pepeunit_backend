@@ -216,6 +216,39 @@ class GrafanaService:
 
         return self.dashboard_repository.update(dashboard.uuid, dashboard)
 
+    def delete_dashboard(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
+        is_valid_object(dashboard)
+
+        self.access_service.authorization.check_ownership(dashboard, [OwnershipType.CREATOR])
+
+        self.dashboard_repository.delete(dashboard)
+
+    def delete_panel(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        dashboard_panel = self.dashboard_panel_repository.get(DashboardPanel(uuid=uuid))
+        is_valid_object(dashboard_panel)
+
+        self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
+
+        self.dashboard_panel_repository.delete(dashboard_panel)
+
+    def delete_link(self, unit_node_uuid: uuid_pkg.UUID, dashboard_panel_uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
+        is_valid_object(unit_node)
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
+
+        dashboard_panel = self.dashboard_panel_repository.get(DashboardPanel(uuid=dashboard_panel_uuid))
+        is_valid_object(dashboard_panel)
+        self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
+
+        self.panels_unit_nodes_repository.delete(unit_node, dashboard_panel)
+
     def check_unique_unit_node_for_panel(self, dashboard_panel: Dashboard, unit_node: UnitNode):
         if self.dashboard_panel_repository.check_unique_unit_node_for_panel(dashboard_panel, unit_node):
             raise GrafanaError('This UnitNode is not unique for this Panel')

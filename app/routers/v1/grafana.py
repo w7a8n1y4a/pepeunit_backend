@@ -150,6 +150,25 @@ async def sync_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = 
     return DashboardRead(**(await grafana_service.sync_dashboard(uuid)).dict())
 
 
+@router.delete("/delete_dashboard/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.delete_dashboard(uuid)
+
+
+@router.delete("/delete_panel/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_panel(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.delete_panel(uuid)
+
+
+@router.delete("/delete_link/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_link(
+    unit_node_uuid: uuid_pkg.UUID,
+    dashboard_panel_uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
+):
+    return grafana_service.delete_link(unit_node_uuid, dashboard_panel_uuid)
+
+
 @router.get("/oidc/authorize")
 async def authorize(
     request: Request, client_id: str, redirect_uri: str, scope: str, state: str, nonce: Optional[str] = None

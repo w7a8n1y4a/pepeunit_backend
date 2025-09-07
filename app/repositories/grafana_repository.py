@@ -82,7 +82,14 @@ class GrafanaRepository:
                 "title": panel.title,
                 "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
                 "options": {},
-                "fieldConfig": {"defaults": {}, "overrides": []},
+                "fieldConfig": {
+                    "defaults": {
+                        "custom": {
+                            "invertPalette": True,
+                        },
+                    },
+                    "overrides": [],
+                },
                 "targets": targets_list,
             }
 
