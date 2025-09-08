@@ -14,7 +14,7 @@ from app.configs.db import get_hand_session
 from app.configs.redis import get_redis_session
 from app.configs.rest import get_grafana_service, get_unit_node_service, get_user_service
 from app.domain.user_model import User
-from app.dto.enum import CookieName, GrafanaUserRole
+from app.dto.enum import CookieName, DatasourceFormat, GrafanaUserRole
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
@@ -252,4 +252,16 @@ async def datasource(
     filters: DatasourceFilter = Depends(DatasourceFilter),
     grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
-    return grafana_service.get_datasource_data(filters)
+    if filters.format == DatasourceFormat.TIME_SERIES:
+        return grafana_service.get_datasource_data(filters)
+    elif filters.format == DatasourceFormat.TABLE:
+        # TODO оставить только table
+        return [
+            {'value': {"level": "error", "TitleMessage": "User login successful", "fld": "one"}, 'time': 1757285380000},
+            {
+                'value': {"level": "info", "TitleMessage": "Timeout while calling bank API", "fld": ""},
+                'time': 1757285380000,
+            },
+        ]
+    elif filters.format == DatasourceFormat.LOGS:
+        return [{'value': {"One": 8, "Two": 16, "Three": 24}, 'time': 1757285380000}]

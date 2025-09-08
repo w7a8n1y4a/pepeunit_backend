@@ -355,6 +355,7 @@ class AggregationFunctions(str, enum.Enum):
 class DatasourceFormat(str, enum.Enum):
     TIME_SERIES = "timeseries"
     TABLE = "table"
+    LOGS = "logs"
 
 
 @strawberry.enum
