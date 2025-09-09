@@ -12,7 +12,6 @@ from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
     AggregationFunctions,
     DataPipeStage,
-    DatasourceFormat,
     OrderByDate,
     ProcessingPolicyType,
     UnitNodeTypeEnum,
@@ -103,35 +102,3 @@ class DataPipeFilter:
 class PipeDataResult(BaseModel):
     count: int
     pipe_data: list[Union[NRecords, TimeWindow, Aggregation]]
-
-
-@dataclass
-class DatasourceFilter:
-    format: DatasourceFormat
-
-    time_window_size: Optional[int] = None
-
-    start_agg_datetime: Optional[datetime.datetime] = None
-    end_agg_datetime: Optional[datetime.datetime] = None
-
-    start_create_datetime: Optional[datetime.datetime] = None
-    end_create_datetime: Optional[datetime.datetime] = None
-
-    relative_time: Optional[str] = None
-
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-
-    offset: Optional[int] = None
-    limit: Optional[int] = None
-
-    @property
-    def relative_interval(self):
-        return parse_interval(self.relative_time) if self.relative_time else None
-
-    def dict(self):
-        return self.__dict__
-
-
-class DatasourceTimeseries(BaseModel):
-    time: int
-    value: float

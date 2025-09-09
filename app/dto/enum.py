@@ -353,8 +353,7 @@ class AggregationFunctions(str, enum.Enum):
 
 @strawberry.enum
 class DatasourceFormat(str, enum.Enum):
-    TIMESERIES = "timeseries"
-    TABLE = "table"
+    TIME_SERIES = "timeseries"
 
 
 @strawberry.enum
@@ -407,3 +406,74 @@ class CookieName(str, enum.Enum):
     """
 
     PEPEUNIT_GRAFANA = 'PepeunitGrafana'
+
+
+@strawberry.enum
+class DashboardPanelTypeEnum(str, enum.Enum):
+    """
+    All dashboard panel types
+    """
+
+    # Обычный график
+    TIME_SERIES = 'timeseries'
+    # Колончатый график
+    BAR_CHART = 'barchart'
+    # График без лимбов и значение
+    STAT = 'stat'
+    # Спидометр, есть минимум и максимум, вычисляется автоматом из выборки
+    GAUGE = 'gauge'
+    # Как gauge, но полоской
+    BAR_GAUGE = 'bargauge'
+    # Таблица
+    TABLE = 'table'
+    # Сегментный Бублик
+    PIE_CHART = 'piechart'
+    # Категоризирующий, как heatmap, но позволяет установить пороговое значение
+    STATE_TIMELINE = 'state-timeline'
+    # Обычный heatmap, источник данных на все данные
+    HEATMAP = 'heatmap'
+    # Похож на state-timeline, но отличается как минимум объединением дат
+    STATUS_HISTORY = 'status-history'
+    # Смотреть распределения в выборках
+    HISTOGRAM = 'histogram'
+    # Текст в формате md
+    TEXT = 'text'
+    # Список алертов
+    ALERT_LIST = 'alertlist'
+    # Позволяет делать набор ссылок на существующие борды
+    DASHBOARD_LIST = 'dashlist'
+    # Новости в формате rss
+    NEWS = 'news'
+    # Список с возможностью фильтрации
+    ANNOTATION_LIST = 'annolist'
+    # Биржевой график
+    CANDLESTICK = 'candlestick'
+    # Полотно для рисования
+    CANVAS = 'canvas'
+    # Хорошо отображает структуры на подобии папок
+    FLAME_GRAPH = 'flamegraph'
+    # Мировая карта
+    GEOMAP = 'geomap'
+    # Логи
+    LOGS = 'logs'
+    # Нормальный heatmap, 24 часа на дни
+    HOURLY_HEATMAP = 'marcusolsson-hourly-heatmap-panel'
+    # Графы
+    NODE_GRAPH = 'nodeGraph'
+    # Как время выполнение запросов в консоли браузера
+    TRACES = 'traces'
+    # Как timeseries, но вместо времени - числа
+    TREND = 'trend'
+    # Точечный график
+    XY_CHART = 'xychart'
+
+
+@strawberry.enum
+class DashboardStatus(str, enum.Enum):
+    """
+    Types of state Dashboard sync
+    """
+
+    SUCCESS = 'Success'
+    PROCESSING = 'Processing'
+    ERROR = 'Error'

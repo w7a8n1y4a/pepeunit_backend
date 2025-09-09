@@ -33,7 +33,7 @@ from app.schemas.pydantic.repository_registry import (
 )
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
-from app.services.validators import is_emtpy_sequence, is_valid_json, is_valid_object
+from app.services.validators import is_emtpy_sequence, is_valid_object
 
 
 class RepositoryRegistryService:

@@ -20,6 +20,7 @@ class UserType(TypeInputMixin):
     cipher_dynamic_salt: strawberry.Private[object]
     telegram_chat_id: strawberry.Private[object]
     grafana_org_name: strawberry.Private[object]
+    grafana_org_id: strawberry.Private[object]
 
 
 @strawberry.type()

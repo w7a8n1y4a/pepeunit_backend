@@ -10,10 +10,14 @@ from clickhouse_driver import Client
 from fastapi import Depends
 from fastapi.params import Query
 from pydantic import BaseModel
+from sqlmodel import Session
 
 from app.configs.clickhouse import get_clickhouse_client
+from app.configs.db import get_session
 from app.configs.errors import DataPipeError
+from app.domain.unit_node_model import UnitNode
 from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.orm import ClickhouseOrm
 from app.dto.clickhouse.time_window import TimeWindow
@@ -24,11 +28,14 @@ from app.schemas.pydantic.unit_node import DataPipeFilter
 class DataPipeRepository:
     client: Client
 
-    def __init__(self, client: Client = Depends(get_clickhouse_client)) -> None:
+    def __init__(self, client: Client = Depends(get_clickhouse_client), db: Session = Depends(get_session)) -> None:
         self.client = client
+        self.db = db
         self.orm = ClickhouseOrm(client)
 
     def bulk_create(self, policy: ProcessingPolicyType, data: list[BaseModel]):
+        if policy.LAST_VALUE:
+            raise DataPipeError('Bulk create for LastValue not available')
 
         table_names = {
             ProcessingPolicyType.AGGREGATION: 'aggregation_entry',
@@ -41,6 +48,8 @@ class DataPipeRepository:
     @staticmethod
     def _get_type(policy: ProcessingPolicyType):
         match policy:
+            case ProcessingPolicyType.LAST_VALUE:
+                return LastValue
             case ProcessingPolicyType.N_RECORDS:
                 return NRecords
             case ProcessingPolicyType.TIME_WINDOW:
@@ -48,11 +57,17 @@ class DataPipeRepository:
             case ProcessingPolicyType.AGGREGATION:
                 return Aggregation
 
-    def list(self, filters: Union[DataPipeFilter]) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation]]]:
+    def list_postgres(self, filters: Union[DataPipeFilter]) -> tuple[int, list[Union[LastValue]]]:
+        unit_node = self.db.query(UnitNode).filter(UnitNode.uuid == filters.uuid).first()
+        return (0, []) if not unit_node else (1, LastValue(**unit_node.dict()))
+
+    def list(
+        self, filters: Union[DataPipeFilter]
+    ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation, LastValue]]]:
         query = ''
         match filters.type:
             case ProcessingPolicyType.LAST_VALUE:
-                raise DataPipeError('LastValue type is not supported on this function')
+                return self.list_postgres(filters=filters)
             case ProcessingPolicyType.N_RECORDS:
                 query = """
                     SELECT

@@ -87,6 +87,7 @@ class Settings(BaseSettings):
 
     gf_admin_user: str = ''
     gf_admin_password: str = ''
+    gf_limit_unit_node_per_one_panel: int = 10
 
     test_integration_clear_data: bool = True
     test_integration_private_repo_json: str = ''

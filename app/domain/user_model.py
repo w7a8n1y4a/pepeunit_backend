@@ -26,5 +26,7 @@ class User(SQLModel, table=True):
 
     # uuid name in grafana organisation, unique for all users
     grafana_org_name: uuid_pkg.UUID = Field(nullable=False, default_factory=uuid_pkg.uuid4)
+    # id grafana org from grafana
+    grafana_org_id: str = Field(nullable=True)
 
     create_datetime: datetime = Field(nullable=False)

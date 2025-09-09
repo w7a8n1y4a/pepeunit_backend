@@ -9,6 +9,7 @@ from strawberry.types import Info
 from app.configs.errors import DataPipeError
 from app.configs.gql import get_unit_node_service_gql
 from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.time_window import TimeWindow
 from app.schemas.gql.inputs.unit_node import DataPipeFilterInput, UnitNodeFilterInput
@@ -16,6 +17,7 @@ from app.schemas.gql.types.shared import UnitNodesResultType, UnitNodeType
 from app.schemas.gql.types.unit_node import (
     AggregationType,
     DataPipeValidationErrorType,
+    LastValueType,
     NRecordsType,
     PipeDataResultType,
     TimeWindowType,
@@ -34,7 +36,7 @@ def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultTyp
     count, pipe_data = unit_node_service.get_data_pipe_data(filters)
 
     def get_gql_type(
-        input_value: Union[NRecords, TimeWindow, Aggregation]
+        input_value: Union[NRecords, TimeWindow, Aggregation, LastValue]
     ) -> Union[NRecordsType, TimeWindowType, AggregationType]:
 
         if isinstance(input_value, NRecords):
@@ -43,6 +45,8 @@ def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultTyp
             return TimeWindowType
         elif isinstance(input_value, Aggregation):
             return AggregationType
+        elif isinstance(input_value, LastValue):
+            return LastValueType
         else:
             raise DataPipeError("Other types are not supported")
 
