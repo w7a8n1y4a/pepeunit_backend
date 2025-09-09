@@ -57,6 +57,14 @@ class AggregationType(TypeInputMixin):
 
 
 @strawberry.type()
+class LastValueType(TypeInputMixin):
+    uuid: uuid_pkg.UUID
+    unit_node_uuid: uuid_pkg.UUID
+    state: str
+    last_update_datetime: datetime
+
+
+@strawberry.type()
 class PipeDataResultType(TypeInputMixin):
     count: int
-    pipe_data: list[Union[NRecordsType, TimeWindowType, AggregationType]]
+    pipe_data: list[Union[NRecordsType, TimeWindowType, AggregationType, LastValueType]]

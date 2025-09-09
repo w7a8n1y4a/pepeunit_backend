@@ -48,7 +48,7 @@ class ServiceFactory:
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
         self.unit_log_repository = UnitLogRepository(client) if client else None
-        self.data_pipe_repository = DataPipeRepository(client) if client else None
+        self.data_pipe_repository = DataPipeRepository(client, db) if client else None
         self.dashboard_repository = DashboardRepository(db)
         self.dashboard_panel_repository = DashboardPanelRepository(db)
         self.panels_unit_nodes_repository = PanelsUnitNodesRepository(db)

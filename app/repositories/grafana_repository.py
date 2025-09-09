@@ -52,7 +52,7 @@ class GrafanaRepository:
                 target_dict = {
                     "datasource": "InfinityAPI",
                     "refId": ref_id,
-                    "format": await self.get_targets_format_by_data_pipe(unit_node),
+                    "format": DatasourceFormat.TIME_SERIES,
                     "json": {"type": "json", "parser": "JSONata", "rootSelector": "$"},
                     "url": "",
                     "url_options": {
@@ -62,7 +62,7 @@ class GrafanaRepository:
                             {
                                 "key": "x-auth-token",
                                 "value": AgentGrafanaUnitNode(
-                                    uuid=unit_node.unit_node.uuid, name='grafana'
+                                    uuid=unit_node.unit_node.uuid, panel_uuid=panel.uuid, name='grafana'
                                 ).generate_agent_token(),
                             }
                         ],
@@ -129,7 +129,7 @@ class GrafanaRepository:
         data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
 
         params = {
-            "format": await self.get_targets_format_by_data_pipe(unit_node),
+            "format": DatasourceFormat.TIME_SERIES,
             "order_by_create_date": "asc",
         }
 
@@ -146,13 +146,3 @@ class GrafanaRepository:
             params['limit'] = 1
 
         return params
-
-    @staticmethod
-    async def get_targets_format_by_data_pipe(unit_node: UnitNodeForPanel) -> DatasourceFormat:
-        data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
-        data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
-
-        if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
-            return DatasourceFormat.TABLE
-        else:
-            return DatasourceFormat.TIME_SERIES

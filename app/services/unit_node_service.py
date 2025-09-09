@@ -18,8 +18,8 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
@@ -405,7 +405,7 @@ class UnitNodeService:
 
     def get_data_pipe_data(
         self, filters: Union[DataPipeFilter, DataPipeFilterInput]
-    ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation]]]:
+    ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation, LastValue]]]:
         self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=filters.uuid))
@@ -421,16 +421,18 @@ class UnitNodeService:
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
 
+        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
+
+        self.is_valid_active_data_pipe(unit_node)
         self.is_valid_filled_config(unit_node)
 
-        self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR, OwnershipType.UNIT])
+        data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
+        self.is_valid_policy(data_pipe_entity)
 
         count, data = self.data_pipe_repository.list(
             filters=DataPipeFilter(
                 uuid=uuid,
-                type=ProcessingPolicyType(
-                    is_valid_json(unit_node.data_pipe_yml, "DataPipe config")['processing_policy']['policy_type']
-                ),
+                type=data_pipe_entity.processing_policy.policy_type,
                 order_by_create_date=OrderByDate.asc,
             )
         )
@@ -446,11 +448,10 @@ class UnitNodeService:
         self.access_service.authorization.check_ownership(unit_node, [OwnershipType.CREATOR])
 
         self.is_valid_active_data_pipe(unit_node)
+        self.is_valid_filled_config(unit_node)
 
         data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
-
-        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
-            raise DataPipeError("LastValue policy is not available")
+        self.is_valid_policy(data_pipe_entity)
 
         self.data_pipe_repository.bulk_delete([unit_node.uuid])
 
@@ -528,3 +529,8 @@ class UnitNodeService:
     def is_valid_filled_config(unit_node: UnitNode) -> None:
         if not unit_node.data_pipe_yml:
             raise DataPipeError('Data pipe is not filled')
+
+    @staticmethod
+    def is_valid_policy(data_pipe_entity: DataPipeValidationErrorRead) -> None:
+        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
+            raise DataPipeError("LastValue type is not supported on this function")

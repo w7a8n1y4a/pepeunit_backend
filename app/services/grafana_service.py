@@ -12,10 +12,15 @@ from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
+from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.last_value import LastValue
+from app.dto.clickhouse.n_records import NRecords
+from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
     AgentType,
     DashboardStatus,
     OwnershipType,
+    TypeInputValue,
 )
 from app.repositories.dashboard_panel_repository import DashboardPanelRepository
 from app.repositories.dashboard_repository import DashboardRepository
@@ -30,7 +35,7 @@ from app.schemas.pydantic.grafana import (
     DashboardPanelCreate,
     DashboardPanelsResult,
     DatasourceFilter,
-    DatasourceTimeseries,
+    DatasourceTimeSeriesData,
     LinkUnitNodeToPanel,
     UnitNodeForPanel,
 )
@@ -41,7 +46,7 @@ from app.schemas.pydantic.unit_node import (
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
 from app.services.validators import is_valid_object, is_valid_string_with_rules
-from app.validators.data_pipe import is_valid_data_pipe_config
+from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
 
 
 class GrafanaService:
@@ -66,11 +71,16 @@ class GrafanaService:
         self.access_service = access_service
         self.unit_node_service = unit_node_service
 
-    def get_datasource_data(self, filters: DatasourceFilter) -> list[DatasourceTimeseries]:
+    def get_datasource_data(self, filters: DatasourceFilter) -> list[DatasourceTimeSeriesData]:
         self.access_service.authorization.check_access([AgentType.GRAFANA_UNIT_NODE])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=self.access_service.current_agent.uuid))
         is_valid_object(unit_node)
+
+        unit_node_panel = self.panels_unit_nodes_repository.get_by_parent(
+            unit_node, DashboardPanel(uuid=self.access_service.current_agent.panel_uuid)
+        )
+        is_valid_object(unit_node_panel)
 
         self.unit_node_service.is_valid_active_data_pipe(unit_node)
         data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
@@ -89,9 +99,44 @@ class GrafanaService:
         )
 
         return [
-            DatasourceTimeseries(time=int(item.end_window_datetime.timestamp() * 1000), value=item.state)
+            DatasourceTimeSeriesData(
+                time=self.get_time_datasource_value(item),
+                value=self.get_typed_datasource_value(item.state, data_pipe_entity, unit_node_panel),
+            )
             for item in data
         ]
+
+    @staticmethod
+    def get_typed_datasource_value(
+        value: str,
+        data_pipe_entity: DataPipeConfig,
+        unit_node_panel: PanelsUnitNodes,
+    ) -> str | float | dict:
+        if unit_node_panel.is_forced_to_json:
+            return json.loads(value)
+        elif data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER:
+            return float(value)
+        elif data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
+            return value
+        else:
+            raise GrafanaError('Processing this value not supported')
+
+    @staticmethod
+    def get_time_datasource_value(data: Union[NRecords, TimeWindow, Aggregation, LastValue]) -> int:
+        value = None
+        if isinstance(data, NRecords):
+            value = data.create_datetim
+        if isinstance(data, TimeWindow):
+            value = data.create_datetime
+        if isinstance(data, Aggregation):
+            value = data.end_window_datetime
+        if isinstance(data, LastValue):
+            value = data.last_update_datetime
+
+        if value:
+            return int(value.timestamp() * 1000)
+        else:
+            raise GrafanaError('Data type not supported')
 
     def create_dashboard(self, data: Union[DashboardCreate]) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -143,6 +188,7 @@ class GrafanaService:
 
         panel_unit_node = PanelsUnitNodes(
             is_last_data=data.is_last_data,
+            is_forced_to_json=data.is_forced_to_json,
             create_datetime=datetime.datetime.utcnow(),
             creator_uuid=self.access_service.current_agent.uuid,
             unit_node_uuid=data.unit_node_uuid,
@@ -156,6 +202,7 @@ class GrafanaService:
         return UnitNodeForPanel(
             unit_node=UnitNodeRead(**unit_node.dict()),
             is_last_data=panel_unit_node.is_last_data,
+            is_forced_to_json=panel_unit_node.is_forced_to_json,
             unit_with_unit_node_name=unit.name + '.' + unit_node.topic_name,
         )
 

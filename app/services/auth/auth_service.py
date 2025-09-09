@@ -70,7 +70,7 @@ class JwtAuthService(AuthService):
             agent = AgentGrafana(uuid=data['uuid'], name='grafana')
 
         elif data.get("type") == AgentType.GRAFANA_UNIT_NODE:
-            agent = AgentGrafanaUnitNode(uuid=data['uuid'], name='grafana')
+            agent = AgentGrafanaUnitNode(uuid=data['uuid'], name='grafana', panel_uuid=data['panel_uuid'])
 
         else:
             raise NoAccessError("Invalid agent type")

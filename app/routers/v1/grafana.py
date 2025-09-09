@@ -24,6 +24,7 @@ from app.schemas.pydantic.grafana import (
     DashboardRead,
     DashboardsResult,
     DatasourceFilter,
+    DatasourceTimeSeriesData,
     LinkUnitNodeToPanel,
     UnitNodeForPanel,
 )
@@ -251,17 +252,5 @@ async def userinfo(request: Request):
 async def datasource(
     filters: DatasourceFilter = Depends(DatasourceFilter),
     grafana_service: GrafanaService = Depends(get_grafana_service),
-):
-    if filters.format == DatasourceFormat.TIME_SERIES:
-        return grafana_service.get_datasource_data(filters)
-    elif filters.format == DatasourceFormat.TABLE:
-        # TODO оставить только table
-        return [
-            {'value': {"level": "error", "TitleMessage": "User login successful", "fld": "one"}, 'time': 1757285380000},
-            {
-                'value': {"level": "info", "TitleMessage": "Timeout while calling bank API", "fld": ""},
-                'time': 1757285380000,
-            },
-        ]
-    elif filters.format == DatasourceFormat.LOGS:
-        return [{'value': {"One": 8, "Two": 16, "Three": 24}, 'time': 1757285380000}]
+) -> list[DatasourceTimeSeriesData]:
+    return grafana_service.get_datasource_data(filters)

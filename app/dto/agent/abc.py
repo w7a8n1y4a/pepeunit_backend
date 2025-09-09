@@ -19,6 +19,7 @@ class Agent(ABC, BaseModel):
     type: AgentType
     status: AgentStatus
     role: Optional[UserRole] = None
+    panel_uuid: Optional[uuid_pkg.UUID] = None
 
     def generate_agent_token(self, access_token_exp: Optional[int] = None) -> str:
 
@@ -45,7 +46,7 @@ class Agent(ABC, BaseModel):
             )
         elif self.type == AgentType.GRAFANA_UNIT_NODE:
             token = jwt.encode(
-                {"uuid": str(self.uuid), "type": self.type},
+                {"uuid": str(self.uuid), "panel_uuid": str(self.panel_uuid), "type": self.type},
                 settings.backend_secret_key,
                 "HS256",
             )

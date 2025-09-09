@@ -17,6 +17,8 @@ class PanelsUnitNodes(SQLModel, table=True):
 
     # only the latest values regardless of the data type calculated based on DataPipe config
     is_last_data: bool = Field(nullable=False, default=False)
+    # forced conversion of data to json
+    is_forced_to_json: bool = Field(nullable=False, default=False)
 
     create_datetime: datetime = Field(nullable=False)
 

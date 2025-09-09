@@ -35,9 +35,9 @@ class DatasourceFilter:
         return self.__dict__
 
 
-class DatasourceTimeseries(BaseModel):
+class DatasourceTimeSeriesData(BaseModel):
     time: int
-    value: float
+    value: str | float | dict
 
 
 @dataclass
@@ -83,6 +83,7 @@ class LinkUnitNodeToPanel(BaseModel):
     unit_node_uuid: uuid_pkg.UUID
     dashboard_panels_uuid: uuid_pkg.UUID
     is_last_data: bool
+    is_forced_to_json: bool
 
 
 class DashboardRead(BaseModel):
@@ -110,6 +111,7 @@ class DashboardsResult(BaseModel):
 class UnitNodeForPanel(BaseModel):
     unit_node: UnitNodeRead
     is_last_data: bool
+    is_forced_to_json: bool
     unit_with_unit_node_name: str
 
 

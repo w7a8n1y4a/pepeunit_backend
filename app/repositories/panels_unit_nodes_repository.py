@@ -23,3 +23,13 @@ class PanelsUnitNodesRepository(BaseRepository):
         )
         self.db.commit()
         self.db.flush()
+
+    def get_by_parent(self, unit_node: UnitNode, dashboard_panel: DashboardPanel) -> PanelsUnitNodes:
+        return (
+            self.db.query(PanelsUnitNodes)
+            .filter(
+                PanelsUnitNodes.unit_node_uuid == unit_node.uuid,
+                PanelsUnitNodes.dashboard_panels_uuid == dashboard_panel.uuid,
+            )
+            .first()
+        )
