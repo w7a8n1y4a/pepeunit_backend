@@ -409,7 +409,7 @@ class CookieName(str, enum.Enum):
 
 
 @strawberry.enum
-class DashboardPanelType(str, enum.Enum):
+class DashboardPanelTypeEnum(str, enum.Enum):
     """
     All dashboard panel types
     """

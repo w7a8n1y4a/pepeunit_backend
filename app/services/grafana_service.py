@@ -29,10 +29,19 @@ from app.repositories.grafana_repository import GrafanaRepository
 from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
+from app.schemas.gql.inputs.grafana import (
+    DashboardCreateInput,
+    DashboardFilterInput,
+    DashboardPanelCreateInput,
+    LinkUnitNodeToPanelInput,
+)
+from app.schemas.gql.types.grafana import DashboardPanelType, UnitNodeForPanelType
+from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
     DashboardPanelCreate,
+    DashboardPanelRead,
     DashboardPanelsResult,
     DatasourceFilter,
     DatasourceTimeSeriesData,
@@ -138,7 +147,7 @@ class GrafanaService:
         else:
             raise GrafanaError('Data type not supported')
 
-    def create_dashboard(self, data: Union[DashboardCreate]) -> Dashboard:
+    def create_dashboard(self, data: Union[DashboardCreate, DashboardCreateInput]) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
 
         if not is_valid_string_with_rules(data.name):
@@ -152,7 +161,7 @@ class GrafanaService:
 
         return self.dashboard_repository.create(dashboard)
 
-    def create_dashboard_panel(self, data: Union[DashboardPanelCreate]) -> DashboardPanel:
+    def create_dashboard_panel(self, data: Union[DashboardPanelCreate, DashboardPanelCreateInput]) -> DashboardPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=data.dashboard_uuid))
@@ -172,7 +181,7 @@ class GrafanaService:
 
         return self.dashboard_panel_repository.create(dashboard_panel)
 
-    def link_unit_node_to_panel(self, data: Union[LinkUnitNodeToPanel]) -> UnitNodeForPanel:
+    def link_unit_node_to_panel(self, data: Union[LinkUnitNodeToPanel, LinkUnitNodeToPanelInput]) -> UnitNodeForPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=data.unit_node_uuid))
@@ -215,7 +224,7 @@ class GrafanaService:
 
         return dashboard
 
-    def list_dashboards(self, filters: Union[DashboardFilter]) -> tuple[int, list[Dashboard]]:
+    def list_dashboards(self, filters: Union[DashboardFilter, DashboardFilterInput]) -> tuple[int, list[Dashboard]]:
         self.access_service.authorization.check_access([AgentType.USER])
 
         count, dashboards = self.dashboard_repository.list(
@@ -295,6 +304,24 @@ class GrafanaService:
         self.access_service.authorization.check_ownership(dashboard_panel, [OwnershipType.CREATOR])
 
         self.panels_unit_nodes_repository.delete(unit_node, dashboard_panel)
+
+    @staticmethod
+    def mapper_unit_nodes_to_type(unit_node: UnitNodeForPanel) -> UnitNodeForPanelType:
+
+        unit_node_dict = unit_node.dict()
+        unit_node = unit_node_dict.pop('unit_node')
+
+        return UnitNodeForPanelType(unit_node=UnitNodeType(**unit_node), **unit_node_dict)
+
+    def mapper_panel_to_type(self, panel: DashboardPanelRead) -> DashboardPanelType:
+
+        panel_dict = panel.dict()
+        nodes = panel_dict.pop('unit_nodes_for_panel')
+
+        return DashboardPanelType(
+            unit_nodes_for_panel=[self.mapper_unit_nodes_to_type(UnitNodeForPanel(**node)) for node in nodes],
+            **panel_dict,
+        )
 
     def check_unique_unit_node_for_panel(self, dashboard_panel: Dashboard, unit_node: UnitNode):
         if self.dashboard_panel_repository.check_unique_unit_node_for_panel(dashboard_panel, unit_node):

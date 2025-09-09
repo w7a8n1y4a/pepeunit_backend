@@ -1,5 +1,6 @@
 from strawberry.tools import create_type
 
+from app.schemas.gql.mutations.grafana import *
 from app.schemas.gql.mutations.permission import *
 from app.schemas.gql.mutations.repo import *
 from app.schemas.gql.mutations.repository_registry import *
@@ -39,5 +40,12 @@ Mutation = create_type(
         set_data_pipe_config,
         set_data_pipe_data_csv,
         delete_data_pipe_data,
+        create_dashboard,
+        create_dashboard_panel,
+        link_unit_node_to_panel,
+        sync_dashboard,
+        delete_dashboard,
+        delete_panel,
+        delete_link,
     ],
 )

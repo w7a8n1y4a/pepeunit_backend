@@ -9,7 +9,7 @@ from app import settings
 from app.domain.dashboard_model import Dashboard
 from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.enum import DatasourceFormat, ProcessingPolicyType
-from app.schemas.pydantic.grafana import DashboardPanelsRead, UnitNodeForPanel
+from app.schemas.pydantic.grafana import DashboardPanelRead, UnitNodeForPanel
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
@@ -41,7 +41,7 @@ class GrafanaRepository:
         for item in iterable:
             yield next(gen), item
 
-    async def generate_dashboard(self, dashboard: Dashboard, panels: list[DashboardPanelsRead]) -> dict:
+    async def generate_dashboard(self, dashboard: Dashboard, panels: list[DashboardPanelRead]) -> dict:
 
         panels_list = []
         for panel in panels:

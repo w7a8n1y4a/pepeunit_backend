@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import DashboardPanelType, DashboardStatus, DatasourceFormat, OrderByDate
+from app.dto.enum import DashboardPanelTypeEnum, DashboardStatus, DatasourceFormat, OrderByDate
 from app.schemas.pydantic.shared import UnitNodeRead
 from app.utils.utils import parse_interval
 
@@ -76,7 +76,7 @@ class DashboardPanelCreate(BaseModel):
     dashboard_uuid: uuid_pkg.UUID
 
     title: str
-    type: DashboardPanelType
+    type: DashboardPanelTypeEnum
 
 
 class LinkUnitNodeToPanel(BaseModel):
@@ -115,10 +115,10 @@ class UnitNodeForPanel(BaseModel):
     unit_with_unit_node_name: str
 
 
-class DashboardPanelsRead(BaseModel):
+class DashboardPanelRead(BaseModel):
     uuid: uuid_pkg.UUID
 
-    type: DashboardPanelType
+    type: DashboardPanelTypeEnum
 
     title: str
     create_datetime: datetime.datetime
@@ -131,4 +131,4 @@ class DashboardPanelsRead(BaseModel):
 
 class DashboardPanelsResult(BaseModel):
     count: int
-    panels: list[DashboardPanelsRead]
+    panels: list[DashboardPanelRead]

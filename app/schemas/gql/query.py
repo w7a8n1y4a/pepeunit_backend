@@ -1,5 +1,6 @@
 from strawberry.tools import create_type
 
+from app.schemas.gql.queries.grafana import *
 from app.schemas.gql.queries.metrics import *
 from app.schemas.gql.queries.permission import *
 from app.schemas.gql.queries.repo import *
@@ -38,5 +39,8 @@ Query = create_type(
         get_data_pipe_config,
         get_base_metrics,
         get_resource_agents,
+        get_dashboard,
+        get_dashboards,
+        get_dashboard_panels,
     ],
 )

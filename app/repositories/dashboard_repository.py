@@ -13,7 +13,7 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
-from app.schemas.pydantic.grafana import DashboardFilter, DashboardPanelsRead, UnitNodeForPanel
+from app.schemas.pydantic.grafana import DashboardFilter, DashboardPanelRead, UnitNodeForPanel
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -40,7 +40,7 @@ class DashboardRepository(BaseRepository):
         count, query = apply_offset_and_limit(query, filters)
         return count, query.all()
 
-    def get_dashboard_panels(self, uuid: uuid_pkg.UUID) -> tuple[int, List[DashboardPanelsRead]]:
+    def get_dashboard_panels(self, uuid: uuid_pkg.UUID) -> tuple[int, List[DashboardPanelRead]]:
 
         query = (
             self.db.query(DashboardPanel, PanelsUnitNodes, UnitNode, Unit)
@@ -71,7 +71,7 @@ class DashboardRepository(BaseRepository):
         for panel_uuid, data in panels_dict.items():
             panel = data["panel"]
             panels.append(
-                DashboardPanelsRead(
+                DashboardPanelRead(
                     uuid=panel.uuid,
                     type=panel.type,
                     title=panel.title,

@@ -19,7 +19,7 @@ from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
     DashboardPanelCreate,
-    DashboardPanelsRead,
+    DashboardPanelRead,
     DashboardPanelsResult,
     DashboardRead,
     DashboardsResult,
@@ -32,6 +32,79 @@ from app.services.grafana_service import GrafanaService
 from app.utils.utils import generate_random_string
 
 router = APIRouter()
+
+
+@router.post(
+    "/create_dashboard",
+    response_model=DashboardRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_dashboard(data: DashboardCreate, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.create_dashboard(data)
+
+
+@router.post(
+    "/create_dashboard_panel",
+    response_model=DashboardPanelRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_dashboard_panel(data: DashboardPanelCreate, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return DashboardPanelRead(unit_nodes_for_panel=[], **grafana_service.create_dashboard_panel(data).dict())
+
+
+@router.post(
+    "/link_unit_node_to_panel",
+    response_model=UnitNodeForPanel,
+    status_code=status.HTTP_201_CREATED,
+)
+def link_unit_node_to_panel(data: LinkUnitNodeToPanel, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.link_unit_node_to_panel(data)
+
+
+@router.get("/get_dashboard/{uuid}", response_model=DashboardRead)
+def get_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.get_dashboard(uuid)
+
+
+@router.get("/get_dashboards", response_model=DashboardsResult)
+def get_dashboards(
+    filters: DashboardFilter = Depends(DashboardFilter), grafana_service: GrafanaService = Depends(get_grafana_service)
+):
+    count, dashboards = grafana_service.list_dashboards(filters)
+    return DashboardsResult(count=count, dashboards=[DashboardRead(**dashboard.dict()) for dashboard in dashboards])
+
+
+@router.get("/get_dashboard_panels/{uuid}", response_model=DashboardPanelsResult)
+def get_dashboard_panels(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.get_dashboard_panels(uuid)
+
+
+@router.post(
+    "/sync_dashboard",
+    response_model=DashboardRead,
+    status_code=status.HTTP_200_OK,
+)
+async def sync_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return DashboardRead(**(await grafana_service.sync_dashboard(uuid)).dict())
+
+
+@router.delete("/delete_dashboard/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.delete_dashboard(uuid)
+
+
+@router.delete("/delete_panel/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_panel(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+    return grafana_service.delete_panel(uuid)
+
+
+@router.delete("/delete_link/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_link(
+    unit_node_uuid: uuid_pkg.UUID,
+    dashboard_panel_uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
+):
+    return grafana_service.delete_link(unit_node_uuid, dashboard_panel_uuid)
 
 
 def create_org_if_not_exists(user: User):
@@ -95,79 +168,6 @@ def create_org_if_not_exists(user: User):
         resp.raise_for_status()
 
     return org_id
-
-
-@router.post(
-    "/create_dashboard",
-    response_model=DashboardRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_dashboard(data: DashboardCreate, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return grafana_service.create_dashboard(data)
-
-
-@router.post(
-    "/create_dashboard_panel",
-    response_model=DashboardPanelsRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_dashboard_panel(data: DashboardPanelCreate, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return DashboardPanelsRead(unit_nodes_for_panel=[], **grafana_service.create_dashboard_panel(data).dict())
-
-
-@router.post(
-    "/link_unit_node_to_panel",
-    response_model=UnitNodeForPanel,
-    status_code=status.HTTP_201_CREATED,
-)
-def link_unit_node_to_panel(data: LinkUnitNodeToPanel, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return grafana_service.link_unit_node_to_panel(data)
-
-
-@router.get("/get_dashboard/{uuid}", response_model=DashboardRead)
-def get_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return grafana_service.get_dashboard(uuid)
-
-
-@router.get("/get_dashboards", response_model=DashboardsResult)
-def get_dashboards(
-    filters: DashboardFilter = Depends(DashboardFilter), grafana_service: GrafanaService = Depends(get_grafana_service)
-):
-    count, dashboards = grafana_service.list_dashboards(filters)
-    return DashboardsResult(count=count, dashboards=[DashboardRead(**dashboard.dict()) for dashboard in dashboards])
-
-
-@router.get("/get_dashboard_panels/{uuid}", response_model=DashboardPanelsResult)
-def get_dashboard_panels(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return grafana_service.get_dashboard_panels(uuid)
-
-
-@router.post(
-    "/sync_dashboard",
-    response_model=DashboardRead,
-    status_code=status.HTTP_200_OK,
-)
-async def sync_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return DashboardRead(**(await grafana_service.sync_dashboard(uuid)).dict())
-
-
-@router.delete("/delete_dashboard/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return grafana_service.delete_dashboard(uuid)
-
-
-@router.delete("/delete_panel/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_panel(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return grafana_service.delete_panel(uuid)
-
-
-@router.delete("/delete_link/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_link(
-    unit_node_uuid: uuid_pkg.UUID,
-    dashboard_panel_uuid: uuid_pkg.UUID,
-    grafana_service: GrafanaService = Depends(get_grafana_service),
-):
-    return grafana_service.delete_link(unit_node_uuid, dashboard_panel_uuid)
 
 
 @router.get("/oidc/authorize")
