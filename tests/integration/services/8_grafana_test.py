@@ -9,16 +9,16 @@ import pytest
 from fastapi import UploadFile
 
 from app.configs.errors import GrafanaError
-from app.configs.rest import get_grafana_service, get_unit_node_service
-from app.dto.enum import DashboardPanelTypeEnum, ProcessingPolicyType, UnitNodeTypeEnum
+from app.configs.rest import get_grafana_service, get_unit_node_service, get_user_service
+from app.dto.enum import DashboardPanelTypeEnum, DashboardStatus, ProcessingPolicyType, UnitNodeTypeEnum
 from app.routers.v1.grafana import create_org_if_not_exists
-from app.schemas.pydantic.grafana import DashboardCreate, DashboardPanelCreate, LinkUnitNodeToPanel
+from app.schemas.pydantic.grafana import DashboardCreate, DashboardFilter, DashboardPanelCreate, LinkUnitNodeToPanel
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 
 @pytest.mark.run(order=0)
-def test_end(client_emulator):
+def test_emulator_stop(client_emulator):
     client_emulator.task_queue.put("STOP")
 
 
@@ -57,16 +57,18 @@ def test_create_dashboard_panel(database, cc) -> None:
     # check create
     new_dashboard_panels = []
     for target_type in [
-        DashboardPanelTypeEnum.TIME_SERIES,
         DashboardPanelTypeEnum.HOURLY_HEATMAP,
-        DashboardPanelTypeEnum.LOGS,
         DashboardPanelTypeEnum.TABLE,
+        DashboardPanelTypeEnum.TIME_SERIES,
+        DashboardPanelTypeEnum.LOGS,
     ]:
-        dashboard = grafana_service.create_dashboard_panel(
-            DashboardPanelCreate(dashboard_uuid=pytest.dashboards[0].uuid, title='BestChart', type=target_type)
+        panel = grafana_service.create_dashboard_panel(
+            DashboardPanelCreate(
+                dashboard_uuid=pytest.dashboards[0].uuid, title=str(target_type.value)[:15], type=target_type
+            )
         )
 
-        new_dashboard_panels.append(dashboard)
+        new_dashboard_panels.append(panel)
 
     pytest.panels = new_dashboard_panels
 
@@ -75,6 +77,15 @@ def test_create_dashboard_panel(database, cc) -> None:
         grafana_service.create_dashboard_panel(
             DashboardPanelCreate(dashboard_uuid=pytest.dashboards[0].uuid, title='x', type=DashboardPanelTypeEnum.TABLE)
         )
+
+    # creation for future deletion
+    panel = grafana_service.create_dashboard_panel(
+        DashboardPanelCreate(
+            dashboard_uuid=pytest.dashboards[1].uuid, title='BestChart', type=DashboardPanelTypeEnum.TIME_SERIES
+        )
+    )
+
+    pytest.delete_panel = [panel]
 
 
 @pytest.mark.run(order=3)
@@ -151,19 +162,19 @@ async def test_import_data_to_data_pipe(database, cc) -> None:
 
     # check create data all types
     for unit in pytest.units[1:5]:
-        count, output_unit_node = unit_node_service.list(
-            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        count, input_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.INPUT])
         )
 
         data_pipe_entity = is_valid_data_pipe_config(
-            json.loads(output_unit_node[0].data_pipe_yml), is_business_validator=True
+            json.loads(input_unit_node[0].data_pipe_yml), is_business_validator=True
         )
+        logging.info(data_pipe_entity.processing_policy.policy_type)
         if data_pipe_entity.processing_policy.policy_type != ProcessingPolicyType.LAST_VALUE:
             generation_csv_for_policy(data_pipe_entity.processing_policy.policy_type)
 
-            logging.info(data_pipe_entity.processing_policy.policy_type)
             await unit_node_service.set_data_pipe_data_csv(
-                uuid=output_unit_node[0].uuid,
+                uuid=input_unit_node[0].uuid,
                 data_csv=UploadFile(
                     filename='',
                     file=open(csv_save_paths[data_pipe_entity.processing_policy.policy_type], "rb"),
@@ -171,7 +182,7 @@ async def test_import_data_to_data_pipe(database, cc) -> None:
             )
         else:
             unit_node_service.set_state(
-                unit_node_uuid=output_unit_node[0].uuid,
+                unit_node_uuid=input_unit_node[0].uuid,
                 state=json.dumps({'one': 5, 'two': 10, 'three': 20}),
             )
 
@@ -180,8 +191,18 @@ async def test_import_data_to_data_pipe(database, cc) -> None:
 def test_sign_in_grafana(database, cc) -> None:
     current_user = pytest.users[0]
 
+    user_service = get_user_service(database, pytest.user_tokens_dict[pytest.users[0].uuid])
+
+    org_id = create_org_if_not_exists(current_user)
+
     # check correct creation grafana org and user
-    assert create_org_if_not_exists(current_user) > 0
+    assert org_id > 0
+
+    # save org id to user
+    current_user = user_service.get(user_service.access_service.current_agent.uuid)
+    if current_user.grafana_org_id is None:
+        current_user.grafana_org_id = str(org_id)
+        user_service.user_repository.update(current_user.uuid, current_user)
 
 
 @pytest.mark.run(order=5)
@@ -194,27 +215,33 @@ def test_create_link_unit_node_to_panel(database, cc) -> None:
     # check create link
     for target_type, unit, panel in zip(
         [
-            DashboardPanelTypeEnum.TIME_SERIES,
             DashboardPanelTypeEnum.HOURLY_HEATMAP,
-            DashboardPanelTypeEnum.LOGS,
             DashboardPanelTypeEnum.TABLE,
+            DashboardPanelTypeEnum.TIME_SERIES,
+            DashboardPanelTypeEnum.LOGS,
         ],
         pytest.units[1:5],
         pytest.panels,
     ):
-
-        count, output_unit_node = unit_node_service.list(
-            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        count, input_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.INPUT])
         )
 
-        logging.info(f'{target_type} {output_unit_node[0].uuid} {panel.uuid}')
+        data_pipe_entity = is_valid_data_pipe_config(
+            json.loads(input_unit_node[0].data_pipe_yml), is_business_validator=True
+        )
 
-        # todo проверить типы, чтобы zip корректно прошёл по ним
+        logging.info(
+            f'{target_type} {input_unit_node[0].uuid}-{data_pipe_entity.processing_policy.policy_type} {panel.uuid}-{panel.type}'
+        )
+
         grafana_service.link_unit_node_to_panel(
             LinkUnitNodeToPanel(
-                unit_node_uuid=output_unit_node[0].uuid,
+                unit_node_uuid=input_unit_node[0].uuid,
                 dashboard_panels_uuid=panel.uuid,
-                is_forced_to_json=True if target_type == DashboardPanelTypeEnum.TABLE else False,
+                is_forced_to_json=(
+                    True if target_type in [DashboardPanelTypeEnum.TABLE, DashboardPanelTypeEnum.LOGS] else False
+                ),
                 is_last_data=False,
             )
         )
@@ -223,9 +250,114 @@ def test_create_link_unit_node_to_panel(database, cc) -> None:
         with pytest.raises(GrafanaError):
             grafana_service.link_unit_node_to_panel(
                 LinkUnitNodeToPanel(
-                    unit_node_uuid=output_unit_node[0].uuid,
+                    unit_node_uuid=input_unit_node[0].uuid,
                     dashboard_panels_uuid=panel.uuid,
                     is_forced_to_json=True if target_type == DashboardPanelTypeEnum.TABLE else False,
                     is_last_data=False,
                 )
             )
+
+    count, input_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[1].uuid, type=[UnitNodeTypeEnum.INPUT])
+    )
+
+    # creation for future deletion
+    grafana_service.link_unit_node_to_panel(
+        LinkUnitNodeToPanel(
+            unit_node_uuid=input_unit_node[0].uuid,
+            dashboard_panels_uuid=pytest.delete_panel[0].uuid,
+            is_forced_to_json=False,
+            is_last_data=False,
+        )
+    )
+
+
+@pytest.mark.run(order=6)
+async def test_sync_dashboard(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check sync
+    dashboard = await grafana_service.sync_dashboard(pytest.dashboards[0].uuid)
+    assert dashboard.sync_status == DashboardStatus.SUCCESS
+
+
+@pytest.mark.run(order=7)
+def test_get_dashboard(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check get 0 dashboard
+    grafana_service.get_dashboard(pytest.dashboards[0].uuid)
+
+
+@pytest.mark.run(order=8)
+def test_list_dashboards(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check get all dashboards
+    count, dashboards = grafana_service.list_dashboards(DashboardFilter(search_string='test', offset=0, limit=10))
+
+    assert count >= 2
+
+
+@pytest.mark.run(order=9)
+def test_get_dashboard_panels(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check get data for 0 dashboard
+    panels = grafana_service.get_dashboard_panels(pytest.dashboards[0].uuid)
+
+    assert panels.count >= 4
+
+
+@pytest.mark.run(order=9)
+def test_get_dashboard_panels(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    # check get data for 0 dashboard
+    panels = grafana_service.get_dashboard_panels(pytest.dashboards[0].uuid)
+
+    assert panels.count >= 4
+
+
+@pytest.mark.run(order=10)
+def test_delete_link(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    count, input_unit_node = unit_node_service.list(
+        UnitNodeFilter(unit_uuid=pytest.units[1].uuid, type=[UnitNodeTypeEnum.INPUT])
+    )
+
+    grafana_service.delete_link(
+        unit_node_uuid=input_unit_node[0].uuid, dashboard_panel_uuid=pytest.delete_panel[0].uuid
+    )
+
+
+@pytest.mark.run(order=11)
+def test_delete_panel(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    grafana_service.delete_panel(uuid=pytest.delete_panel[0].uuid)
+
+
+@pytest.mark.run(order=12)
+def test_delete_panel(database, cc) -> None:
+
+    current_user = pytest.users[0]
+    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+
+    grafana_service.delete_dashboard(uuid=pytest.dashboards[1].uuid)

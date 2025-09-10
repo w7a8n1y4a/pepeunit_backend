@@ -134,7 +134,7 @@ class GrafanaService:
     def get_time_datasource_value(data: Union[NRecords, TimeWindow, Aggregation, LastValue]) -> int:
         value = None
         if isinstance(data, NRecords):
-            value = data.create_datetim
+            value = data.create_datetime
         if isinstance(data, TimeWindow):
             value = data.create_datetime
         if isinstance(data, Aggregation):

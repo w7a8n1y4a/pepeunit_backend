@@ -57,9 +57,20 @@ class DataPipeRepository:
             case ProcessingPolicyType.AGGREGATION:
                 return Aggregation
 
-    def list_postgres(self, filters: Union[DataPipeFilter]) -> tuple[int, list[Union[LastValue]]]:
+    def list_postgres(self, filters: Union[DataPipeFilter]) -> tuple[int, list[LastValue]]:
         unit_node = self.db.query(UnitNode).filter(UnitNode.uuid == filters.uuid).first()
-        return (0, []) if not unit_node else (1, LastValue(**unit_node.dict()))
+
+        if not unit_node:
+            return 0, []
+        else:
+            return 1, [
+                LastValue(
+                    uuid=unit_node.uuid,
+                    unit_node_uuid=unit_node.uuid,
+                    state=unit_node.state,
+                    last_update_datetime=unit_node.last_update_datetime,
+                )
+            ]
 
     def list(
         self, filters: Union[DataPipeFilter]

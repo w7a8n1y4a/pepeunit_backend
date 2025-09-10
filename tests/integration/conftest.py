@@ -35,6 +35,7 @@ def pytest_configure():
     pytest.permissions = []
     pytest.dashboards = []
     pytest.panels = []
+    pytest.delete_panel = []
 
 
 @pytest.fixture(scope="session")
