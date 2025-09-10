@@ -33,6 +33,8 @@ def pytest_configure():
     pytest.units = []
     pytest.edges = []
     pytest.permissions = []
+    pytest.dashboards = []
+    pytest.panels = []
 
 
 @pytest.fixture(scope="session")
@@ -218,6 +220,11 @@ def test_repos() -> list[dict]:
         }
         for inc, repo in enumerate(test_repos)
     ]
+
+
+@pytest.fixture()
+def test_dashboards() -> list[str]:
+    return [f'test_{inc}_{test_hash}' for inc in range(2)]
 
 
 class ClientEmulatorThread(threading.Thread):

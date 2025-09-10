@@ -8,7 +8,6 @@ from app.dto.mixin import ClickHouseBaseMixin
 
 
 class NRecords(BaseModel, ClickHouseBaseMixin):
-    id: int
     uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: str

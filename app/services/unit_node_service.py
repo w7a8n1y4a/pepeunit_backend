@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import time
 import uuid as uuid_pkg
 from typing import Union
 

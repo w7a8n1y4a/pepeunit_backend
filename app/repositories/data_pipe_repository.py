@@ -34,7 +34,7 @@ class DataPipeRepository:
         self.orm = ClickhouseOrm(client)
 
     def bulk_create(self, policy: ProcessingPolicyType, data: list[BaseModel]):
-        if policy.LAST_VALUE:
+        if policy == ProcessingPolicyType.LAST_VALUE:
             raise DataPipeError('Bulk create for LastValue not available')
 
         table_names = {

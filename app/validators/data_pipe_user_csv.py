@@ -1,7 +1,7 @@
 import csv
 import enum
 import uuid as uuid_pkg
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from typing import AsyncGenerator, Union
 
@@ -86,7 +86,6 @@ class StreamingCSVValidator:
                     self.check_n_last_entry()
 
                     yield NRecords(
-                        id=self.current_row,
                         uuid=uuid_pkg.uuid4(),
                         unit_node_uuid=unit_node_uuid,
                         state=str(state),
@@ -172,6 +171,8 @@ class StreamingCSVValidator:
                 )
 
     def check_active_period(self, create_datetime: datetime) -> None:
+
+        create_datetime = create_datetime.astimezone(timezone.utc)
 
         match self.config.active_period.type:
             case ActivePeriodType.PERMANENT:
