@@ -15,7 +15,7 @@ class UserType(TypeInputMixin):
     role: UserRole
     status: UserStatus
     login: str
-    grafana_org_name: Optional[uuid_pkg.UUID] = None
+    grafana_org_name: uuid_pkg.UUID
     grafana_org_id: Optional[str] = None
     create_datetime: datetime
 
