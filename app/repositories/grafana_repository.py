@@ -2,18 +2,35 @@ import base64
 import copy
 import json
 import string
+from typing import Union
 
 import httpx
+from fastapi import Depends
 
 from app import settings
+from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
+from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.dto.agent.abc import AgentGrafanaUnitNode
-from app.dto.enum import DatasourceFormat, ProcessingPolicyType
-from app.schemas.pydantic.grafana import DashboardPanelRead, UnitNodeForPanel
-from app.validators.data_pipe import is_valid_data_pipe_config
+from app.dto.clickhouse.aggregation import Aggregation
+from app.dto.clickhouse.last_value import LastValue
+from app.dto.clickhouse.n_records import NRecords
+from app.dto.clickhouse.time_window import TimeWindow
+from app.dto.enum import DatasourceFormat, ProcessingPolicyType, TypeInputValue
+from app.repositories.data_pipe_repository import DataPipeRepository
+from app.schemas.pydantic.grafana import DashboardPanelRead, DatasourceTimeSeriesData, UnitNodeForPanel
+from app.schemas.pydantic.unit_node import DataPipeFilter
+from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
 
 
 class GrafanaRepository:
+
+    def __init__(
+        self,
+        data_pipe_repository: DataPipeRepository = Depends(),
+    ) -> None:
+        self.data_pipe_repository = data_pipe_repository
+
     admin_token: str = base64.b64encode(
         f'{settings.gf_admin_user}:{settings.gf_admin_password}'.encode('utf-8')
     ).decode('utf-8')
@@ -48,11 +65,17 @@ class GrafanaRepository:
 
             targets_list = []
             for ref_id, unit_node in self.enumerate_refid(panel.unit_nodes_for_panel):
+                data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
+                data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
+
+                columns, root_selector = self.get_columns(unit_node, data_pipe_entity)
 
                 target_dict = {
                     "datasource": "InfinityAPI",
                     "refId": ref_id,
+                    "root_selector": root_selector,
                     "format": DatasourceFormat.TIME_SERIES,
+                    "parser": "backend",
                     "json": {"type": "json", "parser": "JSONata", "rootSelector": "$"},
                     "url": "",
                     "url_options": {
@@ -67,13 +90,11 @@ class GrafanaRepository:
                             }
                         ],
                         "params": [
-                            {"key": key, "value": value} for key, value in (await self.get_params(unit_node)).items()
+                            {"key": key, "value": value}
+                            for key, value in (await self.get_params(unit_node, data_pipe_entity)).items()
                         ],
                     },
-                    "columns": [
-                        {"selector": "time", "text": "", "type": "timestamp_epoch"},
-                        {"selector": "value", "text": "", "type": "number"},
-                    ],
+                    "columns": columns,
                 }
                 targets_list.append(target_dict)
 
@@ -105,7 +126,7 @@ class GrafanaRepository:
                 "schemaVersion": 30,
                 "refresh": "1m",
                 "panels": panels_list,
-                "time": {"from": "now-60d", "to": "now"},
+                "time": {"from": "now-30d", "to": "now"},
             },
             "overwrite": True,
         }
@@ -124,25 +145,110 @@ class GrafanaRepository:
 
         return response.json()
 
-    async def get_params(self, unit_node: UnitNodeForPanel) -> dict:
-        data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
-        data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
+    @staticmethod
+    async def get_params(unit_node: UnitNodeForPanel, data_pipe_entity: DataPipeConfig) -> dict:
 
         params = {
             "format": DatasourceFormat.TIME_SERIES,
             "order_by_create_date": "asc",
         }
 
+        # BUG: limit можно прописывать только руками. При генерации, он ломает и пишет ошибку Unknown Query Type у панелей
+
+        """
+        if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
+            params['limit'] = 1
+        
+        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.N_RECORDS:
+            params['limit'] = data_pipe_entity.processing_policy.n_records_count
+        """
+
         if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.TIME_WINDOW:
             params['relative_time'] = str(data_pipe_entity.processing_policy.time_window_size) + 's'
 
-        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.N_RECORDS:
-            params['limit'] = data_pipe_entity.processing_policy.n_records_count
-
         if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.AGGREGATION:
-            params['relative_time'] = '60d'
-
-        if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
-            params['limit'] = 1
+            params['relative_time'] = '30d'
 
         return params
+
+    def get_columns(
+        self, unit_node_panel: UnitNodeForPanel, data_pipe_entity: DataPipeConfig
+    ) -> tuple[list[dict], str]:
+
+        data = self.get_datasource_data(
+            DataPipeFilter(
+                uuid=unit_node_panel.unit_node.uuid,
+                type=data_pipe_entity.processing_policy.policy_type,
+                limit=1,
+            ),
+            data_pipe_entity,
+            unit_node_panel,
+        )
+
+        columns = [{"selector": "time", "text": "", "type": "timestamp_epoch"}]
+        root_selector = ''
+
+        if len(data) == 0:
+            return columns
+        else:
+            if isinstance(data[0].value, str):
+                columns.append({"selector": "value", "text": "", "type": "string"})
+            elif isinstance(data[0].value, (float, int)):
+                columns.append({"selector": "value", "text": "", "type": "number"})
+            elif isinstance(data[0].value, dict):
+                root_selector = 'value'
+                for key, value in data[0].value.items():
+                    if isinstance(value, (float, int)):
+                        columns.append({"selector": key, "text": '', "type": "number"})
+                    if isinstance(value, str):
+                        columns.append({"selector": key, "text": '', "type": "string"})
+
+        return columns, root_selector
+
+    def get_datasource_data(
+        self,
+        filters: DataPipeFilter,
+        data_pipe_entity: DataPipeConfig,
+        unit_node_panel: Union[PanelsUnitNodes, UnitNodeForPanel],
+    ) -> list[DatasourceTimeSeriesData]:
+        count, data = self.data_pipe_repository.list(filters=filters)
+
+        return [
+            DatasourceTimeSeriesData(
+                time=self.get_time_datasource_value(item),
+                value=self.get_typed_datasource_value(item.state, data_pipe_entity, unit_node_panel),
+            )
+            for item in data
+        ]
+
+    @staticmethod
+    def get_typed_datasource_value(
+        value: str,
+        data_pipe_entity: DataPipeConfig,
+        unit_node_panel: PanelsUnitNodes,
+    ) -> str | float | dict:
+        if unit_node_panel.is_forced_to_json:
+            return json.loads(value)
+        elif data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER:
+            return float(value)
+        elif data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
+            return value
+        else:
+            raise GrafanaError('Processing this value not supported')
+
+    @staticmethod
+    def get_time_datasource_value(data: Union[NRecords, TimeWindow, Aggregation, LastValue]) -> int:
+        value = None
+        if isinstance(data, NRecords):
+            value = data.create_datetime
+        if isinstance(data, TimeWindow):
+            value = data.create_datetime
+        if isinstance(data, Aggregation):
+            value = data.end_window_datetime
+        if isinstance(data, LastValue):
+            value = data.last_update_datetime
+
+        if value:
+            return int(value.timestamp() * 1000)
+        else:
+            raise GrafanaError('Data type not supported')

@@ -58,7 +58,7 @@ def test_create_dashboard_panel(database, cc) -> None:
     new_dashboard_panels = []
     for target_type in [
         DashboardPanelTypeEnum.HOURLY_HEATMAP,
-        DashboardPanelTypeEnum.TABLE,
+        DashboardPanelTypeEnum.PIE_CHART,
         DashboardPanelTypeEnum.TIME_SERIES,
         DashboardPanelTypeEnum.LOGS,
     ]:
@@ -75,7 +75,9 @@ def test_create_dashboard_panel(database, cc) -> None:
     # check create with bad name
     with pytest.raises(GrafanaError):
         grafana_service.create_dashboard_panel(
-            DashboardPanelCreate(dashboard_uuid=pytest.dashboards[0].uuid, title='x', type=DashboardPanelTypeEnum.TABLE)
+            DashboardPanelCreate(
+                dashboard_uuid=pytest.dashboards[0].uuid, title='x', type=DashboardPanelTypeEnum.PIE_CHART
+            )
         )
 
     # creation for future deletion
@@ -216,7 +218,7 @@ def test_create_link_unit_node_to_panel(database, cc) -> None:
     for target_type, unit, panel in zip(
         [
             DashboardPanelTypeEnum.HOURLY_HEATMAP,
-            DashboardPanelTypeEnum.TABLE,
+            DashboardPanelTypeEnum.PIE_CHART,
             DashboardPanelTypeEnum.TIME_SERIES,
             DashboardPanelTypeEnum.LOGS,
         ],
@@ -240,7 +242,7 @@ def test_create_link_unit_node_to_panel(database, cc) -> None:
                 unit_node_uuid=input_unit_node[0].uuid,
                 dashboard_panels_uuid=panel.uuid,
                 is_forced_to_json=(
-                    True if target_type in [DashboardPanelTypeEnum.TABLE, DashboardPanelTypeEnum.LOGS] else False
+                    True if target_type in [DashboardPanelTypeEnum.PIE_CHART, DashboardPanelTypeEnum.LOGS] else False
                 ),
                 is_last_data=False,
             )
@@ -252,7 +254,7 @@ def test_create_link_unit_node_to_panel(database, cc) -> None:
                 LinkUnitNodeToPanel(
                     unit_node_uuid=input_unit_node[0].uuid,
                     dashboard_panels_uuid=panel.uuid,
-                    is_forced_to_json=True if target_type == DashboardPanelTypeEnum.TABLE else False,
+                    is_forced_to_json=True if target_type == DashboardPanelTypeEnum.PIE_CHART else False,
                     is_last_data=False,
                 )
             )

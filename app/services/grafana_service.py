@@ -73,10 +73,10 @@ class GrafanaService:
         self.dashboard_repository = dashboard_repository
         self.dashboard_panel_repository = dashboard_panel_repository
         self.panels_unit_nodes_repository = panels_unit_nodes_repository
-        self.grafana_repository = GrafanaRepository()
         self.unit_repository = unit_repository
         self.unit_node_repository = unit_node_repository
         self.data_pipe_repository = data_pipe_repository
+        self.grafana_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
         self.unit_node_service = unit_node_service
 
@@ -94,7 +94,7 @@ class GrafanaService:
         self.unit_node_service.is_valid_active_data_pipe(unit_node)
         data_pipe_entity = is_valid_data_pipe_config(json.loads(unit_node.data_pipe_yml), is_business_validator=True)
 
-        count, data = self.data_pipe_repository.list(
+        return self.grafana_repository.get_datasource_data(
             DataPipeFilter(
                 uuid=self.access_service.current_agent.uuid,
                 type=data_pipe_entity.processing_policy.policy_type,
@@ -104,48 +104,10 @@ class GrafanaService:
                 order_by_create_date=filters.order_by_create_date,
                 offset=filters.offset,
                 limit=filters.limit,
-            )
+            ),
+            data_pipe_entity,
+            unit_node_panel,
         )
-
-        return [
-            DatasourceTimeSeriesData(
-                time=self.get_time_datasource_value(item),
-                value=self.get_typed_datasource_value(item.state, data_pipe_entity, unit_node_panel),
-            )
-            for item in data
-        ]
-
-    @staticmethod
-    def get_typed_datasource_value(
-        value: str,
-        data_pipe_entity: DataPipeConfig,
-        unit_node_panel: PanelsUnitNodes,
-    ) -> str | float | dict:
-        if unit_node_panel.is_forced_to_json:
-            return json.loads(value)
-        elif data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER:
-            return float(value)
-        elif data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
-            return value
-        else:
-            raise GrafanaError('Processing this value not supported')
-
-    @staticmethod
-    def get_time_datasource_value(data: Union[NRecords, TimeWindow, Aggregation, LastValue]) -> int:
-        value = None
-        if isinstance(data, NRecords):
-            value = data.create_datetime
-        if isinstance(data, TimeWindow):
-            value = data.create_datetime
-        if isinstance(data, Aggregation):
-            value = data.end_window_datetime
-        if isinstance(data, LastValue):
-            value = data.last_update_datetime
-
-        if value:
-            return int(value.timestamp() * 1000)
-        else:
-            raise GrafanaError('Data type not supported')
 
     def create_dashboard(self, data: Union[DashboardCreate, DashboardCreateInput]) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
