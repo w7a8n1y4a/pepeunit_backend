@@ -64,6 +64,16 @@ async def test_update_unit_node(database, cc) -> None:
         )
         assert update_unit_node.is_data_pipe_active == True
 
+        # create only for grafana tests
+        count, input_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+        )
+
+        update_unit_node = await unit_node_service.update(
+            input_unit_node[0].uuid, UnitNodeUpdate(is_data_pipe_active=True)
+        )
+        assert update_unit_node.is_data_pipe_active == True
+
 
 @pytest.mark.run(order=1)
 async def test_set_data_pipe(database, cc) -> None:
@@ -86,6 +96,15 @@ async def test_set_data_pipe(database, cc) -> None:
 
         await unit_node_service.set_data_pipe_config(
             output_unit_node[0].uuid, (await create_upload_file_from_path(yml_file))
+        )
+
+        # create only for grafana tests
+        count, input_unit_node = unit_node_service.list(
+            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+        )
+
+        await unit_node_service.set_data_pipe_config(
+            input_unit_node[0].uuid, (await create_upload_file_from_path(yml_file))
         )
 
     # check bad yaml
