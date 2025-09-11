@@ -24,7 +24,6 @@ class DataPipeValidationErrorType(TypeInputMixin):
 
 @strawberry.type()
 class NRecordsType(TypeInputMixin):
-    id: int
     uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: str
