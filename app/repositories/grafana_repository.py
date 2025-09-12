@@ -189,7 +189,7 @@ class GrafanaRepository:
         root_selector = ''
 
         if len(data) == 0:
-            return columns
+            return columns, ''
         else:
             if isinstance(data[0].value, str):
                 columns.append({"selector": "value", "text": "", "type": "string"})
