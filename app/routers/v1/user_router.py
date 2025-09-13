@@ -29,11 +29,6 @@ def get_token(data: UserAuth, user_service: UserService = Depends(get_user_servi
     return AccessToken(token=user_service.get_token(data))
 
 
-@router.get("/get_grafana_token/", response_model=AccessToken)
-def get_grafana_token(user_service: UserService = Depends(get_user_service)):
-    return AccessToken(token=user_service.get_grafana_token())
-
-
 @router.patch("/{uuid}", response_model=UserRead)
 def update(data: UserUpdate, user_service: UserService = Depends(get_user_service)):
     return UserRead(**user_service.update(data).dict())
