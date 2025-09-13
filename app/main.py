@@ -35,6 +35,7 @@ from app.configs.utils import (
 from app.dto.agent.abc import AgentBackend
 from app.dto.enum import GlobalPrefixTopic
 from app.routers.v1.endpoints import api_router
+from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
 from app.schemas.bot.repo_bot_router import RepoBotRouter
@@ -290,6 +291,7 @@ dp.include_router(RepoBotRouter().router)
 dp.include_router(UnitBotRouter().router)
 dp.include_router(UnitNodeBotRouter().router)
 dp.include_router(UnitLogBotRouter().router)
+dp.include_router(DashboardBotRouter().router)
 dp.include_router(error_router)
 
 

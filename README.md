@@ -9,6 +9,16 @@
 3. Развёрнутый `EMQX MQTT Broker`
 4. `Redis`
 
+## Набор команд для установки в BotFather
+```text
+registry - Repo Registry
+repo - Repo Actions
+unit - Unit Actions
+dashboard - Dashboard List url
+info - Instance Metrics
+help - About Instance
+```
+
 ## Основные этапы развёртывания
 0. Установите пакеты при помощи команды:
    ```bash

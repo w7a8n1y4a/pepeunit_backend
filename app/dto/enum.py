@@ -221,6 +221,7 @@ class CommandNames(str, enum.Enum):
     UNIT = 'unit'
     INFO = 'info'
     VERIFICATION = 'verification'
+    DASHBOARD = 'dashboard'
 
 
 @strawberry.enum
@@ -234,6 +235,7 @@ class EntityNames(str, enum.Enum):
     UNIT = 'Unit'
     UNIT_NODE = 'UnitNode'
     UNIT_LOG = 'UnitLog'
+    DASHBOARD = 'Dashboard'
 
 
 @strawberry.enum

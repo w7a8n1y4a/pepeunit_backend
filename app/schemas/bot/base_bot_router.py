@@ -13,6 +13,10 @@ from app import settings
 from app.dto.enum import EntityNames, LogLevel, RepositoryRegistryType, UnitNodeTypeEnum, VisibilityLevel
 
 
+class DashboardStates(StatesGroup):
+    waiting_for_search = State()
+
+
 class RepositoryRegistryStates(StatesGroup):
     waiting_for_search = State()
 
@@ -102,7 +106,7 @@ class BaseBotRouter(ABC):
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(self.toggle_filter)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(self.handle_entity_click)
         self.router.callback_query(F.data.startswith(f"{self.entity_name}_decres_"))(self.handle_entity_decrees)
-        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates):
+        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates, DashboardStates):
             self.router.message(self.states_group.waiting_for_search)(self.process_search)
 
     @staticmethod
@@ -126,7 +130,7 @@ class BaseBotRouter(ABC):
 
     async def handle_search(self, callback: types.CallbackQuery, state: FSMContext):
 
-        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates):
+        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates, DashboardStates):
             await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
             await state.set_state(self.states_group.waiting_for_search)
         else:
