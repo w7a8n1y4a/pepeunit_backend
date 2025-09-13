@@ -91,7 +91,8 @@ async def _lifespan(_app: FastAPI):
         control_emqx.set_http_auth_hook()
         control_emqx.set_redis_auth_hook()
         control_emqx.set_auth_cache_ttl()
-        control_emqx.disable_default_listeners()
+        # BUG: emqx не умеет посылать метрики в prometheus, пока выключены listeners
+        # control_emqx.disable_default_listeners()
         control_emqx.set_tcp_listener_settings()
         control_emqx.set_global_mqtt_settings()
 
