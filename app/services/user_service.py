@@ -47,7 +47,10 @@ class UserService:
 
         user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
 
-        return self.user_repository.create(user)
+        user = self.user_repository.create(user)
+        self.create_org_if_not_exists(user.uuid)
+
+        return self.user_repository.get(user)
 
     def get(self, uuid: uuid_pkg.UUID) -> User:
         self.access_service.authorization.check_access([AgentType.USER, AgentType.GRAFANA])
@@ -61,9 +64,6 @@ class UserService:
         user = self.user_repository.get_user_by_credentials(data.credentials)
         is_valid_object(user)
         is_valid_password(data.password, user)
-
-        # Запускаем в фоне
-        threading.Thread(target=self.create_org_if_not_exists, args=(user.uuid,), daemon=True).start()
 
         return AgentUser(**user.dict()).generate_agent_token()
 
