@@ -11,15 +11,17 @@ from app import settings
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
+from app.domain.user_model import User
 from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.time_window import TimeWindow
-from app.dto.enum import DatasourceFormat, ProcessingPolicyType, TypeInputValue
+from app.dto.enum import DatasourceFormat, GrafanaUserRole, ProcessingPolicyType, TypeInputValue
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.schemas.pydantic.grafana import DashboardPanelRead, DatasourceTimeSeriesData, UnitNodeForPanel
 from app.schemas.pydantic.unit_node import DataPipeFilter
+from app.utils.utils import generate_random_string
 from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
 
 
@@ -59,6 +61,9 @@ class GrafanaRepository:
             yield next(gen), item
 
     async def generate_dashboard(self, dashboard: Dashboard, panels: list[DashboardPanelRead]) -> dict:
+
+        if len(panels) == 0:
+            raise GrafanaError('Dashboard does not have Panels')
 
         panels_list = []
         for panel in panels:
@@ -259,3 +264,65 @@ class GrafanaRepository:
             return int(value.timestamp() * 1000)
         else:
             raise GrafanaError('Data type not supported')
+
+    def create_org_if_not_exists(self, user: User):
+
+        resp = httpx.get(f"{settings.backend_link}/grafana/api/orgs", headers=self.headers)
+        resp.raise_for_status()
+        orgs = resp.json()
+
+        existing = next((o for o in orgs if o["name"] == str(user.grafana_org_name)), None)
+        if not existing:
+            resp = httpx.post(
+                f"{settings.backend_link}/grafana/api/orgs",
+                headers=self.headers,
+                json={"name": str(user.grafana_org_name)},
+            )
+            resp.raise_for_status()
+            org_id = resp.json().get("orgId")
+        else:
+            org_id = existing["id"]
+
+        resp = httpx.post(
+            f"{settings.backend_link}/grafana/api/admin/users",
+            headers=self.headers,
+            json={"name": user.login, "email": user.login, "login": user.login, "password": generate_random_string(16)},
+        )
+
+        if resp.status_code not in (200, 412):
+            resp.raise_for_status()
+
+        resp = httpx.post(
+            f"{settings.backend_link}/grafana/api/orgs/{org_id}/users",
+            headers=self.headers,
+            json={"loginOrEmail": user.login, "role": GrafanaUserRole.EDITOR.value},
+        )
+
+        if resp.status_code not in (200, 409):
+            resp.raise_for_status()
+
+        datasource_payload = {
+            "name": "InfinityAPI",
+            "type": "yesoreyeram-infinity-datasource",
+            "access": "proxy",
+            "url": f"{settings.backend_link_prefix_and_v1}/grafana/datasource/",
+            "jsonData": {
+                "auth_method": None,
+                "customHealthCheckEnabled": True,
+                "customHealthCheckUrl": settings.backend_link_prefix,
+            },
+        }
+
+        headers_deepcopy = copy.deepcopy(self.headers)
+        headers_deepcopy['X-Grafana-Org-Id'] = str(org_id)
+
+        resp = httpx.post(
+            f"{settings.backend_link}/grafana/api/datasources",
+            headers=headers_deepcopy,
+            json=datasource_payload,
+        )
+
+        if resp.status_code not in (200, 409):
+            resp.raise_for_status()
+
+        return org_id

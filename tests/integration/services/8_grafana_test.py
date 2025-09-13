@@ -9,9 +9,8 @@ import pytest
 from fastapi import UploadFile
 
 from app.configs.errors import GrafanaError
-from app.configs.rest import get_grafana_service, get_unit_node_service, get_user_service
+from app.configs.rest import get_grafana_service, get_unit_node_service
 from app.dto.enum import DashboardPanelTypeEnum, DashboardStatus, ProcessingPolicyType, UnitNodeTypeEnum
-from app.routers.v1.grafana import create_org_if_not_exists
 from app.schemas.pydantic.grafana import DashboardCreate, DashboardFilter, DashboardPanelCreate, LinkUnitNodeToPanel
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
@@ -190,24 +189,6 @@ async def test_import_data_to_data_pipe(database, cc) -> None:
 
 
 @pytest.mark.run(order=4)
-def test_sign_in_grafana(database, cc) -> None:
-    current_user = pytest.users[0]
-
-    user_service = get_user_service(database, pytest.user_tokens_dict[pytest.users[0].uuid])
-
-    org_id = create_org_if_not_exists(current_user)
-
-    # check correct creation grafana org and user
-    assert org_id > 0
-
-    # save org id to user
-    current_user = user_service.get(user_service.access_service.current_agent.uuid)
-    if current_user.grafana_org_id is None:
-        current_user.grafana_org_id = str(org_id)
-        user_service.user_repository.update(current_user.uuid, current_user)
-
-
-@pytest.mark.run(order=5)
 def test_create_link_unit_node_to_panel(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -274,7 +255,7 @@ def test_create_link_unit_node_to_panel(database, cc) -> None:
     )
 
 
-@pytest.mark.run(order=6)
+@pytest.mark.run(order=5)
 async def test_sync_dashboard(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -285,7 +266,7 @@ async def test_sync_dashboard(database, cc) -> None:
     assert dashboard.sync_status == DashboardStatus.SUCCESS
 
 
-@pytest.mark.run(order=7)
+@pytest.mark.run(order=6)
 def test_get_dashboard(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -295,7 +276,7 @@ def test_get_dashboard(database, cc) -> None:
     grafana_service.get_dashboard(pytest.dashboards[0].uuid)
 
 
-@pytest.mark.run(order=8)
+@pytest.mark.run(order=7)
 def test_list_dashboards(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -307,7 +288,7 @@ def test_list_dashboards(database, cc) -> None:
     assert count >= 2
 
 
-@pytest.mark.run(order=9)
+@pytest.mark.run(order=8)
 def test_get_dashboard_panels(database, cc) -> None:
 
     current_user = pytest.users[0]

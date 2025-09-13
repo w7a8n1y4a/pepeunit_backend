@@ -12,15 +12,10 @@ from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.dto.clickhouse.aggregation import Aggregation
-from app.dto.clickhouse.last_value import LastValue
-from app.dto.clickhouse.n_records import NRecords
-from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import (
     AgentType,
     DashboardStatus,
     OwnershipType,
-    TypeInputValue,
 )
 from app.repositories.dashboard_panel_repository import DashboardPanelRepository
 from app.repositories.dashboard_repository import DashboardRepository
@@ -54,8 +49,9 @@ from app.schemas.pydantic.unit_node import (
 )
 from app.services.access_service import AccessService
 from app.services.unit_node_service import UnitNodeService
+from app.services.user_service import UserService
 from app.services.validators import is_valid_object, is_valid_string_with_rules
-from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
+from app.validators.data_pipe import is_valid_data_pipe_config
 
 
 class GrafanaService:
@@ -68,6 +64,7 @@ class GrafanaService:
         unit_node_repository: UnitNodeRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
         access_service: AccessService = Depends(),
+        user_service: UserService = Depends(),
         unit_node_service: UnitNodeService = Depends(),
     ) -> None:
         self.dashboard_repository = dashboard_repository
@@ -78,6 +75,7 @@ class GrafanaService:
         self.data_pipe_repository = data_pipe_repository
         self.grafana_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
+        self.user_service = user_service
         self.unit_node_service = unit_node_service
 
     def get_datasource_data(self, filters: DatasourceFilter) -> list[DatasourceTimeSeriesData]:
@@ -219,6 +217,8 @@ class GrafanaService:
         dashboard.sync_status = DashboardStatus.PROCESSING
         dashboard.sync_error = None
         dashboard.sync_last_datetime = datetime.datetime.utcnow()
+
+        self.user_service.create_org_if_not_exists(self.access_service.current_agent.uuid)
 
         try:
             sync_result = self.grafana_repository.sync_dashboard(

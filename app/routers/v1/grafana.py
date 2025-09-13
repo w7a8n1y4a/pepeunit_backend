@@ -1,20 +1,17 @@
-import base64
 import json
 import time
 import uuid as uuid_pkg
 from typing import Optional
 
-import httpx
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse
 from starlette.responses import JSONResponse
 
-from app import settings
+from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.redis import get_redis_session
-from app.configs.rest import get_grafana_service, get_unit_node_service, get_user_service
-from app.domain.user_model import User
-from app.dto.enum import CookieName, DatasourceFormat, GrafanaUserRole
+from app.configs.rest import get_grafana_service, get_user_service
+from app.dto.enum import CookieName, GrafanaUserRole
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
@@ -107,83 +104,19 @@ def delete_link(
     return grafana_service.delete_link(unit_node_uuid, dashboard_panel_uuid)
 
 
-def create_org_if_not_exists(user: User):
-    admin_token = base64.b64encode(f'{settings.gf_admin_user}:{settings.gf_admin_password}'.encode('utf-8')).decode(
-        'utf-8'
-    )
-    headers = {"Authorization": 'Basic ' + admin_token, "Content-Type": "application/json"}
-
-    resp = httpx.get(f"{settings.backend_link}/grafana/api/orgs", headers=headers)
-    resp.raise_for_status()
-    orgs = resp.json()
-
-    existing = next((o for o in orgs if o["name"] == str(user.grafana_org_name)), None)
-    if not existing:
-        resp = httpx.post(
-            f"{settings.backend_link}/grafana/api/orgs", headers=headers, json={"name": str(user.grafana_org_name)}
-        )
-        resp.raise_for_status()
-        org_id = resp.json().get("orgId")
-    else:
-        org_id = existing["id"]
-
-    resp = httpx.post(
-        f"{settings.backend_link}/grafana/api/admin/users",
-        headers=headers,
-        json={"name": user.login, "email": user.login, "login": user.login, "password": generate_random_string(16)},
-    )
-
-    if resp.status_code not in (200, 412):
-        resp.raise_for_status()
-
-    resp = httpx.post(
-        f"{settings.backend_link}/grafana/api/orgs/{org_id}/users",
-        headers=headers,
-        json={"loginOrEmail": user.login, "role": GrafanaUserRole.EDITOR.value},
-    )
-
-    if resp.status_code not in (200, 409):
-        resp.raise_for_status()
-
-    datasource_payload = {
-        "name": "InfinityAPI",
-        "type": "yesoreyeram-infinity-datasource",
-        "access": "proxy",
-        "url": f"{settings.backend_link_prefix_and_v1}/grafana/datasource/",
-        "jsonData": {
-            "auth_method": None,
-            "customHealthCheckEnabled": True,
-            "customHealthCheckUrl": settings.backend_link_prefix,
-        },
-    }
-
-    headers['X-Grafana-Org-Id'] = str(org_id)
-    resp = httpx.post(
-        f"{settings.backend_link}/grafana/api/datasources",
-        headers=headers,
-        json=datasource_payload,
-    )
-
-    if resp.status_code not in (200, 409):
-        resp.raise_for_status()
-
-    return org_id
-
-
 @router.get("/oidc/authorize")
 async def authorize(
     request: Request, client_id: str, redirect_uri: str, scope: str, state: str, nonce: Optional[str] = None
 ):
     session_cookie = request.cookies
     with get_hand_session() as db:
-        user_service = get_user_service(db=db, jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value, None))
+        with get_hand_clickhouse_client() as cc:
+            user_service = get_user_service(
+                db=db, client=cc, jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value, None)
+            )
 
-        current_user = user_service.get(user_service.access_service.current_agent.uuid)
-        org_id = create_org_if_not_exists(current_user)
-
-        if current_user.grafana_org_id is None:
-            current_user.grafana_org_id = str(org_id)
-            user_service.user_repository.update(current_user.uuid, current_user)
+            user_service.create_org_if_not_exists(user_service.access_service.current_agent.uuid)
+            current_user = user_service.get(user_service.access_service.current_agent.uuid)
 
     redis = await anext(get_redis_session())
 

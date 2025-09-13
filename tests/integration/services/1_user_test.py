@@ -13,9 +13,9 @@ from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpda
 
 
 @pytest.mark.run(order=0)
-def test_create_user(test_users, database, clear_database) -> None:
+def test_create_user(test_users, cc, database, clear_database) -> None:
 
-    user_service = get_user_service(database, None)
+    user_service = get_user_service(database, cc, None)
 
     # create test users
     new_users = []
@@ -39,8 +39,8 @@ def test_create_user(test_users, database, clear_database) -> None:
 
 
 @pytest.mark.run(order=1)
-def test_get_auth_token_user(test_users, database) -> None:
-    user_service = get_user_service(database, None)
+def test_get_auth_token_user(test_users, cc, database) -> None:
+    user_service = get_user_service(database, cc, None)
 
     # get token for all test users
     for inc, user in enumerate(pytest.users):
@@ -62,11 +62,11 @@ def test_get_auth_token_user(test_users, database) -> None:
 
 
 @pytest.mark.run(order=2)
-async def test_verification_user(database) -> None:
+async def test_verification_user(database, cc) -> None:
 
     # check invalid code
     with pytest.raises(ValidationError):
-        user_service = get_user_service(database, pytest.user_tokens_dict[pytest.users[0].uuid])
+        user_service = get_user_service(database, cc, pytest.user_tokens_dict[pytest.users[0].uuid])
 
         link = await user_service.generate_verification_link()
         code = link.replace(f'{settings.telegram_bot_link}?start=', '')
@@ -76,7 +76,7 @@ async def test_verification_user(database) -> None:
     # set verified status all test users
     codes_list = []
     for inc, user in enumerate(pytest.users, start=1):
-        user_service = get_user_service(database, pytest.user_tokens_dict[user.uuid])
+        user_service = get_user_service(database, cc, pytest.user_tokens_dict[user.uuid])
 
         logging.info(user.uuid)
 
@@ -98,8 +98,8 @@ async def test_verification_user(database) -> None:
 
 
 @pytest.mark.run(order=3)
-def test_block_unblock_user(database) -> None:
-    user_service = get_user_service(database, pytest.user_tokens_dict[pytest.users[-1].uuid])
+def test_block_unblock_user(database, cc) -> None:
+    user_service = get_user_service(database, cc, pytest.user_tokens_dict[pytest.users[-1].uuid])
 
     # block unblock users
     for user in pytest.users:
@@ -112,7 +112,7 @@ def test_block_unblock_user(database) -> None:
 
     # block without admin role
     with pytest.raises(NoAccessError):
-        user_service = get_user_service(database, pytest.user_tokens_dict[pytest.users[0].uuid])
+        user_service = get_user_service(database, cc, pytest.user_tokens_dict[pytest.users[0].uuid])
         user = pytest.users[0]
 
         user_service.block(user.uuid)
@@ -120,7 +120,7 @@ def test_block_unblock_user(database) -> None:
 
     # unblock without admin role
     with pytest.raises(NoAccessError):
-        user_service = get_user_service(database, pytest.user_tokens_dict[pytest.users[0].uuid])
+        user_service = get_user_service(database, cc, pytest.user_tokens_dict[pytest.users[0].uuid])
         user = pytest.users[0]
 
         user_service.unblock(user.uuid)
@@ -128,11 +128,11 @@ def test_block_unblock_user(database) -> None:
 
 
 @pytest.mark.run(order=4)
-def test_update_user(database) -> None:
+def test_update_user(database, cc) -> None:
 
     # check change login on new
     current_user = pytest.users[-1]
-    user_service = get_user_service(database, pytest.user_tokens_dict[current_user.uuid])
+    user_service = get_user_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     logging.info(current_user.login)
     new_login = current_user.login + 'test'
@@ -143,22 +143,22 @@ def test_update_user(database) -> None:
     # check change login on exist
     with pytest.raises(UserError):
         current_user = pytest.users[-1]
-        user_service = get_user_service(database, pytest.user_tokens_dict[current_user.uuid])
+        user_service = get_user_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
         other_user = pytest.users[0]
         user_service.update(UserUpdate(login=other_user.login))
 
     # check change password
     current_user = pytest.users[0]
-    user_service = get_user_service(database, pytest.user_tokens_dict[current_user.uuid])
+    user_service = get_user_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     user_service.update(UserUpdate(password='password'))
 
 
 @pytest.mark.run(order=5)
-def test_get_many_user(database) -> None:
+def test_get_many_user(database, cc) -> None:
     current_user = pytest.users[-1]
-    user_service = get_user_service(database, pytest.user_tokens_dict[current_user.uuid])
+    user_service = get_user_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
 
     # check many get with all filters
     count, users = user_service.list(

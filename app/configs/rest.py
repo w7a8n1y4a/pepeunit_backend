@@ -71,6 +71,7 @@ class ServiceFactory:
         return UserService(
             user_repository=self.user_repository,
             access_service=self.access_service,
+            data_pipe_repository=self.data_pipe_repository,
         )
 
     def get_repository_registry_service(self) -> RepositoryRegistryService:
@@ -133,6 +134,7 @@ class ServiceFactory:
             unit_node_repository=self.unit_node_repository,
             data_pipe_repository=self.data_pipe_repository,
             access_service=self.access_service,
+            user_service=self.get_user_service(),
             unit_node_service=self.get_unit_node_service(),
         )
 
@@ -161,9 +163,12 @@ def create_service_factory(
 
 
 def get_user_service(
-    db: Session = Depends(get_session), jwt_token: Optional[str] = Depends(token_depends), is_bot_auth: bool = False
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+    is_bot_auth: bool = False,
 ) -> UserService:
-    return create_service_factory(db, None, jwt_token, is_bot_auth).get_user_service()
+    return create_service_factory(db, client, jwt_token, is_bot_auth).get_user_service()
 
 
 def get_repository_registry_service(

@@ -1,21 +1,21 @@
 import datetime
+import threading
 import uuid as uuid_pkg
-from typing import Optional, Union
+from typing import Union
 
 from fastapi import Depends
-from sqlmodel import Session
 
 from app import settings
-from app.configs.db import get_session
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentGrafana, AgentUser
 from app.dto.enum import AgentType, UserRole, UserStatus
+from app.repositories.data_pipe_repository import DataPipeRepository
+from app.repositories.grafana_repository import GrafanaRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import UserAuthInput, UserCreateInput, UserFilterInput, UserUpdateInput
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
 from app.services.access_service import AccessService
-from app.services.utils import token_depends
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import generate_random_string, password_to_hash
 
@@ -24,13 +24,11 @@ class UserService:
     def __init__(
         self,
         user_repository: UserRepository = Depends(),
+        data_pipe_repository: DataPipeRepository = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.user_repository = user_repository
-        self.access_service = access_service
-
-    def __init__(self, user_repository: UserRepository = Depends(), access_service: AccessService = Depends()) -> None:
-        self.user_repository = user_repository
+        self.grafana_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
 
     def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
@@ -63,6 +61,9 @@ class UserService:
         user = self.user_repository.get_user_by_credentials(data.credentials)
         is_valid_object(user)
         is_valid_password(data.password, user)
+
+        # Запускаем в фоне
+        threading.Thread(target=self.create_org_if_not_exists, args=(user.uuid,), daemon=True).start()
 
         return AgentUser(**user.dict()).generate_agent_token()
 
@@ -128,3 +129,13 @@ class UserService:
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> tuple[int, list[User]]:
         self.access_service.authorization.check_access([AgentType.USER])
         return self.user_repository.list(filters)
+
+    def create_org_if_not_exists(self, uuid: uuid_pkg.UUID) -> None:
+
+        user = self.user_repository.get(User(uuid=uuid))
+        is_valid_object(user)
+
+        if not user.grafana_org_id:
+            org_id = self.grafana_repository.create_org_if_not_exists(user)
+            user.grafana_org_id = str(org_id)
+            self.user_repository.update(user.uuid, user)

@@ -35,8 +35,9 @@ async def get_graphql_context(
 
 def get_user_service_gql(info: Info) -> UserService:
     db = info.context.get('db')
+    clickhouse_client = info.context.get('clickhouse_client')
     jwt_token = info.context['jwt_token']
-    return get_user_service(db, jwt_token)
+    return get_user_service(db, clickhouse_client, jwt_token)
 
 
 def get_repository_registry_service_gql(info: Info) -> RepositoryRegistryService:

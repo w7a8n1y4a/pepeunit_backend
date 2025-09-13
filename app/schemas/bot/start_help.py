@@ -5,6 +5,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from fastapi import HTTPException
 
 from app import settings
+from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_user_service
 from app.dto.enum import CommandNames
@@ -22,23 +23,25 @@ async def start_help_resolver(message: types.Message):
 
     if code:
         with get_hand_session() as db:
-            user_repository = UserRepository(db)
-            user = user_repository.get_user_by_telegram_id(str(message.chat.id))
+            with get_hand_clickhouse_client() as cc:
 
-            if user:
-                text = f'Your account is already linked to an account on instance {settings.backend_domain}'
-            else:
-                user_service = get_user_service(db, None, True)
-                try:
-                    await user_service.verification(str(message.chat.id), code)
-                    db.close()
+                user_repository = UserRepository(db)
+                user = user_repository.get_user_by_telegram_id(str(message.chat.id))
 
-                    text = 'You have been successfully verified'
-                except HTTPException as e:
-                    if e.status_code == 422:
-                        text = 'You are already verified'
-                    else:
-                        text = 'There is no such code'
+                if user:
+                    text = f'Your account is already linked to an account on instance {settings.backend_domain}'
+                else:
+                    user_service = get_user_service(db, cc, None, True)
+                    try:
+                        await user_service.verification(str(message.chat.id), code)
+                        db.close()
+
+                        text = 'You have been successfully verified'
+                    except HTTPException as e:
+                        if e.status_code == 422:
+                            text = 'You are already verified'
+                        else:
+                            text = 'There is no such code'
 
         await message.answer(text, parse_mode='Markdown')
         return
