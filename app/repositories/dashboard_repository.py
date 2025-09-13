@@ -63,7 +63,7 @@ class DashboardRepository(BaseRepository):
                         unit_node=UnitNodeRead(**unit_node.dict()),
                         is_last_data=panel_unit_node.is_last_data,
                         is_forced_to_json=panel_unit_node.is_forced_to_json,
-                        unit_with_unit_node_name=f"{unit.name}.{unit_node.topic_name}",
+                        unit_with_unit_node_name=f"{unit.name}@{unit_node.topic_name}",
                     )
                 )
 
