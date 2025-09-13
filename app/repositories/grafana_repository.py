@@ -65,8 +65,15 @@ class GrafanaRepository:
 
             targets_list = []
             for ref_id, unit_node in self.enumerate_refid(panel.unit_nodes_for_panel):
+
+                if not unit_node.unit_node.is_data_pipe_active:
+                    raise GrafanaError('{} has no active DataPipe'.format(unit_node.unit_with_unit_node_name))
+
                 data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
                 data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
+
+                if isinstance(data_pipe_entity, list) or unit_node.unit_node.data_pipe_yml is None:
+                    raise GrafanaError('{} has no valid yml DataPipe'.format(unit_node.unit_with_unit_node_name))
 
                 columns, root_selector = self.get_columns(unit_node, data_pipe_entity)
 
