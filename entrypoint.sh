@@ -23,6 +23,10 @@ until psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc \
 done
 echo "DB '$DB_NAME' Exist."
 
+echo "Fix collation postgres for swap version containers"
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "ALTER DATABASE postgres REFRESH COLLATION VERSION;"
+echo "Collation fixed."
+
 echo "Run migration..."
 alembic upgrade head
 
