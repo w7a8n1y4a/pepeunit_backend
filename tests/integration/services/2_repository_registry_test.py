@@ -24,7 +24,7 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
     def backend_force_sync_local_repository_storage(token: str) -> int:
         headers = {'accept': 'application/json', 'x-auth-token': token}
 
-        url = f'{settings.backend_link_prefix_and_v1}/repository_registry/backend_force_sync_local_repository_storage'
+        url = f'{settings.backend_link_prefix_and_v1}/repository_registry/backend_sync_registry'
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url, headers=headers, timeout=60)

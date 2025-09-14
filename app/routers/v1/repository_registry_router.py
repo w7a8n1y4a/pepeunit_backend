@@ -120,7 +120,7 @@ def update_local_repository(
     return repository_registry_service.update_local_repository(uuid)
 
 
-@router.patch("/backend_force_sync_local_repository_storage", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/backend_sync_registry", status_code=status.HTTP_204_NO_CONTENT)
 def backend_force_sync(
     repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
 ):
