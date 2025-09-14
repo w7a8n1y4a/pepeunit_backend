@@ -26,12 +26,18 @@ class RestClient:
         self.headers['x-auth-token'] = self.token
 
     def get_repo(self):
+        target_registry = "https://git.pepemoss.com/pepe/pepeunit/units/universal_load_unit.git"
+
+        registry_link = f'{self.config.url}/pepeunit/api/v1/repository_registry?search_string={target_registry}'
+        target_registry = httpx.get(registry_link, headers=self.headers)
+
+        target_registry = target_registry.json()
+
         repo = {
+            "repository_registry_uuid": target_registry['repositories_registry'][0]['uuid'],
+            "default_branch": target_registry['repositories_registry'][0]['branches'][0],
             "visibility_level": "Public",
             "name": f"test_{self.config.test_hash}",
-            "repo_url": "https://git.pepemoss.com/pepe/pepeunit/units/universal_load_unit.git",
-            "platform": "Gitlab",
-            "is_public_repository": True,
             "is_compilable_repo": False,
         }
 
@@ -47,7 +53,11 @@ class RestClient:
         target_repo = response['repos'][0] if 'repos' in response else response
 
         update_repo_link = f'{self.config.url}/pepeunit/api/v1/repos/{target_repo["uuid"]}'
-        httpx.patch(update_repo_link, json={'default_branch': target_repo['branches'][0]}, headers=self.headers)
+        httpx.patch(
+            update_repo_link,
+            json={'default_branch': target_registry['repositories_registry'][0]['branches'][0]},
+            headers=self.headers,
+        )
 
         return target_repo
 

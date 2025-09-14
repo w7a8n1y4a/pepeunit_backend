@@ -35,7 +35,7 @@ def get(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_servic
 @router.get("", response_model=ReposResult)
 def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoService = Depends(get_repo_service)):
     count, repos = repo_service.list(filters)
-    return ReposResult(count=count, repos=repos)
+    return ReposResult(count=count, repos=[RepoRead(**repo.dict()) for repo in repos])
 
 
 @router.get("/available_platforms/{uuid}", response_model=list[PlatformRead])
