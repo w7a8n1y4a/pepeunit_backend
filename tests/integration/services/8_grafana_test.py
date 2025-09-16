@@ -301,18 +301,6 @@ def test_get_dashboard_panels(database, cc) -> None:
 
 
 @pytest.mark.run(order=9)
-def test_get_dashboard_panels(database, cc) -> None:
-
-    current_user = pytest.users[0]
-    grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
-
-    # check get data for 0 dashboard
-    panels = grafana_service.get_dashboard_panels(pytest.dashboards[0].uuid)
-
-    assert panels.count >= 4
-
-
-@pytest.mark.run(order=10)
 def test_delete_link(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -328,7 +316,7 @@ def test_delete_link(database, cc) -> None:
     )
 
 
-@pytest.mark.run(order=11)
+@pytest.mark.run(order=10)
 def test_delete_panel(database, cc) -> None:
 
     current_user = pytest.users[0]
@@ -337,8 +325,8 @@ def test_delete_panel(database, cc) -> None:
     grafana_service.delete_panel(uuid=pytest.delete_panel[0].uuid)
 
 
-@pytest.mark.run(order=12)
-def test_delete_panel(database, cc) -> None:
+@pytest.mark.run(order=11)
+def test_delete_dashboard(database, cc) -> None:
 
     current_user = pytest.users[0]
     grafana_service = get_grafana_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
