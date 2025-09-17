@@ -64,13 +64,16 @@ class ControlEmqx:
 
         return response.json()['token']
 
-    def delete_auth_hooks(self) -> None:
+    async def delete_auth_hooks(self) -> None:
         for source in ["file", "http", "redis"]:
             logging.info(f"Del {source} auth hook MQTT Broker")
-            response = httpx.delete(f'{self.current_link}/api/v5/authorization/sources/{source}', headers=self.headers)
+            async with httpx.AsyncClient() as client:
+                response = await client.delete(
+                    f'{self.current_link}/api/v5/authorization/sources/{source}', headers=self.headers
+                )
             self._log_response(response)
 
-    def set_file_auth_hook(self) -> None:
+    async def set_file_auth_hook(self) -> None:
         data = {
             "type": "file",
             "enable": True,
@@ -78,10 +81,13 @@ class ControlEmqx:
         }
 
         logging.info(f'Set ACL file auth hook MQTT Broker')
-        response = httpx.post(f'{self.current_link}/api/v5/authorization/sources', json=data, headers=self.headers)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f'{self.current_link}/api/v5/authorization/sources', json=data, headers=self.headers
+            )
         self._log_response(response)
 
-    def set_redis_auth_hook(self) -> None:
+    async def set_redis_auth_hook(self) -> None:
         redis_url = settings.mqtt_redis_auth_url
 
         data = {
@@ -108,10 +114,13 @@ class ControlEmqx:
         }
 
         logging.info(f'Set redis auth hook MQTT Broker')
-        response = httpx.post(f'{self.current_link}/api/v5/authorization/sources', json=data, headers=self.headers)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f'{self.current_link}/api/v5/authorization/sources', json=data, headers=self.headers
+            )
         self._log_response(response)
 
-    def set_http_auth_hook(self) -> None:
+    async def set_http_auth_hook(self) -> None:
         data = {
             "body": {"token": "${username}", "topic": "${topic}"},
             "connect_timeout": "15s",
@@ -136,10 +145,13 @@ class ControlEmqx:
         }
 
         logging.info(f'Set http auth hook MQTT Broker')
-        response = httpx.post(f'{self.current_link}/api/v5/authorization/sources', json=data, headers=self.headers)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f'{self.current_link}/api/v5/authorization/sources', json=data, headers=self.headers
+            )
         self._log_response(response)
 
-    def set_auth_cache_ttl(self) -> None:
+    async def set_auth_cache_ttl(self) -> None:
         data = {
             "no_match": "deny",
             "deny_action": "ignore",
@@ -147,16 +159,23 @@ class ControlEmqx:
         }
 
         logging.info(f'Set cache settings auth hook MQTT Broker')
-        response = httpx.put(f'{self.current_link}/api/v5/authorization/settings', json=data, headers=self.headers)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f'{self.current_link}/api/v5/authorization/settings', json=data, headers=self.headers
+            )
         self._log_response(response)
 
-    def disable_default_listeners(self) -> None:
-        for source in ["ssl", "ws", "wss"]:
-            logging.info(f"Disable {source} listener MQTT Broker")
-            response = httpx.post(f'{self.current_link}/api/v5/listeners/{source}:default/stop', headers=self.headers)
-            self._log_response(response)
+    async def disable_default_listeners(self) -> None:
+        async with httpx.AsyncClient() as client:
+            for source in ["ssl", "ws", "wss"]:
+                logging.info(f"Disable {source} listener MQTT Broker")
+                response = await client.post(
+                    f'{self.current_link}/api/v5/listeners/{source}:default/stop', headers=self.headers
+                )
+                self._log_response(response)
 
-    def set_tcp_listener_settings(self) -> None:
+    async def set_tcp_listener_settings(self) -> None:
         data = {
             "acceptors": 16,
             "access_rules": ["allow all"],
@@ -189,10 +208,13 @@ class ControlEmqx:
         }
 
         logging.info(f'Set settings for tcp listener')
-        response = httpx.put(f'{self.current_link}/api/v5/listeners/tcp:default', json=data, headers=self.headers)
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f'{self.current_link}/api/v5/listeners/tcp:default', json=data, headers=self.headers
+            )
         self._log_response(response)
 
-    def set_global_mqtt_settings(self) -> None:
+    async def set_global_mqtt_settings(self) -> None:
         data = {
             "durable_sessions": {
                 "enable": False,
@@ -250,13 +272,16 @@ class ControlEmqx:
         }
 
         logging.info(f'Set global mqtt settings')
-        response = httpx.put(f'{self.current_link}/api/v5/configs/global_zone', json=data, headers=self.headers)
-        self._log_response(response)
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f'{self.current_link}/api/v5/configs/global_zone', json=data, headers=self.headers
+            )
+            self._log_response(response)
 
-        data = {
-            "enable": False,
-        }
+            data = {
+                "enable": False,
+            }
 
-        logging.info(f'Disable retainer')
-        response = httpx.put(f'{self.current_link}/api/v5/mqtt/retainer', json=data, headers=self.headers)
-        self._log_response(response)
+            logging.info(f'Disable retainer')
+            response = await client.put(f'{self.current_link}/api/v5/mqtt/retainer', json=data, headers=self.headers)
+            self._log_response(response)

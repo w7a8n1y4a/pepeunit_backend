@@ -86,15 +86,20 @@ async def _lifespan(_app: FastAPI):
         )
 
         control_emqx = ControlEmqx()
-        control_emqx.delete_auth_hooks()
-        control_emqx.set_file_auth_hook()
-        control_emqx.set_http_auth_hook()
-        control_emqx.set_redis_auth_hook()
-        control_emqx.set_auth_cache_ttl()
+        await control_emqx.delete_auth_hooks()
+        await asyncio.gather(
+            *[control_emqx.set_file_auth_hook(), control_emqx.set_http_auth_hook(), control_emqx.set_redis_auth_hook()]
+        )
+        await asyncio.gather(
+            *[
+                control_emqx.set_auth_cache_ttl(),
+                control_emqx.set_tcp_listener_settings(),
+                control_emqx.set_global_mqtt_settings(),
+            ]
+        )
+
         # BUG: emqx не умеет посылать метрики в prometheus, пока выключены listeners
-        # control_emqx.disable_default_listeners()
-        control_emqx.set_tcp_listener_settings()
-        control_emqx.set_global_mqtt_settings()
+        # await control_emqx.disable_default_listeners()
 
         backend_topics = (f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}',)
 
