@@ -11,7 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
-from app.configs.rest import get_repository_registry_service
+from app.configs.rest import get_bot_repository_registry_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, RepositoryRegistryType
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepositoryRegistryStates
 from app.schemas.bot.utils import byte_converter, make_monospace_table_with_title
@@ -44,7 +44,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
 
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         with get_hand_session() as db:
-            repository_registry_service = get_repository_registry_service(db, chat_id, True)
+            repository_registry_service = get_bot_repository_registry_service(db, chat_id)
 
             count, repositories_registry = repository_registry_service.list(
                 RepositoryRegistryFilter(
@@ -126,7 +126,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             await state.update_data(current_filters=new_filters)
 
         with get_hand_session() as db:
-            repository_registry_service = get_repository_registry_service(db, str(callback.from_user.id), True)
+            repository_registry_service = get_bot_repository_registry_service(db, str(callback.from_user.id))
             repository_registry = repository_registry_service.get(registry_uuid)
 
             is_available = True
@@ -204,7 +204,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
         repository_registry_uuid = UUID(repository_registry_uuid)
 
         with get_hand_session() as db:
-            repository_registry_service = get_repository_registry_service(db, str(callback.from_user.id), True)
+            repository_registry_service = get_bot_repository_registry_service(db, str(callback.from_user.id))
 
             text = ''
             match decrees_type:

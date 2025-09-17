@@ -37,6 +37,7 @@ class JwtAuthService(AuthService):
             self.current_agent = AgentBot()
 
     def _decode_token(self):
+        print(self.jwt_token)
         if not self.jwt_token:
             return AgentBot
         try:

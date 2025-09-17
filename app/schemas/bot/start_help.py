@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_user_service
+from app.configs.rest import get_bot_user_service
 from app.dto.enum import CommandNames
 from app.repositories.user_repository import UserRepository
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -31,7 +31,7 @@ async def start_help_resolver(message: types.Message):
                 if user:
                     text = f'Your account is already linked to an account on instance {settings.backend_domain}'
                 else:
-                    user_service = get_user_service(db, cc, None, True)
+                    user_service = get_bot_user_service(db, cc, None)
                     try:
                         await user_service.verification(str(message.chat.id), code)
                         db.close()

@@ -11,7 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_repo_service, get_repository_registry_service
+from app.configs.rest import get_bot_repo_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -45,7 +45,7 @@ class RepoBotRouter(BaseBotRouter):
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                repo_service = get_repo_service(db, cc, chat_id, True)
+                repo_service = get_bot_repo_service(db, cc, chat_id)
 
                 count, repos = repo_service.list(
                     RepoFilter(
@@ -126,7 +126,7 @@ class RepoBotRouter(BaseBotRouter):
 
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
+                repo_service = get_bot_repo_service(db, cc, str(callback.from_user.id))
                 repo = repo_service.get(repo_uuid)
 
                 is_creator = repo_service.access_service.current_agent.uuid == repo.creator_uuid
@@ -214,7 +214,7 @@ class RepoBotRouter(BaseBotRouter):
 
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
+                repo_service = get_bot_repo_service(db, cc, str(callback.from_user.id))
 
                 text = ''
                 match decrees_type:

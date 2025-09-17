@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union
 
-import aiogram.exceptions
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup

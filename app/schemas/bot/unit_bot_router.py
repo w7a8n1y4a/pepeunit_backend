@@ -13,7 +13,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_repo_service, get_unit_node_service, get_unit_service
+from app.configs.rest import get_bot_repo_service, get_bot_unit_node_service, get_bot_unit_service
 from app.dto.enum import (
     BackendTopicCommand,
     CommandNames,
@@ -69,7 +69,7 @@ class UnitBotRouter(BaseBotRouter):
         if filters.repo_uuid:
             with get_hand_session() as db:
                 with get_hand_clickhouse_client() as cc:
-                    repo_service = get_repo_service(db, cc, str(chat_id), True)
+                    repo_service = get_bot_repo_service(db, cc, str(chat_id))
                     repo = repo_service.get(filters.repo_uuid)
 
             text += f" - for repo `{repo.name}`"
@@ -79,7 +79,7 @@ class UnitBotRouter(BaseBotRouter):
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                unit_service = get_unit_service(db, cc, chat_id, True)
+                unit_service = get_bot_unit_service(db, cc, chat_id)
 
                 count, units = unit_service.list(
                     UnitFilter(
@@ -168,8 +168,8 @@ class UnitBotRouter(BaseBotRouter):
 
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                unit_service = get_unit_service(db, cc, str(callback.from_user.id), True)
-                repo_service = get_repo_service(db, cc, str(callback.from_user.id), True)
+                unit_service = get_bot_unit_service(db, cc, str(callback.from_user.id))
+                repo_service = get_bot_repo_service(db, cc, str(callback.from_user.id))
                 unit = unit_service.mapper_unit_to_unit_type((unit_service.get(unit_uuid), []))
                 repo = repo_service.get(unit.repo_uuid)
                 try:
@@ -357,8 +357,8 @@ class UnitBotRouter(BaseBotRouter):
         unit_uuid = UUID(unit_uuid)
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                unit_service = get_unit_service(db, cc, str(callback.from_user.id), True)
-                unit_node_service = get_unit_node_service(db, cc, str(callback.from_user.id), True)
+                unit_service = get_bot_unit_service(db, cc, str(callback.from_user.id))
+                unit_node_service = get_bot_unit_node_service(db, cc, str(callback.from_user.id))
 
                 text = ''
                 match decrees_type:

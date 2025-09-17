@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_unit_service
+from app.configs.rest import get_bot_unit_service
 from app.dto.enum import EntityNames, LogLevel
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
 from app.schemas.bot.utils import make_monospace_table_with_title
@@ -39,7 +39,7 @@ class UnitLogBotRouter(BaseBotRouter):
         if filters.unit_uuid:
             with get_hand_session() as db:
                 with get_hand_clickhouse_client() as cc:
-                    unit_service = get_unit_service(db, cc, str(chat_id), True)
+                    unit_service = get_bot_unit_service(db, cc, str(chat_id))
                     unit = unit_service.get(filters.unit_uuid)
 
             text += f" - for unit `{unit.name}`"
@@ -65,7 +65,7 @@ class UnitLogBotRouter(BaseBotRouter):
     async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                unit_service = get_unit_service(db, cc, str(chat_id), True)
+                unit_service = get_bot_unit_service(db, cc, str(chat_id))
 
                 count, unit_logs = unit_service.log_list(
                     UnitLogFilter(

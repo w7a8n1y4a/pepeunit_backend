@@ -112,7 +112,7 @@ async def authorize(
     with get_hand_session() as db:
         with get_hand_clickhouse_client() as cc:
             user_service = get_user_service(
-                db=db, client=cc, jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value, None)
+                db=db, client=cc, jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value)
             )
 
             user_service.create_org_if_not_exists(user_service.access_service.current_agent.uuid)

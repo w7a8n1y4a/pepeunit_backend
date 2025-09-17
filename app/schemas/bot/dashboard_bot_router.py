@@ -12,7 +12,7 @@ from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
-from app.configs.rest import get_grafana_service, get_repository_registry_service
+from app.configs.rest import get_bot_grafana_service, get_grafana_service, get_repository_registry_service
 from app.dto.enum import CommandNames, DecreesNames, EntityNames
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, DashboardStates
 from app.schemas.bot.utils import byte_converter, make_monospace_table_with_title
@@ -47,7 +47,7 @@ class DashboardBotRouter(BaseBotRouter):
 
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                grafana_service = get_grafana_service(db, cc, str(chat_id), True)
+                grafana_service = get_bot_grafana_service(db, cc, str(chat_id))
 
                 count, dashboards = grafana_service.list_dashboards(
                     DashboardFilter(

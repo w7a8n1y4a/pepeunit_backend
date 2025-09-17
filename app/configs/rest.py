@@ -157,73 +157,127 @@ def create_service_factory(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> ServiceFactory:
-    return ServiceFactory(db, client, jwt_token, is_bot_auth)
+    return ServiceFactory(db, client, jwt_token, False)
 
 
 def get_user_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> UserService:
-    return create_service_factory(db, client, jwt_token, is_bot_auth).get_user_service()
+    return create_service_factory(db, client, jwt_token).get_user_service()
 
 
 def get_repository_registry_service(
     db: Session = Depends(get_session),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> RepositoryRegistryService:
-    return create_service_factory(db, None, jwt_token, is_bot_auth).get_repository_registry_service()
+    return create_service_factory(db, None, jwt_token).get_repository_registry_service()
 
 
 def get_repo_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> RepoService:
-    return create_service_factory(db, client, jwt_token, is_bot_auth).get_repo_service()
+    return create_service_factory(db, client, jwt_token).get_repo_service()
 
 
 def get_unit_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> UnitService:
-    return create_service_factory(db, client, jwt_token, is_bot_auth).get_unit_service()
+    return create_service_factory(db, client, jwt_token).get_unit_service()
 
 
 def get_unit_node_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> UnitNodeService:
-    return create_service_factory(db, client, jwt_token, is_bot_auth).get_unit_node_service()
+    return create_service_factory(db, client, jwt_token).get_unit_node_service()
 
 
 def get_grafana_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> GrafanaService:
-    return create_service_factory(db, client, jwt_token, is_bot_auth).get_grafana_service()
+    return create_service_factory(db, client, jwt_token).get_grafana_service()
 
 
 def get_metrics_service(
     db: Session = Depends(get_session),
     jwt_token: Optional[str] = Depends(token_depends),
-    is_bot_auth: bool = False,
 ) -> MetricsService:
-    return create_service_factory(db, None, jwt_token, is_bot_auth).get_metrics_service()
+    return create_service_factory(db, None, jwt_token).get_metrics_service()
 
 
 def get_permission_service(
-    db: Session = Depends(get_session), jwt_token: Optional[str] = Depends(token_depends), is_bot_auth: bool = False
+    db: Session = Depends(get_session), jwt_token: Optional[str] = Depends(token_depends)
 ) -> PermissionService:
-    return create_service_factory(db, None, jwt_token, is_bot_auth).get_permission_service()
+    return create_service_factory(db, None, jwt_token).get_permission_service()
+
+
+def create_bot_service_factory(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> ServiceFactory:
+    return ServiceFactory(db, client, jwt_token, True)
+
+
+def get_bot_user_service(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> UserService:
+    return create_bot_service_factory(db, client, jwt_token).get_user_service()
+
+
+def get_bot_repository_registry_service(
+    db: Session = Depends(get_session),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> RepositoryRegistryService:
+    return create_bot_service_factory(db, None, jwt_token).get_repository_registry_service()
+
+
+def get_bot_repo_service(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> RepoService:
+    return create_bot_service_factory(db, client, jwt_token).get_repo_service()
+
+
+def get_bot_unit_service(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> UnitService:
+    return create_bot_service_factory(db, client, jwt_token).get_unit_service()
+
+
+def get_bot_unit_node_service(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> UnitNodeService:
+    return create_bot_service_factory(db, client, jwt_token).get_unit_node_service()
+
+
+def get_bot_grafana_service(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> GrafanaService:
+    return create_bot_service_factory(db, client, jwt_token).get_grafana_service()
+
+
+def get_bot_metrics_service(
+    db: Session = Depends(get_session),
+    jwt_token: Optional[str] = Depends(token_depends),
+) -> MetricsService:
+    return create_bot_service_factory(db, None, jwt_token).get_metrics_service()
