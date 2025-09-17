@@ -4,7 +4,7 @@ import logging
 
 import httpx
 
-from app.dto.enum import AggregationFunctions, ProcessingPolicyType
+from app.dto.enum import AggregationFunctions, GitPlatform, ProcessingPolicyType
 from tests.load.src.dto.config import LoadTestConfig
 
 
@@ -26,16 +26,29 @@ class RestClient:
         self.headers['x-auth-token'] = self.token
 
     def get_repo(self):
-        target_registry = "https://git.pepemoss.com/pepe/pepeunit/units/universal_load_unit.git"
+        target_registry_link = "https://git.pepemoss.com/pepe/pepeunit/units/universal_load_unit.git"
 
-        registry_link = f'{self.config.url}/pepeunit/api/v1/repository_registry?search_string={target_registry}'
+        registry_link = f'{self.config.url}/pepeunit/api/v1/repository_registry?search_string={target_registry_link}'
         target_registry = httpx.get(registry_link, headers=self.headers)
 
         target_registry = target_registry.json()
 
+        if target_registry['count'] == 0:
+            registry_create_link = f'{self.config.url}/pepeunit/api/v1/repository_registry'
+
+            registry = {
+                'platform': GitPlatform.GITLAB,
+                'repository_url': target_registry_link,
+                'is_public_repository': True,
+            }
+
+            target_registry = httpx.post(registry_create_link, json=registry, headers=self.headers).json()
+        else:
+            target_registry = target_registry['repositories_registry'][0]
+
         repo = {
-            "repository_registry_uuid": target_registry['repositories_registry'][0]['uuid'],
-            "default_branch": target_registry['repositories_registry'][0]['branches'][0],
+            "repository_registry_uuid": target_registry['uuid'],
+            "default_branch": target_registry['branches'][0],
             "visibility_level": "Public",
             "name": f"test_{self.config.test_hash}",
             "is_compilable_repo": False,
@@ -55,7 +68,7 @@ class RestClient:
         update_repo_link = f'{self.config.url}/pepeunit/api/v1/repos/{target_repo["uuid"]}'
         httpx.patch(
             update_repo_link,
-            json={'default_branch': target_registry['repositories_registry'][0]['branches'][0]},
+            json={'default_branch': target_registry['branches'][0]},
             headers=self.headers,
         )
 
