@@ -16,7 +16,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
@@ -29,7 +29,6 @@ from app.configs.redis import get_redis_session
 from app.configs.rest import get_repository_registry_service
 from app.configs.utils import (
     acquire_file_lock,
-    is_valid_ip_address,
     recreate_directory,
     wait_for_file_unlock,
 )
@@ -120,15 +119,15 @@ async def _lifespan(_app: FastAPI):
         async def run_webhook_bot(dp, bot):
             webhook_url = f'{settings.backend_link_prefix_and_v1}/bot'
 
-            logging.info(f'Delete webhook before set new webhook')
-            await bot.delete_webhook()
+            if settings.telegram_del_old_webhook:
+                logging.info(f'Delete webhook before set new webhook')
+                await bot.delete_webhook()
 
             inc = 0
             while True:
                 result = httpx.post(
                     f'{settings.backend_link_prefix_and_v1}/bot', headers={'Content-Type': 'application/json'}
                 )
-                print(result.status_code)
                 if result.status_code == 422:
                     break
 
@@ -148,15 +147,18 @@ async def _lifespan(_app: FastAPI):
                 print(e.__dict__)
                 logging.info(f'Error set TG bot webhook url')
 
-        if is_valid_ip_address(settings.backend_domain):
-            asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
-        else:
+        if settings.telegram_bot_enable:
 
-            def start_webhook_thread():
-                asyncio.run(run_webhook_bot(dp, bot))
+            if settings.telegram_bot_mode == 'pooling':
+                asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
 
-            executor = ThreadPoolExecutor(max_workers=1)
-            executor.submit(start_webhook_thread)
+            elif settings.telegram_bot_mode == 'webhook':
+
+                def start_webhook_thread():
+                    asyncio.run(run_webhook_bot(dp, bot))
+
+                executor = ThreadPoolExecutor(max_workers=1)
+                executor.submit(start_webhook_thread)
 
         with get_hand_session() as db:
             repository_registry_service = get_repository_registry_service(
@@ -290,28 +292,27 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
-bot = Bot(token=settings.telegram_token)
-storage = RedisStorage.from_url(
-    settings.redis_url, key_builder=DefaultKeyBuilder(with_destiny=True), json_dumps=custom_json_dumps
-)
-dp = Dispatcher(bot=bot, storage=storage)
+if settings.telegram_bot_enable:
+    bot = Bot(token=settings.telegram_token)
+    storage = RedisStorage.from_url(
+        settings.redis_url, key_builder=DefaultKeyBuilder(with_destiny=True), json_dumps=custom_json_dumps
+    )
+    dp = Dispatcher(bot=bot, storage=storage)
 
+    dp.include_router(info_router)
+    dp.include_router(base_router)
+    dp.include_router(RepositoryRegistryBotRouter().router)
+    dp.include_router(RepoBotRouter().router)
+    dp.include_router(UnitBotRouter().router)
+    dp.include_router(UnitNodeBotRouter().router)
+    dp.include_router(UnitLogBotRouter().router)
+    dp.include_router(DashboardBotRouter().router)
+    dp.include_router(error_router)
 
-dp.include_router(info_router)
-dp.include_router(base_router)
-dp.include_router(RepositoryRegistryBotRouter().router)
-dp.include_router(RepoBotRouter().router)
-dp.include_router(UnitBotRouter().router)
-dp.include_router(UnitNodeBotRouter().router)
-dp.include_router(UnitLogBotRouter().router)
-dp.include_router(DashboardBotRouter().router)
-dp.include_router(error_router)
-
-
-@app.post(f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot")
-async def bot_webhook(update: dict):
-    telegram_update = types.Update(**update)
-    await dp.feed_update(bot=bot, update=telegram_update)
+    @app.post(f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot")
+    async def bot_webhook(update: dict):
+        telegram_update = types.Update(**update)
+        await dp.feed_update(bot=bot, update=telegram_update)
 
 
 Instrumentator().instrument(app).expose(app, endpoint=f'{settings.backend_app_prefix}/metrics')

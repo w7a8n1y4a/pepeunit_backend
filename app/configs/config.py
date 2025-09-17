@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     available_name_entity_symbols: str = string.ascii_letters + string.digits + '_-.'
     available_password_symbols: str = string.ascii_letters + string.digits + string.punctuation
 
+    telegram_bot_enable: bool = True
+    telegram_bot_mode: str = 'webhook'
+    telegram_del_old_webhook: bool = True
     telegram_token: str
     telegram_bot_link: str
     telegram_items_per_page: int = 7
