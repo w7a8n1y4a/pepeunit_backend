@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 import aiogram.exceptions
@@ -127,6 +128,7 @@ async def _lifespan(_app: FastAPI):
                 result = httpx.post(
                     f'{settings.backend_link_prefix_and_v1}/bot', headers={'Content-Type': 'application/json'}
                 )
+                print(result.status_code)
                 if result.status_code == 422:
                     break
 
@@ -149,7 +151,12 @@ async def _lifespan(_app: FastAPI):
         if is_valid_ip_address(settings.backend_domain):
             asyncio.get_event_loop().create_task(run_polling_bot(dp, bot), name='run_polling_bot')
         else:
-            asyncio.get_event_loop().create_task(run_webhook_bot(dp, bot), name='run_webhook_bot')
+
+            def start_webhook_thread():
+                asyncio.run(run_webhook_bot(dp, bot))
+
+            executor = ThreadPoolExecutor(max_workers=1)
+            executor.submit(start_webhook_thread)
 
         with get_hand_session() as db:
             repository_registry_service = get_repository_registry_service(
