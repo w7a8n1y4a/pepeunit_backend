@@ -11,6 +11,7 @@ from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
+from app.repositories.base_repository import BaseRepository
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -23,24 +24,10 @@ from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate, RepoVe
 from app.services.validators import is_valid_object, is_valid_string_with_rules, is_valid_uuid
 
 
-class RepoRepository:
-    db: Session
-
+class RepoRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
+        super().__init__(Repo, db)
         self.git_repo_repository = GitRepoRepository()
-
-    def create(self, repo: Repo) -> Repo:
-        self.db.add(repo)
-        self.db.commit()
-        self.db.refresh(repo)
-        return repo
-
-    def get(self, repo: Repo) -> Optional[Repo]:
-        return self.db.get(Repo, repo.uuid)
-
-    def get_all_count(self) -> int:
-        return self.db.query(Repo).count()
 
     def get_versions(self, repo: Repo) -> RepoVersionsRead:
         versions = (
@@ -69,20 +56,6 @@ class RepoRepository:
             versions_list.append(RepoVersionRead(commit=commit, unit_count=count, tag=tag[0]['tag'] if tag else None))
 
         return RepoVersionsRead(unit_count=count_with_version, versions=versions_list)
-
-    def update(self, uuid, repo: Repo) -> Repo:
-        repo.uuid = uuid
-        self.db.merge(repo)
-        self.db.commit()
-        return self.get(repo)
-
-    def delete(self, repo: Repo) -> None:
-        self.db.delete(self.get(repo))
-        self.db.commit()
-        self.db.flush()
-
-    def get_all_repo(self) -> list[Repo]:
-        return self.db.query(Repo).all()
 
     def list(self, filters: RepoFilter, restriction: list[str] = None) -> tuple[int, list[Repo]]:
         query = self.db.query(Repo, RepositoryRegistry).join(

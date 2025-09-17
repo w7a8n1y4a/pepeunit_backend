@@ -10,29 +10,16 @@ from app import settings
 from app.configs.db import get_session
 from app.configs.errors import UserError
 from app.domain.user_model import User
+from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_enums, apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.gql.inputs.user import UserFilterInput
 from app.schemas.pydantic.user import UserFilter
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
 
-class UserRepository:
-    db: Session
-
+class UserRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
-
-    def create(self, user: User) -> User:
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
-
-    def get(self, user: User) -> Optional[User]:
-        return self.db.get(User, user.uuid)
-
-    def get_all_count(self) -> int:
-        return self.db.query(User.uuid).count()
+        super().__init__(User, db)
 
     def get_user_by_credentials(self, credentials: str) -> User:
         return self.db.exec(
@@ -41,12 +28,6 @@ class UserRepository:
 
     def get_user_by_telegram_id(self, telegram_chat_id: str):
         return self.db.exec(select(User).where(User.telegram_chat_id == telegram_chat_id)).first()
-
-    def update(self, uuid: uuid_pkg.UUID, user: User) -> User:
-        user.uuid = uuid
-        self.db.merge(user)
-        self.db.commit()
-        return self.get(user)
 
     def list(self, filters: Union[UserFilter, UserFilterInput]) -> tuple[int, list[User]]:
         query = self.db.query(User)

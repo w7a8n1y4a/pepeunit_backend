@@ -13,18 +13,14 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import PermissionEntities
+from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_offset_and_limit
 from app.schemas.pydantic.permission import PermissionFilter
 
 
-class PermissionRepository:
-    db: Session
-
+class PermissionRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
-
-    def get(self, permission: Permission) -> Optional[Permission]:
-        return self.db.get(Permission, permission.uuid)
+        super().__init__(Permission, db)
 
     def get_by_uuid(self, agent_uuid, resource_uuid):
         return (
@@ -160,11 +156,6 @@ class PermissionRepository:
         )
 
         return bool(check)
-
-    def delete(self, permission: Permission) -> None:
-        self.db.delete(self.get(permission))
-        self.db.commit()
-        self.db.flush()
 
     @staticmethod
     def is_valid_agent_type(permission: Permission) -> None:

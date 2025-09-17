@@ -8,42 +8,15 @@ from app.configs.db import get_session
 from app.configs.errors import RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import GitPlatform
+from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
 from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
 from app.services.validators import is_valid_uuid
 
 
-class RepositoryRegistryRepository:
-    db: Session
-
+class RepositoryRegistryRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
-
-    def create(self, repository_registry: RepositoryRegistry) -> RepositoryRegistry:
-        self.db.add(repository_registry)
-        self.db.commit()
-        self.db.refresh(repository_registry)
-        return repository_registry
-
-    def get(self, repository_registry: RepositoryRegistry) -> Optional[RepositoryRegistry]:
-        return self.db.get(RepositoryRegistry, repository_registry.uuid)
-
-    def get_all_count(self) -> int:
-        return self.db.query(RepositoryRegistry).count()
-
-    def update(self, uuid, repository_registry: RepositoryRegistry) -> RepositoryRegistry:
-        repository_registry.uuid = uuid
-        self.db.merge(repository_registry)
-        self.db.commit()
-        return self.get(repository_registry)
-
-    def delete(self, repository_registry: RepositoryRegistry) -> None:
-        self.db.delete(self.get(repository_registry))
-        self.db.commit()
-        self.db.flush()
-
-    def get_all(self) -> list[RepositoryRegistry]:
-        return self.db.query(RepositoryRegistry).all()
+        super().__init__(RepositoryRegistry, db)
 
     def get_by_url(self, repository_registry: RepositoryRegistry) -> Optional[RepositoryRegistry]:
         return (

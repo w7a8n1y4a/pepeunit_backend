@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 from fastapi import Depends
 from sqlalchemy import or_
@@ -8,23 +7,13 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.repositories.base_repository import BaseRepository
 from app.services.validators import is_valid_uuid
 
 
-class UnitNodeEdgeRepository:
-    db: Session
-
+class UnitNodeEdgeRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
-
-    def create(self, unit_node_edge: UnitNodeEdge) -> UnitNodeEdge:
-        self.db.add(unit_node_edge)
-        self.db.commit()
-        self.db.refresh(unit_node_edge)
-        return unit_node_edge
-
-    def get(self, unit_node_edge: UnitNodeEdge) -> Optional[UnitNodeEdge]:
-        return self.db.get(UnitNodeEdge, unit_node_edge.uuid)
+        super().__init__(UnitNodeEdge, db)
 
     def get_by_nodes(self, unit_nodes: list[UnitNode]) -> list[UnitNodeEdge]:
 
@@ -51,9 +40,6 @@ class UnitNodeEdgeRepository:
             .first()
         )
 
-    def get_all_count(self) -> int:
-        return self.db.query(UnitNodeEdge.uuid).count()
-
     def check(self, unit_node_edge: UnitNodeEdge) -> bool:
         check = (
             self.db.query(UnitNodeEdge)
@@ -65,7 +51,3 @@ class UnitNodeEdgeRepository:
         )
 
         return bool(check)
-
-    def delete(self, uuid: uuid_pkg.UUID) -> None:
-        self.db.query(UnitNodeEdge).filter(UnitNodeEdge.uuid == uuid).delete()
-        self.db.commit()

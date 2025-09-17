@@ -484,7 +484,7 @@ class UnitNodeService:
             # so there should be immunity to this error.
             pass
 
-        self.unit_node_edge_repository.delete(unit_node_edge.uuid)
+        self.unit_node_edge_repository.delete(unit_node_edge)
 
         self.command_to_input_base_topic(
             uuid=input_node.unit_uuid,

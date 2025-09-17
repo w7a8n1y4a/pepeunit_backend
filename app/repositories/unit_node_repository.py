@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 from fastapi import Depends
 from fastapi.params import Query
@@ -10,6 +9,7 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
     apply_ilike_search_string,
@@ -21,21 +21,13 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.validators import is_valid_uuid
 
 
-class UnitNodeRepository:
-    db: Session
-
+class UnitNodeRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
+        super().__init__(UnitNode, db)
 
     def bulk_save(self, unit_nodes: list[UnitNode]) -> None:
         self.db.bulk_save_objects(unit_nodes)
         self.db.commit()
-
-    def get(self, unit_node: UnitNode) -> Optional[UnitNode]:
-        return self.db.get(UnitNode, unit_node.uuid)
-
-    def get_all_count(self) -> int:
-        return self.db.query(UnitNode.uuid).count()
 
     def get_by_topic(self, unit_uuid: uuid_pkg.UUID, unit_node: UnitNode) -> UnitNode:
         return (
@@ -72,12 +64,6 @@ class UnitNodeRepository:
             .group_by(UnitNode.uuid, UnitNode.topic_name, UnitNode.type)
             .all()
         )
-
-    def update(self, uuid: uuid_pkg.UUID, unit_node: UnitNode) -> UnitNode:
-        unit_node.uuid = uuid
-        self.db.merge(unit_node)
-        self.db.commit()
-        return self.get(unit_node)
 
     def delete(self, del_uuid_list: list[str]) -> None:
         self.db.query(UnitNode).filter(UnitNode.uuid.in_(del_uuid_list)).delete()

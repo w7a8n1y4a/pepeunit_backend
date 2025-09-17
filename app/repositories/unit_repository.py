@@ -12,6 +12,7 @@ from app.configs.errors import UnitError
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
     apply_ilike_search_string,
@@ -23,34 +24,9 @@ from app.schemas.pydantic.unit import UnitFilter
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
 
-class UnitRepository:
-    db: Session
-
+class UnitRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        self.db = db
-
-    def create(self, unit: Unit) -> Unit:
-        self.db.add(unit)
-        self.db.commit()
-        self.db.refresh(unit)
-        return unit
-
-    def get(self, unit: Unit) -> Optional[Unit]:
-        return self.db.get(Unit, unit.uuid)
-
-    def get_all_count(self) -> int:
-        return self.db.query(Unit.uuid).count()
-
-    def update(self, uuid: uuid_pkg.UUID, unit: Unit) -> Unit:
-        unit.uuid = uuid
-        self.db.merge(unit)
-        self.db.commit()
-        return self.get(unit)
-
-    def delete(self, unit: Unit) -> None:
-        self.db.delete(self.get(unit))
-        self.db.commit()
-        self.db.flush()
+        super().__init__(Unit, db)
 
     def list(
         self, filters: UnitFilter, restriction: list[str] = None, is_include_output_unit_nodes: bool = False
