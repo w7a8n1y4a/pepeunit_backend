@@ -251,10 +251,10 @@ class UnitNodeService:
         schema_dict = self.git_repo_repository.get_schema_dict(repository_registry, target_version)
 
         command_to_topic_dict = {
-            BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE,
-            BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE,
-            BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE,
-            BackendTopicCommand.LOG_SYNC: ReservedInputBaseTopic.LOG_SYNC,
+            BackendTopicCommand.UPDATE: ReservedInputBaseTopic.UPDATE.value,
+            BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE.value,
+            BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE.value,
+            BackendTopicCommand.LOG_SYNC: ReservedInputBaseTopic.LOG_SYNC.value,
         }
 
         target_topic = command_to_topic_dict[command] + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
@@ -276,7 +276,7 @@ class UnitNodeService:
 
             try:
                 publish_to_topic(
-                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC}/{unit.uuid}/{target_topic}",
+                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC.value}/{unit.uuid}/{target_topic}",
                     update_dict,
                 )
                 if command == BackendTopicCommand.UPDATE:

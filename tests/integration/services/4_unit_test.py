@@ -279,7 +279,7 @@ def test_get_firmware(database, cc) -> None:
         shutil.unpack_archive(archive_path, unpack_path, 'zip' if inc == 0 else 'tar')
 
         # check env.json file
-        with open(f'{unpack_path}/{StaticRepoFileName.ENV}', 'r') as f:
+        with open(f'{unpack_path}/{StaticRepoFileName.ENV.value}', 'r') as f:
             env_dict = json.loads(f.read())
             assert len(env_dict['PEPEUNIT_TOKEN']) > 100
 

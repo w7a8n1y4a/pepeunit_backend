@@ -245,10 +245,7 @@ class CustomExceptionMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         except CustomException as e:
-            return JSONResponse(
-                status_code=e.status_code,
-                content={"detail": e.message},
-            )
+            return JSONResponse(status_code=e.status_code, content={"detail": e.message})
         except StarletteHTTPException as e:
             return await super().dispatch(request, call_next)
 

@@ -2,7 +2,7 @@ import enum
 import json
 from typing import AsyncIterator
 
-from aioredis import Redis, from_url
+from redis.asyncio import Redis, from_url
 
 from app import settings
 from app.utils.utils import obj_serializer

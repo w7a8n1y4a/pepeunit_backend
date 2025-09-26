@@ -222,12 +222,12 @@ class GitRepoRepository:
         return buffer
 
     def get_schema_dict(self, repository_registry: RepositoryRegistry, commit: str) -> dict:
-        target_file = StaticRepoFileName.SCHEMA_EXAMPLE
+        target_file = StaticRepoFileName.SCHEMA_EXAMPLE.value
         schema_buffer = self.get_file(repository_registry, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 
     def get_env_dict(self, repository_registry: RepositoryRegistry, commit: str) -> dict:
-        target_file = StaticRepoFileName.ENV_EXAMPLE
+        target_file = StaticRepoFileName.ENV_EXAMPLE.value
         schema_buffer = self.get_file(repository_registry, commit, target_file)
         return is_valid_json(schema_buffer.getvalue().decode(), target_file)
 

@@ -52,7 +52,7 @@ def connect(client, flags, rc, properties):
 
     if lock_fd:
         logging.info("MQTT subscriptions initialized in this worker")
-        client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}')
+        client.subscribe(f'{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}')
     else:
         logging.info("Another worker already subscribed to MQTT topics")
 

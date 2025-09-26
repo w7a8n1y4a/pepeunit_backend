@@ -1,14 +1,24 @@
-FROM python:3.10.9-slim-bullseye
+FROM python:3.13.7-slim-trixie
 
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
   PYTHONHASHSEED=random \
   PIP_DEFAULT_TIMEOUT=100 \
-  POETRY_VERSION=2.1.2
+  POETRY_VERSION=2.2.1
 
 WORKDIR /app
 
-RUN apt update && apt install -y postgresql-client curl cron git && apt autoremove -y && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y \
+    postgresql-client \
+    curl \
+    cron \
+    git \
+    gcc \
+    g++ \
+    make \
+    libc-dev \
+    python3-dev \
+ && apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
 COPY poetry.lock pyproject.toml /app/
