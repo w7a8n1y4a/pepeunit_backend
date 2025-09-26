@@ -46,6 +46,12 @@ clickhouse-migrations = "^0.8.1"
 clickhouse-driver = "^0.2.9"
 redis = "^5.2.1"
 pyyaml = "^6.0.2"
+pepeunit-client = {version = "0.10.6", source = "testpypi"}
+
+[[tool.poetry.source]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+priority = "explicit"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "3.8.0"
