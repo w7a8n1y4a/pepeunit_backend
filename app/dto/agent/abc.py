@@ -1,6 +1,6 @@
 import uuid as uuid_pkg
 from abc import ABC
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from pydantic import BaseModel, Field
@@ -22,7 +22,7 @@ class Agent(ABC, BaseModel):
 
     def generate_agent_token(self, access_token_exp: int | None = None) -> str:
         if not access_token_exp:
-            access_token_exp = datetime.utcnow() + timedelta(
+            access_token_exp = datetime.now(UTC) + timedelta(
                 seconds=settings.backend_auth_token_expiration
             )
 

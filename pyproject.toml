@@ -110,6 +110,7 @@ select = [
     "C90", # mccabe
     "B008", # flake8-bugbear (проверка default arguments)
     "B028", # flake8-bugbear (проверка deprecated функций)
+    "DTZ", # flake8-datetimez
 ]
 
 ignore = [
@@ -121,6 +122,5 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-# Настройки для сортировки импортов
 known-first-party = ["app"]
 force-single-line = false

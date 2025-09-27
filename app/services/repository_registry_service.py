@@ -156,7 +156,9 @@ class RepositoryRegistryService:
                 ),
             )
 
-        repository_registry.create_datetime = datetime.datetime.utcnow()
+        repository_registry.create_datetime = datetime.datetime.now(
+            datetime.UTC
+        )
         repository_registry.last_update_datetime = (
             repository_registry.create_datetime
         )
@@ -306,7 +308,9 @@ class RepositoryRegistryService:
 
         repository_registry.sync_status = RepositoryRegistryStatus.PROCESSING
         repository_registry.sync_error = None
-        repository_registry.sync_last_datetime = datetime.datetime.utcnow()
+        repository_registry.sync_last_datetime = datetime.datetime.now(
+            datetime.UTC
+        )
 
         repository_registry = self.repository_registry_repository.update(
             repository_registry.uuid, repository_registry
@@ -463,7 +467,7 @@ class RepositoryRegistryService:
             and repository_registry.sync_last_datetime
         ):
             delta = (
-                datetime.datetime.utcnow()
+                datetime.datetime.now(datetime.UTC)
                 - repository_registry.last_update_datetime
             ).total_seconds()
             if delta <= settings.backend_min_interval_sync_repository:

@@ -91,7 +91,7 @@ class RepoService:
             repo.is_auto_update_repo = True
             repo.is_only_tag_update = True
 
-        repo.create_datetime = datetime.datetime.utcnow()
+        repo.create_datetime = datetime.datetime.now(datetime.UTC)
         repo.last_update_datetime = repo.create_datetime
         repo = self.repo_repository.create(repo)
         repo = copy.deepcopy(repo)
@@ -197,7 +197,7 @@ class RepoService:
         )
 
         update_repo = Repo(**repo_update_dict)
-        update_repo.last_update_datetime = datetime.datetime.utcnow()
+        update_repo.last_update_datetime = datetime.datetime.now(datetime.UTC)
 
         count, child_units = self.unit_repository.list(
             filters=UnitFilter(repo_uuid=update_repo.uuid)

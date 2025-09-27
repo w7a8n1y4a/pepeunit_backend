@@ -162,7 +162,7 @@ class UnitNodeService:
                     unit_uuid=unit.uuid,
                 )
 
-                unit_node.create_datetime = datetime.datetime.utcnow()
+                unit_node.create_datetime = datetime.datetime.now(datetime.UTC)
                 unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
 
@@ -223,7 +223,9 @@ class UnitNodeService:
                 unit.visibility_level
             ) > get_visibility_level_priority(unit_node.visibility_level):
                 unit_node.visibility_level = unit.visibility_level
-                unit_node.last_update_datetime = datetime.datetime.utcnow()
+                unit_node.last_update_datetime = datetime.datetime.now(
+                    datetime.UTC
+                )
                 update_list.append(unit_node)
 
         self.unit_node_repository.bulk_save(update_list)
@@ -253,7 +255,9 @@ class UnitNodeService:
             [update_unit_node],
         )
 
-        update_unit_node.last_update_datetime = datetime.datetime.utcnow()
+        update_unit_node.last_update_datetime = datetime.datetime.now(
+            datetime.UTC
+        )
 
         unit_node_updated = self.unit_node_repository.update(
             uuid, update_unit_node
@@ -293,7 +297,8 @@ class UnitNodeService:
         return self.unit_node_repository.update(
             uuid,
             UnitNode(
-                last_update_datetime=datetime.datetime.utcnow(), **data.dict()
+                last_update_datetime=datetime.datetime.now(datetime.UTC),
+                **data.dict(),
             ),
         )
 
@@ -371,8 +376,8 @@ class UnitNodeService:
                 )
                 if command == BackendTopicCommand.UPDATE:
                     unit.firmware_update_error = None
-                    unit.last_firmware_update_datetime = (
-                        datetime.datetime.utcnow()
+                    unit.last_firmware_update_datetime = datetime.datetime.now(
+                        datetime.UTC
                     )
                     unit.firmware_update_status = (
                         UnitFirmwareUpdateStatus.REQUEST_SENT
@@ -686,7 +691,7 @@ class UnitNodeService:
         )
         is_valid_object(unit_node)
         unit_node.state = state
-        unit_node.last_update_datetime = datetime.datetime.utcnow()
+        unit_node.last_update_datetime = datetime.datetime.now(datetime.UTC)
 
         return self.unit_node_repository.update(unit_node.uuid, unit_node)
 

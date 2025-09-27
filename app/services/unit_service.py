@@ -144,7 +144,7 @@ class UnitService:
             repository_registry, target_commit
         )
 
-        unit.create_datetime = datetime.datetime.utcnow()
+        unit.create_datetime = datetime.datetime.now(datetime.UTC)
         unit.last_update_datetime = unit.create_datetime
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
@@ -204,7 +204,7 @@ class UnitService:
             unit_update.target_firmware_platform,
         )
 
-        unit_update.last_update_datetime = datetime.datetime.utcnow()
+        unit_update.last_update_datetime = datetime.datetime.now(datetime.UTC)
         result_unit = self.unit_repository.update(uuid, unit_update)
         self.unit_node_service.bulk_set_visibility_level(result_unit)
 
@@ -290,7 +290,7 @@ class UnitService:
             schema_dict, unit, input_node_dict, output_node_dict
         )
 
-        unit.last_update_datetime = datetime.datetime.utcnow()
+        unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
         return self.unit_repository.update(unit.uuid, unit)
 
     def get_env(self, uuid: uuid_pkg.UUID) -> dict:
@@ -369,7 +369,7 @@ class UnitService:
         )
 
         unit.cipher_env_dict = aes_gcm_encode(json.dumps(merged_env_dict))
-        unit.last_update_datetime = datetime.datetime.utcnow()
+        unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
         self.unit_repository.update(unit.uuid, unit)
 
     def get_target_version(self, uuid: uuid_pkg.UUID) -> TargetVersionRead:
@@ -536,7 +536,7 @@ class UnitService:
         unit.cipher_state_storage = (
             aes_gcm_encode(state) if state != "" else None
         )
-        unit.last_update_datetime = datetime.datetime.utcnow()
+        unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
         self.unit_repository.update(unit.uuid, unit)
 
     def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:

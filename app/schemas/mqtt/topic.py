@@ -117,7 +117,7 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                 unit.firmware_update_status
                 == UnitFirmwareUpdateStatus.REQUEST_SENT
             ):
-                current_datetime = datetime.datetime.utcnow()
+                current_datetime = datetime.datetime.now(datetime.UTC)
 
                 repo_repository = RepoRepository(db)
                 repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
@@ -159,7 +159,7 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                         UnitFirmwareUpdateStatus.ERROR
                     )
 
-            unit.last_update_datetime = datetime.datetime.utcnow()
+            unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
             unit_repository.update(
                 unit_uuid,
                 unit,
@@ -182,7 +182,7 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                 if isinstance(log_data, dict):
                     log_data = [log_data]
 
-                server_datetime = datetime.datetime.utcnow()
+                server_datetime = datetime.datetime.now(datetime.UTC)
 
                 unit_log_repository.bulk_create(
                     [
@@ -197,7 +197,9 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                                 else server_datetime
                                 + datetime.timedelta(seconds=inc)
                             ),
-                            expiration_datetime=datetime.datetime.utcnow()
+                            expiration_datetime=datetime.datetime.now(
+                                datetime.UTC
+                            )
                             + datetime.timedelta(
                                 seconds=settings.backend_unit_log_expiration
                             ),
@@ -206,7 +208,7 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                     ]
                 )
 
-                unit.last_update_datetime = datetime.datetime.utcnow()
+                unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
                 unit_repository.update(
                     unit_uuid,
                     unit,

@@ -3,7 +3,7 @@ import csv
 import os
 import uuid
 import zipfile
-from datetime import datetime
+from datetime import UTC, datetime
 from io import StringIO
 
 from clickhouse_driver import Client
@@ -162,7 +162,7 @@ class DataPipeRepository:
             query += f" AND create_datetime <= '{filters.end_create_datetime}'"
 
         if filters.relative_interval:
-            current_datetime = datetime.utcnow()
+            current_datetime = datetime.now(UTC)
             query += f" AND create_datetime >= '{current_datetime - filters.relative_interval}'"
 
         count = len(

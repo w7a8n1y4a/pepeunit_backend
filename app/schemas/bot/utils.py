@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def make_monospace_table_with_title(
@@ -117,7 +117,7 @@ def format_millis(time: int | float) -> str:
         time = int(time)
 
     def format_date(timestamp: int) -> str:
-        date = datetime.fromtimestamp(timestamp / 1000)
+        date = datetime.fromtimestamp(timestamp / 1000, tz=UTC)
         return date.strftime("%Y-%m-%d %H:%M:%S")
 
     def format_uptime(milliseconds: int) -> str:

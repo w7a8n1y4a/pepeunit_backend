@@ -130,7 +130,7 @@ class StreamingCSVValidator:
                 previous_end_window_datetime = end_window_datetime
 
     def check_window_entry(self, create_datetime: datetime) -> None:
-        datetime_now = datetime.utcnow()
+        datetime_now = datetime.now(UTC)
         if (
             create_datetime > datetime_now
             or create_datetime
@@ -351,6 +351,10 @@ class StreamingCSVValidator:
     @staticmethod
     def _parse_datetime(datetime_str: str) -> datetime:
         if "." in datetime_str:
-            return datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S.%f")
+            return datetime.strptime(
+                datetime_str, "%Y-%m-%d %H:%M:%S.%f"
+            ).replace(tzinfo=UTC)
         else:
-            return datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
+            return datetime.strptime(
+                datetime_str, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=UTC)

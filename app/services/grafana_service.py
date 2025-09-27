@@ -132,7 +132,7 @@ class GrafanaService:
 
         dashboard = Dashboard(
             name=data.name,
-            create_datetime=datetime.datetime.utcnow(),
+            create_datetime=datetime.datetime.now(datetime.UTC),
             creator_uuid=self.access_service.current_agent.uuid,
         )
 
@@ -157,7 +157,7 @@ class GrafanaService:
         dashboard_panel = DashboardPanel(
             title=data.title,
             type=data.type,
-            create_datetime=datetime.datetime.utcnow(),
+            create_datetime=datetime.datetime.now(datetime.UTC),
             creator_uuid=self.access_service.current_agent.uuid,
             dashboard_uuid=data.dashboard_uuid,
         )
@@ -191,7 +191,7 @@ class GrafanaService:
         panel_unit_node = PanelsUnitNodes(
             is_last_data=data.is_last_data,
             is_forced_to_json=data.is_forced_to_json,
-            create_datetime=datetime.datetime.utcnow(),
+            create_datetime=datetime.datetime.now(datetime.UTC),
             creator_uuid=self.access_service.current_agent.uuid,
             unit_node_uuid=data.unit_node_uuid,
             dashboard_panels_uuid=data.dashboard_panels_uuid,
@@ -263,7 +263,7 @@ class GrafanaService:
 
         dashboard.sync_status = DashboardStatus.PROCESSING
         dashboard.sync_error = None
-        dashboard.sync_last_datetime = datetime.datetime.utcnow()
+        dashboard.sync_last_datetime = datetime.datetime.now(datetime.UTC)
 
         self.user_service.create_org_if_not_exists(
             self.access_service.current_agent.uuid

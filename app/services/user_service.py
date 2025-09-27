@@ -51,7 +51,7 @@ class UserService:
         user.role = UserRole.USER if user_count > 0 else UserRole.ADMIN
 
         user.status = UserStatus.UNVERIFIED
-        user.create_datetime = datetime.datetime.utcnow()
+        user.create_datetime = datetime.datetime.now(datetime.UTC)
 
         user.cipher_dynamic_salt, user.hashed_password = password_to_hash(
             data.password
