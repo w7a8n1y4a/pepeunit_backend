@@ -28,12 +28,12 @@ psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "ALTER DATABASE po
 echo "Collation fixed."
 
 echo "Run migration..."
-uv run alembic upgrade head
+alembic upgrade head
 
 echo "Del old lock files"
 rm -rf tmp/*.lock
 
-uv run gunicorn app.main:app \
+gunicorn app.main:app \
     --bind 0.0.0.0:5000 \
     --log-level info \
     --access-logfile /dev/stdout \

@@ -23,7 +23,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 COPY uv.lock pyproject.toml README.md /app/
 
 RUN uv sync --frozen --extra load --extra dev
-
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY . .

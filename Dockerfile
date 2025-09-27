@@ -19,14 +19,11 @@ RUN apt update && apt install -y \
     python3-dev \
  && apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
-# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-
-# Copy dependency files
 COPY uv.lock pyproject.toml README.md /app/
 
-# Install dependencies
 RUN uv sync --frozen --no-dev
+ENV PATH="/app/.venv/bin:$PATH"
 
 COPY . .
 
