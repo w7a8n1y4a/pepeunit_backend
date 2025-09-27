@@ -43,6 +43,15 @@ class ControlEmqx:
             "Content-Type": "application/json",
         }
 
+    async def init(self):
+        await self.delete_auth_hooks()
+        await self.set_file_auth_hook()
+        await self.set_http_auth_hook()
+        await self.set_redis_auth_hook()
+        await self.set_auth_cache_ttl()
+        await self.set_tcp_listener_settings()
+        await self.set_global_mqtt_settings()
+
     def check_state(self) -> int:
         response = httpx.get(f"{self.current_link}/api-docs/swagger.json")
         return response.status_code

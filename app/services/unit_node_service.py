@@ -351,29 +351,19 @@ class UnitNodeService:
             + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
         )
         if target_topic in schema_dict["input_base_topic"]:
-            update_dict = {"COMMAND": command}
-
-            if command == BackendTopicCommand.UPDATE:
-                update_dict["NEW_COMMIT_VERSION"] = target_version
-
-                if repo.is_compilable_repo:
-                    links = is_valid_json(
-                        repository_registry.releases_data,
-                        "Releases for compile repo",
-                    )[target_tag]
-                    platform, link = self.git_repo_repository.find_by_platform(
-                        links, unit.target_firmware_platform
-                    )
-
-                    update_dict["COMPILED_FIRMWARE_LINK"] = link
-
-            if command == BackendTopicCommand.LOG_SYNC:
-                self.unit_log_repository.delete(unit.uuid)
+            update_message_dict = self._build_message_dict(
+                command,
+                repo,
+                repository_registry,
+                unit,
+                target_version,
+                target_tag,
+            )
 
             try:
                 publish_to_topic(
                     f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC.value}/{unit.uuid}/{target_topic}",
-                    update_dict,
+                    update_message_dict,
                 )
                 if command == BackendTopicCommand.UPDATE:
                     unit.firmware_update_error = None
@@ -393,6 +383,34 @@ class UnitNodeService:
 
             if command == BackendTopicCommand.UPDATE:
                 self.unit_repository.update(unit.uuid, unit)
+
+    def _build_message_dict(
+        self,
+        command: BackendTopicCommand,
+        repo: Repo,
+        repository_registry: RepositoryRegistry,
+        unit: Unit,
+        target_version: str,
+        target_tag: str,
+    ) -> dict:
+        message_dict = {"COMMAND": command}
+
+        if command == BackendTopicCommand.UPDATE:
+            message_dict["NEW_COMMIT_VERSION"] = target_version
+            if repo.is_compilable_repo:
+                links = is_valid_json(
+                    repository_registry.releases_data,
+                    "Releases for compile repo",
+                )[target_tag]
+                _, link = self.git_repo_repository.find_by_platform(
+                    links, unit.target_firmware_platform
+                )
+                message_dict["COMPILED_FIRMWARE_LINK"] = link
+
+        elif command == BackendTopicCommand.LOG_SYNC:
+            self.unit_log_repository.delete(unit.uuid)
+
+        return message_dict
 
     def create_node_edge(
         self, data: UnitNodeEdgeCreate | UnitNodeEdgeCreateInput

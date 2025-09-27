@@ -26,7 +26,7 @@ from app.services.validators import is_valid_json
 
 class UnitNodeBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.UNIT_NODE
+        entity_name = EntityNames.UNIT_NODE.value
         super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
         self.router.callback_query(
             F.data.startswith(f"{self.entity_name}_unit_")
@@ -167,7 +167,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         builder.row(
             InlineKeyboardButton(
                 text="← Back",
-                callback_data=f"{EntityNames.UNIT}_uuid_{filters.unit_uuid}_{filters.page}",
+                callback_data=f"{EntityNames.UNIT.value}_uuid_{filters.unit_uuid}_{filters.page}",
             )
         )
 

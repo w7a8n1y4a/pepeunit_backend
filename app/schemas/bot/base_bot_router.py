@@ -216,7 +216,7 @@ class BaseBotRouter(ABC):
 
         if target == "mine":
             filters.is_only_my_entity = not filters.is_only_my_entity
-        elif entity != EntityNames.REGISTRY and target in [
+        elif entity != EntityNames.REGISTRY.value and target in [
             item.value for item in VisibilityLevel
         ]:
             if target in filters.visibility_levels:
@@ -252,7 +252,7 @@ class BaseBotRouter(ABC):
             if data.get("current_filters")
             else BaseBotFilters()
         )
-        if self.entity_name == EntityNames.UNIT_NODE:
+        if self.entity_name == EntityNames.UNIT_NODE.value:
             filters = BaseBotFilters(
                 search_string=message.text,
                 unit_uuid=current_filters.unit_uuid,

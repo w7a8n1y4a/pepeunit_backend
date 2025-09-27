@@ -19,7 +19,7 @@ from app.schemas.pydantic.grafana import DashboardFilter
 
 class DashboardBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.DASHBOARD
+        entity_name = EntityNames.DASHBOARD.value
         super().__init__(entity_name=entity_name, states_group=DashboardStates)
         self.router.message(Command(CommandNames.DASHBOARD))(
             self.dashboard_resolver

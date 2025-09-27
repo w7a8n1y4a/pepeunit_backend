@@ -29,7 +29,7 @@ from app.schemas.pydantic.repo import RepoFilter
 
 class RepoBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.REPO
+        entity_name = EntityNames.REPO.value
         super().__init__(entity_name=entity_name, states_group=RepoStates)
         self.router.message(Command(CommandNames.REPO))(self.repo_resolver)
 
@@ -259,11 +259,11 @@ class RepoBotRouter(BaseBotRouter):
                 [
                     InlineKeyboardButton(
                         text="⚡️ Registry",
-                        callback_data=f"{EntityNames.REGISTRY}_uuid_{repo.repository_registry_uuid}_{filters.page}",
+                        callback_data=f"{EntityNames.REGISTRY.value}_uuid_{repo.repository_registry_uuid}_{filters.page}",
                     ),
                     InlineKeyboardButton(
                         text="✨ Units",
-                        callback_data=f"{EntityNames.UNIT}_repo_{repo.uuid}",
+                        callback_data=f"{EntityNames.UNIT.value}_repo_{repo.uuid}",
                     ),
                 ],
                 [

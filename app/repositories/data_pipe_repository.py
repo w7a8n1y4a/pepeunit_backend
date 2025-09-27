@@ -112,12 +112,6 @@ class DataPipeRepository:
             case ProcessingPolicyType.AGGREGATION:
                 query = f"select {Aggregation.get_keys()} from aggregation_entry where unit_node_uuid = %(uuid)s"
 
-        if (
-            filters.type != ProcessingPolicyType.AGGREGATION
-            and filters.search_string
-        ):
-            query += " AND state ilike %(search_string)s"
-
         if filters.type == ProcessingPolicyType.AGGREGATION:
             filters.aggregation_type = (
                 []
@@ -125,45 +119,9 @@ class DataPipeRepository:
                 else filters.aggregation_type
             )
 
-            if filters.aggregation_type:
-                filters.aggregation_type = (
-                    filters.aggregation_type.default
-                    if isinstance(filters.aggregation_type, Query)
-                    else filters.aggregation_type
-                )
-                data = ", ".join(
-                    [f"'{item}'" for item in filters.aggregation_type]
-                )
-                level_append = f" AND aggregation_type in ({data})"
+            query = self._apply_aggregation_filters(query, filters)
 
-                query += level_append
-            elif isinstance(filters.aggregation_type, list) and not len(
-                filters.aggregation_type
-            ):
-                level_append = " AND aggregation_type in (0)"
-
-                query += level_append
-
-            if filters.time_window_size is not None:
-                query += f" AND time_window_size = {filters.time_window_size}"
-
-            if filters.start_agg_window_datetime:
-                query += f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
-
-            if filters.end_agg_window_datetime:
-                query += f" AND end_window_datetime <= '{filters.end_agg_window_datetime}'"
-
-        if filters.start_create_datetime:
-            query += (
-                f" AND create_datetime >= '{filters.start_create_datetime}'"
-            )
-
-        if filters.end_create_datetime:
-            query += f" AND create_datetime <= '{filters.end_create_datetime}'"
-
-        if filters.relative_interval:
-            current_datetime = datetime.now(UTC)
-            query += f" AND create_datetime >= '{current_datetime - filters.relative_interval}'"
+        query = self._apply_common_filters(query, filters)
 
         count = len(
             self.client.execute(
@@ -200,6 +158,92 @@ class DataPipeRepository:
         )
 
         return count, unit_logs
+
+    def _apply_aggregation_filters(
+        self, query: str, filters: DataPipeFilter
+    ) -> str:
+        if filters.aggregation_type:
+            filters.aggregation_type = (
+                filters.aggregation_type.default
+                if isinstance(filters.aggregation_type, Query)
+                else filters.aggregation_type
+            )
+            data = ", ".join(
+                [f"'{item}'" for item in filters.aggregation_type]
+            )
+            level_append = f" AND aggregation_type in ({data})"
+
+            query += level_append
+        elif isinstance(filters.aggregation_type, list) and not len(
+            filters.aggregation_type
+        ):
+            level_append = " AND aggregation_type in (0)"
+
+            query += level_append
+
+        if filters.time_window_size is not None:
+            query += f" AND time_window_size = {filters.time_window_size}"
+
+        if filters.start_agg_window_datetime:
+            query += f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
+
+        if filters.end_agg_window_datetime:
+            query += f" AND end_window_datetime <= '{filters.end_agg_window_datetime}'"
+
+        return query
+
+    def _apply_common_filters(
+        self, query: str, filters: DataPipeFilter
+    ) -> str:
+        if (
+            filters.search_string
+            and filters.type != ProcessingPolicyType.AGGREGATION
+        ):
+            query += " AND state ILIKE %(search_string)s"
+
+        if filters.start_create_datetime:
+            query += (
+                f" AND create_datetime >= '{filters.start_create_datetime}'"
+            )
+
+        if filters.end_create_datetime:
+            query += f" AND create_datetime <= '{filters.end_create_datetime}'"
+
+        if filters.relative_interval:
+            current_datetime = datetime.now(UTC)
+            query += f" AND create_datetime >= '{current_datetime - filters.relative_interval}'"
+
+        return query
+
+    def _apply_aggregation_filters(
+        self, query: str, filters: DataPipeFilter
+    ) -> str:
+        """
+        Расширяет базовый запрос условиями, относящимися к AGGREGATION.
+        """
+        # 🟢 обработка aggregation_type
+        aggregation_type = filters.aggregation_type or []
+        if isinstance(aggregation_type, Query):
+            aggregation_type = aggregation_type.default
+
+        if aggregation_type:  # если список не пустой
+            data = ", ".join([f"'{item}'" for item in aggregation_type])
+            query += f" AND aggregation_type IN ({data})"
+        elif isinstance(aggregation_type, list):  # если пустой список
+            query += " AND aggregation_type IN (0)"  # гарантируем, что вернётся пустой результат
+
+        # 🟢 фильтрация по размеру окна
+        if filters.time_window_size is not None:
+            query += f" AND time_window_size = {filters.time_window_size}"
+
+        # 🟢 фильтрация по времени начала/конца окна агрегации
+        if filters.start_agg_window_datetime:
+            query += f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
+
+        if filters.end_agg_window_datetime:
+            query += f" AND end_window_datetime <= '{filters.end_agg_window_datetime}'"
+
+        return query
 
     def bulk_delete(self, uuids: builtins.list[str]) -> None:
         tables = ["n_last_entry", "window_entry", "aggregation_entry"]

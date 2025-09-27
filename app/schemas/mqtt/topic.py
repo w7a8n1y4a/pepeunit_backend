@@ -91,75 +91,116 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
         msg = f"Payload size is {payload_size}, limit is {settings.mqtt_max_payload_size} KB"
         raise MqttError(msg)
 
-    if (
-        destination == DestinationTopicType.OUTPUT_BASE_TOPIC
-        and topic_name == ReservedOutputBaseTopic.STATE
-    ):
-        with get_hand_session() as db:
-            unit_repository = UnitRepository(db)
-            unit_state_dict = get_only_reserved_keys(
-                is_valid_json(payload.decode(), "Hardware state")
+    if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
+        if topic_name == ReservedOutputBaseTopic.STATE:
+            await _handle_state_message(unit_uuid, payload)
+        elif topic_name == ReservedOutputBaseTopic.LOG:
+            await _handle_log_message(unit_uuid, payload)
+
+
+async def _handle_state_message(unit_uuid, payload):
+    with get_hand_session() as db:
+        unit_repository = UnitRepository(db)
+        unit_state_dict = get_only_reserved_keys(
+            is_valid_json(payload.decode(), "Hardware state")
+        )
+
+        unit = unit_repository.get(Unit(uuid=unit_uuid))
+        is_valid_object(unit)
+
+        unit.unit_state_dict = json.dumps(unit_state_dict)
+
+        if "commit_version" not in unit.unit_state_dict:
+            msg = "State dict has no commit_version key"
+            raise MqttError(msg)
+
+        unit.current_commit_version = unit_state_dict["commit_version"]
+
+        if (
+            unit.firmware_update_status
+            == UnitFirmwareUpdateStatus.REQUEST_SENT
+        ):
+            current_datetime = datetime.datetime.now(datetime.UTC)
+
+            repo_repository = RepoRepository(db)
+            repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
+
+            repository_registry_repository = RepositoryRegistryRepository(db)
+            repository_registry = repository_registry_repository.get(
+                RepositoryRegistry(uuid=repo.repository_registry_uuid)
             )
+
+            git_repo_repository = GitRepoRepository()
+            target_commit, target_tag = (
+                git_repo_repository.get_target_unit_version(
+                    repo, repository_registry, unit
+                )
+            )
+
+            last_update_datetime = ensure_timezone_aware(
+                unit.last_firmware_update_datetime
+            )
+
+            delta = (current_datetime - last_update_datetime).total_seconds()
+            if target_commit == unit.current_commit_version:
+                unit.firmware_update_error = None
+                unit.last_firmware_update_datetime = None
+                unit.firmware_update_status = UnitFirmwareUpdateStatus.SUCCESS
+
+            elif delta > settings.backend_state_send_interval * 2:
+                try:
+                    msg = f"Device firmware update time is twice as fast as {settings.backend_state_send_interval}s times"
+                    raise UpdateError(msg)
+                except UpdateError as e:
+                    unit.firmware_update_error = e.message
+
+                unit.last_firmware_update_datetime = None
+                unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
+
+        unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
+        unit_repository.update(
+            unit_uuid,
+            unit,
+        )
+
+
+async def _handle_log_message(unit_uuid, payload):
+    with get_hand_clickhouse_client() as cc, get_hand_session() as db:
+        try:
+            unit_repository = UnitRepository(db)
+            unit_log_repository = UnitLogRepository(cc)
+
+            log_data = is_valid_json(payload.decode(), "Unit hardware log")
 
             unit = unit_repository.get(Unit(uuid=unit_uuid))
             is_valid_object(unit)
 
-            unit.unit_state_dict = json.dumps(unit_state_dict)
+            if isinstance(log_data, dict):
+                log_data = [log_data]
 
-            if "commit_version" not in unit.unit_state_dict:
-                msg = "State dict has no commit_version key"
-                raise MqttError(msg)
+            server_datetime = datetime.datetime.now(datetime.UTC)
 
-            unit.current_commit_version = unit_state_dict["commit_version"]
-
-            if (
-                unit.firmware_update_status
-                == UnitFirmwareUpdateStatus.REQUEST_SENT
-            ):
-                current_datetime = datetime.datetime.now(datetime.UTC)
-
-                repo_repository = RepoRepository(db)
-                repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
-
-                repository_registry_repository = RepositoryRegistryRepository(
-                    db
-                )
-                repository_registry = repository_registry_repository.get(
-                    RepositoryRegistry(uuid=repo.repository_registry_uuid)
-                )
-
-                git_repo_repository = GitRepoRepository()
-                target_commit, target_tag = (
-                    git_repo_repository.get_target_unit_version(
-                        repo, repository_registry, unit
+            unit_log_repository.bulk_create(
+                [
+                    UnitLog(
+                        uuid=uuid.uuid4(),
+                        level=item["level"].capitalize(),
+                        unit_uuid=unit.uuid,
+                        text=item["text"],
+                        create_datetime=(
+                            item["create_datetime"]
+                            if item.get("create_datetime")
+                            else server_datetime
+                            + datetime.timedelta(seconds=inc)
+                        ),
+                        expiration_datetime=datetime.datetime.now(datetime.UTC)
+                        + datetime.timedelta(
+                            seconds=settings.backend_unit_log_expiration
+                        ),
                     )
-                )
-
-                last_update_datetime = ensure_timezone_aware(
-                    unit.last_firmware_update_datetime
-                )
-
-                delta = (
-                    current_datetime - last_update_datetime
-                ).total_seconds()
-                if target_commit == unit.current_commit_version:
-                    unit.firmware_update_error = None
-                    unit.last_firmware_update_datetime = None
-                    unit.firmware_update_status = (
-                        UnitFirmwareUpdateStatus.SUCCESS
-                    )
-
-                elif delta > settings.backend_state_send_interval * 2:
-                    try:
-                        msg = f"Device firmware update time is twice as fast as {settings.backend_state_send_interval}s times"
-                        raise UpdateError(msg)
-                    except UpdateError as e:
-                        unit.firmware_update_error = e.message
-
-                    unit.last_firmware_update_datetime = None
-                    unit.firmware_update_status = (
-                        UnitFirmwareUpdateStatus.ERROR
-                    )
+                    for inc, item in enumerate(log_data)
+                ]
+            )
 
             unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
             unit_repository.update(
@@ -167,63 +208,12 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                 unit,
             )
 
-    elif (
-        destination == DestinationTopicType.OUTPUT_BASE_TOPIC
-        and topic_name == ReservedOutputBaseTopic.LOG
-    ):
-        with get_hand_clickhouse_client() as cc, get_hand_session() as db:
-            try:
-                unit_repository = UnitRepository(db)
-                unit_log_repository = UnitLogRepository(cc)
-
-                log_data = is_valid_json(payload.decode(), "Unit hardware log")
-
-                unit = unit_repository.get(Unit(uuid=unit_uuid))
-                is_valid_object(unit)
-
-                if isinstance(log_data, dict):
-                    log_data = [log_data]
-
-                server_datetime = datetime.datetime.now(datetime.UTC)
-
-                unit_log_repository.bulk_create(
-                    [
-                        UnitLog(
-                            uuid=uuid.uuid4(),
-                            level=item["level"].capitalize(),
-                            unit_uuid=unit.uuid,
-                            text=item["text"],
-                            create_datetime=(
-                                item["create_datetime"]
-                                if item.get("create_datetime")
-                                else server_datetime
-                                + datetime.timedelta(seconds=inc)
-                            ),
-                            expiration_datetime=datetime.datetime.now(
-                                datetime.UTC
-                            )
-                            + datetime.timedelta(
-                                seconds=settings.backend_unit_log_expiration
-                            ),
-                        )
-                        for inc, item in enumerate(log_data)
-                    ]
-                )
-
-                unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
-                unit_repository.update(
-                    unit_uuid,
-                    unit,
-                )
-
-            except Exception as e:
-                logging.error(e)
-    else:
-        pass
+        except Exception as e:
+            logging.error(e)
 
 
 @mqtt.on_disconnect()
-def disconnect(client, _packet, _exc):
+def disconnect(client, _packet):
     logging.info(
         f"Disconnected from MQTT server: {settings.mqtt_host}:{settings.mqtt_port}"
     )

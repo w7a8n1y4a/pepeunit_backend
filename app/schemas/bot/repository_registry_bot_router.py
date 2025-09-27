@@ -32,7 +32,7 @@ from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
 
 class RepositoryRegistryBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.REGISTRY
+        entity_name = EntityNames.REGISTRY.value
         super().__init__(
             entity_name=entity_name, states_group=RepositoryRegistryStates
         )

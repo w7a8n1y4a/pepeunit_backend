@@ -19,7 +19,7 @@ from app.schemas.pydantic.unit import UnitLogFilter
 
 class UnitLogBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.UNIT_LOG
+        entity_name = EntityNames.UNIT_LOG.value
         super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
         self.router.callback_query(
             F.data.startswith(f"{self.entity_name}_unit_")
@@ -146,7 +146,7 @@ class UnitLogBotRouter(BaseBotRouter):
         builder.row(
             InlineKeyboardButton(
                 text="← Back",
-                callback_data=f"{EntityNames.UNIT}_uuid_{filters.unit_uuid}_{filters.page}",
+                callback_data=f"{EntityNames.UNIT.value}_uuid_{filters.unit_uuid}_{filters.page}",
             )
         )
         return builder.as_markup()

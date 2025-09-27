@@ -138,8 +138,6 @@ select = [
 ]
 
 ignore = [
-    "C901",  # too complex (temporarily disabled)
-    "PLR0915", # too long func (temporarily disable)
     "E501",  # line too long
     "B008",  # Do not perform function calls in argument defaults
     "B006",  # Do not use mutable data structures for argument defaults
@@ -148,7 +146,7 @@ ignore = [
     "PLR0912", # too many branches
     "PLR2004", # magic value used in comparison
     "PLW0603", # using the global statement
-    "S105", # hardcode password
+    "S105",   # hardcode password
     "S101",   # use of assert detected
     "S307",   # insecure eval
     "S608",   # sql inject
@@ -158,7 +156,7 @@ ignore = [
     "COM812", # missing trailing comma
     "ISC001", # implicitly concatenated string literals over continuation line
     "ERA001", # commented out code
-    "G004", # logging uses f-string
+    "G004",   # logging uses f-string
     "INP001", # import implict
     "PLC0415", # top level import
 ]

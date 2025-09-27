@@ -48,7 +48,7 @@ from app.schemas.pydantic.unit import UnitFilter
 
 class UnitBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.UNIT
+        entity_name = EntityNames.UNIT.value
 
         super().__init__(entity_name=entity_name, states_group=UnitStates)
         self.router.message(Command(CommandNames.UNIT))(self.unit_resolver)
@@ -199,7 +199,7 @@ class UnitBotRouter(BaseBotRouter):
             builder.row(
                 InlineKeyboardButton(
                     text="← Back",
-                    callback_data=f"{EntityNames.REPO}_uuid_{filters.repo_uuid}_{filters.page}",
+                    callback_data=f"{EntityNames.REPO.value}_uuid_{filters.repo_uuid}_{filters.page}",
                 )
             )
 
@@ -208,6 +208,30 @@ class UnitBotRouter(BaseBotRouter):
     async def handle_entity_click(
         self, callback: types.CallbackQuery, state: FSMContext
     ) -> None:
+        filters = await self._get_filters(state, callback)
+        unit, repo, target_version, current_schema, is_creator = (
+            self._get_unit_data(callback)
+        )
+
+        text = self._build_unit_info_text(unit, repo, target_version)
+        if unit.unit_state:
+            text += self._build_unit_state_text(unit)
+
+        text += "```"
+
+        keyboard = self._build_keyboard(
+            unit, is_creator, current_schema, target_version, filters
+        )
+
+        await callback.answer(parse_mode="Markdown")
+        with contextlib.suppress(TelegramBadRequest):
+            await self.telegram_response(
+                callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
+
+    async def _get_filters(
+        self, state: FSMContext, callback: types.CallbackQuery
+    ) -> BaseBotFilters:
         data = await state.get_data()
         filters: BaseBotFilters = (
             BaseBotFilters(**data.get("current_filters"))
@@ -215,13 +239,17 @@ class UnitBotRouter(BaseBotRouter):
             else BaseBotFilters()
         )
 
-        unit_uuid = UUID(callback.data.split("_")[-2])
         current_page = int(callback.data.split("_")[-1])
 
         if not filters.previous_filters:
             filters.page = current_page
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
+
+        return filters
+
+    def _get_unit_data(self, callback: types.CallbackQuery):
+        unit_uuid = UUID(callback.data.split("_")[-2])
 
         with get_hand_session() as db, get_hand_clickhouse_client() as cc:
             unit_service = get_bot_unit_service(
@@ -230,10 +258,12 @@ class UnitBotRouter(BaseBotRouter):
             repo_service = get_bot_repo_service(
                 db, cc, str(callback.from_user.id)
             )
+
             unit = unit_service.mapper_unit_to_unit_type(
                 (unit_service.get(unit_uuid), [])
             )
             repo = repo_service.get(unit.repo_uuid)
+
             try:
                 target_version = unit_service.get_target_version(unit_uuid)
             except Exception:
@@ -249,9 +279,10 @@ class UnitBotRouter(BaseBotRouter):
                 == unit.creator_uuid
             )
 
-        text = f"*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*"
+        return unit, repo, target_version, current_schema, is_creator
 
-        text += "\n```text\n"
+    def _build_unit_info_text(self, unit, repo, target_version):
+        text = f"*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*\n```text\n"
 
         table = [
             ["Param", "Value"],
@@ -280,121 +311,119 @@ class UnitBotRouter(BaseBotRouter):
                 ]
             )
 
+        text += (
+            make_monospace_table_with_title(
+                table, "Base Info", lengths=[15, 35]
+            )
+            + "\n"
+        )
+
         if target_version:
-            current_version = (
-                self.git_hash_limit(unit.current_commit_version)
-                if unit.current_commit_version
-                else None
-            )
-            target_version = (
-                self.git_hash_limit(target_version.commit)
-                if target_version.commit
-                else None
-            )
+            text += self._build_version_info(unit, target_version)
 
-            if (
-                not unit.firmware_update_status
-                and current_version == target_version
-            ):
-                status = UnitFirmwareUpdateStatus.SUCCESS
-            elif (
-                not unit.firmware_update_status
-                and current_version != target_version
-            ):
-                status = "Need"
-            elif not target_version and not current_version:
-                status = "No Data"
-            else:
-                status = unit.firmware_update_status
+        return text
 
-            table.extend(
+    def _build_version_info(self, unit, target_version):
+        current_version = (
+            self.git_hash_limit(unit.current_commit_version)
+            if unit.current_commit_version
+            else None
+        )
+        target_version = (
+            self.git_hash_limit(target_version.commit)
+            if target_version.commit
+            else None
+        )
+
+        if (
+            not unit.firmware_update_status
+            and current_version == target_version
+        ):
+            status = UnitFirmwareUpdateStatus.SUCCESS
+        elif (
+            not unit.firmware_update_status
+            and current_version != target_version
+        ):
+            status = "Need"
+        elif not target_version and not current_version:
+            status = "No Data"
+        else:
+            status = unit.firmware_update_status
+
+        table = [
+            ["Current Version", current_version],
+            ["Target Version", target_version],
+            ["Update status", status],
+        ]
+
+        if (
+            unit.firmware_update_status
+            == UnitFirmwareUpdateStatus.REQUEST_SENT
+        ):
+            table.append(
                 [
-                    ["Current Version", current_version],
-                    ["Target Version", target_version],
-                    ["Update status", status],
+                    "Request Update",
+                    unit.last_firmware_update_datetime.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
                 ]
             )
 
-            if (
-                unit.firmware_update_status
-                == UnitFirmwareUpdateStatus.REQUEST_SENT
-            ):
+        if (
+            unit.firmware_update_status == UnitFirmwareUpdateStatus.ERROR
+            and unit.firmware_update_error
+        ):
+            table.append(["Update Error", unit.firmware_update_error])
+
+        return make_monospace_table_with_title(table, "Firmware Info")
+
+    def _build_unit_state_text(self, unit):
+        table = []
+
+        if len(unit.unit_state.ifconfig) == 4:
+            table.extend(
+                [
+                    ["IP", unit.unit_state.ifconfig[0]],
+                    ["Sub", unit.unit_state.ifconfig[1]],
+                    ["Gate", unit.unit_state.ifconfig[2]],
+                    ["DNS", unit.unit_state.ifconfig[3]],
+                ]
+            )
+
+        if (
+            unit.unit_state.freq
+            or unit.unit_state.millis
+            or unit.unit_state.mem_alloc
+            or unit.unit_state.mem_free
+        ):
+            if unit.unit_state.freq:
+                table.append(["Freq", round(unit.unit_state.freq, 1)])
+            if unit.unit_state.millis:
+                table.append(["Up", format_millis(unit.unit_state.millis)])
+            if unit.unit_state.mem_alloc:
                 table.append(
-                    [
-                        "Request Update",
-                        unit.last_firmware_update_datetime.strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
-                    ]
+                    ["Alloc RAM", byte_converter(unit.unit_state.mem_alloc)]
+                )
+            if unit.unit_state.mem_free:
+                table.append(
+                    ["Free RAM", byte_converter(unit.unit_state.mem_free)]
                 )
 
-            if (
-                unit.firmware_update_status == UnitFirmwareUpdateStatus.ERROR
-                and unit.firmware_update_error
-            ):
-                table.append(["Update Error", unit.firmware_update_error])
+        if len(unit.unit_state.statvfs) == 10:
+            total, free, used = calculate_flash_mem(unit.unit_state.statvfs)
+            table.extend(
+                [
+                    ["Total", byte_converter(round(total, 0))],
+                    ["Free", byte_converter(round(free, 0))],
+                    ["Used", byte_converter(round(used, 0))],
+                ]
+            )
 
-        text += make_monospace_table_with_title(
-            table, "Base Info", lengths=[15, 35]
-        )
+        return "\n" + make_monospace_table_with_title(table, "Unit State")
 
-        text += "\n"
-
-        if unit.unit_state:
-            table = []
-            if len(unit.unit_state.ifconfig) == 4:
-                table.extend(
-                    [
-                        ["IP", unit.unit_state.ifconfig[0]],
-                        ["Sub", unit.unit_state.ifconfig[1]],
-                        ["Gate", unit.unit_state.ifconfig[2]],
-                        ["DNS", unit.unit_state.ifconfig[3]],
-                    ]
-                )
-
-            if (
-                unit.unit_state.mem_alloc
-                or unit.unit_state.mem_free
-                or unit.unit_state.freq
-                or unit.unit_state.millis
-            ):
-                if unit.unit_state.freq:
-                    table.append(["Freq", round(unit.unit_state.freq, 1)])
-
-                if unit.unit_state.millis:
-                    table.append(["Up", format_millis(unit.unit_state.millis)])
-
-                if unit.unit_state.mem_alloc:
-                    table.append(
-                        [
-                            "Alloc RAM",
-                            byte_converter(unit.unit_state.mem_alloc),
-                        ]
-                    )
-
-                if unit.unit_state.mem_free:
-                    table.append(
-                        ["Free RAM", byte_converter(unit.unit_state.mem_free)]
-                    )
-
-            if len(unit.unit_state.statvfs) == 10:
-                total, free, used = calculate_flash_mem(
-                    unit.unit_state.statvfs
-                )
-
-                table.extend(
-                    [
-                        ["Total", byte_converter(round(total, 0))],
-                        ["Free", byte_converter(round(free, 0))],
-                        ["Used", byte_converter(round(used, 0))],
-                    ]
-                )
-
-            text += "\n"
-            text += make_monospace_table_with_title(table, "Unit State")
-
-        text += "```"
-
+    def _build_keyboard(
+        self, unit, is_creator, current_schema, target_version, filters
+    ):
         keyboard = []
 
         if is_creator:
@@ -402,19 +431,18 @@ class UnitBotRouter(BaseBotRouter):
                 [
                     InlineKeyboardButton(
                         text="💰 Get Env",
-                        callback_data=f"{self.entity_name}_decres_{DecreesNames.GET_ENV}_{unit.uuid}",
+                        callback_data=f"{self.entity_name}_decres_{DecreesNames.GET_ENV.value}_{unit.uuid}",
                     ),
                 ]
             )
 
             if current_schema:
                 commands = current_schema["input_base_topic"].keys()
-
                 command_mqtt_dict = {
-                    f"{ReservedInputBaseTopic.UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}": BackendTopicCommand.UPDATE,
-                    f"{ReservedInputBaseTopic.SCHEMA_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}": BackendTopicCommand.SCHEMA_UPDATE,
-                    f"{ReservedInputBaseTopic.ENV_UPDATE}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}": BackendTopicCommand.ENV_UPDATE,
-                    f"{ReservedInputBaseTopic.LOG_SYNC}{GlobalPrefixTopic.BACKEND_SUB_PREFIX}": BackendTopicCommand.LOG_SYNC,
+                    f"{ReservedInputBaseTopic.UPDATE.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.UPDATE.value,
+                    f"{ReservedInputBaseTopic.SCHEMA_UPDATE.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.SCHEMA_UPDATE.value,
+                    f"{ReservedInputBaseTopic.ENV_UPDATE.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.ENV_UPDATE.value,
+                    f"{ReservedInputBaseTopic.LOG_SYNC.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.LOG_SYNC.value,
                 }
 
                 keyboard.append(
@@ -426,13 +454,13 @@ class UnitBotRouter(BaseBotRouter):
                         for command in list(commands)
                     ]
                 )
+
             if target_version:
                 commands = [
-                    DecreesNames.TGZ,
-                    DecreesNames.TAR,
-                    DecreesNames.ZIP,
+                    DecreesNames.TGZ.value,
+                    DecreesNames.TAR.value,
+                    DecreesNames.ZIP.value,
                 ]
-
                 keyboard.append(
                     [
                         InlineKeyboardButton(
@@ -446,7 +474,7 @@ class UnitBotRouter(BaseBotRouter):
         buttons = [
             InlineKeyboardButton(
                 text="🎯 Unit Nodes",
-                callback_data=f"{EntityNames.UNIT_NODE}_unit_{unit.uuid}",
+                callback_data=f"{EntityNames.UNIT_NODE.value}_unit_{unit.uuid}",
             ),
         ]
 
@@ -454,7 +482,7 @@ class UnitBotRouter(BaseBotRouter):
             buttons.append(
                 InlineKeyboardButton(
                     text="📝 Unit Logs",
-                    callback_data=f"{EntityNames.UNIT_LOG}_unit_{unit.uuid}",
+                    callback_data=f"{EntityNames.UNIT_LOG.value}_unit_{unit.uuid}",
                 )
             )
 
@@ -473,14 +501,10 @@ class UnitBotRouter(BaseBotRouter):
                     text="Browser",
                     url=f"{settings.backend_link}/unit/{unit.uuid}",
                 ),
-            ],
+            ]
         )
 
-        await callback.answer(parse_mode="Markdown")
-        with contextlib.suppress(TelegramBadRequest):
-            await self.telegram_response(
-                callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
-            )
+        return keyboard
 
     async def handle_entity_decrees(
         self, callback: types.CallbackQuery

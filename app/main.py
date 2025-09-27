@@ -49,6 +49,7 @@ from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
+from app.utils.utils import logo_to_console
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,195 +61,138 @@ logging.getLogger("httpx").setLevel(logging.INFO)
 recreate_directory(settings.prometheus_multiproc_dir)
 
 
+async def init_clickhouse():
+    clickhouse_cluster = ClickhouseCluster(
+        settings.clickhouse_connection.host,
+        settings.clickhouse_connection.user,
+        settings.clickhouse_connection.password,
+    )
+    clickhouse_cluster.migrate(
+        settings.clickhouse_connection.database,
+        "./clickhouse/migrations",
+        cluster_name=None,
+        create_db_if_no_exists=True,
+        multi_statement=True,
+    )
+
+
+async def setup_backend_acl(redis):
+    backend_topics = (
+        f"{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+    )
+
+    async def hset_emqx_auth_keys(redis_client, topic):
+        token = AgentBackend(
+            name=settings.backend_domain
+        ).generate_agent_token()
+        await redis_client.hset(f"mqtt_acl:{token}", topic, "all")
+
+    await asyncio.gather(
+        *[hset_emqx_auth_keys(redis, topic) for topic in backend_topics]
+    )
+
+
+async def run_polling_bot(dp, bot):
+    logging.info("Delete webhook before run polling")
+    await bot.delete_webhook()
+    logging.info("Run polling")
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+
+
+async def run_webhook_bot(dp, bot):
+    webhook_url = f"{settings.backend_link_prefix_and_v1}/bot"
+
+    if settings.telegram_del_old_webhook:
+        logging.info("Delete webhook before set new webhook")
+        await bot.delete_webhook()
+
+    inc = 0
+    while True:
+        result = httpx.post(
+            f"{settings.backend_link_prefix_and_v1}/bot",
+            headers={"Content-Type": "application/json"},
+        )
+        if result.status_code == 422:
+            break
+        await asyncio.sleep(2)
+        if inc > 10:
+            msg = "Webhook route not valid"
+            raise Exception(msg)
+        inc += 1
+
+    try:
+        await bot.set_webhook(
+            url=webhook_url,
+            drop_pending_updates=True,
+            allowed_updates=dp.resolve_used_update_types(),
+        )
+        logging.info("Success set TG bot webhook url")
+    except aiogram.exceptions.TelegramBadRequest:
+        logging.info("Error set TG bot webhook url")
+
+
+async def init_telegram_bot(dp, bot):
+    if not settings.telegram_bot_enable:
+        return
+
+    if settings.telegram_bot_mode == "pooling":
+        asyncio.get_event_loop().create_task(
+            run_polling_bot(dp, bot), name="run_polling_bot"
+        )
+    elif settings.telegram_bot_mode == "webhook":
+
+        def start_webhook_thread():
+            asyncio.run(run_webhook_bot(dp, bot))
+
+        executor = ThreadPoolExecutor(max_workers=1)
+        executor.submit(start_webhook_thread)
+
+
+def sync_local_repository():
+    with get_hand_session() as db:
+        repository_registry_service = get_repository_registry_service(
+            db,
+            AgentBackend(name=settings.backend_domain).generate_agent_token(),
+        )
+        repository_registry_service.sync_local_repository_storage()
+
+
+async def run_mqtt_client(mqtt, redis_client):
+    logging.info(
+        f"Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}"
+    )
+    await mqtt.mqtt_startup()
+    token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+    access = await redis_client.hgetall(token)
+    for k, v in access.items():
+        logging.info(f"Redis set {k} access {v}")
+
+
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     FILE_INIT_LOCK = "tmp/init_lock.lock"
     FILE_MQTT_RUN_LOCK = "tmp/mqtt_run_lock.lock"
 
     init_lock = acquire_file_lock(FILE_INIT_LOCK)
-
     redis = await anext(get_redis_session())
 
     if init_lock:
         mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
 
-        clickhouse_cluster = ClickhouseCluster(
-            settings.clickhouse_connection.host,
-            settings.clickhouse_connection.user,
-            settings.clickhouse_connection.password,
-        )
-        clickhouse_cluster.migrate(
-            settings.clickhouse_connection.database,
-            "./clickhouse/migrations",
-            cluster_name=None,
-            create_db_if_no_exists=True,
-            multi_statement=True,
-        )
-
+        await init_clickhouse()
         control_emqx = ControlEmqx()
-        await control_emqx.delete_auth_hooks()
-
-        await control_emqx.set_file_auth_hook()
-        await control_emqx.set_http_auth_hook()
-        await control_emqx.set_redis_auth_hook()
-
-        (await control_emqx.set_auth_cache_ttl(),)
-        (await control_emqx.set_tcp_listener_settings(),)
-        (await control_emqx.set_global_mqtt_settings(),)
-
-        # BUG: emqx не умеет посылать метрики в prometheus, пока выключены listeners
-        # await control_emqx.disable_default_listeners()
-
-        backend_topics = (
-            f"{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
-        )
-
-        async def hset_emqx_auth_keys(redis_client, topic):
-            token = AgentBackend(
-                name=settings.backend_domain
-            ).generate_agent_token()
-            await redis_client.hset(f"mqtt_acl:{token}", topic, "all")
-
-        await asyncio.gather(
-            *[hset_emqx_auth_keys(redis, topic) for topic in backend_topics]
-        )
-
-        async def run_polling_bot(dp, bot):
-            logging.info("Delete webhook before run polling")
-            await bot.delete_webhook()
-
-            logging.info("Run polling")
-            await dp.start_polling(
-                bot, allowed_updates=dp.resolve_used_update_types()
-            )
-
-        async def run_webhook_bot(dp, bot):
-            webhook_url = f"{settings.backend_link_prefix_and_v1}/bot"
-
-            if settings.telegram_del_old_webhook:
-                logging.info("Delete webhook before set new webhook")
-                await bot.delete_webhook()
-
-            inc = 0
-            while True:
-                result = httpx.post(
-                    f"{settings.backend_link_prefix_and_v1}/bot",
-                    headers={"Content-Type": "application/json"},
-                )
-                if result.status_code == 422:
-                    break
-
-                await asyncio.sleep(2)
-
-                if inc > 10:
-                    msg = "Webhook route not valid"
-                    raise Exception(msg)
-
-                inc += 1
-
-            try:
-                await bot.set_webhook(
-                    url=webhook_url,
-                    drop_pending_updates=True,
-                    allowed_updates=dp.resolve_used_update_types(),
-                )
-                logging.info("Success set TG bot webhook url")
-            except aiogram.exceptions.TelegramBadRequest:
-                logging.info("Error set TG bot webhook url")
-
-        if settings.telegram_bot_enable:
-            if settings.telegram_bot_mode == "pooling":
-                asyncio.get_event_loop().create_task(
-                    run_polling_bot(dp, bot), name="run_polling_bot"
-                )
-
-            elif settings.telegram_bot_mode == "webhook":
-
-                def start_webhook_thread():
-                    asyncio.run(run_webhook_bot(dp, bot))
-
-                executor = ThreadPoolExecutor(max_workers=1)
-                executor.submit(start_webhook_thread)
-
-        with get_hand_session() as db:
-            repository_registry_service = get_repository_registry_service(
-                db,
-                AgentBackend(
-                    name=settings.backend_domain
-                ).generate_agent_token(),
-            )
-            repository_registry_service.sync_local_repository_storage()
+        await control_emqx.init()
+        await setup_backend_acl(redis)
+        await init_telegram_bot(dp, bot)
+        sync_local_repository()
 
         mqtt_run_lock.close()
 
-        logging.info(
-            rf"""
-
-                           ........:
-                          :......::-
-                           .....::.:
-                           .....::.-
-                      :.........::.-****
-                    :........::::--==++###%
-                  :::-++*++=======++*#@@%%-::
-                ....:-=---==++******###%%*-...:
-              :....:--===++=*=+**%@@%@%%%%*+:..:
-            :....::=====+====+==*##%@%%%#*##+=...:
-          -...........:-===++*=++**#%*:....::---...:
-         :......-..:*##%%*+++===+#*-.:-..+#%%%#*+:...:
-       :......=..++*##%%%%#**++--=..-.--*##%%*%@#+=....-
-      :..:-:.+-+=+#%%***+#@#*=---..+:=**+%@%%*%@@*+=-...:
-     =--===-.%%=#*#%-.=:+@@%**==-::%%#==#@@#%@@+@%**+=:::
-     =-=====.+@%%+@@%:.-#@@##***+-:%@%*%@%@%%=%@@#++::-::
-     =--====-.#@@*@+@@*@@@#***#**#-:%@*%%+@=@*@@#*==-..::
-     ==+*=+++=::#@@@@@@@########*#%==+%@@@@@@@#**++++*+::-
-     *@*+++++++++****#####%##%###%#%%%%#########*##+==*#--
-     -*@%**==+=+*#=+**###%%%%####%%##%%%%%%%#%%%#####@@%=+
-  :::-=--+%%@*##*.-.*#####%%%########%%%%%%%###%%@@%*++=+****
-  ....:---------==***#%%%%%*%#%%#%%%%%%%%%#*++=====+**#######%
-  ....:-:::-=====-----------------------===+++***+++*#%@@%###%
-  :--=:=++++====---::::---------===========++*##%@@@@@@@@@@@@@
-     =--+*++++***+=+*****###########%%%%%%%%%#%%%#@@@@@@@@
-       +==++++**+...:*=+=*=+==*++##++=+++#%-:-*%#%@@@@@@
-          %#*****#####*##*-+-=*==#--+#**%*%%%%@@@@@@@
-            *##%@@@@@@@%%%%%%%%%%%%%%@@@@@@@@@@@@@@
-            *###%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                %%@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-             _____                            _ _
-            |  __ \                          (_) |
-            | |__) |__ _ __   ___ _   _ _ __  _| |_
-            |  ___/ _ \ '_ \ / _ \ | | | '_ \| | __|
-            | |  |  __/ |_) |  __/ |_| | | | | | |_
-            |_|   \___| .__/ \___|\__,_|_| |_|_|\__|
-                      | |
-                      |_|
-
-     v{settings.version} - {settings.license}
-     Federated IoT Platform
-     Front: {settings.backend_link}
-     REST:  {settings.backend_link_prefix}/docs
-     GQL:   {settings.backend_link_prefix}/graphql
-     TG:    {settings.telegram_bot_link}
-     Docs:  https://pepeunit.com
-            """
-        )
-
-    async def run_mqtt_client(mqtt, redis_client):
-        logging.info(
-            f"Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}"
-        )
-        await mqtt.mqtt_startup()
-
-        token = AgentBackend(
-            name=settings.backend_domain
-        ).generate_agent_token()
-        access = await redis_client.hgetall(token)
-        for k, v in access.items():
-            logging.info(f"Redis set {k} access {v}")
+    logo_to_console()
 
     wait_for_file_unlock(FILE_MQTT_RUN_LOCK)
 
-    await asyncio.get_event_loop().create_task(
+    asyncio.get_event_loop().create_task(
         run_mqtt_client(mqtt, redis), name="run_mqtt_client"
     )
 
