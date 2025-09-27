@@ -314,12 +314,15 @@ class GrafanaRepository:
             f"{settings.backend_link}/grafana/api/orgs", headers=self.headers
         )
         resp.raise_for_status()
-        orgs = resp.json()
 
-        existing = next(
-            (o for o in orgs if o["name"] == str(user.grafana_org_name)), None
-        )
-        if not existing:
+        orgs = [
+            org
+            for org in resp.json()
+            if org["name"] == str(user.grafana_org_name)
+        ]
+        target_org = orgs[0] if orgs else None
+
+        if not target_org:
             resp = httpx.post(
                 f"{settings.backend_link}/grafana/api/orgs",
                 headers=self.headers,
@@ -328,7 +331,7 @@ class GrafanaRepository:
             resp.raise_for_status()
             org_id = resp.json().get("orgId")
         else:
-            org_id = existing["id"]
+            org_id = target_org["id"]
 
         resp = httpx.post(
             f"{settings.backend_link}/grafana/api/admin/users",
