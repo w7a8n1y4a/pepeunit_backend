@@ -49,6 +49,7 @@ from app.schemas.pydantic.repository_registry import (
 from app.services.access_service import AccessService
 from app.services.permission_service import PermissionService
 from app.services.validators import is_emtpy_sequence, is_valid_object
+from app.utils.utils import ensure_timezone_aware
 
 
 class RepositoryRegistryService:
@@ -463,9 +464,12 @@ class RepositoryRegistryService:
             == RepositoryRegistryStatus.PROCESSING
             and repository_registry.sync_last_datetime
         ):
+            last_update_datetime = ensure_timezone_aware(
+                repository_registry.last_update_datetime
+            )
+
             delta = (
-                datetime.datetime.now(datetime.UTC)
-                - repository_registry.last_update_datetime
+                datetime.datetime.now(datetime.UTC) - last_update_datetime
             ).total_seconds()
             if delta <= settings.backend_min_interval_sync_repository:
                 msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.backend_min_interval_sync_repository} s"

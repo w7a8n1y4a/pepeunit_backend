@@ -211,6 +211,12 @@ async def async_chunked[T](a_gen: AsyncGenerator[T], size: int):
         yield batch
 
 
+def ensure_timezone_aware(dt: datetime.datetime) -> datetime.datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.UTC)
+    return dt
+
+
 def parse_interval(s: str) -> datetime.timedelta | relativedelta:
     value, unit = int(s[:-1]), s[-1]
     match unit:

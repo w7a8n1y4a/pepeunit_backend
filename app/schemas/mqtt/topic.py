@@ -36,6 +36,7 @@ from app.services.validators import (
     is_valid_object,
     is_valid_uuid,
 )
+from app.utils.utils import ensure_timezone_aware
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -134,8 +135,12 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
                     )
                 )
 
+                last_update_datetime = ensure_timezone_aware(
+                    unit.last_firmware_update_datetime
+                )
+
                 delta = (
-                    current_datetime - unit.last_firmware_update_datetime
+                    current_datetime - last_update_datetime
                 ).total_seconds()
                 if target_commit == unit.current_commit_version:
                     unit.firmware_update_error = None
