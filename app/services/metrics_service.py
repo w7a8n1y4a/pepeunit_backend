@@ -3,7 +3,9 @@ from fastapi import Depends
 
 from app.dto.enum import AgentType
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.repositories.repository_registry_repository import (
+    RepositoryRegistryRepository,
+)
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository

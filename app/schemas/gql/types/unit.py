@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 from strawberry import field
@@ -13,12 +12,12 @@ from app.schemas.gql.types.shared import UnitNodeType
 @strawberry.type()
 class UnitStateType(TypeInputMixin):
     ifconfig: list[str] = field(default_factory=list)
-    millis: Optional[float] = None
-    mem_free: Optional[float] = None
-    mem_alloc: Optional[float] = None
-    freq: Optional[float] = None
+    millis: float | None = None
+    mem_free: float | None = None
+    mem_alloc: float | None = None
+    freq: float | None = None
     statvfs: list[float] = field(default_factory=list)
-    commit_version: Optional[str] = None
+    commit_version: str | None = None
 
 
 @strawberry.type()
@@ -31,13 +30,13 @@ class UnitType(TypeInputMixin):
 
     is_auto_update_from_repo_unit: bool
 
-    target_firmware_platform: Optional[str] = None
+    target_firmware_platform: str | None = None
 
-    repo_branch: Optional[str] = None
-    repo_commit: Optional[str] = None
+    repo_branch: str | None = None
+    repo_commit: str | None = None
 
-    unit_state: Optional[UnitStateType] = None
-    current_commit_version: Optional[str] = None
+    unit_state: UnitStateType | None = None
+    current_commit_version: str | None = None
 
     last_update_datetime: datetime
 
@@ -48,9 +47,9 @@ class UnitType(TypeInputMixin):
     cipher_state_storage: strawberry.Private[object]
     unit_state_dict: strawberry.Private[object]
 
-    firmware_update_status: Optional[UnitFirmwareUpdateStatus] = None
-    firmware_update_error: Optional[str] = None
-    last_firmware_update_datetime: Optional[datetime] = None
+    firmware_update_status: UnitFirmwareUpdateStatus | None = None
+    firmware_update_error: str | None = None
+    last_firmware_update_datetime: datetime | None = None
 
     # only if requested
     unit_nodes: list[UnitNodeType] = field(default_factory=list)

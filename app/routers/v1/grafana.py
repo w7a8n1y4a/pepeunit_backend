@@ -1,7 +1,6 @@
 import json
 import time
 import uuid as uuid_pkg
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse
@@ -52,7 +51,8 @@ def create_dashboard_panel(
     grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return DashboardPanelRead(
-        unit_nodes_for_panel=[], **grafana_service.create_dashboard_panel(data).dict()
+        unit_nodes_for_panel=[],
+        **grafana_service.create_dashboard_panel(data).dict(),
     )
 
 
@@ -70,7 +70,8 @@ def link_unit_node_to_panel(
 
 @router.get("/get_dashboard/{uuid}", response_model=DashboardRead)
 def get_dashboard(
-    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+    uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return grafana_service.get_dashboard(uuid)
 
@@ -83,13 +84,18 @@ def get_dashboards(
     count, dashboards = grafana_service.list_dashboards(filters)
     return DashboardsResult(
         count=count,
-        dashboards=[DashboardRead(**dashboard.dict()) for dashboard in dashboards],
+        dashboards=[
+            DashboardRead(**dashboard.dict()) for dashboard in dashboards
+        ],
     )
 
 
-@router.get("/get_dashboard_panels/{uuid}", response_model=DashboardPanelsResult)
+@router.get(
+    "/get_dashboard_panels/{uuid}", response_model=DashboardPanelsResult
+)
 def get_dashboard_panels(
-    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+    uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return grafana_service.get_dashboard_panels(uuid)
 
@@ -100,21 +106,26 @@ def get_dashboard_panels(
     status_code=status.HTTP_200_OK,
 )
 async def sync_dashboard(
-    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+    uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return DashboardRead(**(await grafana_service.sync_dashboard(uuid)).dict())
 
 
-@router.delete("/delete_dashboard/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/delete_dashboard/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_dashboard(
-    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+    uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return grafana_service.delete_dashboard(uuid)
 
 
 @router.delete("/delete_panel/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_panel(
-    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+    uuid: uuid_pkg.UUID,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return grafana_service.delete_panel(uuid)
 
@@ -135,23 +146,22 @@ async def authorize(
     redirect_uri: str,
     scope: str,
     state: str,
-    nonce: Optional[str] = None,
+    nonce: str | None = None,
 ):
     session_cookie = request.cookies
-    with get_hand_session() as db:
-        with get_hand_clickhouse_client() as cc:
-            user_service = get_user_service(
-                db=db,
-                client=cc,
-                jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value),
-            )
+    with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+        user_service = get_user_service(
+            db=db,
+            client=cc,
+            jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value),
+        )
 
-            user_service.create_org_if_not_exists(
-                user_service.access_service.current_agent.uuid
-            )
-            current_user = user_service.get(
-                user_service.access_service.current_agent.uuid
-            )
+        user_service.create_org_if_not_exists(
+            user_service.access_service.current_agent.uuid
+        )
+        current_user = user_service.get(
+            user_service.access_service.current_agent.uuid
+        )
 
     redis = await anext(get_redis_session())
 
@@ -187,7 +197,9 @@ async def token(
 
     auth_data = await redis.get(f"grafana:{code}")
     if not auth_data:
-        return JSONResponse(status_code=400, content={"error": "invalid_grant"})
+        return JSONResponse(
+            status_code=400, content={"error": "invalid_grant"}
+        )
 
     return {
         "access_token": code,
@@ -201,7 +213,9 @@ async def userinfo(request: Request):
     auth = request.headers.get("Authorization")
 
     if not auth or not auth.startswith("Bearer "):
-        return JSONResponse(status_code=401, content={"error": "invalid_token"})
+        return JSONResponse(
+            status_code=401, content={"error": "invalid_token"}
+        )
 
     code = auth.split(" ")[1]
 
@@ -209,7 +223,9 @@ async def userinfo(request: Request):
 
     auth_data = await redis.get(f"grafana:{code}")
     if not auth_data:
-        return JSONResponse(status_code=400, content={"error": "invalid_grant"})
+        return JSONResponse(
+            status_code=400, content={"error": "invalid_grant"}
+        )
 
     await redis.delete(f"grafana:{code}")
 

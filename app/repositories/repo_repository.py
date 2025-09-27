@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 from fastapi import Depends
 from fastapi.params import Query
@@ -42,7 +41,8 @@ class RepoRepository(BaseRepository):
         versions = (
             self.db.query(Unit.current_commit_version, func.count(Unit.uuid))
             .filter(
-                Unit.current_commit_version is not None, Unit.repo_uuid == repo.uuid
+                Unit.current_commit_version is not None,
+                Unit.repo_uuid == repo.uuid,
             )
             .group_by(Unit.current_commit_version)
             .order_by(desc(func.count(Unit.uuid)))
@@ -50,7 +50,8 @@ class RepoRepository(BaseRepository):
         count_with_version = (
             self.db.query(Unit)
             .filter(
-                Unit.current_commit_version is not None, Unit.repo_uuid == repo.uuid
+                Unit.current_commit_version is not None,
+                Unit.repo_uuid == repo.uuid,
             )
             .count()
         )
@@ -73,17 +74,22 @@ class RepoRepository(BaseRepository):
 
             versions_list.append(
                 RepoVersionRead(
-                    commit=commit, unit_count=count, tag=tag[0]["tag"] if tag else None
+                    commit=commit,
+                    unit_count=count,
+                    tag=tag[0]["tag"] if tag else None,
                 )
             )
 
-        return RepoVersionsRead(unit_count=count_with_version, versions=versions_list)
+        return RepoVersionsRead(
+            unit_count=count_with_version, versions=versions_list
+        )
 
     def list(
         self, filters: RepoFilter, restriction: list[str] = None
     ) -> tuple[int, list[Repo]]:
         query = self.db.query(Repo, RepositoryRegistry).join(
-            RepositoryRegistry, Repo.repository_registry_uuid == RepositoryRegistry.uuid
+            RepositoryRegistry,
+            Repo.repository_registry_uuid == RepositoryRegistry.uuid,
         )
 
         if filters.repository_registry_uuid:
@@ -93,7 +99,9 @@ class RepoRepository(BaseRepository):
             )
 
         filters.uuids = (
-            filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+            filters.uuids.default
+            if isinstance(filters.uuids, Query)
+            else filters.uuids
         )
         if filters.uuids:
             query = query.filter(
@@ -122,7 +130,11 @@ class RepoRepository(BaseRepository):
                 Repo.is_auto_update_repo == filters.is_auto_update_repo
             )
 
-        fields = [Repo.name, RepositoryRegistry.repository_url, Repo.default_branch]
+        fields = [
+            Repo.name,
+            RepositoryRegistry.repository_url,
+            Repo.default_branch,
+        ]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {"visibility_level": Repo.visibility_level}
@@ -139,12 +151,14 @@ class RepoRepository(BaseRepository):
         count, query = apply_offset_and_limit(query, filters)
         return count, [repo for repo, _ in query.all()]
 
-    def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
+    def is_valid_name(self, name: str, uuid: uuid_pkg.UUID | None = None):
         if not is_valid_string_with_rules(name):
             raise RepoError("Name is not correct")
 
         uuid = str(uuid)
-        repo_uuid = self.db.exec(select(Repo.uuid).where(Repo.name == name)).first()
+        repo_uuid = self.db.exec(
+            select(Repo.uuid).where(Repo.name == name)
+        ).first()
         repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
 
         if (uuid is None and repo_uuid) or (

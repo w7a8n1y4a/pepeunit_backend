@@ -1,12 +1,9 @@
 import csv
 import enum
 import uuid as uuid_pkg
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from io import StringIO
-from typing import AsyncGenerator, Union
-
-from fastapi import UploadFile
-from strawberry.file_uploads import Upload
 
 from app import settings
 from app.configs.errors import DataPipeError
@@ -36,8 +33,8 @@ class StreamingCSVValidator:
         self.current_row = 0
 
     async def iter_validated_streaming(
-        self, unit_node_uuid: uuid_pkg.UUID, upload_file: Union[Upload, UploadFile]
-    ) -> AsyncGenerator[Union[TimeWindow, NRecords, Aggregation], None]:
+        self, unit_node_uuid: uuid_pkg.UUID, upload_file
+    ) -> AsyncGenerator[TimeWindow | NRecords | Aggregation]:
         content = await upload_file.read()
         csv_content = content.decode("utf-8")
 
@@ -134,8 +131,11 @@ class StreamingCSVValidator:
 
     def check_window_entry(self, create_datetime: datetime) -> None:
         datetime_now = datetime.utcnow()
-        if create_datetime > datetime_now or create_datetime < datetime_now - timedelta(
-            seconds=self.config.processing_policy.time_window_size
+        if (
+            create_datetime > datetime_now
+            or create_datetime
+            < datetime_now
+            - timedelta(seconds=self.config.processing_policy.time_window_size)
         ):
             raise DataPipeError(
                 f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: create_datetime is outside the range of valid values from time_window_size"
@@ -158,7 +158,10 @@ class StreamingCSVValidator:
             row[AvailableCSVKeys.START_WINDOW_DATETIME.value]
         )
 
-        if start_window_datetime.second != 0 or end_window_datetime.second != 0:
+        if (
+            start_window_datetime.second != 0
+            or end_window_datetime.second != 0
+        ):
             raise DataPipeError(
                 f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: start_window_datetime or end_window_datetime have seconds"
             )
@@ -174,7 +177,9 @@ class StreamingCSVValidator:
                 f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: The difference between create_datetime and end_window_datetime is greater than the minimum time_window_sizes"
             )
 
-        actual_delta = (end_window_datetime - start_window_datetime).total_seconds()
+        actual_delta = (
+            end_window_datetime - start_window_datetime
+        ).total_seconds()
         if actual_delta != self.config.processing_policy.time_window_size:
             raise DataPipeError(
                 f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - start_window_datetime"
@@ -183,13 +188,16 @@ class StreamingCSVValidator:
             actual_delta = (
                 end_window_datetime - previous_end_window_datetime
             ).total_seconds()
-            if actual_delta % self.config.processing_policy.time_window_size != 0:
+            if (
+                actual_delta % self.config.processing_policy.time_window_size
+                != 0
+            ):
                 raise DataPipeError(
                     f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - previous_end_window_datetime"
                 )
 
     def check_active_period(self, create_datetime: datetime) -> None:
-        create_datetime = create_datetime.astimezone(timezone.utc)
+        create_datetime = create_datetime.astimezone(UTC)
 
         match self.config.active_period.type:
             case ActivePeriodType.PERMANENT:
@@ -228,71 +236,89 @@ class StreamingCSVValidator:
                         )
 
     def check_threshold(self, state: float) -> None:
-        if self.config.filters.type_value_threshold:
-            if self.config.filters.type_input_value == TypeInputValue.NUMBER:
-                match self.config.filters.type_value_threshold:
-                    case FilterTypeValueThreshold.MIN:
-                        if state < self.config.filters.threshold_min:
-                            raise DataPipeError(
-                                f"Row {self.current_row}: state < threshold_min"
-                            )
-                    case FilterTypeValueThreshold.MAX:
-                        if state > self.config.filters.threshold_max:
-                            raise DataPipeError(
-                                f"Row {self.current_row}: state > threshold_max"
-                            )
-                    case FilterTypeValueThreshold.RANGE:
-                        if (
-                            state < self.config.filters.threshold_min
-                            or state > self.config.filters.threshold_max
-                        ):
-                            raise DataPipeError(
-                                f"Row {self.current_row}: state < threshold_min or state > threshold_max"
-                            )
+        if (
+            self.config.filters.type_value_threshold
+            and self.config.filters.type_input_value == TypeInputValue.NUMBER
+        ):
+            match self.config.filters.type_value_threshold:
+                case FilterTypeValueThreshold.MIN:
+                    if state < self.config.filters.threshold_min:
+                        raise DataPipeError(
+                            f"Row {self.current_row}: state < threshold_min"
+                        )
+                case FilterTypeValueThreshold.MAX:
+                    if state > self.config.filters.threshold_max:
+                        raise DataPipeError(
+                            f"Row {self.current_row}: state > threshold_max"
+                        )
+                case FilterTypeValueThreshold.RANGE:
+                    if (
+                        state < self.config.filters.threshold_min
+                        or state > self.config.filters.threshold_max
+                    ):
+                        raise DataPipeError(
+                            f"Row {self.current_row}: state < threshold_min or state > threshold_max"
+                        )
 
     def check_max_rate(
-        self, create_datetime: datetime, previous_create_datetime: datetime | None
+        self,
+        create_datetime: datetime,
+        previous_create_datetime: datetime | None,
     ) -> None:
-        if self.config.processing_policy.policy_type in [
-            ProcessingPolicyType.N_RECORDS,
-            ProcessingPolicyType.TIME_WINDOW,
-        ]:
-            if self.config.filters.max_rate > 0 and previous_create_datetime:
-                if (
-                    previous_create_datetime
-                    + timedelta(seconds=self.config.filters.max_rate)
-                    > create_datetime
-                ):
-                    raise DataPipeError(
-                        f"Row {self.current_row}: the time difference between the previous entry and the current one, less than max_rate"
-                    )
+        if (
+            self.config.processing_policy.policy_type
+            in [
+                ProcessingPolicyType.N_RECORDS,
+                ProcessingPolicyType.TIME_WINDOW,
+            ]
+            and self.config.filters.max_rate > 0
+            and previous_create_datetime
+            and previous_create_datetime
+            + timedelta(seconds=self.config.filters.max_rate)
+            > create_datetime
+        ):
+            raise DataPipeError(
+                f"Row {self.current_row}: the time difference between the previous entry and the current one, less than max_rate"
+            )
 
     def check_last_unique(
         self, state: str | float, previous_state: str | float
     ) -> None:
-        if self.config.processing_policy.policy_type in [
-            ProcessingPolicyType.N_RECORDS,
-            ProcessingPolicyType.TIME_WINDOW,
-        ]:
-            if self.config.filters.last_unique_check and previous_state is not None:
-                if state == previous_state:
-                    raise DataPipeError(
-                        f"Row {self.current_row}: previous_state is identical current state"
-                    )
+        if (
+            self.config.processing_policy.policy_type
+            in [
+                ProcessingPolicyType.N_RECORDS,
+                ProcessingPolicyType.TIME_WINDOW,
+            ]
+            and self.config.filters.last_unique_check
+            and previous_state is not None
+            and state == previous_state
+        ):
+            raise DataPipeError(
+                f"Row {self.current_row}: previous_state is identical current state"
+            )
 
     def check_max_size(self, state: str | float) -> None:
-        if self.config.filters.max_size > 0:
-            if len(str(state)) > self.config.filters.max_size:
-                raise DataPipeError(f"Row {self.current_row}: length state > max_size")
+        if (
+            self.config.filters.max_size > 0
+            and len(str(state)) > self.config.filters.max_size
+        ):
+            raise DataPipeError(
+                f"Row {self.current_row}: length state > max_size"
+            )
 
     def check_monotonicity(
-        self, create_datetime: datetime, previous_create_datetime: datetime | None
+        self,
+        create_datetime: datetime,
+        previous_create_datetime: datetime | None,
     ):
-        if previous_create_datetime:
-            if create_datetime < previous_create_datetime:
-                raise DataPipeError(
-                    f"Row {self.current_row}: create_datetime < previous_create_datetime"
-                )
+        if (
+            previous_create_datetime
+            and create_datetime < previous_create_datetime
+        ):
+            raise DataPipeError(
+                f"Row {self.current_row}: create_datetime < previous_create_datetime"
+            )
 
     def _state_in_list(self, state: str | float) -> bool:
         for filter_value in self.config.filters.filtering_values:
@@ -310,17 +336,17 @@ class StreamingCSVValidator:
             case TypeInputValue.TEXT:
                 try:
                     return str(state)
-                except ValueError:
+                except ValueError as err:
                     raise DataPipeError(
                         f"Row {self.current_row}: state is not a valid python string"
-                    )
+                    ) from err
             case TypeInputValue.NUMBER:
                 try:
                     return float(state)
-                except ValueError:
+                except ValueError as err:
                     raise DataPipeError(
                         f"Row {self.current_row}: state is not a valid python float"
-                    )
+                    ) from err
 
     @staticmethod
     def _parse_datetime(datetime_str: str) -> datetime:

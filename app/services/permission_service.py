@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Union
 
 from fastapi import Depends
 
@@ -31,7 +30,7 @@ class PermissionService:
 
     def create(
         self,
-        data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType],
+        data: PermissionCreate | PermissionCreateInput | PermissionBaseType,
         is_api: bool = True,
     ) -> PermissionBaseType:
         is_valid_uuid(data.agent_uuid)
@@ -62,7 +61,7 @@ class PermissionService:
         return self.permission_repository.create(new_permission)
 
     def create_by_domains(
-        self, agent: Union[User, Unit], resource: Union[Repo, Unit, UnitNode]
+        self, agent: User | Unit, resource: Repo | Unit | UnitNode
     ) -> PermissionBaseType:
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
@@ -77,7 +76,7 @@ class PermissionService:
         return self.create(new_permission, is_api=False)
 
     def get_resource_agents(
-        self, filters: Union[PermissionFilter, PermissionFilterInput]
+        self, filters: PermissionFilter | PermissionFilterInput
     ) -> tuple[int, list[PermissionBaseType]]:
         is_valid_uuid(filters.resource_uuid)
 
@@ -85,7 +84,8 @@ class PermissionService:
 
         resource_entity = self.permission_repository.get_resource(
             PermissionBaseType(
-                resource_uuid=filters.resource_uuid, resource_type=filters.resource_type
+                resource_uuid=filters.resource_uuid,
+                resource_type=filters.resource_type,
             )
         )
 
@@ -111,7 +111,9 @@ class PermissionService:
         )
         is_valid_object(permission)
 
-        base_permission = self.permission_repository.domain_to_base_type(permission)
+        base_permission = self.permission_repository.domain_to_base_type(
+            permission
+        )
         agent = self.permission_repository.get_agent(base_permission)
         resource = self.permission_repository.get_resource(base_permission)
 

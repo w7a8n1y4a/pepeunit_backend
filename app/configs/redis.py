@@ -1,6 +1,6 @@
 import enum
 import json
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from redis.asyncio import Redis, from_url
 
@@ -14,7 +14,9 @@ class DataPipeConfigAction(str, enum.Enum):
 
 
 async def get_redis_session() -> AsyncIterator[Redis]:
-    session = from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+    session = from_url(
+        settings.redis_url, encoding="utf-8", decode_responses=True
+    )
     yield session
     session.close()
     await session.wait_closed()
@@ -29,7 +31,9 @@ async def send_to_data_pipe_stream(
             "backend_data_pipe_nodes",
             {
                 "action": action,
-                "unit_node_data": json.dumps(unit_node, default=obj_serializer),
+                "unit_node_data": json.dumps(
+                    unit_node, default=obj_serializer
+                ),
             },
         )
     finally:

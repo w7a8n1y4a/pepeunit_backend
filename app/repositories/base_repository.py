@@ -1,4 +1,4 @@
-from typing import Generic, Optional, Type, TypeVar
+from typing import TypeVar
 
 from fastapi import Depends
 from sqlmodel import Session, SQLModel
@@ -8,11 +8,13 @@ from app.configs.db import get_session
 T = TypeVar("T", bound=SQLModel)
 
 
-class BaseRepository(Generic[T]):
+class BaseRepository[T: SQLModel]:
     db: Session
-    model: Type[T]
+    model: type[T]
 
-    def __init__(self, model: Type[T], db: Session = Depends(get_session)) -> None:
+    def __init__(
+        self, model: type[T], db: Session = Depends(get_session)
+    ) -> None:
         self.model = model
         self.db = db
 
@@ -22,7 +24,7 @@ class BaseRepository(Generic[T]):
         self.db.refresh(obj)
         return obj
 
-    def get(self, obj: T) -> Optional[T]:
+    def get(self, obj: T) -> T | None:
         return self.db.get(self.model, obj.uuid)
 
     def get_all_count(self) -> int:

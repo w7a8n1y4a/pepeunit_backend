@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 from app.configs.errors import NoAccessError
 from app.domain.permission_model import PermissionBaseType
@@ -19,7 +18,9 @@ from app.repositories.permission_repository import PermissionRepository
 
 
 class AuthorizationService:
-    def __init__(self, permission_repo: PermissionRepository, current_agent: Agent):
+    def __init__(
+        self, permission_repo: PermissionRepository, current_agent: Agent
+    ):
         self.permission_repo = permission_repo
         self.current_agent = current_agent
 
@@ -30,9 +31,7 @@ class AuthorizationService:
     ) -> None:
         if self.current_agent.type not in allowed_agent_types:
             raise NoAccessError(
-                "{} access not allowed, only for {}".format(
-                    self.current_agent.__class__.__name__, allowed_agent_types
-                )
+                f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_agent_types}"
             )
 
         if (
@@ -40,47 +39,47 @@ class AuthorizationService:
             and self.current_agent.role not in allowed_roles
         ):
             raise NoAccessError(
-                "{} access not allowed, only for {}".format(
-                    self.current_agent.__class__.__name__, allowed_roles
-                )
+                f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_roles}"
             )
 
-    def check_ownership(self, entity, ownership_types: list[OwnershipType]) -> None:
+    def check_ownership(
+        self, entity, ownership_types: list[OwnershipType]
+    ) -> None:
         if (
             OwnershipType.CREATOR in ownership_types
             and self.current_agent.type == AgentType.USER
+            and self.current_agent.uuid != entity.creator_uuid
         ):
-            if self.current_agent.uuid != entity.creator_uuid:
-                raise NoAccessError(
-                    "{} is not creator this entity - {}.".format(
-                        self.current_agent.__class__.__name__, entity.__class__.__name__
-                    )
-                )
+            raise NoAccessError(
+                f"{self.current_agent.__class__.__name__} is not creator this entity - {entity.__class__.__name__}."
+            )
         if (
             OwnershipType.UNIT in ownership_types
             and self.current_agent.type == AgentType.UNIT
+            and isinstance(entity, Unit)
+            and entity.uuid != self.current_agent.uuid
         ):
-            if isinstance(entity, Unit) and entity.uuid != self.current_agent.uuid:
-                raise NoAccessError(
-                    "The Unit {} requesting the information does not have access to it".format(
-                        self.current_agent.name
-                    )
-                )
+            raise NoAccessError(
+                f"The Unit {self.current_agent.name} requesting the information does not have access to it"
+            )
 
         if (
             OwnershipType.UNIT_TO_INPUT_NODE in ownership_types
             and self.current_agent.type == AgentType.UNIT
+            and isinstance(entity, UnitNode)
+            and not entity.is_rewritable_input
         ):
-            if isinstance(entity, UnitNode) and not entity.is_rewritable_input:
-                raise NoAccessError(
-                    "The Unit requesting the information does not have access to it"
-                )
+            raise NoAccessError(
+                "The Unit requesting the information does not have access to it"
+            )
 
     def check_visibility(self, check_entity):
         if isinstance(check_entity, RepositoryRegistry):
             if not check_entity.is_public_repository:
                 if self.current_agent.type in [AgentType.BOT]:
-                    raise NoAccessError("Private RepositoryRegistry is not allowed")
+                    raise NoAccessError(
+                        "Private RepositoryRegistry is not allowed"
+                    )
                 elif self.current_agent.type == [
                     AgentType.BACKEND,
                     AgentType.USER,
@@ -89,9 +88,10 @@ class AuthorizationService:
                     return None
             return None
 
-        if self.current_agent.type == AgentType.BACKEND:
-            pass
-        elif check_entity.visibility_level == VisibilityLevel.PUBLIC:
+        if (
+            self.current_agent.type == AgentType.BACKEND
+            or check_entity.visibility_level == VisibilityLevel.PUBLIC
+        ):
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
             if self.current_agent.type not in [AgentType.USER, AgentType.UNIT]:
@@ -111,12 +111,16 @@ class AuthorizationService:
             raise NoAccessError("Only RepositoryRegistry entity")
 
         if self.current_agent.type is not AgentType.USER:
-            raise NoAccessError("RepositoryRegistry operation allowed only for Users")
+            raise NoAccessError(
+                "RepositoryRegistry operation allowed only for Users"
+            )
 
         if not check_entity.is_public_repository:
             all_credentials_with_status = check_entity.get_credentials()
             if not all_credentials_with_status:
-                raise NoAccessError("This RepositoryRegistry has no Credentials")
+                raise NoAccessError(
+                    "This RepositoryRegistry has no Credentials"
+                )
 
             current_user_credentials = check_entity.get_credentials_by_user(
                 all_credentials_with_status, str(self.current_agent.uuid)
@@ -129,13 +133,11 @@ class AuthorizationService:
 
             if current_user_credentials.status != CredentialStatus.VALID:
                 raise NoAccessError(
-                    "Status Credentials external Platform: {}".format(
-                        current_user_credentials.status
-                    )
+                    f"Status Credentials external Platform: {current_user_credentials.status}"
                 )
 
     def access_restriction(
-        self, resource_type: Optional[PermissionEntities] = None
+        self, resource_type: PermissionEntities | None = None
     ) -> list[uuid_pkg]:
         return [
             item.resource_uuid

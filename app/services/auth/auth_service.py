@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import jwt
 
@@ -32,7 +31,7 @@ class JwtAuthService(AuthService):
         self,
         user_repo: UserRepository,
         unit_repo: UnitRepository,
-        jwt_token: Optional[str],
+        jwt_token: str | None,
     ):
         self.user_repo = user_repo
         self.unit_repo = unit_repo
@@ -47,12 +46,14 @@ class JwtAuthService(AuthService):
             return AgentBot
         try:
             data = jwt.decode(
-                self.jwt_token, settings.backend_secret_key, algorithms=["HS256"]
+                self.jwt_token,
+                settings.backend_secret_key,
+                algorithms=["HS256"],
             )
-        except jwt.ExpiredSignatureError:
-            raise NoAccessError("Token expired")
-        except jwt.InvalidTokenError:
-            raise NoAccessError("Token is invalid")
+        except jwt.ExpiredSignatureError as err:
+            raise NoAccessError("Token expired") from err
+        except jwt.InvalidTokenError as err:
+            raise NoAccessError("Token is invalid") from err
 
         return self._get_agent_from_token(data)
 
@@ -72,14 +73,18 @@ class JwtAuthService(AuthService):
                 raise NoAccessError("Unit not found")
 
         elif data.get("type") == AgentType.BACKEND:
-            agent = AgentBackend(name=data["domain"], status=AgentStatus.VERIFIED)
+            agent = AgentBackend(
+                name=data["domain"], status=AgentStatus.VERIFIED
+            )
 
         elif data.get("type") == AgentType.GRAFANA:
             agent = AgentGrafana(uuid=data["uuid"], name="grafana")
 
         elif data.get("type") == AgentType.GRAFANA_UNIT_NODE:
             agent = AgentGrafanaUnitNode(
-                uuid=data["uuid"], name="grafana", panel_uuid=data["panel_uuid"]
+                uuid=data["uuid"],
+                name="grafana",
+                panel_uuid=data["panel_uuid"],
             )
 
         else:
@@ -99,7 +104,7 @@ class TgBotAuthService(AuthService):
         self,
         user_repo: UserRepository,
         unit_repo: UnitRepository,
-        telegram_chat_id: Optional[str],
+        telegram_chat_id: str | None,
     ):
         self.user_repo = user_repo
         self.unit_repo = unit_repo

@@ -1,3 +1,4 @@
+import contextlib
 import fcntl
 import os
 import shutil
@@ -11,14 +12,14 @@ def get_emqx_link():
     if settings.mqtt_secure:
         return f"{settings.mqtt_http_type}://{settings.mqtt_host}"
     else:
-        return (
-            f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
-        )
+        return f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
 
 
 def get_directory_size(directory: str) -> int:
     # analog du -sb
-    return sum(f.stat().st_size for f in Path(directory).rglob("*") if f.is_file())
+    return sum(
+        f.stat().st_size for f in Path(directory).rglob("*") if f.is_file()
+    )
 
 
 def acquire_file_lock(file_lock: str):
@@ -43,7 +44,5 @@ def wait_for_file_unlock(file_path, check_interval=1):
 def recreate_directory(dir_path):
     if os.path.exists(dir_path):
         shutil.rmtree(dir_path, ignore_errors=True)
-    try:
+    with contextlib.suppress(FileExistsError):
         os.makedirs(dir_path)
-    except FileExistsError:
-        pass

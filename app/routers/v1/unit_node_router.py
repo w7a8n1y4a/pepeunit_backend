@@ -111,7 +111,9 @@ async def set_data_pipe_data_csv(
     return await unit_node_service.set_data_pipe_data_csv(uuid, data)
 
 
-@router.delete("/delete_data_pipe_data/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/delete_data_pipe_data/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_data_pipe_data(
     uuid: uuid_pkg.UUID,
     unit_node_service: UnitNodeService = Depends(get_unit_node_service),
@@ -127,7 +129,9 @@ def get_unit_nodes(
     count, unit_nodes = unit_node_service.list(filters)
     return UnitNodesResult(
         count=count,
-        unit_nodes=[UnitNodeRead(**unit_node.dict()) for unit_node in unit_nodes],
+        unit_nodes=[
+            UnitNodeRead(**unit_node.dict()) for unit_node in unit_nodes
+        ],
     )
 
 

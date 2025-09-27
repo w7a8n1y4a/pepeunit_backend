@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 
@@ -27,7 +26,7 @@ class PermissionFilterInput(TypeInputMixin):
     resource_uuid: uuid_pkg.UUID
     resource_type: PermissionEntities
 
-    agent_type: Optional[PermissionEntities] = None
+    agent_type: PermissionEntities | None = None
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None

@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 
@@ -20,37 +19,35 @@ class RepoCreateInput(TypeInputMixin):
 
 @strawberry.input()
 class RepoUpdateInput(TypeInputMixin):
-    visibility_level: Optional[VisibilityLevel] = None
-    name: Optional[str] = None
+    visibility_level: VisibilityLevel | None = None
+    name: str | None = None
 
-    is_auto_update_repo: Optional[bool] = None
+    is_auto_update_repo: bool | None = None
 
-    default_branch: Optional[str] = None
-    default_commit: Optional[str] = None
+    default_branch: str | None = None
+    default_commit: str | None = None
 
-    is_only_tag_update: Optional[bool] = None
+    is_only_tag_update: bool | None = None
 
-    is_compilable_repo: Optional[bool] = None
+    is_compilable_repo: bool | None = None
 
 
 @strawberry.input()
 class RepoFilterInput(TypeInputMixin):
-    repository_registry_uuid: Optional[uuid_pkg.UUID] = None
+    repository_registry_uuid: uuid_pkg.UUID | None = None
 
-    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    uuids: list[uuid_pkg.UUID] | None = ()
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-    creators_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
-    search_string: Optional[str] = None
+    creator_uuid: uuid_pkg.UUID | None = None
+    creators_uuids: list[uuid_pkg.UUID] | None = ()
+    search_string: str | None = None
 
-    is_auto_update_repo: Optional[bool] = None
+    is_auto_update_repo: bool | None = None
 
-    visibility_level: Optional[list[VisibilityLevel]] = tuple(
-        [item for item in VisibilityLevel]
-    )
+    visibility_level: list[VisibilityLevel] | None = tuple(VisibilityLevel)
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
+    order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None

@@ -12,7 +12,9 @@ class PanelsUnitNodesRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
         super().__init__(PanelsUnitNodes, db)
 
-    def delete(self, unit_node: UnitNode, dashboard_panel: DashboardPanel) -> None:
+    def delete(
+        self, unit_node: UnitNode, dashboard_panel: DashboardPanel
+    ) -> None:
         (
             self.db.query(PanelsUnitNodes)
             .filter(

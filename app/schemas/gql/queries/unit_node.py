@@ -1,6 +1,5 @@
 import os
 import uuid as uuid_pkg
-from typing import Union
 
 import strawberry
 from strawberry.file_uploads import Upload
@@ -12,7 +11,10 @@ from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.time_window import TimeWindow
-from app.schemas.gql.inputs.unit_node import DataPipeFilterInput, UnitNodeFilterInput
+from app.schemas.gql.inputs.unit_node import (
+    DataPipeFilterInput,
+    UnitNodeFilterInput,
+)
 from app.schemas.gql.types.shared import UnitNodesResultType, UnitNodeType
 from app.schemas.gql.types.unit_node import (
     AggregationType,
@@ -31,13 +33,15 @@ def get_unit_node(uuid: uuid_pkg.UUID, info: Info) -> UnitNodeType:
 
 
 @strawberry.field()
-def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultType:
+def get_pipe_data(
+    filters: DataPipeFilterInput, info: Info
+) -> PipeDataResultType:
     unit_node_service = get_unit_node_service_gql(info)
     count, pipe_data = unit_node_service.get_data_pipe_data(filters)
 
     def get_gql_type(
-        input_value: Union[NRecords, TimeWindow, Aggregation, LastValue],
-    ) -> Union[NRecordsType, TimeWindowType, AggregationType]:
+        input_value: NRecords | TimeWindow | Aggregation | LastValue,
+    ) -> NRecordsType | TimeWindowType | AggregationType:
         if isinstance(input_value, NRecords):
             return NRecordsType
         elif isinstance(input_value, TimeWindow):
@@ -56,12 +60,16 @@ def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultTyp
 
 
 @strawberry.field()
-def get_unit_nodes(filters: UnitNodeFilterInput, info: Info) -> UnitNodesResultType:
+def get_unit_nodes(
+    filters: UnitNodeFilterInput, info: Info
+) -> UnitNodesResultType:
     unit_node_service = get_unit_node_service_gql(info)
     count, unit_nodes = unit_node_service.list(filters)
     return UnitNodesResultType(
         count=count,
-        unit_nodes=[UnitNodeType(**unit_node.dict()) for unit_node in unit_nodes],
+        unit_nodes=[
+            UnitNodeType(**unit_node.dict()) for unit_node in unit_nodes
+        ],
     )
 
 
@@ -81,7 +89,7 @@ def get_data_pipe_config(uuid: uuid_pkg.UUID, info: Info) -> str:
     unit_node_service = get_unit_node_service_gql(info)
     yml_filepath = unit_node_service.get_data_pipe_config(uuid)
 
-    with open(yml_filepath, "r") as f:
+    with open(yml_filepath) as f:
         file_data = f.read()
 
     os.remove(yml_filepath)

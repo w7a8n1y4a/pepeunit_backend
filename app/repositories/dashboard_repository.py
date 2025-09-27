@@ -1,6 +1,6 @@
+import builtins
 import uuid as uuid_pkg
 from collections import defaultdict
-from typing import List, Optional
 
 from fastapi import Depends
 from sqlmodel import Session
@@ -30,7 +30,9 @@ class DashboardRepository(BaseRepository):
         super().__init__(Dashboard, db)
 
     def list(
-        self, filters: DashboardFilter, creator_uuid: Optional[uuid_pkg.UUID] = None
+        self,
+        filters: DashboardFilter,
+        creator_uuid: uuid_pkg.UUID | None = None,
     ) -> tuple[int, list[Dashboard]]:
         query = self.db.query(Dashboard)
 
@@ -50,7 +52,7 @@ class DashboardRepository(BaseRepository):
 
     def get_dashboard_panels(
         self, uuid: uuid_pkg.UUID
-    ) -> tuple[int, List[DashboardPanelRead]]:
+    ) -> tuple[int, builtins.list[DashboardPanelRead]]:
         query = (
             self.db.query(DashboardPanel, PanelsUnitNodes, UnitNode, Unit)
             .outerjoin(
@@ -59,7 +61,9 @@ class DashboardRepository(BaseRepository):
                 full=True,
             )
             .outerjoin(
-                UnitNode, PanelsUnitNodes.unit_node_uuid == UnitNode.uuid, full=True
+                UnitNode,
+                PanelsUnitNodes.unit_node_uuid == UnitNode.uuid,
+                full=True,
             )
             .outerjoin(Unit, UnitNode.unit_uuid == Unit.uuid, full=True)
             .filter(DashboardPanel.dashboard_uuid == uuid)
@@ -85,7 +89,7 @@ class DashboardRepository(BaseRepository):
                 )
 
         panels = []
-        for panel_uuid, data in panels_dict.items():
+        for _panel_uuid, data in panels_dict.items():
             panel = data["panel"]
             panels.append(
                 DashboardPanelRead(

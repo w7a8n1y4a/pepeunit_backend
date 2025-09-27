@@ -3,7 +3,7 @@ import string
 import toml
 from pydantic_settings import BaseSettings
 
-with open("pyproject.toml", "r") as f:
+with open("pyproject.toml") as f:
     data = toml.loads(f.read())
 
 
@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     backend_unit_log_expiration: int = 86400
 
     available_topic_symbols: str = string.ascii_letters + string.digits + "/_-"
-    available_name_entity_symbols: str = string.ascii_letters + string.digits + "_-."
+    available_name_entity_symbols: str = (
+        string.ascii_letters + string.digits + "_-."
+    )
     available_password_symbols: str = (
         string.ascii_letters + string.digits + string.punctuation
     )

@@ -66,7 +66,9 @@ class GitlabPlatformClient(GitPlatformClientABC):
         return super().get_cloning_url()
 
     def _get_api_url(self) -> str:
-        http_str, _, domain, *_ = self.repository_registry.repository_url.split("/")
+        http_str, _, domain, *_ = (
+            self.repository_registry.repository_url.split("/")
+        )
 
         return f"{http_str}//{domain}/api/v4/projects/"
 
@@ -81,14 +83,15 @@ class GitlabPlatformClient(GitPlatformClientABC):
             }
 
         result_data = httpx.get(
-            url=self._get_api_url() + self._get_repository_name().replace("/", "%2F"),
+            url=self._get_api_url()
+            + self._get_repository_name().replace("/", "%2F"),
             headers=headers,
         )
 
         try:
             target_id = result_data.json()["id"]
-        except KeyError:
-            raise GitPlatformClientError("Invalid Credentials")
+        except KeyError as err:
+            raise GitPlatformClientError("Invalid Credentials") from err
 
         return target_id
 
@@ -102,7 +105,8 @@ class GitlabPlatformClient(GitPlatformClientABC):
             }
 
         releases_data = httpx.get(
-            url=f"{self._get_api_url()}{repository_id}/releases", headers=headers
+            url=f"{self._get_api_url()}{repository_id}/releases",
+            headers=headers,
         )
 
         result_dict = {}
@@ -130,13 +134,14 @@ class GitlabPlatformClient(GitPlatformClientABC):
             return 0
 
         repo_data = httpx.get(
-            url=f"{self._get_api_url()}{repository_id}?statistics=true", headers=headers
+            url=f"{self._get_api_url()}{repository_id}?statistics=true",
+            headers=headers,
         )
 
         try:
             repo_size = repo_data.json()["statistics"]["repository_size"]
-        except KeyError:
-            raise GitPlatformClientError("Invalid Credentials")
+        except KeyError as err:
+            raise GitPlatformClientError("Invalid Credentials") from err
 
         return repo_size
 
@@ -148,7 +153,8 @@ class GitlabPlatformClient(GitPlatformClientABC):
             }
 
         result_data = httpx.get(
-            url=self._get_api_url() + self._get_repository_name().replace("/", "%2F"),
+            url=self._get_api_url()
+            + self._get_repository_name().replace("/", "%2F"),
             headers=headers,
         )
 
@@ -172,9 +178,16 @@ class GithubPlatformClient(GitPlatformClientABC):
 
         credentials = ""
         if self.credentials:
-            credentials = f"{self.credentials.username}:{self.credentials.pat_token}@"
-        elif len(settings.github_token_name) > 0 and len(settings.github_token_pat) > 0:
-            credentials = f"{settings.github_token_name}:{settings.github_token_pat}@"
+            credentials = (
+                f"{self.credentials.username}:{self.credentials.pat_token}@"
+            )
+        elif (
+            len(settings.github_token_name) > 0
+            and len(settings.github_token_pat) > 0
+        ):
+            credentials = (
+                f"{settings.github_token_name}:{settings.github_token_pat}@"
+            )
 
         return f"https://{credentials}api.github.com/repos/"
 
@@ -193,7 +206,9 @@ class GithubPlatformClient(GitPlatformClientABC):
         for item in releases_data.json():
             assets_list = []
             for asset in item["assets"]:
-                assets_list.append((asset["name"], asset["browser_download_url"]))
+                assets_list.append(
+                    (asset["name"], asset["browser_download_url"])
+                )
 
             result_dict[item["tag_name"]] = assets_list
 
@@ -203,16 +218,19 @@ class GithubPlatformClient(GitPlatformClientABC):
         headers = {"Accept": "application/vnd.github.v3+json"}
 
         repo_data = httpx.get(
-            url=f"{self._get_api_url()}{self._get_repository_name()}", headers=headers
+            url=f"{self._get_api_url()}{self._get_repository_name()}",
+            headers=headers,
         )
 
         try:
             repo_size = repo_data.json()["size"]
-        except KeyError:
+        except KeyError as err:
             if repo_data.status_code == 403:
-                raise GitPlatformClientError("Rate limit external API")
+                raise GitPlatformClientError(
+                    "Rate limit external API"
+                ) from err
             else:
-                raise GitPlatformClientError("Invalid Credentials")
+                raise GitPlatformClientError("Invalid Credentials") from err
 
         return repo_size * 1024
 
@@ -220,7 +238,8 @@ class GithubPlatformClient(GitPlatformClientABC):
         headers = {"Accept": "application/vnd.github.v3+json"}
 
         repo_data = httpx.get(
-            url=f"{self._get_api_url()}{self._get_repository_name()}", headers=headers
+            url=f"{self._get_api_url()}{self._get_repository_name()}",
+            headers=headers,
         )
 
         try:

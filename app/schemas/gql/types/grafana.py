@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 from strawberry import field
@@ -18,12 +17,12 @@ class DashboardType(TypeInputMixin):
     name: str
     create_datetime: datetime
 
-    dashboard_url: Optional[str] = None
-    inc_last_version: Optional[int] = None
+    dashboard_url: str | None = None
+    inc_last_version: int | None = None
 
-    sync_status: Optional[DashboardStatus] = None
-    sync_error: Optional[str] = None
-    sync_last_datetime: Optional[datetime] = None
+    sync_status: DashboardStatus | None = None
+    sync_error: str | None = None
+    sync_last_datetime: datetime | None = None
 
     creator_uuid: uuid_pkg.UUID
 

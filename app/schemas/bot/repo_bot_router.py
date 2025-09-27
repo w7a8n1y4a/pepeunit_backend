@@ -1,4 +1,4 @@
-from typing import Union
+import contextlib
 from uuid import UUID
 
 from aiogram import types
@@ -12,8 +12,17 @@ from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_bot_repo_service
-from app.dto.enum import CommandNames, DecreesNames, EntityNames, VisibilityLevel
-from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, RepoStates
+from app.dto.enum import (
+    CommandNames,
+    DecreesNames,
+    EntityNames,
+    VisibilityLevel,
+)
+from app.schemas.bot.base_bot_router import (
+    BaseBotFilters,
+    BaseBotRouter,
+    RepoStates,
+)
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.repo import RepoFilter
 
@@ -32,7 +41,7 @@ class RepoBotRouter(BaseBotRouter):
 
     async def show_entities(
         self,
-        message: Union[types.Message, types.CallbackQuery],
+        message: types.Message | types.CallbackQuery,
         filters: BaseBotFilters,
     ):
         chat_id = (
@@ -41,7 +50,9 @@ class RepoBotRouter(BaseBotRouter):
             else message.from_user.id
         )
 
-        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        entities, total_pages = await self.get_entities_page(
+            filters, str(chat_id)
+        )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Repos*"
@@ -53,27 +64,27 @@ class RepoBotRouter(BaseBotRouter):
     async def get_entities_page(
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                repo_service = get_bot_repo_service(db, cc, chat_id)
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            repo_service = get_bot_repo_service(db, cc, chat_id)
 
-                count, repos = repo_service.list(
-                    RepoFilter(
-                        offset=(filters.page - 1) * settings.telegram_items_per_page,
-                        limit=settings.telegram_items_per_page,
-                        visibility_level=filters.visibility_levels or [],
-                        creator_uuid=(
-                            repo_service.access_service.current_agent.uuid
-                            if filters.is_only_my_entity
-                            else None
-                        ),
-                        search_string=filters.search_string,
-                    )
+            count, repos = repo_service.list(
+                RepoFilter(
+                    offset=(filters.page - 1)
+                    * settings.telegram_items_per_page,
+                    limit=settings.telegram_items_per_page,
+                    visibility_level=filters.visibility_levels or [],
+                    creator_uuid=(
+                        repo_service.access_service.current_agent.uuid
+                        if filters.is_only_my_entity
+                        else None
+                    ),
+                    search_string=filters.search_string,
                 )
+            )
 
-                total_pages = (
-                    count + settings.telegram_items_per_page - 1
-                ) // settings.telegram_items_per_page
+            total_pages = (
+                count + settings.telegram_items_per_page - 1
+            ) // settings.telegram_items_per_page
 
         return repos, total_pages
 
@@ -87,7 +98,8 @@ class RepoBotRouter(BaseBotRouter):
                 text="🔍 Search", callback_data=f"{self.entity_name}_search"
             ),
             InlineKeyboardButton(
-                text=("🟢 " if filters.is_only_my_entity else "🔴 ") + "My repos",
+                text=("🟢 " if filters.is_only_my_entity else "🔴 ")
+                + "My repos",
                 callback_data=f"{self.entity_name}_toggle_mine",
             ),
         ]
@@ -95,7 +107,9 @@ class RepoBotRouter(BaseBotRouter):
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ")
+                text=(
+                    "🟢 " if item.value in filters.visibility_levels else "🔴️ "
+                )
                 + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
@@ -112,7 +126,9 @@ class RepoBotRouter(BaseBotRouter):
                     )
                 )
         else:
-            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
+            builder.row(
+                InlineKeyboardButton(text="No Data", callback_data="noop")
+            )
 
         if total_pages > 1:
             pagination_row = []
@@ -157,19 +173,21 @@ class RepoBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                repo_service = get_bot_repo_service(db, cc, str(callback.from_user.id))
-                repo = repo_service.get(repo_uuid)
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            repo_service = get_bot_repo_service(
+                db, cc, str(callback.from_user.id)
+            )
+            repo = repo_service.get(repo_uuid)
 
-                is_creator = (
-                    repo_service.access_service.current_agent.uuid == repo.creator_uuid
-                )
+            is_creator = (
+                repo_service.access_service.current_agent.uuid
+                == repo.creator_uuid
+            )
 
-                try:
-                    versions = repo_service.get_versions(repo_uuid)
-                except Exception:
-                    versions = None
+            try:
+                versions = repo_service.get_versions(repo_uuid)
+            except Exception:
+                versions = None
 
         text = f"*Repo* - `{self.header_name_limit(repo.name)}` - *{repo.visibility_level}*"
 
@@ -257,33 +275,35 @@ class RepoBotRouter(BaseBotRouter):
                         callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
                     ),
                     InlineKeyboardButton(
-                        text="Browser", url=f"{settings.backend_link}/repo/{repo.uuid}"
+                        text="Browser",
+                        url=f"{settings.backend_link}/repo/{repo.uuid}",
                     ),
                 ],
             ]
         )
 
         await callback.answer(parse_mode="Markdown")
-        try:
+        with contextlib.suppress(TelegramBadRequest):
             await self.telegram_response(
                 callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
             )
-        except TelegramBadRequest:
-            pass
 
-    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+    async def handle_entity_decrees(
+        self, callback: types.CallbackQuery
+    ) -> None:
         *_, decrees_type, repo_uuid = callback.data.split("_")
         repo_uuid = UUID(repo_uuid)
 
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                repo_service = get_bot_repo_service(db, cc, str(callback.from_user.id))
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            repo_service = get_bot_repo_service(
+                db, cc, str(callback.from_user.id)
+            )
 
-                text = ""
-                match decrees_type:
-                    case DecreesNames.RELATED_UNIT:
-                        text = "Success linked Unit update"
-                        repo_service.update_units_firmware(repo_uuid)
+            text = ""
+            match decrees_type:
+                case DecreesNames.RELATED_UNIT:
+                    text = "Success linked Unit update"
+                    repo_service.update_units_firmware(repo_uuid)
 
         await callback.answer(parse_mode="Markdown")
         await self.telegram_response(callback, text, is_editable=False)

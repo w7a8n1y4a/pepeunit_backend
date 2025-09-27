@@ -1,4 +1,4 @@
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 from clickhouse_driver import Client
 from pydantic import BaseModel
@@ -25,22 +25,32 @@ class ClickhouseOrm:
 
         return unit_log
 
-    def get(self, query: str, params: dict, result_model: type[T]) -> Optional[T]:
+    def get(self, query: str, params: dict, result_model: type[T]) -> T | None:
         data = self.client.execute(query, params, with_column_types=True)
         return (
             result_model(
-                **{name[0]: value for value, name in zip(data[0][0], data[-1])}
+                **{
+                    name[0]: value
+                    for value, name in zip(data[0][0], data[-1], strict=False)
+                }
             )
             if len(data[0])
             else None
         )
 
-    def get_many(self, query: str, params: dict, result_model: type[T]) -> list[T]:
+    def get_many(
+        self, query: str, params: dict, result_model: type[T]
+    ) -> list[T]:
         data = self.client.execute(query, params, with_column_types=True)
         columns = data[1]
         return (
             [
-                result_model(**{name[0]: value for value, name in zip(item, columns)})
+                result_model(
+                    **{
+                        name[0]: value
+                        for value, name in zip(item, columns, strict=False)
+                    }
+                )
                 for item in data[0]
             ]
             if len(data[0])

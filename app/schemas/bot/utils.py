@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import List, Optional
 
 
 def make_monospace_table_with_title(
-    data: List[List], title: str = None, lengths: Optional[List] = None
+    data: list[list], title: str = None, lengths: list | None = None
 ) -> str:
     if not data:
         return ""
@@ -15,10 +14,11 @@ def make_monospace_table_with_title(
         lengths = lengths[:num_columns] + [None] * (num_columns - len(lengths))
 
     str_data = [
-        [str(item) if item is not None else "-" for item in row] for row in data
+        [str(item) if item is not None else "-" for item in row]
+        for row in data
     ]
 
-    def wrap_text(text: str, max_len: Optional[int]) -> List[str]:
+    def wrap_text(text: str, max_len: int | None) -> list[str]:
         if max_len is None:
             return [text]
         if len(text) <= max_len:
@@ -53,15 +53,19 @@ def make_monospace_table_with_title(
     wrapped_data = []
     for row in str_data:
         wrapped_row = []
-        for cell, max_len in zip(row, lengths):
+        for cell, max_len in zip(row, lengths, strict=False):
             wrapped_row.append(wrap_text(cell, max_len))
         wrapped_data.append(wrapped_row)
 
-    max_lines_per_row = [max(len(cell) for cell in row) for row in wrapped_data]
+    max_lines_per_row = [
+        max(len(cell) for cell in row) for row in wrapped_data
+    ]
 
     column_widths = []
     for col_idx in range(num_columns):
-        actual_max = max(len(line) for row in wrapped_data for line in row[col_idx])
+        actual_max = max(
+            len(line) for row in wrapped_data for line in row[col_idx]
+        )
         if lengths[col_idx] is not None:
             column_width = min(lengths[col_idx], actual_max)
         else:
@@ -80,10 +84,10 @@ def make_monospace_table_with_title(
         result.append(title_line)
         result.append(horizontal_line)
 
-    for row, max_lines in zip(wrapped_data, max_lines_per_row):
+    for row, max_lines in zip(wrapped_data, max_lines_per_row, strict=False):
         for line_idx in range(max_lines):
             row_line = "|"
-            for cell, width in zip(row, column_widths):
+            for cell, width in zip(row, column_widths, strict=False):
                 if line_idx < len(cell):
                     line = cell[line_idx][:width]
                     row_line += f" {line.ljust(width)} |"
@@ -130,7 +134,12 @@ def format_millis(time: int | float) -> str:
 
 
 def calculate_flash_mem(statvfs: list[float]) -> tuple[float, float, float]:
-    _, f_frsize, f_blocks, f_bfree = statvfs[0], statvfs[1], statvfs[2], statvfs[3]
+    _, f_frsize, f_blocks, f_bfree = (
+        statvfs[0],
+        statvfs[1],
+        statvfs[2],
+        statvfs[3],
+    )
 
     total = f_blocks * f_frsize
     used = (f_blocks - f_bfree) * f_frsize

@@ -1,11 +1,14 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 from strawberry import field
 
-from app.dto.enum import CredentialStatus, GitPlatform, RepositoryRegistryStatus
+from app.dto.enum import (
+    CredentialStatus,
+    GitPlatform,
+    RepositoryRegistryStatus,
+)
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 
 
@@ -17,18 +20,18 @@ class RepositoryRegistryType(TypeInputMixin):
     repository_url: str
 
     is_public_repository: bool
-    releases_data: Optional[str] = None
+    releases_data: str | None = None
 
     local_repository_size: int
 
-    sync_status: Optional[RepositoryRegistryStatus] = None
-    sync_error: Optional[str] = None
-    sync_last_datetime: Optional[datetime] = None
+    sync_status: RepositoryRegistryStatus | None = None
+    sync_error: str | None = None
+    sync_last_datetime: datetime | None = None
 
     create_datetime: datetime
     last_update_datetime: datetime
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
+    creator_uuid: uuid_pkg.UUID | None = None
 
     cipher_credentials_private_repository: strawberry.Private[object]
     branches: list[str]
@@ -37,7 +40,9 @@ class RepositoryRegistryType(TypeInputMixin):
 @strawberry.type()
 class RepositoriesRegistryResultType(TypeInputMixin):
     count: int
-    repositories_registry: list[RepositoryRegistryType] = field(default_factory=list)
+    repositories_registry: list[RepositoryRegistryType] = field(
+        default_factory=list
+    )
 
 
 @strawberry.type()

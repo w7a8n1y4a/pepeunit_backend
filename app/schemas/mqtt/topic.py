@@ -25,11 +25,17 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.repositories.repository_registry_repository import (
+    RepositoryRegistryRepository,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
-from app.services.validators import is_valid_json, is_valid_object, is_valid_uuid
+from app.services.validators import (
+    is_valid_json,
+    is_valid_object,
+    is_valid_uuid,
+)
 
 mqtt_config = MQTTConfig(
     host=settings.mqtt_host,
@@ -45,7 +51,7 @@ cache_dict = {}
 
 
 @mqtt.on_connect()
-def connect(client, flags, rc, properties):
+def connect(client, _flags, _rc, _properties):
     lock_fd = acquire_file_lock("tmp/mqtt_subscribe.lock")
 
     time.sleep(2)
@@ -63,7 +69,7 @@ def connect(client, flags, rc, properties):
 
 
 @mqtt.on_message()
-async def message_to_topic(client, topic, payload, qos, properties):
+async def message_to_topic(_client, topic, payload, _qos, _properties):
     topic_split = get_topic_split(topic)
     backend_domain, destination, unit_uuid, topic_name, *_ = topic_split
     unit_uuid = is_valid_uuid(unit_uuid)
@@ -74,9 +80,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
     if (current_time - last_time) < settings.backend_state_send_interval:
         if settings.backend_debug:
             raise MqttError(
-                "Exceeding the message sending rate for the {} topic, you need to send values no more often than {}".format(
-                    topic, settings.backend_state_send_interval
-                )
+                f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.backend_state_send_interval}"
             )
         else:
             return None
@@ -86,9 +90,7 @@ async def message_to_topic(client, topic, payload, qos, properties):
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:
         raise MqttError(
-            "Payload size is {}, limit is {} KB".format(
-                payload_size, settings.mqtt_max_payload_size
-            )
+            f"Payload size is {payload_size}, limit is {settings.mqtt_max_payload_size} KB"
         )
 
     if (
@@ -111,20 +113,27 @@ async def message_to_topic(client, topic, payload, qos, properties):
 
             unit.current_commit_version = unit_state_dict["commit_version"]
 
-            if unit.firmware_update_status == UnitFirmwareUpdateStatus.REQUEST_SENT:
+            if (
+                unit.firmware_update_status
+                == UnitFirmwareUpdateStatus.REQUEST_SENT
+            ):
                 current_datetime = datetime.datetime.utcnow()
 
                 repo_repository = RepoRepository(db)
                 repo = repo_repository.get(Repo(uuid=unit.repo_uuid))
 
-                repository_registry_repository = RepositoryRegistryRepository(db)
+                repository_registry_repository = RepositoryRegistryRepository(
+                    db
+                )
                 repository_registry = repository_registry_repository.get(
                     RepositoryRegistry(uuid=repo.repository_registry_uuid)
                 )
 
                 git_repo_repository = GitRepoRepository()
-                target_commit, target_tag = git_repo_repository.get_target_unit_version(
-                    repo, repository_registry, unit
+                target_commit, target_tag = (
+                    git_repo_repository.get_target_unit_version(
+                        repo, repository_registry, unit
+                    )
                 )
 
                 delta = (
@@ -133,20 +142,22 @@ async def message_to_topic(client, topic, payload, qos, properties):
                 if target_commit == unit.current_commit_version:
                     unit.firmware_update_error = None
                     unit.last_firmware_update_datetime = None
-                    unit.firmware_update_status = UnitFirmwareUpdateStatus.SUCCESS
+                    unit.firmware_update_status = (
+                        UnitFirmwareUpdateStatus.SUCCESS
+                    )
 
                 elif delta > settings.backend_state_send_interval * 2:
                     try:
                         raise UpdateError(
-                            "Device firmware update time is twice as fast as {}s times".format(
-                                settings.backend_state_send_interval
-                            )
+                            f"Device firmware update time is twice as fast as {settings.backend_state_send_interval}s times"
                         )
                     except UpdateError as e:
                         unit.firmware_update_error = e.message
 
                     unit.last_firmware_update_datetime = None
-                    unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
+                    unit.firmware_update_status = (
+                        UnitFirmwareUpdateStatus.ERROR
+                    )
 
             unit.last_update_datetime = datetime.datetime.utcnow()
             unit_repository.update(
@@ -158,58 +169,57 @@ async def message_to_topic(client, topic, payload, qos, properties):
         destination == DestinationTopicType.OUTPUT_BASE_TOPIC
         and topic_name == ReservedOutputBaseTopic.LOG
     ):
-        with get_hand_clickhouse_client() as cc:
-            with get_hand_session() as db:
-                try:
-                    unit_repository = UnitRepository(db)
-                    unit_log_repository = UnitLogRepository(cc)
+        with get_hand_clickhouse_client() as cc, get_hand_session() as db:
+            try:
+                unit_repository = UnitRepository(db)
+                unit_log_repository = UnitLogRepository(cc)
 
-                    log_data = is_valid_json(payload.decode(), "Unit hardware log")
+                log_data = is_valid_json(payload.decode(), "Unit hardware log")
 
-                    unit = unit_repository.get(Unit(uuid=unit_uuid))
-                    is_valid_object(unit)
+                unit = unit_repository.get(Unit(uuid=unit_uuid))
+                is_valid_object(unit)
 
-                    if isinstance(log_data, dict):
-                        log_data = [log_data]
+                if isinstance(log_data, dict):
+                    log_data = [log_data]
 
-                    server_datetime = datetime.datetime.utcnow()
+                server_datetime = datetime.datetime.utcnow()
 
-                    unit_log_repository.bulk_create(
-                        [
-                            UnitLog(
-                                uuid=uuid.uuid4(),
-                                level=item["level"].capitalize(),
-                                unit_uuid=unit.uuid,
-                                text=item["text"],
-                                create_datetime=(
-                                    item["create_datetime"]
-                                    if item.get("create_datetime")
-                                    else server_datetime
-                                    + datetime.timedelta(seconds=inc)
-                                ),
-                                expiration_datetime=datetime.datetime.utcnow()
-                                + datetime.timedelta(
-                                    seconds=settings.backend_unit_log_expiration
-                                ),
-                            )
-                            for inc, item in enumerate(log_data)
-                        ]
-                    )
+                unit_log_repository.bulk_create(
+                    [
+                        UnitLog(
+                            uuid=uuid.uuid4(),
+                            level=item["level"].capitalize(),
+                            unit_uuid=unit.uuid,
+                            text=item["text"],
+                            create_datetime=(
+                                item["create_datetime"]
+                                if item.get("create_datetime")
+                                else server_datetime
+                                + datetime.timedelta(seconds=inc)
+                            ),
+                            expiration_datetime=datetime.datetime.utcnow()
+                            + datetime.timedelta(
+                                seconds=settings.backend_unit_log_expiration
+                            ),
+                        )
+                        for inc, item in enumerate(log_data)
+                    ]
+                )
 
-                    unit.last_update_datetime = datetime.datetime.utcnow()
-                    unit_repository.update(
-                        unit_uuid,
-                        unit,
-                    )
+                unit.last_update_datetime = datetime.datetime.utcnow()
+                unit_repository.update(
+                    unit_uuid,
+                    unit,
+                )
 
-                except Exception as e:
-                    logging.error(e)
+            except Exception as e:
+                logging.error(e)
     else:
         pass
 
 
 @mqtt.on_disconnect()
-def disconnect(client, packet, exc=None):
+def disconnect(client, _packet, _exc):
     logging.info(
         f"Disconnected from MQTT server: {settings.mqtt_host}:{settings.mqtt_port}"
     )

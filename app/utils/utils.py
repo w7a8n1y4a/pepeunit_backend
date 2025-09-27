@@ -6,7 +6,8 @@ import os
 import string
 import time
 import uuid
-from typing import AsyncGenerator, TypeVar, Union
+from collections.abc import AsyncGenerator
+from typing import TypeVar
 
 import pyaes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -29,9 +30,7 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
         raise CipherError(
-            "The encryption content is {} long, although only <= {} is allowed".format(
-                len_content, settings.backend_max_cipher_length
-            )
+            f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
         )
 
     key = base64.b64decode(key.encode())
@@ -40,7 +39,9 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     # set encrypter
     encrypter = pyaes.Encrypter(pyaes.AESModeOfOperationCBC(key, iv))
     # encrypted binary to base64 str
-    cipher = base64.b64encode(encrypter.feed(data) + encrypter.feed()).decode("utf-8")
+    cipher = base64.b64encode(encrypter.feed(data) + encrypter.feed()).decode(
+        "utf-8"
+    )
 
     return f"{base64.b64encode(iv).decode('utf-8')}.{cipher}"
 
@@ -109,9 +110,9 @@ def password_to_hash(password: str) -> (str, str):
         100000,
     )
 
-    return aes_gcm_encode(dynamic_salt), base64.b64encode(hashed_password).decode(
-        "utf-8"
-    )
+    return aes_gcm_encode(dynamic_salt), base64.b64encode(
+        hashed_password
+    ).decode("utf-8")
 
 
 def check_password(
@@ -126,7 +127,9 @@ def check_password(
         100000,
     )
 
-    return hashed_password_db == base64.b64encode(hashed_password).decode("utf-8")
+    return hashed_password_db == base64.b64encode(hashed_password).decode(
+        "utf-8"
+    )
 
 
 def generate_random_string(length=6):
@@ -138,12 +141,12 @@ def clean_files_with_pepeignore(directory: str, pepe_ignore_path: str) -> None:
     if not os.path.exists(pepe_ignore_path):
         return
 
-    with open(pepe_ignore_path, "r") as f:
+    with open(pepe_ignore_path) as f:
         pepeignore_rules = f.read().splitlines()
 
     spec = PathSpec.from_lines(GitWildMatchPattern, pepeignore_rules)
 
-    for root, dirs, files in os.walk(directory):
+    for root, _dirs, files in os.walk(directory):
         for file in files:
             file_path = os.path.relpath(os.path.join(root, file), directory)
             if spec.match_file(file_path):
@@ -187,7 +190,9 @@ async def create_upload_file_from_path(file_path: str) -> UploadFile:
 
 def remove_dict_none(data):
     if isinstance(data, dict):
-        return {k: remove_dict_none(v) for k, v in data.items() if v is not None}
+        return {
+            k: remove_dict_none(v) for k, v in data.items() if v is not None
+        }
     elif isinstance(data, list):
         return [remove_dict_none(item) for item in data if item is not None]
     else:
@@ -197,7 +202,7 @@ def remove_dict_none(data):
 T = TypeVar("T")
 
 
-async def async_chunked(a_gen: AsyncGenerator[T, None], size: int):
+async def async_chunked[T](a_gen: AsyncGenerator[T], size: int):
     batch = []
     async for item in a_gen:
         batch.append(item)
@@ -208,7 +213,7 @@ async def async_chunked(a_gen: AsyncGenerator[T, None], size: int):
         yield batch
 
 
-def parse_interval(s: str) -> Union[datetime.timedelta, relativedelta]:
+def parse_interval(s: str) -> datetime.timedelta | relativedelta:
     value, unit = int(s[:-1]), s[-1]
     match unit:
         case "s":

@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 
@@ -30,9 +29,9 @@ class LinkUnitNodeToPanelInput(TypeInputMixin):
 
 @strawberry.input()
 class DashboardFilterInput(TypeInputMixin):
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None

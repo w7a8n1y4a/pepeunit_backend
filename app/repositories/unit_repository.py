@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 from fastapi import Depends
 from fastapi.params import Query
@@ -41,12 +40,15 @@ class UnitRepository(BaseRepository):
             if filters.unit_node_input_uuid:
                 unit_node_by_input_subquery = (
                     self.db.query(
-                        func.json_agg(text("unit_node_alias")).label("unit_nodes")
+                        func.json_agg(text("unit_node_alias")).label(
+                            "unit_nodes"
+                        )
                     )
                     .select_from(unit_node_alias)
                     .join(
                         unit_node_edge_alias,
-                        unit_node_edge_alias.node_output_uuid == unit_node_alias.uuid,
+                        unit_node_edge_alias.node_output_uuid
+                        == unit_node_alias.uuid,
                     )
                     .filter(
                         unit_node_edge_alias.node_input_uuid
@@ -61,7 +63,10 @@ class UnitRepository(BaseRepository):
                     )
                     .select_from(Unit)
                     .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
-                    .join(UnitNodeEdge, UnitNode.uuid == UnitNodeEdge.node_output_uuid)
+                    .join(
+                        UnitNodeEdge,
+                        UnitNode.uuid == UnitNodeEdge.node_output_uuid,
+                    )
                     .filter(
                         UnitNodeEdge.node_input_uuid
                         == is_valid_uuid(filters.unit_node_input_uuid)
@@ -71,7 +76,9 @@ class UnitRepository(BaseRepository):
             else:
                 unit_node_subquery = (
                     self.db.query(
-                        func.json_agg(text("unit_node_alias")).label("unit_nodes")
+                        func.json_agg(text("unit_node_alias")).label(
+                            "unit_nodes"
+                        )
                     )
                     .select_from(unit_node_alias)
                     .filter(
@@ -86,20 +93,26 @@ class UnitRepository(BaseRepository):
                     )
 
                 query = (
-                    self.db.query(Unit, unit_node_subquery.label("output_nodes"))
+                    self.db.query(
+                        Unit, unit_node_subquery.label("output_nodes")
+                    )
                     .select_from(Unit)
                     .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
                     .group_by(Unit.uuid)
                 )
 
                 if filters.unit_node_uuids:
-                    query = query.filter(UnitNode.uuid.in_(filters.unit_node_uuids))
+                    query = query.filter(
+                        UnitNode.uuid.in_(filters.unit_node_uuids)
+                    )
 
         else:
             query = self.db.query(Unit)
 
         filters.uuids = (
-            filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+            filters.uuids.default
+            if isinstance(filters.uuids, Query)
+            else filters.uuids
         )
         if filters.uuids:
             query = query.filter(
@@ -111,7 +124,9 @@ class UnitRepository(BaseRepository):
                 Unit.creator_uuid == is_valid_uuid(filters.creator_uuid)
             )
         if filters.repo_uuid:
-            query = query.filter(Unit.repo_uuid == is_valid_uuid(filters.repo_uuid))
+            query = query.filter(
+                Unit.repo_uuid == is_valid_uuid(filters.repo_uuid)
+            )
 
         filters.repos_uuids = (
             filters.repos_uuids.default
@@ -153,12 +168,14 @@ class UnitRepository(BaseRepository):
             else [(item, []) for item in query.all()]
         )
 
-    def is_valid_name(self, name: str, uuid: Optional[uuid_pkg.UUID] = None):
+    def is_valid_name(self, name: str, uuid: uuid_pkg.UUID | None = None):
         if not is_valid_string_with_rules(name):
             raise UnitError("Name is not correct")
 
         uuid = str(uuid)
-        unit_uuid = self.db.exec(select(Unit.uuid).where(Unit.name == name)).first()
+        unit_uuid = self.db.exec(
+            select(Unit.uuid).where(Unit.name == name)
+        ).first()
         unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
 
         if (uuid is None and unit_uuid) or (

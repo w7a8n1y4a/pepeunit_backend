@@ -8,9 +8,14 @@ from app.dto.enum import OrderByDate, VisibilityLevel
 
 
 def apply_ilike_search_string(query, filters, fields: list):
-    if filters.dict()["search_string"] and len(filters.dict()["search_string"]) > 0:
+    if (
+        filters.dict()["search_string"]
+        and len(filters.dict()["search_string"]) > 0
+    ):
         for word in filters.search_string.split():
-            query = query.where(or_(*[field.ilike(f"%{word}%") for field in fields]))
+            query = query.where(
+                or_(*[field.ilike(f"%{word}%") for field in fields])
+            )
 
     return query
 
@@ -62,7 +67,7 @@ def apply_offset_and_limit(query, filters) -> tuple[int, Any]:
 
 
 def apply_orders_by(query, filters, fields: dict):
-    for filter_name, value in fields.items():
+    for filter_name, _value in fields.items():
         if filter_name in filters.dict() and filters.dict()[filter_name]:
             query = query.order_by(
                 asc(fields[filter_name])

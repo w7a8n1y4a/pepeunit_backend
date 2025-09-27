@@ -2,7 +2,6 @@ import base64
 import copy
 import json
 import string
-from typing import Union
 
 import httpx
 from fastapi import Depends
@@ -42,7 +41,7 @@ class GrafanaRepository:
         self.data_pipe_repository = data_pipe_repository
 
     admin_token: str = base64.b64encode(
-        f"{settings.gf_admin_user}:{settings.gf_admin_password}".encode("utf-8")
+        f"{settings.gf_admin_user}:{settings.gf_admin_password}".encode()
     ).decode("utf-8")
     headers: dict = {
         "Authorization": "Basic " + admin_token,
@@ -80,12 +79,12 @@ class GrafanaRepository:
         panels_list = []
         for panel in panels:
             targets_list = []
-            for ref_id, unit_node in self.enumerate_refid(panel.unit_nodes_for_panel):
+            for ref_id, unit_node in self.enumerate_refid(
+                panel.unit_nodes_for_panel
+            ):
                 if not unit_node.unit_node.is_data_pipe_active:
                     raise GrafanaError(
-                        "{} has no active DataPipe".format(
-                            unit_node.unit_with_unit_node_name
-                        )
+                        f"{unit_node.unit_with_unit_node_name} has no active DataPipe"
                     )
 
                 data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
@@ -98,12 +97,12 @@ class GrafanaRepository:
                     or unit_node.unit_node.data_pipe_yml is None
                 ):
                     raise GrafanaError(
-                        "{} has no valid yml DataPipe".format(
-                            unit_node.unit_with_unit_node_name
-                        )
+                        f"{unit_node.unit_with_unit_node_name} has no valid yml DataPipe"
                     )
 
-                columns, root_selector = self.get_columns(unit_node, data_pipe_entity)
+                columns, root_selector = self.get_columns(
+                    unit_node, data_pipe_entity
+                )
 
                 target_dict = {
                     "datasource": "InfinityAPI",
@@ -111,7 +110,11 @@ class GrafanaRepository:
                     "root_selector": root_selector,
                     "format": DatasourceFormat.TIME_SERIES,
                     "parser": "backend",
-                    "json": {"type": "json", "parser": "JSONata", "rootSelector": "$"},
+                    "json": {
+                        "type": "json",
+                        "parser": "JSONata",
+                        "rootSelector": "$",
+                    },
                     "url": "",
                     "url_options": {
                         "method": "GET",
@@ -129,7 +132,7 @@ class GrafanaRepository:
                         "params": [
                             {"key": key, "value": value}
                             for key, value in (
-                                await self.get_params(unit_node, data_pipe_entity)
+                                await self.get_params(data_pipe_entity)
                             ).items()
                         ],
                     },
@@ -185,9 +188,7 @@ class GrafanaRepository:
         return response.json()
 
     @staticmethod
-    async def get_params(
-        unit_node: UnitNodeForPanel, data_pipe_entity: DataPipeConfig
-    ) -> dict:
+    async def get_params(data_pipe_entity: DataPipeConfig) -> dict:
         params = {
             "format": DatasourceFormat.TIME_SERIES,
             "order_by_create_date": "asc",
@@ -198,7 +199,7 @@ class GrafanaRepository:
         """
         if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
             params['limit'] = 1
-        
+
         if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.N_RECORDS:
             params['limit'] = data_pipe_entity.processing_policy.n_records_count
         """
@@ -220,7 +221,9 @@ class GrafanaRepository:
         return params
 
     def get_columns(
-        self, unit_node_panel: UnitNodeForPanel, data_pipe_entity: DataPipeConfig
+        self,
+        unit_node_panel: UnitNodeForPanel,
+        data_pipe_entity: DataPipeConfig,
     ) -> tuple[list[dict], str]:
         data = self.get_datasource_data(
             DataPipeFilter(
@@ -239,16 +242,24 @@ class GrafanaRepository:
             return columns, ""
         else:
             if isinstance(data[0].value, str):
-                columns.append({"selector": "value", "text": "", "type": "string"})
-            elif isinstance(data[0].value, (float, int)):
-                columns.append({"selector": "value", "text": "", "type": "number"})
+                columns.append(
+                    {"selector": "value", "text": "", "type": "string"}
+                )
+            elif isinstance(data[0].value, float | int):
+                columns.append(
+                    {"selector": "value", "text": "", "type": "number"}
+                )
             elif isinstance(data[0].value, dict):
                 root_selector = "value"
                 for key, value in data[0].value.items():
-                    if isinstance(value, (float, int)):
-                        columns.append({"selector": key, "text": "", "type": "number"})
+                    if isinstance(value, float | int):
+                        columns.append(
+                            {"selector": key, "text": "", "type": "number"}
+                        )
                     if isinstance(value, str):
-                        columns.append({"selector": key, "text": "", "type": "string"})
+                        columns.append(
+                            {"selector": key, "text": "", "type": "string"}
+                        )
 
         return columns, root_selector
 
@@ -256,7 +267,7 @@ class GrafanaRepository:
         self,
         filters: DataPipeFilter,
         data_pipe_entity: DataPipeConfig,
-        unit_node_panel: Union[PanelsUnitNodes, UnitNodeForPanel],
+        unit_node_panel: PanelsUnitNodes | UnitNodeForPanel,
     ) -> list[DatasourceTimeSeriesData]:
         count, data = self.data_pipe_repository.list(filters=filters)
 
@@ -278,7 +289,9 @@ class GrafanaRepository:
     ) -> str | float | dict:
         if unit_node_panel.is_forced_to_json:
             return json.loads(value)
-        elif data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER:
+        elif (
+            data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER
+        ):
             return float(value)
         elif data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
             return value
@@ -287,7 +300,7 @@ class GrafanaRepository:
 
     @staticmethod
     def get_time_datasource_value(
-        data: Union[NRecords, TimeWindow, Aggregation, LastValue],
+        data: NRecords | TimeWindow | Aggregation | LastValue,
     ) -> int:
         value = None
         if isinstance(data, NRecords):
@@ -342,7 +355,10 @@ class GrafanaRepository:
         resp = httpx.post(
             f"{settings.backend_link}/grafana/api/orgs/{org_id}/users",
             headers=self.headers,
-            json={"loginOrEmail": user.login, "role": GrafanaUserRole.EDITOR.value},
+            json={
+                "loginOrEmail": user.login,
+                "role": GrafanaUserRole.EDITOR.value,
+            },
         )
 
         if resp.status_code not in (200, 409):

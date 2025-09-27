@@ -3,10 +3,14 @@ from fastapi import status
 
 class CustomException(Exception):
     def __init__(
-        self, message: str, status_code: int, message_template: str, error_code: int
+        self,
+        message: str,
+        status_code: int,
+        message_template: str,
+        error_code: int,
     ):
-        self.message = "{}: {}: {}".format(
-            status_code, error_code, message_template.format(message)
+        self.message = (
+            f"{status_code}: {error_code}: {message_template.format(message)}"
         )
         self.status_code = status_code
         self.message_template = message_template

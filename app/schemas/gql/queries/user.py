@@ -1,7 +1,7 @@
 import uuid as uuid_pkg
+from typing import TYPE_CHECKING
 
 import strawberry
-from strawberry.http.typevars import Response
 from strawberry.types import Info
 
 from app import settings
@@ -9,6 +9,9 @@ from app.configs.gql import get_user_service_gql
 from app.dto.enum import CookieName
 from app.schemas.gql.inputs.user import UserAuthInput, UserFilterInput
 from app.schemas.gql.types.user import UsersResultType, UserType
+
+if TYPE_CHECKING:
+    from strawberry.http.typevars import Response
 
 
 @strawberry.field()

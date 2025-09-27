@@ -1,7 +1,6 @@
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from fastapi import Query
 from pydantic import BaseModel, root_validator
@@ -19,12 +18,12 @@ from app.schemas.pydantic.shared import UnitNodeRead
 
 class UnitStateRead(BaseModel):
     ifconfig: list = []
-    millis: Optional[float] = None
-    mem_free: Optional[float] = None
-    mem_alloc: Optional[float] = None
-    freq: Optional[float] = None
+    millis: float | None = None
+    mem_free: float | None = None
+    mem_alloc: float | None = None
+    freq: float | None = None
     statvfs: list = []
-    commit_version: Optional[str] = None
+    commit_version: str | None = None
 
     @root_validator(pre=True)
     def check_types(cls, values):
@@ -53,22 +52,22 @@ class UnitRead(BaseModel):
 
     is_auto_update_from_repo_unit: bool
 
-    target_firmware_platform: Optional[str] = None
+    target_firmware_platform: str | None = None
 
-    repo_branch: Optional[str] = None
-    repo_commit: Optional[str] = None
+    repo_branch: str | None = None
+    repo_commit: str | None = None
 
-    unit_state: Optional[UnitStateRead] = None
-    current_commit_version: Optional[str] = None
+    unit_state: UnitStateRead | None = None
+    current_commit_version: str | None = None
 
     last_update_datetime: datetime
 
     creator_uuid: uuid_pkg.UUID
     repo_uuid: uuid_pkg.UUID
 
-    firmware_update_status: Optional[UnitFirmwareUpdateStatus] = None
-    firmware_update_error: Optional[str] = None
-    last_firmware_update_datetime: Optional[datetime] = None
+    firmware_update_status: UnitFirmwareUpdateStatus | None = None
+    firmware_update_error: str | None = None
+    last_firmware_update_datetime: datetime | None = None
 
     # only if requested
     unit_nodes: list[UnitNodeRead] = []
@@ -101,55 +100,55 @@ class UnitCreate(BaseModel):
 
     is_auto_update_from_repo_unit: bool
 
-    target_firmware_platform: Optional[str] = None
+    target_firmware_platform: str | None = None
 
-    repo_branch: Optional[str] = None
-    repo_commit: Optional[str] = None
+    repo_branch: str | None = None
+    repo_commit: str | None = None
 
 
 class UnitUpdate(BaseModel):
-    visibility_level: Optional[VisibilityLevel] = None
-    name: Optional[str] = None
+    visibility_level: VisibilityLevel | None = None
+    name: str | None = None
 
-    is_auto_update_from_repo_unit: Optional[bool] = None
+    is_auto_update_from_repo_unit: bool | None = None
 
-    target_firmware_platform: Optional[str] = None
+    target_firmware_platform: str | None = None
 
-    repo_branch: Optional[str] = None
-    repo_commit: Optional[str] = None
+    repo_branch: str | None = None
+    repo_commit: str | None = None
 
 
 @dataclass
 class UnitFilter:
-    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+    uuids: list[uuid_pkg.UUID] | None = Query([])
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-    repo_uuid: Optional[uuid_pkg.UUID] = None
-    repos_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+    creator_uuid: uuid_pkg.UUID | None = None
+    repo_uuid: uuid_pkg.UUID | None = None
+    repos_uuids: list[uuid_pkg.UUID] | None = Query([])
 
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    is_auto_update_from_repo_unit: Optional[bool] = None
+    is_auto_update_from_repo_unit: bool | None = None
 
-    visibility_level: Optional[list[str]] = Query(
+    visibility_level: list[str] | None = Query(
         [item.value for item in VisibilityLevel]
     )
 
-    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
+    order_by_unit_name: OrderByText | None = OrderByText.asc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
+    order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     # Only with is_include_output_unit_nodes = True
-    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
+    unit_node_input_uuid: uuid_pkg.UUID | None = None
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_type: Optional[list[str]] = Query(
+    unit_node_type: list[str] | None = Query(
         [item.value for item in UnitNodeTypeEnum]
     )
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+    unit_node_uuids: list[uuid_pkg.UUID] | None = Query([])
 
     def dict(self):
         return self.__dict__
@@ -172,12 +171,12 @@ class EnvJsonString(BaseModel):
 class UnitLogFilter:
     uuid: uuid_pkg.UUID
 
-    level: Optional[list[str]] = Query([item.value for item in LogLevel])
+    level: list[str] | None = Query([item.value for item in LogLevel])
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     def dict(self):
         return self.__dict__

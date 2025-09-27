@@ -22,37 +22,51 @@ router = APIRouter()
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create(data: UserCreate, user_service: UserService = Depends(get_user_service)):
+def create(
+    data: UserCreate, user_service: UserService = Depends(get_user_service)
+):
     return UserRead(**user_service.create(data).dict())
 
 
 @router.get("/{uuid}", response_model=UserRead)
-def get(uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)):
+def get(
+    uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)
+):
     return UserRead(**user_service.get(uuid).dict())
 
 
 @router.post("/auth", response_model=AccessToken)
-def get_token(data: UserAuth, user_service: UserService = Depends(get_user_service)):
+def get_token(
+    data: UserAuth, user_service: UserService = Depends(get_user_service)
+):
     return AccessToken(token=user_service.get_token(data))
 
 
 @router.patch("/{uuid}", response_model=UserRead)
-def update(data: UserUpdate, user_service: UserService = Depends(get_user_service)):
+def update(
+    data: UserUpdate, user_service: UserService = Depends(get_user_service)
+):
     return UserRead(**user_service.update(data).dict())
 
 
 @router.get("/generate_verification_link/", response_model=str)
-async def get_verification(user_service: UserService = Depends(get_user_service)):
+async def get_verification(
+    user_service: UserService = Depends(get_user_service),
+):
     return await user_service.generate_verification_link()
 
 
 @router.patch("/block/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def block(uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)):
+def block(
+    uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)
+):
     return user_service.block(uuid)
 
 
 @router.patch("/unblock/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def unblock(uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)):
+def unblock(
+    uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)
+):
     return user_service.unblock(uuid)
 
 
@@ -62,4 +76,6 @@ def get_users(
     user_service: UserService = Depends(get_user_service),
 ):
     count, users = user_service.list(filters)
-    return UsersResult(count=count, users=[UserRead(**user.dict()) for user in users])
+    return UsersResult(
+        count=count, users=[UserRead(**user.dict()) for user in users]
+    )

@@ -1,4 +1,4 @@
-from typing import Union
+import contextlib
 from uuid import UUID
 
 from aiogram import types
@@ -12,20 +12,30 @@ from app import settings
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
 from app.configs.rest import get_bot_repository_registry_service
-from app.dto.enum import CommandNames, DecreesNames, EntityNames, RepositoryRegistryType
+from app.dto.enum import (
+    CommandNames,
+    DecreesNames,
+    EntityNames,
+    RepositoryRegistryType,
+)
 from app.schemas.bot.base_bot_router import (
     BaseBotFilters,
     BaseBotRouter,
     RepositoryRegistryStates,
 )
-from app.schemas.bot.utils import byte_converter, make_monospace_table_with_title
+from app.schemas.bot.utils import (
+    byte_converter,
+    make_monospace_table_with_title,
+)
 from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
 
 
 class RepositoryRegistryBotRouter(BaseBotRouter):
     def __init__(self):
         entity_name = EntityNames.REGISTRY
-        super().__init__(entity_name=entity_name, states_group=RepositoryRegistryStates)
+        super().__init__(
+            entity_name=entity_name, states_group=RepositoryRegistryStates
+        )
         self.router.message(Command(CommandNames.REGISTRY))(self.repo_resolver)
 
     async def repo_resolver(self, message: types.Message, state: FSMContext):
@@ -36,7 +46,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
 
     async def show_entities(
         self,
-        message: Union[types.Message, types.CallbackQuery],
+        message: types.Message | types.CallbackQuery,
         filters: BaseBotFilters,
     ):
         chat_id = (
@@ -45,7 +55,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             else message.from_user.id
         )
 
-        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        entities, total_pages = await self.get_entities_page(
+            filters, str(chat_id)
+        )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Registry*"
@@ -64,7 +76,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
 
             count, repositories_registry = repository_registry_service.list(
                 RepositoryRegistryFilter(
-                    offset=(filters.page - 1) * settings.telegram_items_per_page,
+                    offset=(filters.page - 1)
+                    * settings.telegram_items_per_page,
                     limit=settings.telegram_items_per_page,
                     is_public_repository=self.registry_type_to_bool(
                         filters.repository_types
@@ -94,7 +107,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                 text="🔍 Search", callback_data=f"{self.entity_name}_search"
             ),
             InlineKeyboardButton(
-                text=("🟢 " if filters.is_only_my_entity else "🔴 ") + "My registry",
+                text=("🟢 " if filters.is_only_my_entity else "🔴 ")
+                + "My registry",
                 callback_data=f"{self.entity_name}_toggle_mine",
             ),
         ]
@@ -102,7 +116,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.repository_types else "🔴️ ")
+                text=(
+                    "🟢 " if item.value in filters.repository_types else "🔴️ "
+                )
                 + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
@@ -119,7 +135,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                     )
                 )
         else:
-            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
+            builder.row(
+                InlineKeyboardButton(text="No Data", callback_data="noop")
+            )
 
         if total_pages > 1:
             pagination_row = []
@@ -168,7 +186,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             repository_registry_service = get_bot_repository_registry_service(
                 db, str(callback.from_user.id)
             )
-            repository_registry = repository_registry_service.get(registry_uuid)
+            repository_registry = repository_registry_service.get(
+                registry_uuid
+            )
 
             is_available = True
             try:
@@ -189,13 +209,18 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             [
                 "Sync last time",
                 (
-                    repository_registry.sync_last_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    repository_registry.sync_last_datetime.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
                     if repository_registry.sync_last_datetime
                     else None
                 ),
             ],
             ["Sync error", repository_registry.sync_error],
-            ["Local size", byte_converter(repository_registry.local_repository_size)],
+            [
+                "Local size",
+                byte_converter(repository_registry.local_repository_size),
+            ],
         ]
 
         if not repository_registry.is_public_repository:
@@ -203,7 +228,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                 repository_registry.uuid
             )
             if credentials:
-                table.append(["Creds status", credentials.status.value.capitalize()])
+                table.append(
+                    ["Creds status", credentials.status.value.capitalize()]
+                )
 
         text += make_monospace_table_with_title(table, "Base Info")
 
@@ -239,14 +266,14 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
         )
 
         await callback.answer(parse_mode="Markdown")
-        try:
+        with contextlib.suppress(TelegramBadRequest):
             await self.telegram_response(
                 callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
             )
-        except TelegramBadRequest:
-            pass
 
-    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+    async def handle_entity_decrees(
+        self, callback: types.CallbackQuery
+    ) -> None:
         *_, decrees_type, repository_registry_uuid = callback.data.split("_")
         repository_registry_uuid = UUID(repository_registry_uuid)
 

@@ -1,5 +1,3 @@
-from typing import Union
-
 from aiogram import F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -23,11 +21,13 @@ class UnitLogBotRouter(BaseBotRouter):
     def __init__(self):
         entity_name = EntityNames.UNIT_LOG
         super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_unit_"))(
-            self.handle_by_unit
-        )
+        self.router.callback_query(
+            F.data.startswith(f"{self.entity_name}_unit_")
+        )(self.handle_by_unit)
 
-    async def handle_by_unit(self, callback: types.CallbackQuery, state: FSMContext):
+    async def handle_by_unit(
+        self, callback: types.CallbackQuery, state: FSMContext
+    ):
         *_, unit_uuid = callback.data.split("_")
 
         await state.set_state(None)
@@ -37,7 +37,7 @@ class UnitLogBotRouter(BaseBotRouter):
 
     async def show_entities(
         self,
-        message: Union[types.Message, types.CallbackQuery],
+        message: types.Message | types.CallbackQuery,
         filters: BaseBotFilters,
     ):
         chat_id = (
@@ -46,15 +46,16 @@ class UnitLogBotRouter(BaseBotRouter):
             else message.from_user.id
         )
 
-        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        entities, total_pages = await self.get_entities_page(
+            filters, str(chat_id)
+        )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Unit Logs*"
         if filters.unit_uuid:
-            with get_hand_session() as db:
-                with get_hand_clickhouse_client() as cc:
-                    unit_service = get_bot_unit_service(db, cc, str(chat_id))
-                    unit = unit_service.get(filters.unit_uuid)
+            with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+                unit_service = get_bot_unit_service(db, cc, str(chat_id))
+                unit = unit_service.get(filters.unit_uuid)
 
             text += f" - for unit `{unit.name}`"
 
@@ -83,27 +84,27 @@ class UnitLogBotRouter(BaseBotRouter):
     async def get_entities_page(
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                unit_service = get_bot_unit_service(db, cc, str(chat_id))
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            unit_service = get_bot_unit_service(db, cc, str(chat_id))
 
-                count, unit_logs = unit_service.log_list(
-                    UnitLogFilter(
-                        offset=(filters.page - 1) * settings.telegram_items_per_page,
-                        limit=settings.telegram_items_per_page,
-                        level=filters.log_levels or [],
-                        uuid=filters.unit_uuid,
-                    )
+            count, unit_logs = unit_service.log_list(
+                UnitLogFilter(
+                    offset=(filters.page - 1)
+                    * settings.telegram_items_per_page,
+                    limit=settings.telegram_items_per_page,
+                    level=filters.log_levels or [],
+                    uuid=filters.unit_uuid,
                 )
+            )
 
-                total_pages = (
-                    count + settings.telegram_items_per_page - 1
-                ) // settings.telegram_items_per_page
+            total_pages = (
+                count + settings.telegram_items_per_page - 1
+            ) // settings.telegram_items_per_page
 
         return unit_logs, total_pages
 
     def build_entities_keyboard(
-        self, entities: list, filters: BaseBotFilters, total_pages: int
+        self, _entities: list, filters: BaseBotFilters, total_pages: int
     ) -> InlineKeyboardMarkup:
         builder = InlineKeyboardBuilder()
 
@@ -149,9 +150,11 @@ class UnitLogBotRouter(BaseBotRouter):
         return builder.as_markup()
 
     async def handle_entity_click(
-        self, callback: types.CallbackQuery, state: FSMContext
+        self, callback: types.CallbackQuery, _state: FSMContext
     ) -> None:
         await callback.answer(parse_mode="Markdown")
 
-    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+    async def handle_entity_decrees(
+        self, callback: types.CallbackQuery
+    ) -> None:
         await callback.answer(parse_mode="Markdown")

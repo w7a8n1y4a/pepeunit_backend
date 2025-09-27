@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import Depends
 from fastapi.params import Query
 from sqlmodel import Session
@@ -24,22 +22,25 @@ class RepositoryRegistryRepository(BaseRepository):
 
     def get_by_url(
         self, repository_registry: RepositoryRegistry
-    ) -> Optional[RepositoryRegistry]:
+    ) -> RepositoryRegistry | None:
         return (
             self.db.query(RepositoryRegistry)
             .filter(
-                RepositoryRegistry.repository_url == repository_registry.repository_url
+                RepositoryRegistry.repository_url
+                == repository_registry.repository_url
             )
             .first()
         )
 
     def list(
-        self, filters: RepositoryRegistryFilter, restriction: list[str] = None
+        self, filters: RepositoryRegistryFilter
     ) -> tuple[int, list[RepositoryRegistry]]:
         query = self.db.query(RepositoryRegistry)
 
         filters.uuids = (
-            filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+            filters.uuids.default
+            if isinstance(filters.uuids, Query)
+            else filters.uuids
         )
         if filters.uuids:
             query = query.filter(
@@ -50,12 +51,14 @@ class RepositoryRegistryRepository(BaseRepository):
 
         if filters.creator_uuid:
             query = query.filter(
-                RepositoryRegistry.creator_uuid == is_valid_uuid(filters.creator_uuid)
+                RepositoryRegistry.creator_uuid
+                == is_valid_uuid(filters.creator_uuid)
             )
 
         if filters.is_public_repository is not None:
             query = query.filter(
-                RepositoryRegistry.is_public_repository == filters.is_public_repository
+                RepositoryRegistry.is_public_repository
+                == filters.is_public_repository
             )
 
         fields = [RepositoryRegistry.repository_url]
@@ -78,7 +81,7 @@ class RepositoryRegistryRepository(BaseRepository):
         )
 
         if repository_registry:
-            raise RepositoryRegistryError('Url "{}" is exist'.format(url))
+            raise RepositoryRegistryError(f'Url "{url}" is exist')
 
     @staticmethod
     def is_private_repository(repository_registry: RepositoryRegistry):

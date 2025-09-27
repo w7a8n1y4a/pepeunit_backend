@@ -1,13 +1,17 @@
+import contextlib
 import json
 import os
-from typing import Union
 from uuid import UUID
 
 from aiogram import F, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    FSInputFile,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app import settings
@@ -28,7 +32,11 @@ from app.dto.enum import (
     UnitFirmwareUpdateStatus,
     VisibilityLevel,
 )
-from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitStates
+from app.schemas.bot.base_bot_router import (
+    BaseBotFilters,
+    BaseBotRouter,
+    UnitStates,
+)
 from app.schemas.bot.utils import (
     byte_converter,
     calculate_flash_mem,
@@ -44,9 +52,9 @@ class UnitBotRouter(BaseBotRouter):
 
         super().__init__(entity_name=entity_name, states_group=UnitStates)
         self.router.message(Command(CommandNames.UNIT))(self.unit_resolver)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_repo_"))(
-            self.handle_by_repo
-        )
+        self.router.callback_query(
+            F.data.startswith(f"{self.entity_name}_repo_")
+        )(self.handle_by_repo)
 
     async def unit_resolver(self, message: types.Message, state: FSMContext):
         await state.set_state(None)
@@ -54,7 +62,9 @@ class UnitBotRouter(BaseBotRouter):
         await state.update_data(current_filters=filters)
         await self.show_entities(message, filters)
 
-    async def handle_by_repo(self, callback: types.CallbackQuery, state: FSMContext):
+    async def handle_by_repo(
+        self, callback: types.CallbackQuery, state: FSMContext
+    ):
         *_, repo_uuid = callback.data.split("_")
 
         await state.set_state(None)
@@ -64,7 +74,7 @@ class UnitBotRouter(BaseBotRouter):
 
     async def show_entities(
         self,
-        message: Union[types.Message, types.CallbackQuery],
+        message: types.Message | types.CallbackQuery,
         filters: BaseBotFilters,
     ):
         chat_id = (
@@ -73,7 +83,9 @@ class UnitBotRouter(BaseBotRouter):
             else message.from_user.id
         )
 
-        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        entities, total_pages = await self.get_entities_page(
+            filters, str(chat_id)
+        )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Units*"
@@ -81,10 +93,9 @@ class UnitBotRouter(BaseBotRouter):
             text += f" - `{filters.search_string}`"
 
         if filters.repo_uuid:
-            with get_hand_session() as db:
-                with get_hand_clickhouse_client() as cc:
-                    repo_service = get_bot_repo_service(db, cc, str(chat_id))
-                    repo = repo_service.get(filters.repo_uuid)
+            with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+                repo_service = get_bot_repo_service(db, cc, str(chat_id))
+                repo = repo_service.get(filters.repo_uuid)
 
             text += f" - for repo `{repo.name}`"
 
@@ -93,28 +104,28 @@ class UnitBotRouter(BaseBotRouter):
     async def get_entities_page(
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                unit_service = get_bot_unit_service(db, cc, chat_id)
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            unit_service = get_bot_unit_service(db, cc, chat_id)
 
-                count, units = unit_service.list(
-                    UnitFilter(
-                        offset=(filters.page - 1) * settings.telegram_items_per_page,
-                        limit=settings.telegram_items_per_page,
-                        visibility_level=filters.visibility_levels or [],
-                        creator_uuid=(
-                            unit_service.access_service.current_agent.uuid
-                            if filters.is_only_my_entity
-                            else None
-                        ),
-                        search_string=filters.search_string,
-                        repo_uuid=filters.repo_uuid,
-                    )
+            count, units = unit_service.list(
+                UnitFilter(
+                    offset=(filters.page - 1)
+                    * settings.telegram_items_per_page,
+                    limit=settings.telegram_items_per_page,
+                    visibility_level=filters.visibility_levels or [],
+                    creator_uuid=(
+                        unit_service.access_service.current_agent.uuid
+                        if filters.is_only_my_entity
+                        else None
+                    ),
+                    search_string=filters.search_string,
+                    repo_uuid=filters.repo_uuid,
                 )
+            )
 
-                total_pages = (
-                    count + settings.telegram_items_per_page - 1
-                ) // settings.telegram_items_per_page
+            total_pages = (
+                count + settings.telegram_items_per_page - 1
+            ) // settings.telegram_items_per_page
 
         return units, total_pages
 
@@ -125,10 +136,12 @@ class UnitBotRouter(BaseBotRouter):
         if not filters.repo_uuid:
             filter_buttons = [
                 InlineKeyboardButton(
-                    text="🔍 Search", callback_data=f"{self.entity_name}_search"
+                    text="🔍 Search",
+                    callback_data=f"{self.entity_name}_search",
                 ),
                 InlineKeyboardButton(
-                    text=("🟢 " if filters.is_only_my_entity else "🔴 ") + "My units",
+                    text=("🟢 " if filters.is_only_my_entity else "🔴 ")
+                    + "My units",
                     callback_data=f"{self.entity_name}_toggle_mine",
                 ),
             ]
@@ -136,7 +149,9 @@ class UnitBotRouter(BaseBotRouter):
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ")
+                text=(
+                    "🟢 " if item.value in filters.visibility_levels else "🔴️ "
+                )
                 + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
@@ -145,7 +160,7 @@ class UnitBotRouter(BaseBotRouter):
         builder.row(*filter_visibility_buttons)
 
         if entities:
-            for unit, nodes in entities:
+            for unit, _nodes in entities:
                 builder.row(
                     InlineKeyboardButton(
                         text=f"{self.header_name_limit(unit.name)} - {unit.visibility_level}",
@@ -153,7 +168,9 @@ class UnitBotRouter(BaseBotRouter):
                     )
                 )
         else:
-            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
+            builder.row(
+                InlineKeyboardButton(text="No Data", callback_data="noop")
+            )
 
         if total_pages > 1:
             pagination_row = []
@@ -206,27 +223,31 @@ class UnitBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                unit_service = get_bot_unit_service(db, cc, str(callback.from_user.id))
-                repo_service = get_bot_repo_service(db, cc, str(callback.from_user.id))
-                unit = unit_service.mapper_unit_to_unit_type(
-                    (unit_service.get(unit_uuid), [])
-                )
-                repo = repo_service.get(unit.repo_uuid)
-                try:
-                    target_version = unit_service.get_target_version(unit_uuid)
-                except Exception:
-                    target_version = None
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            unit_service = get_bot_unit_service(
+                db, cc, str(callback.from_user.id)
+            )
+            repo_service = get_bot_repo_service(
+                db, cc, str(callback.from_user.id)
+            )
+            unit = unit_service.mapper_unit_to_unit_type(
+                (unit_service.get(unit_uuid), [])
+            )
+            repo = repo_service.get(unit.repo_uuid)
+            try:
+                target_version = unit_service.get_target_version(unit_uuid)
+            except Exception:
+                target_version = None
 
-                try:
-                    current_schema = unit_service.get_current_schema(unit_uuid)
-                except Exception:
-                    current_schema = None
+            try:
+                current_schema = unit_service.get_current_schema(unit_uuid)
+            except Exception:
+                current_schema = None
 
-                is_creator = (
-                    unit_service.access_service.current_agent.uuid == unit.creator_uuid
-                )
+            is_creator = (
+                unit_service.access_service.current_agent.uuid
+                == unit.creator_uuid
+            )
 
         text = f"*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*"
 
@@ -271,9 +292,15 @@ class UnitBotRouter(BaseBotRouter):
                 else None
             )
 
-            if not unit.firmware_update_status and current_version == target_version:
+            if (
+                not unit.firmware_update_status
+                and current_version == target_version
+            ):
                 status = UnitFirmwareUpdateStatus.SUCCESS
-            elif not unit.firmware_update_status and current_version != target_version:
+            elif (
+                not unit.firmware_update_status
+                and current_version != target_version
+            ):
                 status = "Need"
             elif not target_version and not current_version:
                 status = "No Data"
@@ -288,7 +315,10 @@ class UnitBotRouter(BaseBotRouter):
                 ]
             )
 
-            if unit.firmware_update_status == UnitFirmwareUpdateStatus.REQUEST_SENT:
+            if (
+                unit.firmware_update_status
+                == UnitFirmwareUpdateStatus.REQUEST_SENT
+            ):
                 table.append(
                     [
                         "Request Update",
@@ -304,7 +334,9 @@ class UnitBotRouter(BaseBotRouter):
             ):
                 table.append(["Update Error", unit.firmware_update_error])
 
-        text += make_monospace_table_with_title(table, "Base Info", lengths=[15, 35])
+        text += make_monospace_table_with_title(
+            table, "Base Info", lengths=[15, 35]
+        )
 
         text += "\n"
 
@@ -334,14 +366,21 @@ class UnitBotRouter(BaseBotRouter):
 
                 if unit.unit_state.mem_alloc:
                     table.append(
-                        ["Alloc RAM", byte_converter(unit.unit_state.mem_alloc)]
+                        [
+                            "Alloc RAM",
+                            byte_converter(unit.unit_state.mem_alloc),
+                        ]
                     )
 
                 if unit.unit_state.mem_free:
-                    table.append(["Free RAM", byte_converter(unit.unit_state.mem_free)])
+                    table.append(
+                        ["Free RAM", byte_converter(unit.unit_state.mem_free)]
+                    )
 
             if len(unit.unit_state.statvfs) == 10:
-                total, free, used = calculate_flash_mem(unit.unit_state.statvfs)
+                total, free, used = calculate_flash_mem(
+                    unit.unit_state.statvfs
+                )
 
                 table.extend(
                     [
@@ -388,7 +427,11 @@ class UnitBotRouter(BaseBotRouter):
                     ]
                 )
             if target_version:
-                commands = [DecreesNames.TGZ, DecreesNames.TAR, DecreesNames.ZIP]
+                commands = [
+                    DecreesNames.TGZ,
+                    DecreesNames.TAR,
+                    DecreesNames.ZIP,
+                ]
 
                 keyboard.append(
                     [
@@ -427,73 +470,77 @@ class UnitBotRouter(BaseBotRouter):
                     callback_data=f"{self.entity_name}_uuid_{unit.uuid}_{filters.page}",
                 ),
                 InlineKeyboardButton(
-                    text="Browser", url=f"{settings.backend_link}/unit/{unit.uuid}"
+                    text="Browser",
+                    url=f"{settings.backend_link}/unit/{unit.uuid}",
                 ),
             ],
         )
 
         await callback.answer(parse_mode="Markdown")
-        try:
+        with contextlib.suppress(TelegramBadRequest):
             await self.telegram_response(
                 callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
             )
-        except TelegramBadRequest:
-            pass
 
-    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+    async def handle_entity_decrees(
+        self, callback: types.CallbackQuery
+    ) -> None:
         *_, decrees_type, unit_uuid = callback.data.split("_")
         unit_uuid = UUID(unit_uuid)
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                unit_service = get_bot_unit_service(db, cc, str(callback.from_user.id))
-                unit_node_service = get_bot_unit_node_service(
-                    db, cc, str(callback.from_user.id)
-                )
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            unit_service = get_bot_unit_service(
+                db, cc, str(callback.from_user.id)
+            )
+            unit_node_service = get_bot_unit_node_service(
+                db, cc, str(callback.from_user.id)
+            )
 
-                text = ""
-                match decrees_type:
-                    case DecreesNames.GET_ENV:
-                        text += "\n```json\n"
-                        text += json.dumps(unit_service.get_env(unit_uuid), indent=4)
-                        text += "```"
+            text = ""
+            match decrees_type:
+                case DecreesNames.GET_ENV:
+                    text += "\n```json\n"
+                    text += json.dumps(
+                        unit_service.get_env(unit_uuid), indent=4
+                    )
+                    text += "```"
 
-                    case _ if decrees_type in (
-                        DecreesNames.TGZ,
-                        DecreesNames.TAR,
-                        DecreesNames.ZIP,
-                    ):
-                        decrees_to_func = {
-                            DecreesNames.TGZ: unit_service.get_unit_firmware_tgz,
-                            DecreesNames.TAR: unit_service.get_unit_firmware_tar,
-                            DecreesNames.ZIP: unit_service.get_unit_firmware_zip,
-                        }
+                case _ if decrees_type in (
+                    DecreesNames.TGZ,
+                    DecreesNames.TAR,
+                    DecreesNames.ZIP,
+                ):
+                    decrees_to_func = {
+                        DecreesNames.TGZ: unit_service.get_unit_firmware_tgz,
+                        DecreesNames.TAR: unit_service.get_unit_firmware_tar,
+                        DecreesNames.ZIP: unit_service.get_unit_firmware_zip,
+                    }
 
-                        unit = unit_service.get(unit_uuid)
-                        file_name = decrees_to_func[DecreesNames(decrees_type)](
-                            unit_uuid
+                    unit = unit_service.get(unit_uuid)
+                    file_name = decrees_to_func[DecreesNames(decrees_type)](
+                        unit_uuid
+                    )
+                    await callback.message.answer_document(
+                        FSInputFile(
+                            file_name,
+                            filename=f"{unit.name}.{decrees_type.lower()}",
                         )
-                        await callback.message.answer_document(
-                            FSInputFile(
-                                file_name,
-                                filename=f"{unit.name}.{decrees_type.lower()}",
-                            )
-                        )
+                    )
 
-                        os.remove(file_name)
-                        await callback.answer(parse_mode="Markdown")
+                    os.remove(file_name)
+                    await callback.answer(parse_mode="Markdown")
 
-                        return
+                    return
 
-                    case _ if decrees_type in (
-                        BackendTopicCommand.UPDATE,
-                        BackendTopicCommand.SCHEMA_UPDATE,
-                        BackendTopicCommand.ENV_UPDATE,
-                        BackendTopicCommand.LOG_SYNC,
-                    ):
-                        unit_node_service.command_to_input_base_topic(
-                            unit_uuid, BackendTopicCommand(decrees_type)
-                        )
-                        text = f"Success send command {decrees_type}"
+                case _ if decrees_type in (
+                    BackendTopicCommand.UPDATE,
+                    BackendTopicCommand.SCHEMA_UPDATE,
+                    BackendTopicCommand.ENV_UPDATE,
+                    BackendTopicCommand.LOG_SYNC,
+                ):
+                    unit_node_service.command_to_input_base_topic(
+                        unit_uuid, BackendTopicCommand(decrees_type)
+                    )
+                    text = f"Success send command {decrees_type}"
 
         await callback.answer(parse_mode="Markdown")
         await self.telegram_response(callback, text, is_editable=False)

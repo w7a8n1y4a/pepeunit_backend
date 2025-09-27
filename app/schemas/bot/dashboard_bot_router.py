@@ -1,5 +1,3 @@
-from typing import Union
-
 from aiogram import types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -23,9 +21,13 @@ class DashboardBotRouter(BaseBotRouter):
     def __init__(self):
         entity_name = EntityNames.DASHBOARD
         super().__init__(entity_name=entity_name, states_group=DashboardStates)
-        self.router.message(Command(CommandNames.DASHBOARD))(self.dashboard_resolver)
+        self.router.message(Command(CommandNames.DASHBOARD))(
+            self.dashboard_resolver
+        )
 
-    async def dashboard_resolver(self, message: types.Message, state: FSMContext):
+    async def dashboard_resolver(
+        self, message: types.Message, state: FSMContext
+    ):
         await state.set_state(None)
         filters = BaseBotFilters()
         await state.update_data(current_filters=filters)
@@ -33,7 +35,7 @@ class DashboardBotRouter(BaseBotRouter):
 
     async def show_entities(
         self,
-        message: Union[types.Message, types.CallbackQuery],
+        message: types.Message | types.CallbackQuery,
         filters: BaseBotFilters,
     ):
         chat_id = (
@@ -42,7 +44,9 @@ class DashboardBotRouter(BaseBotRouter):
             else message.from_user.id
         )
 
-        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        entities, total_pages = await self.get_entities_page(
+            filters, str(chat_id)
+        )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*Dashboards*"
@@ -54,21 +58,21 @@ class DashboardBotRouter(BaseBotRouter):
     async def get_entities_page(
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                grafana_service = get_bot_grafana_service(db, cc, str(chat_id))
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            grafana_service = get_bot_grafana_service(db, cc, str(chat_id))
 
-                count, dashboards = grafana_service.list_dashboards(
-                    DashboardFilter(
-                        offset=(filters.page - 1) * settings.telegram_items_per_page,
-                        limit=settings.telegram_items_per_page,
-                        search_string=filters.search_string,
-                    )
+            count, dashboards = grafana_service.list_dashboards(
+                DashboardFilter(
+                    offset=(filters.page - 1)
+                    * settings.telegram_items_per_page,
+                    limit=settings.telegram_items_per_page,
+                    search_string=filters.search_string,
                 )
+            )
 
-                total_pages = (
-                    count + settings.telegram_items_per_page - 1
-                ) // settings.telegram_items_per_page
+            total_pages = (
+                count + settings.telegram_items_per_page - 1
+            ) // settings.telegram_items_per_page
 
         return dashboards, total_pages
 
@@ -93,7 +97,9 @@ class DashboardBotRouter(BaseBotRouter):
                     )
                 )
         else:
-            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
+            builder.row(
+                InlineKeyboardButton(text="No Data", callback_data="noop")
+            )
 
         if total_pages > 1:
             pagination_row = []
@@ -125,5 +131,7 @@ class DashboardBotRouter(BaseBotRouter):
     ) -> None:
         pass
 
-    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+    async def handle_entity_decrees(
+        self, callback: types.CallbackQuery
+    ) -> None:
         pass

@@ -97,10 +97,14 @@ def test_check_ownership_unit_to_input_node(authorization_service, mock_agent):
     mock_agent.type = AgentType.UNIT
     entity = MagicMock(spec=UnitNode)
     entity.is_rewritable_input = True
-    authorization_service.check_ownership(entity, [OwnershipType.UNIT_TO_INPUT_NODE])
+    authorization_service.check_ownership(
+        entity, [OwnershipType.UNIT_TO_INPUT_NODE]
+    )
 
 
-def test_check_ownership_not_unit_to_input_node(authorization_service, mock_agent):
+def test_check_ownership_not_unit_to_input_node(
+    authorization_service, mock_agent
+):
     mock_agent.type = AgentType.UNIT
     entity = MagicMock(spec=UnitNode)
     entity.is_rewritable_input = False
@@ -124,7 +128,9 @@ def test_check_visibility_internal_allowed(authorization_service, mock_agent):
     authorization_service.check_visibility(entity)
 
 
-def test_check_visibility_internal_disallowed(authorization_service, mock_agent):
+def test_check_visibility_internal_disallowed(
+    authorization_service, mock_agent
+):
     mock_agent.type = AgentType.BOT
     entity = MagicMock()
     entity.visibility_level = VisibilityLevel.INTERNAL
@@ -159,7 +165,9 @@ def test_check_visibility_private_disallowed(
         authorization_service.check_visibility(entity)
 
 
-def test_access_restriction(authorization_service, mock_permission_repo, mock_agent):
+def test_access_restriction(
+    authorization_service, mock_permission_repo, mock_agent
+):
     mock_agent.type = AgentType.USER
     mock_agent.uuid = uuid.uuid4()
 
@@ -171,7 +179,9 @@ def test_access_restriction(authorization_service, mock_permission_repo, mock_ag
     assert len(result) == 2
 
 
-def test_get_available_visibility_levels_bot(authorization_service, mock_agent):
+def test_get_available_visibility_levels_bot(
+    authorization_service, mock_agent
+):
     mock_agent.type = AgentType.BOT
     result = authorization_service.get_available_visibility_levels(
         ["PUBLIC", "INTERNAL"]

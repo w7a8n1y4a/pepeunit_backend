@@ -1,7 +1,6 @@
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from fastapi import Query
 from pydantic import BaseModel
@@ -15,7 +14,7 @@ class UserRead(BaseModel):
     status: UserStatus
     login: str
     grafana_org_name: uuid_pkg.UUID
-    grafana_org_id: Optional[str] = None
+    grafana_org_id: str | None = None
     create_datetime: datetime
 
 
@@ -30,8 +29,8 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    login: Optional[str] = None
-    password: Optional[str] = None
+    login: str | None = None
+    password: str | None = None
 
 
 class UserAuth(BaseModel):
@@ -45,17 +44,17 @@ class AccessToken(BaseModel):
 
 @dataclass
 class UserFilter:
-    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+    uuids: list[uuid_pkg.UUID] | None = Query([])
 
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    role: Optional[list[str]] = Query([item.value for item in UserRole])
-    status: Optional[list[str]] = Query([item.value for item in UserStatus])
+    role: list[str] | None = Query([item.value for item in UserRole])
+    status: list[str] | None = Query([item.value for item in UserStatus])
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     def dict(self):
         return self.__dict__

@@ -1,6 +1,6 @@
+import contextlib
 import json
 from json import JSONDecodeError
-from typing import Union
 from uuid import UUID
 
 from aiogram import F, types
@@ -28,11 +28,13 @@ class UnitNodeBotRouter(BaseBotRouter):
     def __init__(self):
         entity_name = EntityNames.UNIT_NODE
         super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_unit_"))(
-            self.handle_by_unit
-        )
+        self.router.callback_query(
+            F.data.startswith(f"{self.entity_name}_unit_")
+        )(self.handle_by_unit)
 
-    async def handle_by_unit(self, callback: types.CallbackQuery, state: FSMContext):
+    async def handle_by_unit(
+        self, callback: types.CallbackQuery, state: FSMContext
+    ):
         *_, unit_uuid = callback.data.split("_")
 
         await state.set_state(None)
@@ -42,7 +44,7 @@ class UnitNodeBotRouter(BaseBotRouter):
 
     async def show_entities(
         self,
-        message: Union[types.Message, types.CallbackQuery],
+        message: types.Message | types.CallbackQuery,
         filters: BaseBotFilters,
     ):
         chat_id = (
@@ -51,15 +53,16 @@ class UnitNodeBotRouter(BaseBotRouter):
             else message.from_user.id
         )
 
-        entities, total_pages = await self.get_entities_page(filters, str(chat_id))
+        entities, total_pages = await self.get_entities_page(
+            filters, str(chat_id)
+        )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
         text = "*UnitNodes*"
         if filters.unit_uuid:
-            with get_hand_session() as db:
-                with get_hand_clickhouse_client() as cc:
-                    unit_service = get_bot_unit_service(db, cc, str(chat_id))
-                    unit = unit_service.get(filters.unit_uuid)
+            with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+                unit_service = get_bot_unit_service(db, cc, str(chat_id))
+                unit = unit_service.get(filters.unit_uuid)
 
             text += f" - for unit `{self.header_name_limit(unit.name)}`"
 
@@ -71,24 +74,24 @@ class UnitNodeBotRouter(BaseBotRouter):
     async def get_entities_page(
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                unit_node_service = get_bot_unit_node_service(db, cc, str(chat_id))
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            unit_node_service = get_bot_unit_node_service(db, cc, str(chat_id))
 
-                count, unit_nodes = unit_node_service.list(
-                    UnitNodeFilter(
-                        offset=(filters.page - 1) * settings.telegram_items_per_page,
-                        limit=settings.telegram_items_per_page,
-                        visibility_level=filters.visibility_levels or [],
-                        type=filters.unit_types or [],
-                        search_string=filters.search_string,
-                        unit_uuid=filters.unit_uuid,
-                    )
+            count, unit_nodes = unit_node_service.list(
+                UnitNodeFilter(
+                    offset=(filters.page - 1)
+                    * settings.telegram_items_per_page,
+                    limit=settings.telegram_items_per_page,
+                    visibility_level=filters.visibility_levels or [],
+                    type=filters.unit_types or [],
+                    search_string=filters.search_string,
+                    unit_uuid=filters.unit_uuid,
                 )
+            )
 
-                total_pages = (
-                    count + settings.telegram_items_per_page - 1
-                ) // settings.telegram_items_per_page
+            total_pages = (
+                count + settings.telegram_items_per_page - 1
+            ) // settings.telegram_items_per_page
 
         return unit_nodes, total_pages
 
@@ -116,7 +119,9 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ")
+                text=(
+                    "🟢 " if item.value in filters.visibility_levels else "🔴️ "
+                )
                 + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
@@ -132,7 +137,9 @@ class UnitNodeBotRouter(BaseBotRouter):
                     )
                 )
         else:
-            builder.row(InlineKeyboardButton(text="No Data", callback_data="noop"))
+            builder.row(
+                InlineKeyboardButton(text="No Data", callback_data="noop")
+            )
 
         if total_pages > 1:
             pagination_row = []
@@ -184,12 +191,11 @@ class UnitNodeBotRouter(BaseBotRouter):
             new_filters = BaseBotFilters(previous_filters=filters)
             await state.update_data(current_filters=new_filters)
 
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                unit_node_service = get_bot_unit_node_service(
-                    db, cc, str(callback.from_user.id)
-                )
-                unit_node = unit_node_service.get(unit_node_uuid)
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            unit_node_service = get_bot_unit_node_service(
+                db, cc, str(callback.from_user.id)
+            )
+            unit_node = unit_node_service.get(unit_node_uuid)
 
         text = f"*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`"
 
@@ -239,12 +245,12 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         await callback.answer(parse_mode="Markdown")
 
-        try:
+        with contextlib.suppress(TelegramBadRequest):
             await self.telegram_response(
                 callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
             )
-        except TelegramBadRequest:
-            pass
 
-    async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
+    async def handle_entity_decrees(
+        self, callback: types.CallbackQuery
+    ) -> None:
         await callback.answer(parse_mode="Markdown")

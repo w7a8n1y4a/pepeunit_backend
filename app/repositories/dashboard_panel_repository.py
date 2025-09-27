@@ -22,12 +22,15 @@ class DashboardPanelRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
         super().__init__(DashboardPanel, db)
 
-    def list(self, filters: DashboardPanelFilter) -> tuple[int, list[DashboardPanel]]:
+    def list(
+        self, filters: DashboardPanelFilter
+    ) -> tuple[int, list[DashboardPanel]]:
         query = self.db.query(DashboardPanel)
 
         if filters.dashboard_uuid:
             query = query.filter(
-                DashboardPanel.dashboard_uuid == is_valid_uuid(filters.dashboard_uuid)
+                DashboardPanel.dashboard_uuid
+                == is_valid_uuid(filters.dashboard_uuid)
             )
 
         fields = [DashboardPanel.title]

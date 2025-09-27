@@ -3,7 +3,6 @@ import os
 import shutil
 import uuid as uuid_pkg
 from collections import Counter
-from typing import Optional
 
 from git import Repo as GitRepo
 from git.exc import GitCommandError
@@ -39,21 +38,27 @@ class GitRepoRepository:
                 repo_save_path,
                 env={"GIT_TERMINAL_PROMPT": "0"},
             )
-        except GitCommandError:
-            raise GitRepoError("No valid repo_url or credentials")
+        except GitCommandError as err:
+            raise GitRepoError("No valid repo_url or credentials") from err
 
         # get all remotes branches to local repo
         for remote in git_repo.remotes:
             remote.fetch()
 
-    def local_repository_size(self, repository_registry: RepositoryRegistry) -> int:
-        return get_directory_size(self.get_path_physic_repository(repository_registry))
+    def local_repository_size(
+        self, repository_registry: RepositoryRegistry
+    ) -> int:
+        return get_directory_size(
+            self.get_path_physic_repository(repository_registry)
+        )
 
     @staticmethod
     def get_local_registry() -> list[str]:
         path = settings.backend_save_repo_path
         return [
-            name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))
+            name
+            for name in os.listdir(path)
+            if os.path.isdir(os.path.join(path, name))
         ]
 
     def generate_tmp_git_repo(
@@ -76,8 +81,8 @@ class GitRepoRepository:
         repo_save_path = self.get_path_physic_repository(repository_registry)
         try:
             repo = GitRepo(repo_save_path)
-        except Exception:
-            raise GitRepoError("Physic repository not exist")
+        except Exception as err:
+            raise GitRepoError("Physic repository not exist") from err
 
         return repo
 
@@ -95,18 +100,23 @@ class GitRepoRepository:
 
         try:
             repo = GitRepo(tmp_path)
-        except Exception:
-            raise GitRepoError("Physic repository not exist")
+        except Exception as err:
+            raise GitRepoError("Physic repository not exist") from err
 
         return repo
 
-    def get_branches(self, repository_registry: RepositoryRegistry) -> list[str]:
+    def get_branches(
+        self, repository_registry: RepositoryRegistry
+    ) -> list[str]:
         repo = self.get_repo(repository_registry)
 
         return [r.remote_head for r in repo.remote().refs][1:]
 
     def get_branch_commits(
-        self, repository_registry: RepositoryRegistry, branch: str, depth: int = None
+        self,
+        repository_registry: RepositoryRegistry,
+        branch: str,
+        depth: int = None,
     ) -> list[dict]:
         """
         Get all commits for branch with depth
@@ -176,7 +186,7 @@ class GitRepoRepository:
         return [commit for commit in commits if commit["tag"]]
 
     @staticmethod
-    def find_by_commit(data: list[dict], commit: str) -> Optional[dict]:
+    def find_by_commit(data: list[dict], commit: str) -> dict | None:
         for item in data:
             if item["commit"] == commit:
                 return item
@@ -184,7 +194,7 @@ class GitRepoRepository:
 
     def get_target_repo_version(
         self, repository_registry: RepositoryRegistry, repo: Repo
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         self.is_valid_branch(repository_registry, repo.default_branch)
 
         all_commits = self.get_branch_commits_with_tag(
@@ -209,7 +219,9 @@ class GitRepoRepository:
                 repository_registry, repo.default_branch, repo.default_commit
             )
 
-            target_commit = self.find_by_commit(all_commits, repo.default_commit)
+            target_commit = self.find_by_commit(
+                all_commits, repo.default_commit
+            )
 
             if repo.is_compilable_repo and target_commit["tag"] is None:
                 raise GitRepoError(
@@ -217,16 +229,20 @@ class GitRepoRepository:
                 )
 
         if not target_commit:
-            raise GitRepoError("Version is missing: The tags are not in the repository")
+            raise GitRepoError(
+                "Version is missing: The tags are not in the repository"
+            )
 
         return target_commit["commit"], target_commit["tag"]
 
     def get_target_unit_version(
         self, repo: Repo, repository_registry: RepositoryRegistry, unit: Unit
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         target_commit = None
         if unit.is_auto_update_from_repo_unit:
-            repo_target = self.get_target_repo_version(repository_registry, repo)
+            repo_target = self.get_target_repo_version(
+                repository_registry, repo
+            )
             target_commit = {"commit": repo_target[0], "tag": repo_target[1]}
         else:
             self.is_valid_branch(repository_registry, unit.repo_branch)
@@ -235,11 +251,14 @@ class GitRepoRepository:
             )
             target_commit = self.find_by_commit(all_commits, unit.repo_commit)
 
-            if target_commit:
-                if repo.is_compilable_repo and target_commit["tag"] is None:
-                    raise GitRepoError(
-                        "Commit {} without Tag".format(target_commit["commit"])
-                    )
+            if (
+                target_commit
+                and repo.is_compilable_repo
+                and target_commit["tag"] is None
+            ):
+                raise GitRepoError(
+                    "Commit {} without Tag".format(target_commit["commit"])
+                )
 
         if not target_commit:
             raise GitRepoError("Version is missing")
@@ -256,10 +275,10 @@ class GitRepoRepository:
 
         try:
             target_file = repo.commit(commit).tree / path
-        except KeyError:
+        except KeyError as err:
             raise GitRepoError(
-                "File {} not found in repo commit {}".format(path, commit)
-            )
+                f"File {path} not found in repo commit {commit}"
+            ) from err
 
         buffer = io.BytesIO()
 
@@ -290,11 +309,14 @@ class GitRepoRepository:
 
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
-        return {k: v for k, v in env_dict.items() if k not in reserved_env_names}
+        return {
+            k: v for k, v in env_dict.items() if k not in reserved_env_names
+        }
 
     def delete_repo(self, repository_registry: RepositoryRegistry) -> None:
         shutil.rmtree(
-            self.get_path_physic_repository(repository_registry), ignore_errors=True
+            self.get_path_physic_repository(repository_registry),
+            ignore_errors=True,
         )
         return None
 
@@ -309,9 +331,13 @@ class GitRepoRepository:
         if len(binding_schema_keys) != len(
             set(schema_dict.keys()) & set(binding_schema_keys)
         ):
-            raise GitRepoError("This schema file has unresolved IO and base IO keys")
+            raise GitRepoError(
+                "This schema file has unresolved IO and base IO keys"
+            )
 
-        schema_dict_values_type = [type(value) for value in schema_dict.values()]
+        schema_dict_values_type = [
+            type(value) for value in schema_dict.values()
+        ]
 
         # check - all values first layer schema is list
         if Counter(schema_dict_values_type)[list] != len(schema_dict):
@@ -328,9 +354,7 @@ class GitRepoRepository:
             set(all_unique_chars_topic) - set(settings.available_topic_symbols)
         ) != set():
             raise GitRepoError(
-                "Topics in the schema use characters that are not allowed, allowed: {}".format(
-                    settings.available_topic_symbols
-                )
+                f"Topics in the schema use characters that are not allowed, allowed: {settings.available_topic_symbols}"
             )
 
         # check - length topics. 100 chars is stock for system track parts
@@ -340,9 +364,7 @@ class GitRepoRepository:
         max_value = 65535 - 100
         if current_len >= max_value:
             raise GitRepoError(
-                "The length {} of the topic title is too long, max: {}".format(
-                    current_len, max_value
-                )
+                f"The length {current_len} of the topic title is too long, max: {max_value}"
             )
 
     def is_valid_env_file(
@@ -353,14 +375,16 @@ class GitRepoRepository:
         unresolved_set = env_example_dict.keys() - env.keys()
         if unresolved_set != set():
             raise GitRepoError(
-                "This env file has {} unresolved variable".format(unresolved_set)
+                f"This env file has {unresolved_set} unresolved variable"
             )
 
-    def is_valid_branch(self, repository_registry: RepositoryRegistry, branch: str):
+    def is_valid_branch(
+        self, repository_registry: RepositoryRegistry, branch: str
+    ):
         available_branches = self.get_branches(repository_registry)
         if not branch or branch not in available_branches:
             raise GitRepoError(
-                "Branch {} not found, available: {}".format(branch, available_branches)
+                f"Branch {branch} not found, available: {available_branches}"
             )
 
     def is_valid_commit(
@@ -368,14 +392,16 @@ class GitRepoRepository:
     ):
         if commit not in [
             commit_dict["commit"]
-            for commit_dict in self.get_branch_commits(repository_registry, branch)
+            for commit_dict in self.get_branch_commits(
+                repository_registry, branch
+            )
         ]:
-            raise GitRepoError("Commit {} not in branch {}".format(commit, branch))
+            raise GitRepoError(f"Commit {commit} not in branch {branch}")
 
     @staticmethod
     def find_by_platform(
         data: list[tuple[str, str]], platform: str
-    ) -> Optional[tuple[str, str]]:
+    ) -> tuple[str, str] | None:
         for item in data:
             if item[0] == platform:
                 return item
@@ -401,11 +427,12 @@ class GitRepoRepository:
             target_platforms = releases.get(target_tag)
 
             if target_platforms:
-                if self.find_by_platform(target_platforms, firmware_platform) is None:
+                if (
+                    self.find_by_platform(target_platforms, firmware_platform)
+                    is None
+                ):
                     raise GitRepoError(
-                        "Not find platform {}, available: {}".format(
-                            firmware_platform, [item[0] for item in target_platforms]
-                        )
+                        f"Not find platform {firmware_platform}, available: {[item[0] for item in target_platforms]}"
                     )
 
             else:

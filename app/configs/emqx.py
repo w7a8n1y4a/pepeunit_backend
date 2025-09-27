@@ -49,7 +49,9 @@ class ControlEmqx:
         return response.status_code
 
     def _log_response(self, response):
-        assert response.status_code < 500, f"Error connect to {self.current_link}"
+        assert response.status_code < 500, (
+            f"Error connect to {self.current_link}"
+        )
 
     def get_bearer(self) -> str:
         headers = {
@@ -165,7 +167,12 @@ class ControlEmqx:
         data = {
             "no_match": "deny",
             "deny_action": "ignore",
-            "cache": {"enable": True, "max_size": 64, "ttl": "10m", "excludes": []},
+            "cache": {
+                "enable": True,
+                "max_size": 64,
+                "ttl": "10m",
+                "excludes": [],
+            },
         }
 
         logging.info("Set cache settings auth hook MQTT Broker")

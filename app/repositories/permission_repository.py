@@ -39,7 +39,9 @@ class PermissionRepository(BaseRepository):
         )
 
     def get_agent(self, base_permission: PermissionBaseType):
-        return self.db.get(eval(base_permission.agent_type), base_permission.agent_uuid)
+        return self.db.get(
+            eval(base_permission.agent_type), base_permission.agent_uuid
+        )
 
     def get_resource(self, base_permission: PermissionBaseType):
         return self.db.get(
@@ -72,7 +74,8 @@ class PermissionRepository(BaseRepository):
     @staticmethod
     def domain_to_base_type(permission: Permission) -> PermissionBaseType:
         base_permission = PermissionBaseType(
-            agent_type=permission.agent_type, resource_type=permission.resource_type
+            agent_type=permission.agent_type,
+            resource_type=permission.resource_type,
         )
 
         if permission.uuid:
@@ -94,7 +97,9 @@ class PermissionRepository(BaseRepository):
 
         return base_permission
 
-    def create(self, base_permission: PermissionBaseType) -> PermissionBaseType:
+    def create(
+        self, base_permission: PermissionBaseType
+    ) -> PermissionBaseType:
         permission = self.base_type_to_domain(base_permission)
 
         self.db.add(permission)
@@ -104,12 +109,17 @@ class PermissionRepository(BaseRepository):
 
     def bulk_save(self, base_permissions: list[PermissionBaseType]) -> None:
         self.db.bulk_save_objects(
-            [self.base_type_to_domain(permission) for permission in base_permissions]
+            [
+                self.base_type_to_domain(permission)
+                for permission in base_permissions
+            ]
         )
         self.db.commit()
 
     @staticmethod
-    def get_agent_fld_uuid_by_type(fld_type: PermissionEntities) -> uuid_pkg.UUID:
+    def get_agent_fld_uuid_by_type(
+        fld_type: PermissionEntities,
+    ) -> uuid_pkg.UUID:
         entities_dict = {
             PermissionEntities.USER: Permission.agent_user_uuid,
             PermissionEntities.UNIT: Permission.agent_unit_uuid,
@@ -117,7 +127,9 @@ class PermissionRepository(BaseRepository):
         return entities_dict[fld_type]
 
     @staticmethod
-    def get_resource_fld_uuid_by_type(fld_type: PermissionEntities) -> uuid_pkg.UUID:
+    def get_resource_fld_uuid_by_type(
+        fld_type: PermissionEntities,
+    ) -> uuid_pkg.UUID:
         entities_dict = {
             PermissionEntities.REPO: Permission.resource_repo_uuid,
             PermissionEntities.UNIT: Permission.resource_unit_uuid,
@@ -139,7 +151,8 @@ class PermissionRepository(BaseRepository):
             )
 
         return [
-            self.domain_to_base_type(permission) for permission in permissions.all()
+            self.domain_to_base_type(permission)
+            for permission in permissions.all()
         ]
 
     def get_resource_agents(
@@ -165,7 +178,9 @@ class PermissionRepository(BaseRepository):
             .filter(
                 self.get_agent_fld_uuid_by_type(base_permission.agent_type)
                 == base_permission.agent_uuid,
-                self.get_resource_fld_uuid_by_type(base_permission.resource_type)
+                self.get_resource_fld_uuid_by_type(
+                    base_permission.resource_type
+                )
                 == base_permission.resource_uuid,
             )
             .first()

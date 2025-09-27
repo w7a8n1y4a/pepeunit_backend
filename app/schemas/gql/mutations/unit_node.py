@@ -19,7 +19,9 @@ async def update_unit_node(
     info: Info, uuid: uuid_pkg.UUID, unit_node: UnitNodeUpdateInput
 ) -> UnitNodeType:
     unit_node_service = get_unit_node_service_gql(info)
-    return UnitNodeType(**(await unit_node_service.update(uuid, unit_node)).dict())
+    return UnitNodeType(
+        **(await unit_node_service.update(uuid, unit_node)).dict()
+    )
 
 
 @strawberry.mutation()
@@ -27,7 +29,9 @@ def set_state_unit_node_input(
     info: Info, uuid: uuid_pkg.UUID, unit_node: UnitNodeSetStateInput
 ) -> UnitNodeType:
     unit_node_service = get_unit_node_service_gql(info)
-    return UnitNodeType(**unit_node_service.set_state_input(uuid, unit_node).dict())
+    return UnitNodeType(
+        **unit_node_service.set_state_input(uuid, unit_node).dict()
+    )
 
 
 @strawberry.mutation()
@@ -35,7 +39,9 @@ def create_unit_node_edge(
     info: Info, unit_node_edge: UnitNodeEdgeCreateInput
 ) -> UnitNodeEdgeType:
     unit_node_service = get_unit_node_service_gql(info)
-    return UnitNodeEdgeType(**unit_node_service.create_node_edge(unit_node_edge).dict())
+    return UnitNodeEdgeType(
+        **unit_node_service.create_node_edge(unit_node_edge).dict()
+    )
 
 
 @strawberry.mutation()

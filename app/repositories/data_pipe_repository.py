@@ -1,10 +1,10 @@
+import builtins
 import csv
 import os
 import uuid
 import zipfile
 from datetime import datetime
 from io import StringIO
-from typing import List, Union
 
 from clickhouse_driver import Client
 from fastapi import Depends
@@ -62,10 +62,12 @@ class DataPipeRepository:
                 return Aggregation
 
     def list_postgres(
-        self, filters: Union[DataPipeFilter]
+        self, filters: DataPipeFilter
     ) -> tuple[int, list[LastValue]]:
         unit_node = (
-            self.db.query(UnitNode).filter(UnitNode.uuid == filters.uuid).first()
+            self.db.query(UnitNode)
+            .filter(UnitNode.uuid == filters.uuid)
+            .first()
         )
 
         if not unit_node:
@@ -81,8 +83,8 @@ class DataPipeRepository:
             ]
 
     def list(
-        self, filters: Union[DataPipeFilter]
-    ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation, LastValue]]]:
+        self, filters: DataPipeFilter
+    ) -> tuple[int, list[NRecords | TimeWindow | Aggregation | LastValue]]:
         query = ""
         match filters.type:
             case ProcessingPolicyType.LAST_VALUE:
@@ -110,12 +112,17 @@ class DataPipeRepository:
             case ProcessingPolicyType.AGGREGATION:
                 query = f"select {Aggregation.get_keys()} from aggregation_entry where unit_node_uuid = %(uuid)s"
 
-        if filters.type != ProcessingPolicyType.AGGREGATION and filters.search_string:
+        if (
+            filters.type != ProcessingPolicyType.AGGREGATION
+            and filters.search_string
+        ):
             query += " AND state ilike %(search_string)s"
 
         if filters.type == ProcessingPolicyType.AGGREGATION:
             filters.aggregation_type = (
-                [] if filters.aggregation_type is None else filters.aggregation_type
+                []
+                if filters.aggregation_type is None
+                else filters.aggregation_type
             )
 
             if filters.aggregation_type:
@@ -124,7 +131,9 @@ class DataPipeRepository:
                     if isinstance(filters.aggregation_type, Query)
                     else filters.aggregation_type
                 )
-                data = ", ".join([f"'{item}'" for item in filters.aggregation_type])
+                data = ", ".join(
+                    [f"'{item}'" for item in filters.aggregation_type]
+                )
                 level_append = f" AND aggregation_type in ({data})"
 
                 query += level_append
@@ -139,17 +148,15 @@ class DataPipeRepository:
                 query += f" AND time_window_size = {filters.time_window_size}"
 
             if filters.start_agg_window_datetime:
-                query += (
-                    f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
-                )
+                query += f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
 
             if filters.end_agg_window_datetime:
-                query += (
-                    f" AND end_window_datetime <= '{filters.end_agg_window_datetime}'"
-                )
+                query += f" AND end_window_datetime <= '{filters.end_agg_window_datetime}'"
 
         if filters.start_create_datetime:
-            query += f" AND create_datetime >= '{filters.start_create_datetime}'"
+            query += (
+                f" AND create_datetime >= '{filters.start_create_datetime}'"
+            )
 
         if filters.end_create_datetime:
             query += f" AND create_datetime <= '{filters.end_create_datetime}'"
@@ -161,7 +168,10 @@ class DataPipeRepository:
         count = len(
             self.client.execute(
                 query,
-                {"uuid": filters.uuid, "search_string": f"%{filters.search_string}%"},
+                {
+                    "uuid": filters.uuid,
+                    "search_string": f"%{filters.search_string}%",
+                },
             )
         )
 
@@ -170,9 +180,7 @@ class DataPipeRepository:
             if filters.type == ProcessingPolicyType.N_RECORDS:
                 query += f" order by id {filters.order_by_create_date.value}"
             else:
-                query += (
-                    f" order by create_datetime {filters.order_by_create_date.value}"
-                )
+                query += f" order by create_datetime {filters.order_by_create_date.value}"
 
         if filters.limit:
             query += " limit %(limit)s"
@@ -193,17 +201,17 @@ class DataPipeRepository:
 
         return count, unit_logs
 
-    def bulk_delete(self, uuids: List[str]) -> None:
+    def bulk_delete(self, uuids: builtins.list[str]) -> None:
         tables = ["n_last_entry", "window_entry", "aggregation_entry"]
         uuid_list = ", ".join([f"'{uuid}'" for uuid in uuids])
         for table_name in tables:
-            query = (
-                f"ALTER TABLE {table_name} DELETE WHERE unit_node_uuid IN ({uuid_list})"
-            )
+            query = f"ALTER TABLE {table_name} DELETE WHERE unit_node_uuid IN ({uuid_list})"
             self.client.execute(query)
 
     @staticmethod
-    def models_to_csv(data: List[Union[NRecords, TimeWindow, Aggregation]]) -> str:
+    def models_to_csv(
+        data: builtins.list[NRecords | TimeWindow | Aggregation],
+    ) -> str:
         if not len(data):
             raise DataPipeError("No data found")
 

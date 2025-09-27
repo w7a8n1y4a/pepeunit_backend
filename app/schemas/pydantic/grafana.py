@@ -1,7 +1,6 @@
 import datetime
 import uuid as uuid_pkg
 from dataclasses import dataclass
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -19,22 +18,24 @@ from app.utils.utils import parse_interval
 class DatasourceFilter:
     format: DatasourceFormat
 
-    start_agg_datetime: Optional[datetime.datetime] = None
-    end_agg_datetime: Optional[datetime.datetime] = None
+    start_agg_datetime: datetime.datetime | None = None
+    end_agg_datetime: datetime.datetime | None = None
 
-    start_create_datetime: Optional[datetime.datetime] = None
-    end_create_datetime: Optional[datetime.datetime] = None
+    start_create_datetime: datetime.datetime | None = None
+    end_create_datetime: datetime.datetime | None = None
 
-    relative_time: Optional[str] = None
+    relative_time: str | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     @property
     def relative_interval(self):
-        return parse_interval(self.relative_time) if self.relative_time else None
+        return (
+            parse_interval(self.relative_time) if self.relative_time else None
+        )
 
     def dict(self):
         return self.__dict__
@@ -47,12 +48,12 @@ class DatasourceTimeSeriesData(BaseModel):
 
 @dataclass
 class DashboardFilter:
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     def dict(self):
         return self.__dict__
@@ -60,14 +61,14 @@ class DashboardFilter:
 
 @dataclass
 class DashboardPanelFilter:
-    dashboard_uuid: Optional[uuid_pkg.UUID] = None
+    dashboard_uuid: uuid_pkg.UUID | None = None
 
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     def dict(self):
         return self.__dict__
@@ -98,12 +99,12 @@ class DashboardRead(BaseModel):
     name: str
     create_datetime: datetime.datetime
 
-    dashboard_url: Optional[str] = None
-    inc_last_version: Optional[int] = None
+    dashboard_url: str | None = None
+    inc_last_version: int | None = None
 
-    sync_status: Optional[DashboardStatus] = None
-    sync_error: Optional[str] = None
-    sync_last_datetime: Optional[datetime.datetime] = None
+    sync_status: DashboardStatus | None = None
+    sync_error: str | None = None
+    sync_last_datetime: datetime.datetime | None = None
 
     creator_uuid: uuid_pkg.UUID
 

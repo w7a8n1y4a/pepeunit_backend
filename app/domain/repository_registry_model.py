@@ -21,7 +21,10 @@ class RepositoryRegistry(SQLModel, table=True):
     __tablename__ = "repository_registry"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
     # type of remote hosting
@@ -58,7 +61,9 @@ class RepositoryRegistry(SQLModel, table=True):
     )
 
     def set_credentials(
-        self, creator_uuid: uuid_pkg.UUID, data: OneRepositoryRegistryCredentials
+        self,
+        creator_uuid: uuid_pkg.UUID,
+        data: OneRepositoryRegistryCredentials,
     ) -> None:
         all_repository_credentials = self.get_credentials()
 
@@ -69,11 +74,16 @@ class RepositoryRegistry(SQLModel, table=True):
 
         self.cipher_credentials_private_repository = aes_gcm_encode(
             json.dumps(
-                {key: value.dict() for key, value in all_repository_credentials.items()}
+                {
+                    key: value.dict()
+                    for key, value in all_repository_credentials.items()
+                }
             )
         )
 
-    def get_credentials(self) -> dict[str, OneRepositoryRegistryCredentials] | None:
+    def get_credentials(
+        self,
+    ) -> dict[str, OneRepositoryRegistryCredentials] | None:
         if self.cipher_credentials_private_repository:
             return {
                 creator_uuid: OneRepositoryRegistryCredentials(**credentials)
@@ -89,14 +99,15 @@ class RepositoryRegistry(SQLModel, table=True):
     def get_first_valid_credentials(
         data: dict[str, OneRepositoryRegistryCredentials],
     ) -> Credentials | None:
-        for creator_uuid, credentials in data.items():
+        for _creator_uuid, credentials in data.items():
             if credentials.status == CredentialStatus.VALID:
                 return credentials.credentials
         return None
 
     @staticmethod
     def get_credentials_by_user(
-        data: dict[str, OneRepositoryRegistryCredentials], target_user_uuid: str
+        data: dict[str, OneRepositoryRegistryCredentials],
+        target_user_uuid: str,
     ) -> OneRepositoryRegistryCredentials | None:
         for user_uuid, credentials in data.items():
             if user_uuid == target_user_uuid:

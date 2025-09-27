@@ -1,11 +1,10 @@
+import contextlib
 import datetime
 import json
 import logging
 import uuid as uuid_pkg
-from typing import Union
 
-from fastapi import Depends, UploadFile
-from strawberry.file_uploads import Upload
+from fastapi import Depends
 
 from app import settings
 from app.configs.errors import (
@@ -43,7 +42,9 @@ from app.dto.enum import (
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.repositories.repository_registry_repository import (
+    RepositoryRegistryRepository,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -134,10 +135,10 @@ class UnitNodeService:
                 if is_update:
                     if (
                         assignment == DestinationTopicType.INPUT_TOPIC
-                        and topic not in input_node.keys()
+                        and topic not in input_node
                     ) or (
                         assignment == DestinationTopicType.OUTPUT_TOPIC
-                        and topic not in output_node.keys()
+                        and topic not in output_node
                     ):
                         pass
                     else:
@@ -165,7 +166,10 @@ class UnitNodeService:
                 unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
 
-                for agent in [unit, User(uuid=self.access_service.current_agent.uuid)]:
+                for agent in [
+                    unit,
+                    User(uuid=self.access_service.current_agent.uuid),
+                ]:
                     agents_default_permission_list.append(
                         PermissionBaseType(
                             agent_uuid=agent.uuid,
@@ -181,7 +185,11 @@ class UnitNodeService:
         )
 
     def bulk_update(
-        self, schema_dict: dict, unit: Unit, input_node: dict, output_node: dict
+        self,
+        schema_dict: dict,
+        unit: Unit,
+        input_node: dict,
+        output_node: dict,
     ) -> None:
         self.bulk_create(schema_dict, unit, True, input_node, output_node)
 
@@ -189,7 +197,10 @@ class UnitNodeService:
         for assignment, topic_list in schema_dict.items():
             if assignment == DestinationTopicType.INPUT_TOPIC:
                 unit_node_uuid_delete.extend(
-                    [input_node[topic] for topic in input_node.keys() - set(topic_list)]
+                    [
+                        input_node[topic]
+                        for topic in input_node.keys() - set(topic_list)
+                    ]
                 )
             elif assignment == DestinationTopicType.OUTPUT_TOPIC:
                 unit_node_uuid_delete.extend(
@@ -218,7 +229,7 @@ class UnitNodeService:
         self.unit_node_repository.bulk_save(update_list)
 
     async def update(
-        self, uuid: uuid_pkg.UUID, data: Union[UnitNodeUpdate, UnitNodeUpdateInput]
+        self, uuid: uuid_pkg.UUID, data: UnitNodeUpdate | UnitNodeUpdateInput
     ) -> UnitNode:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -244,7 +255,9 @@ class UnitNodeService:
 
         update_unit_node.last_update_datetime = datetime.datetime.utcnow()
 
-        unit_node_updated = self.unit_node_repository.update(uuid, update_unit_node)
+        unit_node_updated = self.unit_node_repository.update(
+            uuid, update_unit_node
+        )
 
         if data.is_data_pipe_active is not None:
             await send_to_data_pipe_stream(
@@ -257,9 +270,13 @@ class UnitNodeService:
         return self.unit_node_repository.update(uuid, update_unit_node)
 
     def set_state_input(
-        self, uuid: uuid_pkg.UUID, data: Union[UnitNodeSetState, UnitNodeSetStateInput]
+        self,
+        uuid: uuid_pkg.UUID,
+        data: UnitNodeSetState | UnitNodeSetStateInput,
     ) -> UnitNode:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
@@ -275,7 +292,9 @@ class UnitNodeService:
 
         return self.unit_node_repository.update(
             uuid,
-            UnitNode(last_update_datetime=datetime.datetime.utcnow(), **data.dict()),
+            UnitNode(
+                last_update_datetime=datetime.datetime.utcnow(), **data.dict()
+            ),
         )
 
     def command_to_input_base_topic(
@@ -305,8 +324,10 @@ class UnitNodeService:
         self.git_repo_repository.is_valid_firmware_platform(
             repo, repository_registry, unit, unit.target_firmware_platform
         )
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+        target_version, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repo, repository_registry, unit
+            )
         )
         schema_dict = self.git_repo_repository.get_schema_dict(
             repository_registry, target_version
@@ -320,7 +341,8 @@ class UnitNodeService:
         }
 
         target_topic = (
-            command_to_topic_dict[command] + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
+            command_to_topic_dict[command]
+            + GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
         )
         if target_topic in schema_dict["input_base_topic"]:
             update_dict = {"COMMAND": command}
@@ -330,7 +352,8 @@ class UnitNodeService:
 
                 if repo.is_compilable_repo:
                     links = is_valid_json(
-                        repository_registry.releases_data, "Releases for compile repo"
+                        repository_registry.releases_data,
+                        "Releases for compile repo",
                     )[target_tag]
                     platform, link = self.git_repo_repository.find_by_platform(
                         links, unit.target_firmware_platform
@@ -348,19 +371,25 @@ class UnitNodeService:
                 )
                 if command == BackendTopicCommand.UPDATE:
                     unit.firmware_update_error = None
-                    unit.last_firmware_update_datetime = datetime.datetime.utcnow()
-                    unit.firmware_update_status = UnitFirmwareUpdateStatus.REQUEST_SENT
+                    unit.last_firmware_update_datetime = (
+                        datetime.datetime.utcnow()
+                    )
+                    unit.firmware_update_status = (
+                        UnitFirmwareUpdateStatus.REQUEST_SENT
+                    )
             except MqttError as e:
                 if command == BackendTopicCommand.UPDATE:
                     unit.firmware_update_error = e.message
                     unit.last_firmware_update_datetime = None
-                    unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR
+                    unit.firmware_update_status = (
+                        UnitFirmwareUpdateStatus.ERROR
+                    )
 
             if command == BackendTopicCommand.UPDATE:
                 self.unit_repository.update(unit.uuid, unit)
 
     def create_node_edge(
-        self, data: Union[UnitNodeEdgeCreate, UnitNodeEdgeCreateInput]
+        self, data: UnitNodeEdgeCreate | UnitNodeEdgeCreateInput
     ) -> UnitNodeEdge:
         data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
         data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
@@ -374,7 +403,9 @@ class UnitNodeService:
         self.is_valid_output_unit_node(output_node)
         self.access_service.authorization.check_visibility(output_node)
 
-        input_node = self.unit_node_repository.get(UnitNode(uuid=data.node_input_uuid))
+        input_node = self.unit_node_repository.get(
+            UnitNode(uuid=data.node_input_uuid)
+        )
         is_valid_object(input_node)
         self.is_valid_input_unit_node(input_node)
         self.access_service.authorization.check_visibility(input_node)
@@ -385,26 +416,21 @@ class UnitNodeService:
         if self.unit_node_edge_repository.check(new_edge):
             raise UnitNodeError("Edge exist")
 
-        try:
+        with contextlib.suppress(CustomPermissionError):
             self.permission_service.create_by_domains(
                 Unit(uuid=output_node.unit_uuid), input_node
             )
-        except CustomPermissionError:
-            pass
 
-        try:
+        with contextlib.suppress(CustomPermissionError):
             self.permission_service.create_by_domains(
                 Unit(uuid=input_node.unit_uuid), output_node
             )
-        except CustomPermissionError:
-            pass
 
-        try:
+        with contextlib.suppress(CustomPermissionError):
             self.permission_service.create_by_domains(
-                Unit(uuid=output_node.unit_uuid), Unit(uuid=input_node.unit_uuid)
+                Unit(uuid=output_node.unit_uuid),
+                Unit(uuid=input_node.unit_uuid),
             )
-        except CustomPermissionError:
-            pass
 
         unit_node_edge = self.unit_node_edge_repository.create(new_edge)
 
@@ -419,7 +445,9 @@ class UnitNodeService:
     def get_unit_node_edges(
         self, unit_uuid: uuid_pkg.UUID
     ) -> tuple[int, list[UnitNodeEdge]]:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
 
         restriction = self.access_service.authorization.access_restriction(
             resource_type=PermissionEntities.UNIT_NODE
@@ -440,7 +468,7 @@ class UnitNodeService:
         return count, self.unit_node_edge_repository.get_by_nodes(unit_nodes)
 
     async def check_data_pipe_config(
-        self, data_pipe: Union[Upload, UploadFile]
+        self, data_pipe
     ) -> list[DataPipeValidationErrorRead]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER, AgentType.UNIT, AgentType.BACKEND]
@@ -448,10 +476,12 @@ class UnitNodeService:
 
         data_pipe_dict = await yml_file_to_dict(data_pipe)
 
-        return is_valid_data_pipe_config(data_pipe_dict, is_business_validator=False)
+        return is_valid_data_pipe_config(
+            data_pipe_dict, is_business_validator=False
+        )
 
     async def set_data_pipe_config(
-        self, uuid: uuid_pkg.UUID, data_pipe: Union[Upload, UploadFile]
+        self, uuid: uuid_pkg.UUID, data_pipe
     ) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -488,7 +518,9 @@ class UnitNodeService:
         self.is_valid_filled_config(unit_node)
 
         return dict_to_yml_file(
-            remove_dict_none(is_valid_json(unit_node.data_pipe_yml, "DataPipe config"))
+            remove_dict_none(
+                is_valid_json(unit_node.data_pipe_yml, "DataPipe config")
+            )
         )
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
@@ -504,9 +536,11 @@ class UnitNodeService:
         self.data_pipe_repository.bulk_delete([unit_node.uuid])
 
     def get_data_pipe_data(
-        self, filters: Union[DataPipeFilter, DataPipeFilterInput]
-    ) -> tuple[int, list[Union[NRecords, TimeWindow, Aggregation, LastValue]]]:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self, filters: DataPipeFilter | DataPipeFilterInput
+    ) -> tuple[int, list[NRecords | TimeWindow | Aggregation | LastValue]]:
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=filters.uuid))
         is_valid_object(unit_node)
@@ -518,7 +552,9 @@ class UnitNodeService:
         return self.data_pipe_repository.list(filters=filters)
 
     def get_data_pipe_data_csv(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
 
         unit_node = self.unit_node_repository.get(UnitNode(uuid=uuid))
         is_valid_object(unit_node)
@@ -546,7 +582,7 @@ class UnitNodeService:
         return self.data_pipe_repository.models_to_csv(data)
 
     async def set_data_pipe_data_csv(
-        self, uuid: uuid_pkg.UUID, data_csv: Union[Upload, UploadFile]
+        self, uuid: uuid_pkg.UUID, data_csv
     ) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -597,7 +633,10 @@ class UnitNodeService:
         )
         is_valid_object(output_node)
 
-        if unit_node_edge.creator_uuid != self.access_service.current_agent.uuid:
+        if (
+            unit_node_edge.creator_uuid
+            != self.access_service.current_agent.uuid
+        ):
             self.access_service.authorization.check_ownership(
                 input_node, [OwnershipType.CREATOR]
             )
@@ -625,7 +664,7 @@ class UnitNodeService:
         )
 
     def list(
-        self, filters: Union[UnitNodeFilter, UnitNodeFilterInput]
+        self, filters: UnitNodeFilter | UnitNodeFilterInput
     ) -> tuple[int, list[UnitNode]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER, AgentType.UNIT]
@@ -642,7 +681,9 @@ class UnitNodeService:
         return self.unit_node_repository.list(filters, restriction=restriction)
 
     def set_state(self, unit_node_uuid: uuid_pkg.UUID, state: str) -> UnitNode:
-        unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
+        unit_node = self.unit_node_repository.get(
+            UnitNode(uuid=unit_node_uuid)
+        )
         is_valid_object(unit_node)
         unit_node.state = state
         unit_node.last_update_datetime = datetime.datetime.utcnow()
@@ -652,12 +693,12 @@ class UnitNodeService:
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.INPUT:
-            raise UnitNodeError("This Node {} is not Input".format(unit_node.uuid))
+            raise UnitNodeError(f"This Node {unit_node.uuid} is not Input")
 
     @staticmethod
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
-            raise UnitNodeError("This Node {} is not Output".format(unit_node.uuid))
+            raise UnitNodeError(f"This Node {unit_node.uuid} is not Output")
 
     @staticmethod
     def is_valid_active_data_pipe(unit_node: UnitNode) -> None:
@@ -675,4 +716,6 @@ class UnitNodeService:
             data_pipe_entity.processing_policy.policy_type
             == ProcessingPolicyType.LAST_VALUE
         ):
-            raise DataPipeError("LastValue type is not supported on this function")
+            raise DataPipeError(
+                "LastValue type is not supported on this function"
+            )

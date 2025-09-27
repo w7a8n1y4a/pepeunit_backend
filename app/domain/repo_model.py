@@ -14,10 +14,15 @@ class Repo(SQLModel, table=True):
     __tablename__ = "repos"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
-    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
+    visibility_level: str = Field(
+        nullable=False, default=VisibilityLevel.PUBLIC
+    )
 
     # unique name Repo on Instance
     name: str = Field(nullable=False, unique=True)

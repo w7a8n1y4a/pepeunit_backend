@@ -1,18 +1,22 @@
-from typing import Optional
-
 from clickhouse_driver import Client
 from fastapi import Depends
 from sqlmodel import Session
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
-from app.repositories.dashboard_panel_repository import DashboardPanelRepository
+from app.repositories.dashboard_panel_repository import (
+    DashboardPanelRepository,
+)
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
-from app.repositories.panels_unit_nodes_repository import PanelsUnitNodesRepository
+from app.repositories.panels_unit_nodes_repository import (
+    PanelsUnitNodesRepository,
+)
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.repositories.repository_registry_repository import (
+    RepositoryRegistryRepository,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -34,8 +38,8 @@ class ServiceFactory:
     def __init__(
         self,
         db: Session,
-        client: Optional[Client] = None,
-        jwt_token: Optional[str] = None,
+        client: Client | None = None,
+        jwt_token: str | None = None,
         is_bot_auth: bool = False,
     ):
         self.db = db
@@ -51,8 +55,12 @@ class ServiceFactory:
         self.repository_registry_repository = RepositoryRegistryRepository(db)
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
-        self.unit_log_repository = UnitLogRepository(client) if client else None
-        self.data_pipe_repository = DataPipeRepository(client, db) if client else None
+        self.unit_log_repository = (
+            UnitLogRepository(client) if client else None
+        )
+        self.data_pipe_repository = (
+            DataPipeRepository(client, db) if client else None
+        )
         self.dashboard_repository = DashboardRepository(db)
         self.dashboard_panel_repository = DashboardPanelRepository(db)
         self.panels_unit_nodes_repository = PanelsUnitNodesRepository(db)
@@ -160,7 +168,7 @@ class ServiceFactory:
 def create_service_factory(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> ServiceFactory:
     return ServiceFactory(db, client, jwt_token, False)
 
@@ -168,22 +176,24 @@ def create_service_factory(
 def get_user_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> UserService:
     return create_service_factory(db, client, jwt_token).get_user_service()
 
 
 def get_repository_registry_service(
     db: Session = Depends(get_session),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> RepositoryRegistryService:
-    return create_service_factory(db, None, jwt_token).get_repository_registry_service()
+    return create_service_factory(
+        db, None, jwt_token
+    ).get_repository_registry_service()
 
 
 def get_repo_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> RepoService:
     return create_service_factory(db, client, jwt_token).get_repo_service()
 
@@ -191,7 +201,7 @@ def get_repo_service(
 def get_unit_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> UnitService:
     return create_service_factory(db, client, jwt_token).get_unit_service()
 
@@ -199,29 +209,31 @@ def get_unit_service(
 def get_unit_node_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> UnitNodeService:
-    return create_service_factory(db, client, jwt_token).get_unit_node_service()
+    return create_service_factory(
+        db, client, jwt_token
+    ).get_unit_node_service()
 
 
 def get_grafana_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> GrafanaService:
     return create_service_factory(db, client, jwt_token).get_grafana_service()
 
 
 def get_metrics_service(
     db: Session = Depends(get_session),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> MetricsService:
     return create_service_factory(db, None, jwt_token).get_metrics_service()
 
 
 def get_permission_service(
     db: Session = Depends(get_session),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> PermissionService:
     return create_service_factory(db, None, jwt_token).get_permission_service()
 
@@ -229,7 +241,7 @@ def get_permission_service(
 def create_bot_service_factory(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> ServiceFactory:
     return ServiceFactory(db, client, jwt_token, True)
 
@@ -237,14 +249,14 @@ def create_bot_service_factory(
 def get_bot_user_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> UserService:
     return create_bot_service_factory(db, client, jwt_token).get_user_service()
 
 
 def get_bot_repository_registry_service(
     db: Session = Depends(get_session),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> RepositoryRegistryService:
     return create_bot_service_factory(
         db, None, jwt_token
@@ -254,7 +266,7 @@ def get_bot_repository_registry_service(
 def get_bot_repo_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> RepoService:
     return create_bot_service_factory(db, client, jwt_token).get_repo_service()
 
@@ -262,7 +274,7 @@ def get_bot_repo_service(
 def get_bot_unit_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> UnitService:
     return create_bot_service_factory(db, client, jwt_token).get_unit_service()
 
@@ -270,21 +282,27 @@ def get_bot_unit_service(
 def get_bot_unit_node_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> UnitNodeService:
-    return create_bot_service_factory(db, client, jwt_token).get_unit_node_service()
+    return create_bot_service_factory(
+        db, client, jwt_token
+    ).get_unit_node_service()
 
 
 def get_bot_grafana_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> GrafanaService:
-    return create_bot_service_factory(db, client, jwt_token).get_grafana_service()
+    return create_bot_service_factory(
+        db, client, jwt_token
+    ).get_grafana_service()
 
 
 def get_bot_metrics_service(
     db: Session = Depends(get_session),
-    jwt_token: Optional[str] = Depends(token_depends),
+    jwt_token: str | None = Depends(token_depends),
 ) -> MetricsService:
-    return create_bot_service_factory(db, None, jwt_token).get_metrics_service()
+    return create_bot_service_factory(
+        db, None, jwt_token
+    ).get_metrics_service()

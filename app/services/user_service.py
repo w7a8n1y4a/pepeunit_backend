@@ -1,6 +1,5 @@
 import datetime
 import uuid as uuid_pkg
-from typing import Union
 
 from fastapi import Depends
 
@@ -18,7 +17,12 @@ from app.schemas.gql.inputs.user import (
     UserFilterInput,
     UserUpdateInput,
 )
-from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
+from app.schemas.pydantic.user import (
+    UserAuth,
+    UserCreate,
+    UserFilter,
+    UserUpdate,
+)
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object, is_valid_password
 from app.utils.utils import generate_random_string, password_to_hash
@@ -35,7 +39,7 @@ class UserService:
         self.grafana_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
 
-    def create(self, data: Union[UserCreate, UserCreateInput]) -> User:
+    def create(self, data: UserCreate | UserCreateInput) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])
         self.user_repository.is_valid_login(data.login)
         self.user_repository.is_valid_password(data.password)
@@ -49,7 +53,9 @@ class UserService:
         user.status = UserStatus.UNVERIFIED
         user.create_datetime = datetime.datetime.utcnow()
 
-        user.cipher_dynamic_salt, user.hashed_password = password_to_hash(data.password)
+        user.cipher_dynamic_salt, user.hashed_password = password_to_hash(
+            data.password
+        )
 
         user = self.user_repository.create(user)
         self.create_org_if_not_exists(user.uuid)
@@ -64,7 +70,7 @@ class UserService:
         is_valid_object(user)
         return user
 
-    def get_token(self, data: Union[UserAuth, UserAuthInput]) -> str:
+    def get_token(self, data: UserAuth | UserAuthInput) -> str:
         self.access_service.authorization.check_access([AgentType.BOT])
 
         user = self.user_repository.get_user_by_credentials(data.credentials)
@@ -81,7 +87,7 @@ class UserService:
             uuid=current_user.uuid, name=current_user.login
         ).generate_agent_token()
 
-    def update(self, data: Union[UserUpdate, UserUpdateInput]) -> User:
+    def update(self, data: UserUpdate | UserUpdateInput) -> User:
         self.access_service.authorization.check_access([AgentType.USER])
         user = self.user_repository.get(
             User(uuid=self.access_service.current_agent.uuid)
@@ -105,11 +111,15 @@ class UserService:
         redis = await anext(get_redis_session())
 
         code = generate_random_string(8)
-        await redis.set(code, str(self.access_service.current_agent.uuid), ex=60)
+        await redis.set(
+            code, str(self.access_service.current_agent.uuid), ex=60
+        )
 
         return f"{settings.telegram_bot_link}?start={code}"
 
-    async def verification(self, telegram_chat_id: str, verification_code: str):
+    async def verification(
+        self, telegram_chat_id: str, verification_code: str
+    ):
         redis = await anext(get_redis_session())
         uuid = await redis.get(verification_code)
         is_valid_object(uuid)
@@ -117,11 +127,15 @@ class UserService:
 
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
-        self.user_repository.is_valid_telegram_chat_id(telegram_chat_id, user.uuid)
+        self.user_repository.is_valid_telegram_chat_id(
+            telegram_chat_id, user.uuid
+        )
 
         return self.user_repository.update(
             user.uuid,
-            User(status=UserStatus.VERIFIED, telegram_chat_id=telegram_chat_id),
+            User(
+                status=UserStatus.VERIFIED, telegram_chat_id=telegram_chat_id
+            ),
         )
 
     def block(self, uuid: uuid_pkg.UUID) -> None:
@@ -138,12 +152,16 @@ class UserService:
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
 
-        status = UserStatus.VERIFIED if user.telegram_chat_id else UserStatus.UNVERIFIED
+        status = (
+            UserStatus.VERIFIED
+            if user.telegram_chat_id
+            else UserStatus.UNVERIFIED
+        )
 
         self.user_repository.update(uuid, User(status=status))
 
     def list(
-        self, filters: Union[UserFilter, UserFilterInput]
+        self, filters: UserFilter | UserFilterInput
     ) -> tuple[int, list[User]]:
         self.access_service.authorization.check_access([AgentType.USER])
         return self.user_repository.list(filters)

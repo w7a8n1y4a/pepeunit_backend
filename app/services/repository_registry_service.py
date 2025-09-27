@@ -3,12 +3,15 @@ import json
 import logging
 import shutil
 import uuid as uuid_pkg
-from typing import Optional, Union
 
 from fastapi import Depends
 
 from app import settings
-from app.configs.errors import CustomException, GitRepoError, RepositoryRegistryError
+from app.configs.errors import (
+    CustomException,
+    GitRepoError,
+    RepositoryRegistryError,
+)
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import (
     AgentType,
@@ -24,7 +27,9 @@ from app.repositories.git_platform_repository import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.repositories.repository_registry_repository import (
+    RepositoryRegistryRepository,
+)
 from app.schemas.gql.inputs.repository_registry import (
     CommitFilterInput,
     CredentialsInput,
@@ -78,13 +83,17 @@ class RepositoryRegistryService:
             all_repository_credentials = repository_registry.get_credentials()
 
             if self.access_service.current_agent.type == AgentType.USER:
-                credentials_with_status = repository_registry.get_credentials_by_user(
-                    all_repository_credentials,
-                    str(self.access_service.current_agent.uuid),
+                credentials_with_status = (
+                    repository_registry.get_credentials_by_user(
+                        all_repository_credentials,
+                        str(self.access_service.current_agent.uuid),
+                    )
                 )
 
                 if not credentials_with_status:
-                    raise RepositoryRegistryError("This User has no Credentials")
+                    raise RepositoryRegistryError(
+                        "This User has no Credentials"
+                    )
 
                 if credentials_with_status.status == CredentialStatus.ERROR:
                     raise RepositoryRegistryError(
@@ -93,7 +102,8 @@ class RepositoryRegistryService:
 
                 if (
                     not skip_check_credentials
-                    and credentials_with_status.status == CredentialStatus.NOT_VERIFIED
+                    and credentials_with_status.status
+                    == CredentialStatus.NOT_VERIFIED
                 ):
                     raise RepositoryRegistryError(
                         "Credentials has no permission, status: NotVerified"
@@ -111,7 +121,7 @@ class RepositoryRegistryService:
         )
 
     def create(
-        self, data: Union[RepositoryRegistryCreate, RepositoryRegistryCreateInput]
+        self, data: RepositoryRegistryCreate | RepositoryRegistryCreateInput
     ) -> RepositoryRegistry:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -147,7 +157,9 @@ class RepositoryRegistryService:
             )
 
         repository_registry.create_datetime = datetime.datetime.utcnow()
-        repository_registry.last_update_datetime = repository_registry.create_datetime
+        repository_registry.last_update_datetime = (
+            repository_registry.create_datetime
+        )
 
         repository_registry = self.repository_registry_repository.create(
             repository_registry
@@ -156,7 +168,9 @@ class RepositoryRegistryService:
         return self.sync_external_repository(repository_registry)
 
     def get(self, uuid: uuid_pkg.UUID) -> RepositoryRegistry:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
@@ -165,7 +179,7 @@ class RepositoryRegistryService:
         return repository_registry
 
     def get_branch_commits(
-        self, uuid: uuid_pkg.UUID, filters: Union[CommitFilter, CommitFilterInput]
+        self, uuid: uuid_pkg.UUID, filters: CommitFilter | CommitFilterInput
     ) -> list[CommitRead]:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -195,7 +209,7 @@ class RepositoryRegistryService:
 
     def get_credentials(
         self, uuid: uuid_pkg.UUID
-    ) -> Optional[OneRepositoryRegistryCredentials]:
+    ) -> OneRepositoryRegistryCredentials | None:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repository_registry = self.repository_registry_repository.get(
@@ -210,13 +224,14 @@ class RepositoryRegistryService:
         user_credentials = None
         if all_repository_credentials:
             user_credentials = repository_registry.get_credentials_by_user(
-                all_repository_credentials, str(self.access_service.current_agent.uuid)
+                all_repository_credentials,
+                str(self.access_service.current_agent.uuid),
             )
 
         return user_credentials
 
     def set_credentials(
-        self, uuid: uuid_pkg.UUID, data: Union[Credentials, CredentialsInput]
+        self, uuid: uuid_pkg.UUID, data: Credentials | CredentialsInput
     ) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -253,9 +268,11 @@ class RepositoryRegistryService:
         )
 
     def list(
-        self, filters: Union[RepositoryRegistryFilter, RepositoryRegistryFilterInput]
+        self, filters: RepositoryRegistryFilter | RepositoryRegistryFilterInput
     ) -> tuple[int, list[RepositoryRegistry]]:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
 
         if self.access_service.current_agent.type == AgentType.BOT:
             filters.is_public_repository = True
@@ -297,13 +314,17 @@ class RepositoryRegistryService:
 
         try:
             # get size repository on external platform
-            repository_size = self.get_platform(repository_registry).get_repo_size()
+            repository_size = self.get_platform(
+                repository_registry
+            ).get_repo_size()
             self.is_valid_repo_size(repository_size)
 
             # load Repository to local
             url = self.get_platform(repository_registry).get_cloning_url()
-            repo_save_path = self.git_repo_repository.get_path_physic_repository(
-                repository_registry
+            repo_save_path = (
+                self.git_repo_repository.get_path_physic_repository(
+                    repository_registry
+                )
             )
             self.git_repo_repository.clone(url, repo_save_path)
 
@@ -351,10 +372,14 @@ class RepositoryRegistryService:
         logging.info("Run sync all repository in RepositoryRegistry")
 
         local_physic_repository = self.git_repo_repository.get_local_registry()
-        local_repository_registry = self.repository_registry_repository.get_all()
+        local_repository_registry = (
+            self.repository_registry_repository.get_all()
+        )
 
         for repository_registry in local_repository_registry:
-            if force or (str(repository_registry.uuid) not in local_physic_repository):
+            if force or (
+                str(repository_registry.uuid) not in local_physic_repository
+            ):
                 logging.info(
                     f"Run sync RepositoryRegistry: {repository_registry.repository_url}"
                 )
@@ -388,22 +413,34 @@ class RepositoryRegistryService:
             and not data.is_public_repository
             and (
                 not data.credentials
-                or (not data.credentials.username or not data.credentials.pat_token)
+                or (
+                    not data.credentials.username
+                    or not data.credentials.pat_token
+                )
             )
         ):
             raise RepositoryRegistryError("Credentials is not valid")
 
-        if isinstance(data, RepositoryRegistry) and not data.is_public_repository:
+        if (
+            isinstance(data, RepositoryRegistry)
+            and not data.is_public_repository
+        ):
             all_repository_credentials = data.get_credentials()
 
             if not all_repository_credentials:
                 raise RepositoryRegistryError("Credentials not Exist")
 
-            if not data.get_first_valid_credentials(all_repository_credentials):
-                raise RepositoryRegistryError("No valid credentials in credential list")
+            if not data.get_first_valid_credentials(
+                all_repository_credentials
+            ):
+                raise RepositoryRegistryError(
+                    "No valid credentials in credential list"
+                )
 
     @staticmethod
-    def is_private_repository(data: RepositoryRegistryCreate | RepositoryRegistry):
+    def is_private_repository(
+        data: RepositoryRegistryCreate | RepositoryRegistry,
+    ):
         if data.is_public_repository:
             raise RepositoryRegistryError("This Repository is Public")
 
@@ -421,37 +458,44 @@ class RepositoryRegistryService:
     @staticmethod
     def is_sync_available(repository_registry: RepositoryRegistry):
         if (
-            repository_registry.sync_status == RepositoryRegistryStatus.PROCESSING
+            repository_registry.sync_status
+            == RepositoryRegistryStatus.PROCESSING
             and repository_registry.sync_last_datetime
         ):
             delta = (
-                datetime.datetime.utcnow() - repository_registry.last_update_datetime
+                datetime.datetime.utcnow()
+                - repository_registry.last_update_datetime
             ).total_seconds()
             if delta <= settings.backend_min_interval_sync_repository:
                 raise RepositoryRegistryError(
-                    "Sync is not available, last sync was {} s ago, but it should have taken at least {} s".format(
-                        delta, settings.backend_min_interval_sync_repository
-                    )
+                    f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.backend_min_interval_sync_repository} s"
                 )
 
     @staticmethod
-    def is_valid_repo_size(repo_size: int, delete_path: str | None = None) -> None:
-        if repo_size < 0 or repo_size > settings.backend_max_external_repo_size * 2**20:
+    def is_valid_repo_size(
+        repo_size: int, delete_path: str | None = None
+    ) -> None:
+        if (
+            repo_size < 0
+            or repo_size > settings.backend_max_external_repo_size * 2**20
+        ):
             if delete_path:
                 shutil.rmtree(delete_path, ignore_errors=True)
 
             raise GitRepoError(
-                "No valid external repo size {} MB, max {} MB".format(
-                    round(repo_size / 2**20, 2), settings.physic_repo_size
-                )
+                f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {settings.physic_repo_size} MB"
             )
 
     def mapper_registry_to_registry_read(
         self, repository_registry: RepositoryRegistry
     ) -> RepositoryRegistryRead:
         try:
-            branches = self.git_repo_repository.get_branches(repository_registry)
+            branches = self.git_repo_repository.get_branches(
+                repository_registry
+            )
         except Exception:
             branches = []
 
-        return RepositoryRegistryRead(branches=branches, **repository_registry.dict())
+        return RepositoryRegistryRead(
+            branches=branches, **repository_registry.dict()
+        )

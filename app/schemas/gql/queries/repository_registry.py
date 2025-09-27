@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 from strawberry.types import Info
@@ -20,7 +19,9 @@ from app.schemas.gql.types.repository_registry import (
 
 
 @strawberry.field()
-def get_repository_registry(uuid: uuid_pkg.UUID, info: Info) -> RepositoryRegistryType:
+def get_repository_registry(
+    uuid: uuid_pkg.UUID, info: Info
+) -> RepositoryRegistryType:
     repository_registry_service = get_repository_registry_service_gql(info)
     repository = repository_registry_service.get(uuid)
     return RepositoryRegistryType(
@@ -38,14 +39,16 @@ def get_branch_commits(
     repository_registry_service = get_repository_registry_service_gql(info)
     return [
         CommitType(**commit.dict())
-        for commit in repository_registry_service.get_branch_commits(uuid, filters)
+        for commit in repository_registry_service.get_branch_commits(
+            uuid, filters
+        )
     ]
 
 
 @strawberry.field()
 def get_credentials(
     uuid: uuid_pkg.UUID, info: Info
-) -> Optional[OneRepositoryRegistryCredentialsType]:
+) -> OneRepositoryRegistryCredentialsType | None:
     repository_registry_service = get_repository_registry_service_gql(info)
     return repository_registry_service.get_credentials(uuid)
 

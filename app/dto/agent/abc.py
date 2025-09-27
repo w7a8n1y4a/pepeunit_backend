@@ -1,7 +1,6 @@
 import uuid as uuid_pkg
 from abc import ABC
 from datetime import datetime, timedelta
-from typing import Optional
 
 import jwt
 from pydantic import BaseModel, Field
@@ -18,10 +17,10 @@ class Agent(ABC, BaseModel):
     name: str
     type: AgentType
     status: AgentStatus
-    role: Optional[UserRole] = None
-    panel_uuid: Optional[uuid_pkg.UUID] = None
+    role: UserRole | None = None
+    panel_uuid: uuid_pkg.UUID | None = None
 
-    def generate_agent_token(self, access_token_exp: Optional[int] = None) -> str:
+    def generate_agent_token(self, access_token_exp: int | None = None) -> str:
         if not access_token_exp:
             access_token_exp = datetime.utcnow() + timedelta(
                 seconds=settings.backend_auth_token_expiration
@@ -29,7 +28,11 @@ class Agent(ABC, BaseModel):
 
         if self.type == AgentType.USER:
             token = jwt.encode(
-                {"uuid": str(self.uuid), "type": self.type, "exp": access_token_exp},
+                {
+                    "uuid": str(self.uuid),
+                    "type": self.type,
+                    "exp": access_token_exp,
+                },
                 settings.backend_secret_key,
                 "HS256",
             )
@@ -47,7 +50,11 @@ class Agent(ABC, BaseModel):
             )
         elif self.type == AgentType.GRAFANA:
             token = jwt.encode(
-                {"uuid": str(self.uuid), "type": self.type, "exp": access_token_exp},
+                {
+                    "uuid": str(self.uuid),
+                    "type": self.type,
+                    "exp": access_token_exp,
+                },
                 settings.backend_secret_key,
                 "HS256",
             )
@@ -88,7 +95,7 @@ class AgentBot(Agent):
 
 
 class AgentBackend(Agent):
-    uuid: Optional[uuid_pkg.UUID] = Field(
+    uuid: uuid_pkg.UUID | None = Field(
         default_factory=lambda: uuid_pkg.uuid5(
             uuid_pkg.NAMESPACE_DNS, settings.backend_domain
         )

@@ -1,12 +1,11 @@
 import uuid
 import uuid as uuid_pkg
-from typing import Annotated, Union
+from typing import Annotated
 
 import yaml
-from fastapi import Depends, UploadFile
+from fastapi import Depends
 from fastapi.security import APIKeyHeader
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from strawberry.file_uploads import Upload
 
 from app import settings
 from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
@@ -14,7 +13,8 @@ from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
 def token_depends(
     jwt_token: Annotated[
-        str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))
+        str | None,
+        Depends(APIKeyHeader(name="x-auth-token", auto_error=False)),
     ] = None,
 ):
     return jwt_token
@@ -50,9 +50,12 @@ def get_visibility_level_priority(visibility_level: VisibilityLevel) -> int:
     return priority_dict[visibility_level]
 
 
-async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
+async def yml_file_to_dict(yml_file) -> dict:
     content = ""
     if isinstance(yml_file, StarletteUploadFile):
+        content = await yml_file.read()
+    elif hasattr(yml_file, "read"):
+        # Handle Upload type from strawberry
         content = await yml_file.read()
 
     if isinstance(content, bytes):

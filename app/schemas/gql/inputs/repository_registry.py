@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 
@@ -19,7 +18,7 @@ class RepositoryRegistryCreateInput(TypeInputMixin):
     repository_url: str
 
     is_public_repository: bool
-    credentials: Optional[CredentialsInput] = None
+    credentials: CredentialsInput | None = None
 
 
 @strawberry.input()
@@ -27,21 +26,21 @@ class CommitFilterInput(TypeInputMixin):
     repo_branch: str
     only_tag: bool = False
 
-    offset: Optional[int] = 0
-    limit: Optional[int] = 10
+    offset: int | None = 0
+    limit: int | None = 10
 
 
 @strawberry.input()
 class RepositoryRegistryFilterInput(TypeInputMixin):
-    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    uuids: list[uuid_pkg.UUID] | None = ()
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-    search_string: Optional[str] = None
+    creator_uuid: uuid_pkg.UUID | None = None
+    search_string: str | None = None
 
-    is_public_repository: Optional[bool] = None
+    is_public_repository: bool | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
+    order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None

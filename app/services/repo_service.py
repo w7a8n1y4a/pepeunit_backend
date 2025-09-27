@@ -1,9 +1,9 @@
+import contextlib
 import copy
 import datetime
 import logging
 import threading
 import uuid as uuid_pkg
-from typing import Optional, Union
 
 from fastapi import Depends
 
@@ -37,7 +37,10 @@ from app.services.permission_service import PermissionService
 from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.thread import _process_bulk_update_units_firmware
 from app.services.unit_service import UnitService
-from app.services.utils import merge_two_dict_first_priority, remove_none_value_dict
+from app.services.utils import (
+    merge_two_dict_first_priority,
+    remove_none_value_dict,
+)
 from app.services.validators import (
     is_emtpy_sequence,
     is_valid_json,
@@ -64,13 +67,11 @@ class RepoService:
         self.permission_service = permission_service
         self.access_service = access_service
 
-    def create(self, data: Union[RepoCreate, RepoCreateInput]) -> Repo:
+    def create(self, data: RepoCreate | RepoCreateInput) -> Repo:
         self.access_service.authorization.check_access([AgentType.USER])
 
-        repository_registry = (
-            self.repository_registry_service.repository_registry_repository.get(
-                RepositoryRegistry(uuid=data.repository_registry_uuid)
-            )
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=data.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
         self.access_service.authorization.check_repository_registry_access(
@@ -82,7 +83,9 @@ class RepoService:
             repository_registry, data.default_branch
         )
 
-        repo = Repo(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+        repo = Repo(
+            creator_uuid=self.access_service.current_agent.uuid, **data.dict()
+        )
 
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
@@ -100,7 +103,9 @@ class RepoService:
         return repo
 
     def get(self, uuid: uuid_pkg.UUID) -> Repo:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
@@ -109,8 +114,8 @@ class RepoService:
     def get_available_platforms(
         self,
         uuid: uuid_pkg.UUID,
-        target_commit: Optional[str] = None,
-        target_tag: Optional[str] = None,
+        target_commit: str | None = None,
+        target_tag: str | None = None,
     ) -> list[tuple[str, str]]:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -118,10 +123,8 @@ class RepoService:
         is_valid_object(repo)
         self.access_service.authorization.check_visibility(repo)
 
-        repository_registry = (
-            self.repository_registry_service.repository_registry_repository.get(
-                RepositoryRegistry(uuid=repo.repository_registry_uuid)
-            )
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
@@ -132,15 +135,15 @@ class RepoService:
             )
 
             if target_tag:
-                try:
+                with contextlib.suppress(KeyError):
                     platforms = releases[target_tag]
-                except KeyError:
-                    pass
             elif target_commit:
                 commits = self.git_repo_repository.get_branch_commits_with_tag(
                     repository_registry, repo.default_branch
                 )
-                commit = self.git_repo_repository.find_by_commit(commits, target_commit)
+                commit = self.git_repo_repository.find_by_commit(
+                    commits, target_commit
+                )
                 if commit and commit.get("tag"):
                     platforms = releases[commit["tag"]]
             else:
@@ -154,7 +157,9 @@ class RepoService:
         return platforms
 
     def get_versions(self, uuid: uuid_pkg.UUID) -> RepoVersionsRead:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
@@ -163,22 +168,22 @@ class RepoService:
         return self.repo_repository.get_versions(repo)
 
     def update(
-        self, uuid: uuid_pkg.UUID, data: Union[RepoUpdate, RepoUpdateInput]
+        self, uuid: uuid_pkg.UUID, data: RepoUpdate | RepoUpdateInput
     ) -> Repo:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
+        self.access_service.authorization.check_ownership(
+            repo, [OwnershipType.CREATOR]
+        )
 
         if data.name:
             self.repo_repository.is_valid_name(data.name, uuid)
 
-        repository_registry = (
-            self.repository_registry_service.repository_registry_repository.get(
-                RepositoryRegistry(uuid=repo.repository_registry_uuid)
-            )
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
@@ -197,11 +202,15 @@ class RepoService:
         count, child_units = self.unit_repository.list(
             filters=UnitFilter(repo_uuid=update_repo.uuid)
         )
-        is_valid_visibility_level(update_repo, [unit[0] for unit in child_units])
+        is_valid_visibility_level(
+            update_repo, [unit[0] for unit in child_units]
+        )
 
         if data.default_commit:
             self.git_repo_repository.is_valid_commit(
-                repository_registry, update_repo.default_branch, data.default_commit
+                repository_registry,
+                update_repo.default_branch,
+                data.default_commit,
             )
 
         self.repo_repository.is_valid_auto_updated_repo(
@@ -232,10 +241,8 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        repository_registry = (
-            self.repository_registry_service.repository_registry_repository.get(
-                RepositoryRegistry(uuid=repo.repository_registry_uuid)
-            )
+        repository_registry = self.repository_registry_service.repository_registry_repository.get(
+            RepositoryRegistry(uuid=repo.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
@@ -294,17 +301,23 @@ class RepoService:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
-        self.access_service.authorization.check_ownership(repo, [OwnershipType.CREATOR])
+        self.access_service.authorization.check_ownership(
+            repo, [OwnershipType.CREATOR]
+        )
 
-        count, unit_list = self.unit_repository.list(UnitFilter(repo_uuid=uuid))
+        count, unit_list = self.unit_repository.list(
+            UnitFilter(repo_uuid=uuid)
+        )
         is_emtpy_sequence(unit_list)
 
         self.repo_repository.delete(repo)
 
     def list(
-        self, filters: Union[RepoFilter, RepoFilterInput]
+        self, filters: RepoFilter | RepoFilterInput
     ) -> tuple[int, list[Repo]]:
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
         restriction = self.access_service.authorization.access_restriction(
             resource_type=PermissionEntities.REPO
         )
@@ -315,5 +328,7 @@ class RepoService:
             )
         )
 
-        count, repos = self.repo_repository.list(filters, restriction=restriction)
+        count, repos = self.repo_repository.list(
+            filters, restriction=restriction
+        )
         return count, repos

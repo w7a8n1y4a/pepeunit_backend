@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 from pydantic import BaseModel
 from sqlalchemy import Column, ForeignKey
@@ -15,7 +14,10 @@ class Permission(SQLModel, table=True):
     __tablename__ = "permissions"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
     # User, Unit, Unit Node
@@ -61,10 +63,10 @@ class Permission(SQLModel, table=True):
 
 
 class PermissionBaseType(BaseModel):
-    uuid: Optional[uuid_pkg.UUID] = None
+    uuid: uuid_pkg.UUID | None = None
 
-    agent_uuid: Optional[uuid_pkg.UUID] = None
-    agent_type: Optional[PermissionEntities] = None
+    agent_uuid: uuid_pkg.UUID | None = None
+    agent_type: PermissionEntities | None = None
 
-    resource_uuid: Optional[uuid_pkg.UUID] = None
-    resource_type: Optional[PermissionEntities] = None
+    resource_uuid: uuid_pkg.UUID | None = None
+    resource_type: PermissionEntities | None = None

@@ -1,4 +1,5 @@
 import base64
+import builtins
 import copy
 import datetime
 import itertools
@@ -7,7 +8,6 @@ import os
 import shutil
 import uuid as uuid_pkg
 import zlib
-from typing import List, Union
 
 from fastapi import Depends
 
@@ -32,7 +32,9 @@ from app.dto.enum import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
-from app.repositories.repository_registry_repository import RepositoryRegistryRepository
+from app.repositories.repository_registry_repository import (
+    RepositoryRegistryRepository,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
@@ -94,7 +96,7 @@ class UnitService:
         self.permission_service = permission_service
         self.unit_node_service = unit_node_service
 
-    def create(self, data: Union[UnitCreate, UnitCreateInput]) -> Unit:
+    def create(self, data: UnitCreate | UnitCreateInput) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
         self.unit_repository.is_valid_name(data.name)
 
@@ -107,7 +109,9 @@ class UnitService:
         )
         is_valid_object(repository_registry)
 
-        self.repo_repository.is_valid_auto_updated_repo(repo, repository_registry)
+        self.repo_repository.is_valid_auto_updated_repo(
+            repo, repository_registry
+        )
         self.is_valid_no_auto_updated_unit(repository_registry, data)
 
         if data.is_auto_update_from_repo_unit:
@@ -121,9 +125,13 @@ class UnitService:
             self.git_repo_repository.is_valid_schema_file(
                 repository_registry, data.repo_commit
             )
-            self.git_repo_repository.get_env_dict(repository_registry, data.repo_commit)
+            self.git_repo_repository.get_env_dict(
+                repository_registry, data.repo_commit
+            )
 
-        unit = Unit(creator_uuid=self.access_service.current_agent.uuid, **data.dict())
+        unit = Unit(
+            creator_uuid=self.access_service.current_agent.uuid, **data.dict()
+        )
         self.git_repo_repository.is_valid_firmware_platform(
             repo, repository_registry, unit, unit.target_firmware_platform
         )
@@ -144,7 +152,9 @@ class UnitService:
         self.permission_service.create_by_domains(
             User(uuid=self.access_service.current_agent.uuid), unit
         )
-        self.permission_service.create_by_domains(unit, Repo(uuid=unit.repo_uuid))
+        self.permission_service.create_by_domains(
+            unit, Repo(uuid=unit.repo_uuid)
+        )
         self.permission_service.create_by_domains(unit, unit)
 
         self.unit_node_service.bulk_create(schema_dict, unit, False)
@@ -161,13 +171,15 @@ class UnitService:
         return unit
 
     def update(
-        self, uuid: uuid_pkg.UUID, data: Union[UnitUpdate, UnitUpdateInput]
+        self, uuid: uuid_pkg.UUID, data: UnitUpdate | UnitUpdateInput
     ) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
-        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
+        self.access_service.authorization.check_ownership(
+            unit, [OwnershipType.CREATOR]
+        )
 
         unit_update = Unit(
             **merge_two_dict_first_priority(
@@ -186,7 +198,10 @@ class UnitService:
 
         self.is_valid_no_auto_updated_unit(repository_registry, unit_update)
         self.git_repo_repository.is_valid_firmware_platform(
-            repo, repository_registry, unit_update, unit_update.target_firmware_platform
+            repo,
+            repository_registry,
+            unit_update,
+            unit_update.target_firmware_platform,
         )
 
         unit_update.last_update_datetime = datetime.datetime.utcnow()
@@ -212,8 +227,10 @@ class UnitService:
             repo, repository_registry, unit, unit.target_firmware_platform
         )
 
-        target_version, target_tag = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+        target_version, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repo, repository_registry, unit
+            )
         )
 
         if target_version == unit.current_commit_version:
@@ -277,7 +294,9 @@ class UnitService:
         return self.unit_repository.update(unit.uuid, unit)
 
     def get_env(self, uuid: uuid_pkg.UUID) -> dict:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -292,8 +311,10 @@ class UnitService:
         )
         is_valid_object(repository_registry)
 
-        target_commit, target_tag = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+        target_commit, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repo, repository_registry, unit
+            )
         )
         env_dict = self.git_repo_repository.get_env_example(
             repository_registry, target_commit
@@ -303,10 +324,14 @@ class UnitService:
             current_unit_env_dict = is_valid_json(
                 aes_gcm_decode(unit.cipher_env_dict), "Cipher env"
             )
-            env_dict = merge_two_dict_first_priority(current_unit_env_dict, env_dict)
+            env_dict = merge_two_dict_first_priority(
+                current_unit_env_dict, env_dict
+            )
 
-        target_commit, target_tag = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+        target_commit, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repo, repository_registry, unit
+            )
         )
         env_dict["COMMIT_VERSION"] = target_commit
 
@@ -318,7 +343,9 @@ class UnitService:
         env_dict = is_valid_json(env_json_str, StaticRepoFileName.ENV.value)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
+        self.access_service.authorization.check_ownership(
+            unit, [OwnershipType.CREATOR]
+        )
 
         gen_env_dict = self.gen_env_dict(unit.uuid)
         merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
@@ -346,7 +373,9 @@ class UnitService:
         self.unit_repository.update(unit.uuid, unit)
 
     def get_target_version(self, uuid: uuid_pkg.UUID) -> TargetVersionRead:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
@@ -361,13 +390,17 @@ class UnitService:
         )
         is_valid_object(repository_registry)
 
-        target_commit, target_tag = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+        target_commit, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repo, repository_registry, unit
+            )
         )
         return TargetVersionRead(commit=target_commit, tag=target_tag)
 
     def get_current_schema(self, uuid: uuid_pkg.UUID) -> dict:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
@@ -387,10 +420,14 @@ class UnitService:
             repo, repository_registry, unit
         )[0]
 
-        return self.generate_current_schema(unit, repository_registry, target_version)
+        return self.generate_current_schema(
+            unit, repository_registry, target_version
+        )
 
     def get_unit_firmware(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
@@ -426,14 +463,18 @@ class UnitService:
 
         env_dict["COMMIT_VERSION"] = target_version
 
-        with open(f"{tmp_git_repo_path}/{StaticRepoFileName.ENV.value}", "w") as f:
+        with open(
+            f"{tmp_git_repo_path}/{StaticRepoFileName.ENV.value}", "w"
+        ) as f:
             f.write(json.dumps(env_dict, indent=4))
 
         new_schema_dict = self.generate_current_schema(
             unit, repository_registry, target_version
         )
 
-        with open(f"{tmp_git_repo_path}/{StaticRepoFileName.SCHEMA.value}", "w") as f:
+        with open(
+            f"{tmp_git_repo_path}/{StaticRepoFileName.SCHEMA.value}", "w"
+        ) as f:
             f.write(json.dumps(new_schema_dict, indent=4))
 
         return tmp_git_repo_path
@@ -481,7 +522,9 @@ class UnitService:
         return f"{firmware_tar_path}.tgz"
 
     def set_state_storage(self, uuid: uuid_pkg.UUID, state: str) -> None:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
@@ -490,12 +533,16 @@ class UnitService:
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
         )
 
-        unit.cipher_state_storage = aes_gcm_encode(state) if state != "" else None
+        unit.cipher_state_storage = (
+            aes_gcm_encode(state) if state != "" else None
+        )
         unit.last_update_datetime = datetime.datetime.utcnow()
         self.unit_repository.update(unit.uuid, unit)
 
     def get_state_storage(self, uuid: uuid_pkg.UUID) -> str:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         is_valid_object(unit)
@@ -515,8 +562,8 @@ class UnitService:
             [AgentType.BACKEND, AgentType.UNIT]
         )
 
-        if isinstance(self.access_service.current_agent, AgentUnit) or (
-            isinstance(self.access_service.current_agent, AgentBackend)
+        if isinstance(
+            self.access_service.current_agent, AgentUnit | AgentBackend
         ):
             struct_topic = get_topic_split(topic)
 
@@ -525,7 +572,9 @@ class UnitService:
                 if isinstance(self.access_service.current_agent, AgentBackend):
                     return None
 
-                backend_domain, destination, unit_uuid, topic_name, *_ = struct_topic
+                backend_domain, destination, unit_uuid, topic_name, *_ = (
+                    struct_topic
+                )
                 unit_uuid = is_valid_uuid(unit_uuid)
 
                 if destination in [
@@ -536,9 +585,7 @@ class UnitService:
                         raise NoAccessError("Available only for a docked Unit")
                 else:
                     raise NoAccessError(
-                        "Topic destination {} is invalid, available {}".format(
-                            destination, list(DestinationTopicType)
-                        )
+                        f"Topic destination {destination} is invalid, available {list(DestinationTopicType)}"
                     )
 
             elif len_struct in [2, 3]:
@@ -546,21 +593,22 @@ class UnitService:
 
                 if (
                     unit_node_uuid == "+"
-                    and self.access_service.current_agent.type == AgentType.BACKEND
+                    and self.access_service.current_agent.type
+                    == AgentType.BACKEND
                 ):
                     return None
 
                 unit_node_uuid = is_valid_uuid(unit_node_uuid)
 
-                unit_node = self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
+                unit_node = self.unit_node_repository.get(
+                    UnitNode(uuid=unit_node_uuid)
+                )
                 is_valid_object(unit_node)
 
                 self.access_service.authorization.check_visibility(unit_node)
             else:
                 raise MqttError(
-                    "Topic struct is invalid, len {}, available - [2, 3]".format(
-                        len_struct
-                    )
+                    f"Topic struct is invalid, len {len_struct}, available - [2, 3]"
                 )
         else:
             raise MqttError("Only for Unit available topic communication")
@@ -571,7 +619,9 @@ class UnitService:
         unit = self.unit_repository.get(Unit(uuid=uuid))
         is_valid_object(unit)
 
-        self.access_service.authorization.check_ownership(unit, [OwnershipType.CREATOR])
+        self.access_service.authorization.check_ownership(
+            unit, [OwnershipType.CREATOR]
+        )
 
         count, unit_nodes = self.unit_node_repository.list(
             UnitNodeFilter(unit_uuid=unit.uuid)
@@ -591,7 +641,7 @@ class UnitService:
 
     def list(
         self,
-        filters: Union[UnitFilter, UnitFilterInput],
+        filters: UnitFilter | UnitFilterInput,
         is_include_output_unit_nodes: bool = False,
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
         self.access_service.authorization.check_access(
@@ -613,9 +663,11 @@ class UnitService:
         )
 
     def log_list(
-        self, filters: Union[UnitLogFilter, UnitLogFilterInput]
-    ) -> tuple[int, List[UnitLog]]:
-        self.access_service.authorization.check_access([AgentType.USER, AgentType.UNIT])
+        self, filters: UnitLogFilter | UnitLogFilterInput
+    ) -> tuple[int, builtins.list[UnitLog]]:
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
 
         unit = self.unit_repository.get(Unit(uuid=filters.uuid))
         is_valid_object(unit)
@@ -627,9 +679,14 @@ class UnitService:
         return self.unit_log_repository.list(filters)
 
     def generate_current_schema(
-        self, unit: Unit, repository_registry: RepositoryRegistry, target_version: str
+        self,
+        unit: Unit,
+        repository_registry: RepositoryRegistry,
+        target_version: str,
     ) -> dict:
-        nodes_with_edges = self.unit_node_repository.get_nodes_with_edges(unit.uuid)
+        nodes_with_edges = self.unit_node_repository.get_nodes_with_edges(
+            unit.uuid
+        )
 
         output_dict = {}
         input_dict = {}
@@ -689,15 +746,15 @@ class UnitService:
             ReservedEnvVariableName.SYNC_ENCRYPT_KEY: base64.b64encode(
                 os.urandom(16)
             ).decode("utf-8"),
-            ReservedEnvVariableName.SECRET_KEY: base64.b64encode(os.urandom(16)).decode(
-                "utf-8"
-            ),
+            ReservedEnvVariableName.SECRET_KEY: base64.b64encode(
+                os.urandom(16)
+            ).decode("utf-8"),
             ReservedEnvVariableName.PING_INTERVAL: 30,
             ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.backend_state_send_interval,
         }
 
     def is_valid_no_auto_updated_unit(
-        self, repository_registry: RepositoryRegistry, data: Union[Unit, UnitCreate]
+        self, repository_registry: RepositoryRegistry, data: Unit | UnitCreate
     ):
         if not data.is_auto_update_from_repo_unit and (
             not data.repo_branch or not data.repo_commit
@@ -716,13 +773,18 @@ class UnitService:
             )
 
     @staticmethod
-    def mapper_unit_to_unit_read(unit: tuple[Unit, List[dict]]) -> UnitRead:
+    def mapper_unit_to_unit_read(
+        unit: tuple[Unit, builtins.list[dict]],
+    ) -> UnitRead:
         return UnitRead(
-            **unit[0].to_dict(), unit_nodes=[UnitNodeRead(**item) for item in unit[1]]
+            **unit[0].to_dict(),
+            unit_nodes=[UnitNodeRead(**item) for item in unit[1]],
         )
 
     @staticmethod
-    def mapper_unit_to_unit_type(unit: tuple[Unit, List[dict]]) -> UnitType:
+    def mapper_unit_to_unit_type(
+        unit: tuple[Unit, builtins.list[dict]],
+    ) -> UnitType:
         unit_dict = unit[0].to_dict()
         unit_state = unit_dict["unit_state"]
         del unit_dict["unit_state"]
@@ -742,9 +804,7 @@ class UnitService:
         )
         if wbits not in available_values_list:
             raise UnitError(
-                "Wbits {} is not valid, available {}".format(
-                    wbits, available_values_list
-                )
+                f"Wbits {wbits} is not valid, available {available_values_list}"
             )
 
     @staticmethod
@@ -752,7 +812,5 @@ class UnitService:
         available_values_list = list(range(-1, 10))
         if level not in available_values_list:
             raise UnitError(
-                "Level {} is not valid, available {}".format(
-                    level, available_values_list
-                )
+                f"Level {level} is not valid, available {available_values_list}"
             )

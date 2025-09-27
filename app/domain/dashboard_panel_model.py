@@ -14,7 +14,10 @@ class DashboardPanel(SQLModel, table=True):
     __tablename__ = "dashboard_panels"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
     # type visualisation, Heatmap, Histogram, Stat
@@ -32,6 +35,7 @@ class DashboardPanel(SQLModel, table=True):
     )
     dashboard_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
-            UUID(as_uuid=True), ForeignKey("dashboards.uuid", ondelete="CASCADE")
+            UUID(as_uuid=True),
+            ForeignKey("dashboards.uuid", ondelete="CASCADE"),
         )
     )

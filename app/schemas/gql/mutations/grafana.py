@@ -18,7 +18,9 @@ from app.schemas.gql.types.shared import NoneType
 
 
 @strawberry.mutation()
-def create_dashboard(info: Info, dashboard: DashboardCreateInput) -> DashboardType:
+def create_dashboard(
+    info: Info, dashboard: DashboardCreateInput
+) -> DashboardType:
     grafana_service = get_grafana_service_gql(info)
     return DashboardType(**grafana_service.create_dashboard(dashboard).dict())
 
@@ -66,7 +68,9 @@ def delete_panel(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
 
 @strawberry.mutation()
 def delete_link(
-    info: Info, unit_node_uuid: uuid_pkg.UUID, dashboard_panel_uuid: uuid_pkg.UUID
+    info: Info,
+    unit_node_uuid: uuid_pkg.UUID,
+    dashboard_panel_uuid: uuid_pkg.UUID,
 ) -> NoneType:
     grafana_service = get_grafana_service_gql(info)
     grafana_service.delete_link(unit_node_uuid, dashboard_panel_uuid)

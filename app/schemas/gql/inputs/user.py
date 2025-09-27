@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 
@@ -21,20 +20,20 @@ class UserCreateInput(TypeInputMixin):
 
 @strawberry.input()
 class UserUpdateInput(TypeInputMixin):
-    login: Optional[str] = None
-    password: Optional[str] = None
+    login: str | None = None
+    password: str | None = None
 
 
 @strawberry.input()
 class UserFilterInput(TypeInputMixin):
-    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    uuids: list[uuid_pkg.UUID] | None = ()
 
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    role: Optional[list[UserRole]] = tuple([item for item in UserRole])
-    status: Optional[list[UserStatus]] = tuple([item for item in UserStatus])
+    role: list[UserRole] | None = tuple(UserRole)
+    status: list[UserStatus] | None = tuple(UserStatus)
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None

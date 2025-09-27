@@ -33,7 +33,8 @@ def get_resource_agents(
 ):
     count, permissions = permission_service.get_resource_agents(filters)
     return PermissionsRead(
-        count=count, permissions=[PermissionRead(**item.dict()) for item in permissions]
+        count=count,
+        permissions=[PermissionRead(**item.dict()) for item in permissions],
     )
 
 
@@ -43,4 +44,6 @@ def delete(
     resource_uuid: uuid_pkg.UUID,
     permission_service: PermissionService = Depends(get_permission_service),
 ):
-    return permission_service.delete(agent_uuid=agent_uuid, resource_uuid=resource_uuid)
+    return permission_service.delete(
+        agent_uuid=agent_uuid, resource_uuid=resource_uuid
+    )

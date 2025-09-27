@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 from strawberry.types import Info
@@ -34,8 +33,8 @@ def get_repos(filters: RepoFilterInput, info: Info) -> ReposResultType:
 def get_available_platforms(
     uuid: uuid_pkg.UUID,
     info: Info,
-    target_commit: Optional[str] = None,
-    target_tag: Optional[str] = None,
+    target_commit: str | None = None,
+    target_tag: str | None = None,
 ) -> list[PlatformType]:
     repo_service = get_repo_service_gql(info)
     return [
@@ -50,5 +49,7 @@ def get_available_platforms(
 def get_versions(uuid: uuid_pkg.UUID, info: Info) -> RepoVersionsType:
     repo_service = get_repo_service_gql(info)
     item_list = RepoVersionsType(**repo_service.get_versions(uuid).dict())
-    item_list.versions = [RepoVersionType(**item) for item in item_list.versions]
+    item_list.versions = [
+        RepoVersionType(**item) for item in item_list.versions
+    ]
     return item_list

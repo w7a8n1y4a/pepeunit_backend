@@ -29,7 +29,9 @@ class UnitNodeEdgeRepository(BaseRepository):
             .all()
         )
 
-    def get_by_two_uuid(self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID):
+    def get_by_two_uuid(
+        self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID
+    ):
         return (
             self.db.query(UnitNodeEdge)
             .filter(
@@ -44,7 +46,8 @@ class UnitNodeEdgeRepository(BaseRepository):
             self.db.query(UnitNodeEdge)
             .filter(
                 UnitNodeEdge.node_input_uuid == unit_node_edge.node_input_uuid,
-                UnitNodeEdge.node_output_uuid == unit_node_edge.node_output_uuid,
+                UnitNodeEdge.node_output_uuid
+                == unit_node_edge.node_output_uuid,
             )
             .first()
         )

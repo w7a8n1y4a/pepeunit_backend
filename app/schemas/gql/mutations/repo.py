@@ -16,7 +16,9 @@ def create_repo(info: Info, repo: RepoCreateInput) -> RepoType:
 
 
 @strawberry.mutation()
-def update_repo(info: Info, uuid: uuid_pkg.UUID, repo: RepoUpdateInput) -> RepoType:
+def update_repo(
+    info: Info, uuid: uuid_pkg.UUID, repo: RepoUpdateInput
+) -> RepoType:
     repo_service = get_repo_service_gql(info)
     return RepoType(**repo_service.update(uuid, repo).dict())
 

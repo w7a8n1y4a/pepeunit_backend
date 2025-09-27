@@ -29,7 +29,9 @@ class UnitNodeRepository(BaseRepository):
         self.db.bulk_save_objects(unit_nodes)
         self.db.commit()
 
-    def get_by_topic(self, unit_uuid: uuid_pkg.UUID, unit_node: UnitNode) -> UnitNode:
+    def get_by_topic(
+        self, unit_uuid: uuid_pkg.UUID, unit_node: UnitNode
+    ) -> UnitNode:
         return (
             self.db.query(UnitNode)
             .filter(
@@ -70,7 +72,9 @@ class UnitNodeRepository(BaseRepository):
             )
             .select_from(UnitNodeEdge)
             .outerjoin(
-                UnitNode, UnitNodeEdge.node_input_uuid == UnitNode.uuid, full=True
+                UnitNode,
+                UnitNodeEdge.node_input_uuid == UnitNode.uuid,
+                full=True,
             )
             .filter(UnitNode.unit_uuid == unit_uuid)
             .group_by(UnitNode.uuid, UnitNode.topic_name, UnitNode.type)
@@ -78,7 +82,9 @@ class UnitNodeRepository(BaseRepository):
         )
 
     def delete(self, del_uuid_list: list[str]) -> None:
-        self.db.query(UnitNode).filter(UnitNode.uuid.in_(del_uuid_list)).delete()
+        self.db.query(UnitNode).filter(
+            UnitNode.uuid.in_(del_uuid_list)
+        ).delete()
         self.db.commit()
 
     def list(
@@ -92,20 +98,29 @@ class UnitNodeRepository(BaseRepository):
             ).filter(UnitNodeEdge.node_output_uuid == filters.output_uuid)
 
         filters.uuids = (
-            filters.uuids.default if isinstance(filters.uuids, Query) else filters.uuids
+            filters.uuids.default
+            if isinstance(filters.uuids, Query)
+            else filters.uuids
         )
         if filters.uuids:
             query = query.filter(
-                UnitNode.uuid.in_([is_valid_uuid(item) for item in filters.uuids])
+                UnitNode.uuid.in_(
+                    [is_valid_uuid(item) for item in filters.uuids]
+                )
             )
 
         if filters.unit_uuid:
-            query = query.filter(UnitNode.unit_uuid == is_valid_uuid(filters.unit_uuid))
+            query = query.filter(
+                UnitNode.unit_uuid == is_valid_uuid(filters.unit_uuid)
+            )
 
         fields = [UnitNode.topic_name]
         query = apply_ilike_search_string(query, filters, fields)
 
-        fields = {"visibility_level": UnitNode.visibility_level, "type": UnitNode.type}
+        fields = {
+            "visibility_level": UnitNode.visibility_level,
+            "type": UnitNode.type,
+        }
         query = apply_enums(query, filters, fields)
 
         query = apply_restriction(query, filters, UnitNode, restriction)

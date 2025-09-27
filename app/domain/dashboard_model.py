@@ -14,11 +14,16 @@ class Dashboard(SQLModel, table=True):
     __tablename__ = "dashboards"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
     # uuid in grafana
-    grafana_uuid: uuid_pkg.UUID = Field(nullable=False, default_factory=uuid_pkg.uuid4)
+    grafana_uuid: uuid_pkg.UUID = Field(
+        nullable=False, default_factory=uuid_pkg.uuid4
+    )
     # dashboard name, user set
     name: str = Field(nullable=False)
 

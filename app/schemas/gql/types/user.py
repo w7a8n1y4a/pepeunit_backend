@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 from strawberry import field
@@ -16,7 +15,7 @@ class UserType(TypeInputMixin):
     status: UserStatus
     login: str
     grafana_org_name: uuid_pkg.UUID
-    grafana_org_id: Optional[str] = None
+    grafana_org_id: str | None = None
     create_datetime: datetime
 
     hashed_password: strawberry.Private[object]

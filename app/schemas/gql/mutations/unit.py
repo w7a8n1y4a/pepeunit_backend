@@ -18,14 +18,18 @@ def create_unit(info: Info, unit: UnitCreateInput) -> UnitType:
 
 
 @strawberry.mutation()
-def update_unit(info: Info, uuid: uuid_pkg.UUID, unit: UnitUpdateInput) -> UnitType:
+def update_unit(
+    info: Info, uuid: uuid_pkg.UUID, unit: UnitUpdateInput
+) -> UnitType:
     unit_service = get_unit_service_gql(info)
     unit = unit_service.update(uuid, unit)
     return unit_service.mapper_unit_to_unit_type((unit, []))
 
 
 @strawberry.mutation()
-def update_unit_env(info: Info, uuid: uuid_pkg.UUID, env_json_str: str) -> NoneType:
+def update_unit_env(
+    info: Info, uuid: uuid_pkg.UUID, env_json_str: str
+) -> NoneType:
     unit_service = get_unit_service_gql(info)
     unit_service.set_env(uuid, env_json_str)
     return NoneType()

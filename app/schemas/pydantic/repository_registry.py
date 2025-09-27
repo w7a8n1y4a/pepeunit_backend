@@ -1,7 +1,6 @@
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from fastapi import Query
 from fastapi_filter.contrib.sqlalchemy import Filter
@@ -30,7 +29,7 @@ class RepositoryRegistryCreate(BaseModel):
     repository_url: str
 
     is_public_repository: bool
-    credentials: Optional[Credentials] = None
+    credentials: Credentials | None = None
 
 
 class RepositoryRegistryRead(BaseModel):
@@ -40,18 +39,18 @@ class RepositoryRegistryRead(BaseModel):
     repository_url: str
 
     is_public_repository: bool
-    releases_data: Optional[str] = None
+    releases_data: str | None = None
 
     local_repository_size: int
 
-    sync_status: Optional[RepositoryRegistryStatus] = None
-    sync_error: Optional[str] = None
-    sync_last_datetime: Optional[datetime] = None
+    sync_status: RepositoryRegistryStatus | None = None
+    sync_error: str | None = None
+    sync_last_datetime: datetime | None = None
 
     create_datetime: datetime
     last_update_datetime: datetime
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
+    creator_uuid: uuid_pkg.UUID | None = None
 
     branches: list[str]
 
@@ -63,18 +62,18 @@ class RepositoriesRegistryResult(BaseModel):
 
 @dataclass
 class RepositoryRegistryFilter:
-    uuids: Optional[list[uuid_pkg.UUID]] = Query([])
+    uuids: list[uuid_pkg.UUID] | None = Query([])
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-    search_string: Optional[str] = None
+    creator_uuid: uuid_pkg.UUID | None = None
+    search_string: str | None = None
 
-    is_public_repository: Optional[bool] = None
+    is_public_repository: bool | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
+    order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     def dict(self):
         return self.__dict__
@@ -83,12 +82,12 @@ class RepositoryRegistryFilter:
 class CommitRead(BaseModel):
     commit: str
     summary: str
-    tag: Optional[str] = None
+    tag: str | None = None
 
 
 class CommitFilter(Filter):
     repo_branch: str
     only_tag: bool = False
 
-    offset: Optional[int] = 0
-    limit: Optional[int] = 10
+    offset: int | None = 0
+    limit: int | None = 10

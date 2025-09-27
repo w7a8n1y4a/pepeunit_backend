@@ -8,5 +8,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=BaseMetricsRead)
-def get_base_metrics(metrics_service: MetricsService = Depends(get_metrics_service)):
+def get_base_metrics(
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
     return metrics_service.get_instance_metrics()

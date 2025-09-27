@@ -39,7 +39,9 @@ from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
 from app.schemas.bot.repo_bot_router import RepoBotRouter
-from app.schemas.bot.repository_registry_bot_router import RepositoryRegistryBotRouter
+from app.schemas.bot.repository_registry_bot_router import (
+    RepositoryRegistryBotRouter,
+)
 from app.schemas.bot.start_help import base_router
 from app.schemas.bot.unit_bot_router import UnitBotRouter
 from app.schemas.bot.unit_log_bot_router import UnitLogBotRouter
@@ -103,7 +105,9 @@ async def _lifespan(_app: FastAPI):
         )
 
         async def hset_emqx_auth_keys(redis_client, topic):
-            token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+            token = AgentBackend(
+                name=settings.backend_domain
+            ).generate_agent_token()
             await redis_client.hset(f"mqtt_acl:{token}", topic, "all")
 
         await asyncio.gather(
@@ -115,7 +119,9 @@ async def _lifespan(_app: FastAPI):
             await bot.delete_webhook()
 
             logging.info("Run polling")
-            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+            await dp.start_polling(
+                bot, allowed_updates=dp.resolve_used_update_types()
+            )
 
         async def run_webhook_bot(dp, bot):
             webhook_url = f"{settings.backend_link_prefix_and_v1}/bot"
@@ -167,54 +173,57 @@ async def _lifespan(_app: FastAPI):
 
         with get_hand_session() as db:
             repository_registry_service = get_repository_registry_service(
-                db, AgentBackend(name=settings.backend_domain).generate_agent_token()
+                db,
+                AgentBackend(
+                    name=settings.backend_domain
+                ).generate_agent_token(),
             )
             repository_registry_service.sync_local_repository_storage()
 
         mqtt_run_lock.close()
 
         logging.info(
-            f"""
-            
-                           ........:                                   
-                          :......::-                                   
-                           .....::.:                                   
-                           .....::.-                                   
-                      :.........::.-****                               
-                    :........::::--==++###%                            
-                  :::-++*++=======++*#@@%%-::                          
-                ....:-=---==++******###%%*-...:                        
-              :....:--===++=*=+**%@@%@%%%%*+:..:                       
-            :....::=====+====+==*##%@%%%#*##+=...:                     
-          -...........:-===++*=++**#%*:....::---...:                   
-         :......-..:*##%%*+++===+#*-.:-..+#%%%#*+:...:                 
-       :......=..++*##%%%%#**++--=..-.--*##%%*%@#+=....-               
-      :..:-:.+-+=+#%%***+#@#*=---..+:=**+%@%%*%@@*+=-...:              
-     =--===-.%%=#*#%-.=:+@@%**==-::%%#==#@@#%@@+@%**+=:::              
-     =-=====.+@%%+@@%:.-#@@##***+-:%@%*%@%@%%=%@@#++::-::              
-     =--====-.#@@*@+@@*@@@#***#**#-:%@*%%+@=@*@@#*==-..::              
-     ==+*=+++=::#@@@@@@@########*#%==+%@@@@@@@#**++++*+::-             
-     *@*+++++++++****#####%##%###%#%%%%#########*##+==*#--             
-     -*@%**==+=+*#=+**###%%%%####%%##%%%%%%%#%%%#####@@%=+             
-  :::-=--+%%@*##*.-.*#####%%%########%%%%%%%###%%@@%*++=+****          
-  ....:---------==***#%%%%%*%#%%#%%%%%%%%%#*++=====+**#######%         
-  ....:-:::-=====-----------------------===+++***+++*#%@@%###%         
-  :--=:=++++====---::::---------===========++*##%@@@@@@@@@@@@@         
-     =--+*++++***+=+*****###########%%%%%%%%%#%%%#@@@@@@@@             
-       +==++++**+...:*=+=*=+==*++##++=+++#%-:-*%#%@@@@@@               
-          %#*****#####*##*-+-=*==#--+#**%*%%%%@@@@@@@                  
-            *##%@@@@@@@%%%%%%%%%%%%%%@@@@@@@@@@@@@@                    
-            *###%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                    
-                %%@@@@@@@@@@@@@@@@@@@@@@@@@@@@       
-             _____                            _ _   
-            |  __ \                          (_) |  
-            | |__) |__ _ __   ___ _   _ _ __  _| |_ 
+            rf"""
+
+                           ........:
+                          :......::-
+                           .....::.:
+                           .....::.-
+                      :.........::.-****
+                    :........::::--==++###%
+                  :::-++*++=======++*#@@%%-::
+                ....:-=---==++******###%%*-...:
+              :....:--===++=*=+**%@@%@%%%%*+:..:
+            :....::=====+====+==*##%@%%%#*##+=...:
+          -...........:-===++*=++**#%*:....::---...:
+         :......-..:*##%%*+++===+#*-.:-..+#%%%#*+:...:
+       :......=..++*##%%%%#**++--=..-.--*##%%*%@#+=....-
+      :..:-:.+-+=+#%%***+#@#*=---..+:=**+%@%%*%@@*+=-...:
+     =--===-.%%=#*#%-.=:+@@%**==-::%%#==#@@#%@@+@%**+=:::
+     =-=====.+@%%+@@%:.-#@@##***+-:%@%*%@%@%%=%@@#++::-::
+     =--====-.#@@*@+@@*@@@#***#**#-:%@*%%+@=@*@@#*==-..::
+     ==+*=+++=::#@@@@@@@########*#%==+%@@@@@@@#**++++*+::-
+     *@*+++++++++****#####%##%###%#%%%%#########*##+==*#--
+     -*@%**==+=+*#=+**###%%%%####%%##%%%%%%%#%%%#####@@%=+
+  :::-=--+%%@*##*.-.*#####%%%########%%%%%%%###%%@@%*++=+****
+  ....:---------==***#%%%%%*%#%%#%%%%%%%%%#*++=====+**#######%
+  ....:-:::-=====-----------------------===+++***+++*#%@@%###%
+  :--=:=++++====---::::---------===========++*##%@@@@@@@@@@@@@
+     =--+*++++***+=+*****###########%%%%%%%%%#%%%#@@@@@@@@
+       +==++++**+...:*=+=*=+==*++##++=+++#%-:-*%#%@@@@@@
+          %#*****#####*##*-+-=*==#--+#**%*%%%%@@@@@@@
+            *##%@@@@@@@%%%%%%%%%%%%%%@@@@@@@@@@@@@@
+            *###%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                %%@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+             _____                            _ _
+            |  __ \                          (_) |
+            | |__) |__ _ __   ___ _   _ _ __  _| |_
             |  ___/ _ \ '_ \ / _ \ | | | '_ \| | __|
-            | |  |  __/ |_) |  __/ |_| | | | | | |_ 
+            | |  |  __/ |_) |  __/ |_| | | | | | |_
             |_|   \___| .__/ \___|\__,_|_| |_|_|\__|
-                      | |                           
-                      |_|   
-                   
+                      | |
+                      |_|
+
      v{settings.version} - {settings.license}
      Federated IoT Platform
      Front: {settings.backend_link}
@@ -231,7 +240,9 @@ async def _lifespan(_app: FastAPI):
         )
         await mqtt.mqtt_startup()
 
-        token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+        token = AgentBackend(
+            name=settings.backend_domain
+        ).generate_agent_token()
         access = await redis_client.hgetall(token)
         for k, v in access.items():
             logging.info(f"Redis set {k} access {v}")
@@ -290,7 +301,9 @@ app.include_router(
 )
 
 
-@app.get(f"{settings.backend_app_prefix}", response_model=Root, tags=["status"])
+@app.get(
+    f"{settings.backend_app_prefix}", response_model=Root, tags=["status"]
+)
 async def root():
     return Root()
 
@@ -323,7 +336,9 @@ if settings.telegram_bot_enable:
     dp.include_router(DashboardBotRouter().router)
     dp.include_router(error_router)
 
-    @app.post(f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot")
+    @app.post(
+        f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot"
+    )
     async def bot_webhook(update: dict):
         telegram_update = types.Update(**update)
         await dp.feed_update(bot=bot, update=telegram_update)
@@ -334,7 +349,8 @@ Instrumentator().instrument(app).expose(
 )
 
 app.include_router(
-    api_router, prefix=f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}"
+    api_router,
+    prefix=f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}",
 )
 
 mqtt.init_app(app)

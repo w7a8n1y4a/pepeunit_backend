@@ -30,7 +30,11 @@ async def get_graphql_context(
     clickhouse_client: Session = Depends(get_clickhouse_client),
     jwt_token: str = Depends(token_depends),
 ):
-    return {"db": db, "clickhouse_client": clickhouse_client, "jwt_token": jwt_token}
+    return {
+        "db": db,
+        "clickhouse_client": clickhouse_client,
+        "jwt_token": jwt_token,
+    }
 
 
 def get_user_service_gql(info: Info) -> UserService:
@@ -40,7 +44,9 @@ def get_user_service_gql(info: Info) -> UserService:
     return get_user_service(db, clickhouse_client, jwt_token)
 
 
-def get_repository_registry_service_gql(info: Info) -> RepositoryRegistryService:
+def get_repository_registry_service_gql(
+    info: Info,
+) -> RepositoryRegistryService:
     db = info.context.get("db")
     jwt_token = info.context["jwt_token"]
     return get_repository_registry_service(db, jwt_token)

@@ -14,7 +14,10 @@ class PanelsUnitNodes(SQLModel, table=True):
     __tablename__ = "mtm_panels_unit_nodes"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
     # only the latest values regardless of the data type calculated based on DataPipe config
@@ -32,11 +35,13 @@ class PanelsUnitNodes(SQLModel, table=True):
     )
     unit_node_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
-            UUID(as_uuid=True), ForeignKey("units_nodes.uuid", ondelete="CASCADE")
+            UUID(as_uuid=True),
+            ForeignKey("units_nodes.uuid", ondelete="CASCADE"),
         )
     )
     dashboard_panels_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
-            UUID(as_uuid=True), ForeignKey("dashboard_panels.uuid", ondelete="CASCADE")
+            UUID(as_uuid=True),
+            ForeignKey("dashboard_panels.uuid", ondelete="CASCADE"),
         )
     )

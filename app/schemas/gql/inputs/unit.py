@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional
 
 import strawberry
 
@@ -22,65 +21,61 @@ class UnitCreateInput(TypeInputMixin):
 
     is_auto_update_from_repo_unit: bool
 
-    target_firmware_platform: Optional[str] = None
+    target_firmware_platform: str | None = None
 
-    repo_branch: Optional[str] = None
-    repo_commit: Optional[str] = None
+    repo_branch: str | None = None
+    repo_commit: str | None = None
 
 
 @strawberry.input()
 class UnitUpdateInput(TypeInputMixin):
-    visibility_level: Optional[VisibilityLevel] = None
-    name: Optional[str] = None
+    visibility_level: VisibilityLevel | None = None
+    name: str | None = None
 
-    is_auto_update_from_repo_unit: Optional[bool] = None
+    is_auto_update_from_repo_unit: bool | None = None
 
-    target_firmware_platform: Optional[str] = None
+    target_firmware_platform: str | None = None
 
-    repo_branch: Optional[str] = None
-    repo_commit: Optional[str] = None
+    repo_branch: str | None = None
+    repo_commit: str | None = None
 
 
 @strawberry.input()
 class UnitFilterInput(TypeInputMixin):
-    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    uuids: list[uuid_pkg.UUID] | None = ()
 
-    creator_uuid: Optional[uuid_pkg.UUID] = None
-    repo_uuid: Optional[uuid_pkg.UUID] = None
-    repos_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    creator_uuid: uuid_pkg.UUID | None = None
+    repo_uuid: uuid_pkg.UUID | None = None
+    repos_uuids: list[uuid_pkg.UUID] | None = ()
 
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    is_auto_update_from_repo_unit: Optional[bool] = None
+    is_auto_update_from_repo_unit: bool | None = None
 
-    visibility_level: Optional[list[VisibilityLevel]] = tuple(
-        [item for item in VisibilityLevel]
-    )
+    visibility_level: list[VisibilityLevel] | None = tuple(VisibilityLevel)
 
-    order_by_unit_name: Optional[OrderByText] = OrderByText.asc
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
-    order_by_last_update: Optional[OrderByDate] = OrderByDate.desc
+    order_by_unit_name: OrderByText | None = OrderByText.asc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
+    order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     # Only with is_include_output_unit_nodes = True
-    unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
+    unit_node_input_uuid: uuid_pkg.UUID | None = None
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_type: Optional[list[UnitNodeTypeEnum]] = tuple(
-        [item for item in UnitNodeTypeEnum]
-    )
+    unit_node_type: list[UnitNodeTypeEnum] | None = tuple(UnitNodeTypeEnum)
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    unit_node_uuids: list[uuid_pkg.UUID] | None = ()
 
 
 @strawberry.input()
 class UnitLogFilterInput(TypeInputMixin):
     uuid: uuid_pkg.UUID
 
-    level: Optional[list[LogLevel]] = tuple([item for item in LogLevel])
+    level: list[LogLevel] | None = tuple(LogLevel)
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None

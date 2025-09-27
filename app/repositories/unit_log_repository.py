@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from typing import Optional, Union
 
 from clickhouse_driver import Client
 from fastapi import Depends
@@ -15,7 +14,9 @@ from app.schemas.pydantic.unit import UnitLogFilter
 class UnitLogRepository:
     client: Client
 
-    def __init__(self, client: Client = Depends(get_clickhouse_client)) -> None:
+    def __init__(
+        self, client: Client = Depends(get_clickhouse_client)
+    ) -> None:
         self.client = client
         self.orm = ClickhouseOrm(client)
 
@@ -27,7 +28,7 @@ class UnitLogRepository:
         unit_logs = self.orm.insert("unit_logs", unit_logs)
         return unit_logs
 
-    def get(self, uuid: uuid_pkg.UUID) -> Optional[UnitLog]:
+    def get(self, uuid: uuid_pkg.UUID) -> UnitLog | None:
         return self.orm.get(
             f"select {UnitLog.get_keys()} from unit_logs where uuid = %(uuid)s",
             {"uuid": uuid},
@@ -39,7 +40,7 @@ class UnitLogRepository:
         self.client.execute(query, {"uuid": uuid})
 
     def list(
-        self, filters: Union[UnitLogFilter, UnitLogFilterInput]
+        self, filters: UnitLogFilter | UnitLogFilterInput
     ) -> tuple[int, list[UnitLog]]:
         query = f"select {UnitLog.get_keys()} from unit_logs where unit_uuid = %(uuid)s"
         count_query = (

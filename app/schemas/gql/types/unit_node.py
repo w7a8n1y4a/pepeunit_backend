@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Union
 
 import strawberry
 
@@ -66,4 +65,6 @@ class LastValueType(TypeInputMixin):
 @strawberry.type()
 class PipeDataResultType(TypeInputMixin):
     count: int
-    pipe_data: list[Union[NRecordsType, TimeWindowType, AggregationType, LastValueType]]
+    pipe_data: list[
+        NRecordsType | TimeWindowType | AggregationType | LastValueType
+    ]

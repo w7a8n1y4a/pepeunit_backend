@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 from strawberry import field
@@ -23,9 +22,9 @@ class RepoType(TypeInputMixin):
     name: str
     create_datetime: datetime
 
-    default_branch: Optional[str] = None
+    default_branch: str | None = None
     is_auto_update_repo: bool
-    default_commit: Optional[str] = None
+    default_commit: str | None = None
     is_only_tag_update: bool
 
     is_compilable_repo: bool
@@ -47,20 +46,20 @@ class ReposResultType(TypeInputMixin):
 class CommitType(TypeInputMixin):
     commit: str
     summary: str
-    tag: Optional[str] = None
+    tag: str | None = None
 
 
 @strawberry.type()
 class TargetVersionType(TypeInputMixin):
     commit: str
-    tag: Optional[str] = None
+    tag: str | None = None
 
 
 @strawberry.type()
 class RepoVersionType(TypeInputMixin):
     commit: str
     unit_count: int
-    tag: Optional[str] = None
+    tag: str | None = None
 
 
 @strawberry.type()

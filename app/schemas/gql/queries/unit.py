@@ -59,7 +59,9 @@ def get_units(filters: UnitFilterInput, info: Info) -> UnitsResultType:
 
 
 @strawberry.field()
-def get_unit_logs(filters: UnitLogFilterInput, info: Info) -> UnitLogsResultType:
+def get_unit_logs(
+    filters: UnitLogFilterInput, info: Info
+) -> UnitLogsResultType:
     unit_service = get_unit_service_gql(info)
     count, unit_logs = unit_service.log_list(filters)
     return UnitLogsResultType(

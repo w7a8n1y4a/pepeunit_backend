@@ -19,20 +19,29 @@ def get_dashboard(uuid: uuid_pkg.UUID, info: Info) -> DashboardType:
 
 
 @strawberry.field()
-def get_dashboards(filters: DashboardFilterInput, info: Info) -> DashboardsResultType:
+def get_dashboards(
+    filters: DashboardFilterInput, info: Info
+) -> DashboardsResultType:
     grafana_service = get_grafana_service_gql(info)
     count, dashboards = grafana_service.list_dashboards(filters)
     return DashboardsResultType(
         count=count,
-        dashboards=[DashboardType(**dashboard.dict()) for dashboard in dashboards],
+        dashboards=[
+            DashboardType(**dashboard.dict()) for dashboard in dashboards
+        ],
     )
 
 
 @strawberry.field()
-def get_dashboard_panels(uuid: uuid_pkg.UUID, info: Info) -> DashboardPanelsResultType:
+def get_dashboard_panels(
+    uuid: uuid_pkg.UUID, info: Info
+) -> DashboardPanelsResultType:
     grafana_service = get_grafana_service_gql(info)
     panels = grafana_service.get_dashboard_panels(uuid)
     return DashboardPanelsResultType(
         count=panels.count,
-        panels=[grafana_service.mapper_panel_to_type(panel) for panel in panels.panels],
+        panels=[
+            grafana_service.mapper_panel_to_type(panel)
+            for panel in panels.panels
+        ],
     )

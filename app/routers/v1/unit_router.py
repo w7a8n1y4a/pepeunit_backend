@@ -36,17 +36,23 @@ router = APIRouter()
     response_model=UnitRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create(data: UnitCreate, unit_service: UnitService = Depends(get_unit_service)):
+def create(
+    data: UnitCreate, unit_service: UnitService = Depends(get_unit_service)
+):
     return UnitRead(**unit_service.create(data).to_dict())
 
 
 @router.get("/{uuid}", response_model=UnitRead)
-def get(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     return UnitRead(**unit_service.get(uuid).to_dict())
 
 
 @router.get("/env/{uuid}", response_model=str)
-def get_env(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get_env(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     return json.dumps(unit_service.get_env(uuid))
 
 
@@ -103,7 +109,9 @@ def get_firmware_tgz(
     return FileResponse(tgz_filepath, background=BackgroundTask(cleanup))
 
 
-@router.post("/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 def set_state_storage(
     uuid: uuid_pkg.UUID,
     state: StateStorage,
@@ -121,15 +129,14 @@ def get_state_storage(
 
 @router.post("/auth", response_model=MqttRead, status_code=status.HTTP_200_OK)
 def get_mqtt_auth(data: UnitMqttTokenAuth):
-    with get_hand_session() as db:
-        with get_hand_clickhouse_client() as cc:
-            try:
-                unit_service = get_unit_service(db, cc, data.token)
-                unit_service.get_mqtt_auth(data.topic)
-                db.close()
-            except Exception as e:
-                logging.info(repr(e))
-                return MqttRead(result="deny")
+    with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+        try:
+            unit_service = get_unit_service(db, cc, data.token)
+            unit_service.get_mqtt_auth(data.topic)
+            db.close()
+        except Exception as e:
+            logging.info(repr(e))
+            return MqttRead(result="deny")
 
     return MqttRead(result="allow")
 
@@ -144,14 +151,17 @@ def update(
 
 
 @router.post(
-    "/send_command_to_input_base_topic/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+    "/send_command_to_input_base_topic/{uuid}",
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def send_command_to_input_base_topic(
     uuid: uuid_pkg.UUID,
     command: BackendTopicCommand,
     unit_service: UnitService = Depends(get_unit_service),
 ):
-    return unit_service.unit_node_service.command_to_input_base_topic(uuid, command)
+    return unit_service.unit_node_service.command_to_input_base_topic(
+        uuid, command
+    )
 
 
 @router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -164,7 +174,9 @@ def set_env(
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def delete(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     return unit_service.delete(uuid)
 
 

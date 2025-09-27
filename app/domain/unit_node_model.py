@@ -16,13 +16,18 @@ class UnitNode(SQLModel, table=True):
     __tablename__ = "units_nodes"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
     # Input or Output
     type: str = Field(nullable=False)
 
-    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
+    visibility_level: str = Field(
+        nullable=False, default=VisibilityLevel.PUBLIC
+    )
     # if is_rewritable_input = False - no Unit can set a value for this UnitNode
     is_rewritable_input: bool = Field(nullable=False, default=False)
 
@@ -39,7 +44,9 @@ class UnitNode(SQLModel, table=True):
     # pipeline data processing config
     data_pipe_yml: str = Field(nullable=True)
     # current pipeline state on worker
-    data_pipe_status: str = Field(nullable=True, default=DataPipeStatus.INACTIVE)
+    data_pipe_status: str = Field(
+        nullable=True, default=DataPipeStatus.INACTIVE
+    )
     # pipeline error text when status is Error
     data_pipe_error: str = Field(nullable=True)
 

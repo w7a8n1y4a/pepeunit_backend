@@ -1,7 +1,6 @@
 import json
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
@@ -18,10 +17,15 @@ class Unit(SQLModel, table=True):
     __tablename__ = "units"
 
     uuid: uuid_pkg.UUID = Field(
-        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+        primary_key=True,
+        nullable=False,
+        index=True,
+        default_factory=uuid_pkg.uuid4,
     )
 
-    visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
+    visibility_level: str = Field(
+        nullable=False, default=VisibilityLevel.PUBLIC
+    )
 
     # Unique Unit name on Instance
     name: str = Field(nullable=False, unique=True)
@@ -72,7 +76,7 @@ class Unit(SQLModel, table=True):
     )
 
     @property
-    def unit_state(self) -> Optional[dict]:
+    def unit_state(self) -> dict | None:
         if self.unit_state_dict:
             try:
                 return json.loads(self.unit_state_dict)

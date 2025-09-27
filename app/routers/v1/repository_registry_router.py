@@ -1,7 +1,6 @@
 import logging
 import time
 import uuid as uuid_pkg
-from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 from fastapi_utilities import repeat_at
@@ -34,10 +33,9 @@ def automatic_update_repositories():
 
     if lock_fd:
         logging.info("Run update with lock")
-        with get_hand_session() as db:
-            with get_hand_clickhouse_client() as cc:
-                repo_service = get_repo_service(db, cc, None)
-                repo_service.bulk_update_units_firmware(is_auto_update=True)
+        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
+            repo_service = get_repo_service(db, cc, None)
+            repo_service.bulk_update_units_firmware(is_auto_update=True)
 
     else:
         logging.info("Skip update without lock")
@@ -56,7 +54,9 @@ def automatic_update_registry():
     if lock_fd:
         logging.info("Run update with lock")
         with get_hand_session() as db:
-            repository_registry_service = get_repository_registry_service(db, None)
+            repository_registry_service = get_repository_registry_service(
+                db, None
+            )
             repository_registry_service.sync_local_repository_storage(True)
 
     else:
@@ -105,7 +105,9 @@ def get_branch_commits(
     return repository_registry_service.get_branch_commits(uuid, filters)
 
 
-@router.patch("/set_credentials/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/set_credentials/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 def set_credentials(
     uuid: uuid_pkg.UUID,
     data: Credentials,
@@ -117,7 +119,8 @@ def set_credentials(
 
 
 @router.get(
-    "/get_credentials/{uuid}", response_model=Optional[OneRepositoryRegistryCredentials]
+    "/get_credentials/{uuid}",
+    response_model=OneRepositoryRegistryCredentials | None,
 )
 def get_credentials(
     uuid: uuid_pkg.UUID,
@@ -128,7 +131,9 @@ def get_credentials(
     return repository_registry_service.get_credentials(uuid)
 
 
-@router.patch("/update_local_repository/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/update_local_repository/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 def update_local_repository(
     uuid: uuid_pkg.UUID,
     repository_registry_service: RepositoryRegistryService = Depends(

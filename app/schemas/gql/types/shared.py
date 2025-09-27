@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 from strawberry import field
@@ -27,12 +26,12 @@ class UnitNodeType(TypeInputMixin):
     last_update_datetime: datetime
 
     is_data_pipe_active: bool
-    data_pipe_yml: Optional[str] = None
-    data_pipe_status: Optional[str] = None
-    data_pipe_error: Optional[str] = None
+    data_pipe_yml: str | None = None
+    data_pipe_status: str | None = None
+    data_pipe_error: str | None = None
 
     create_datetime: datetime
-    state: Optional[str] = None
+    state: str | None = None
 
     unit_uuid: uuid_pkg.UUID
     creator_uuid: uuid_pkg.UUID

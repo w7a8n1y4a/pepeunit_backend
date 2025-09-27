@@ -1,6 +1,5 @@
 import uuid as uuid_pkg
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 
@@ -17,35 +16,33 @@ from app.utils.utils import parse_interval
 
 @strawberry.input()
 class UnitNodeUpdateInput(TypeInputMixin):
-    visibility_level: Optional[VisibilityLevel] = None
-    is_rewritable_input: Optional[bool] = None
-    is_data_pipe_active: Optional[bool] = None
+    visibility_level: VisibilityLevel | None = None
+    is_rewritable_input: bool | None = None
+    is_data_pipe_active: bool | None = None
 
 
 @strawberry.input()
 class UnitNodeSetStateInput(TypeInputMixin):
-    state: Optional[str] = None
+    state: str | None = None
 
 
 @strawberry.input()
 class UnitNodeFilterInput(TypeInputMixin):
-    uuids: Optional[list[uuid_pkg.UUID]] = tuple()
+    uuids: list[uuid_pkg.UUID] | None = ()
 
-    unit_uuid: Optional[uuid_pkg.UUID] = None
-    search_string: Optional[str] = None
+    unit_uuid: uuid_pkg.UUID | None = None
+    search_string: str | None = None
 
-    type: Optional[list[UnitNodeTypeEnum]] = tuple([item for item in UnitNodeTypeEnum])
-    visibility_level: Optional[list[VisibilityLevel]] = tuple(
-        [item for item in VisibilityLevel]
-    )
+    type: list[UnitNodeTypeEnum] | None = tuple(UnitNodeTypeEnum)
+    visibility_level: list[VisibilityLevel] | None = tuple(VisibilityLevel)
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     # get only input UnitNode linked with this output UnitNode
-    output_uuid: Optional[uuid_pkg.UUID] = None
+    output_uuid: uuid_pkg.UUID | None = None
 
 
 @strawberry.input()
@@ -59,26 +56,28 @@ class DataPipeFilterInput(TypeInputMixin):
     uuid: uuid_pkg.UUID
     type: ProcessingPolicyType
 
-    search_string: Optional[str] = None
+    search_string: str | None = None
 
-    aggregation_type: Optional[list[AggregationFunctions]] = tuple(
-        [item for item in AggregationFunctions]
+    aggregation_type: list[AggregationFunctions] | None = tuple(
+        AggregationFunctions
     )
-    time_window_size: Optional[int] = None
+    time_window_size: int | None = None
 
-    start_agg_window_datetime: Optional[datetime] = None
-    end_agg_window_datetime: Optional[datetime] = None
+    start_agg_window_datetime: datetime | None = None
+    end_agg_window_datetime: datetime | None = None
 
-    start_create_datetime: Optional[datetime] = None
-    end_create_datetime: Optional[datetime] = None
+    start_create_datetime: datetime | None = None
+    end_create_datetime: datetime | None = None
 
-    relative_time: Optional[str] = None
+    relative_time: str | None = None
 
-    order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
+    order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    offset: Optional[int] = None
-    limit: Optional[int] = None
+    offset: int | None = None
+    limit: int | None = None
 
     @property
     def relative_interval(self):
-        return parse_interval(self.relative_time) if self.relative_time else None
+        return (
+            parse_interval(self.relative_time) if self.relative_time else None
+        )
