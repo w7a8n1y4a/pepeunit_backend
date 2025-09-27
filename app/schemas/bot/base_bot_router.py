@@ -288,13 +288,13 @@ class BaseBotRouter(ABC):
     ) -> bool | None:
         result = None
         if (
-            RepositoryRegistryType.PUBLIC in data
-            and RepositoryRegistryType.PRIVATE not in data
+            RepositoryRegistryType.PUBLIC.value in data
+            and RepositoryRegistryType.PRIVATE.value not in data
         ):
             result = True
         if (
-            RepositoryRegistryType.PRIVATE in data
-            and RepositoryRegistryType.PUBLIC not in data
+            RepositoryRegistryType.PRIVATE.value in data
+            and RepositoryRegistryType.PUBLIC.value not in data
         ):
             result = False
         return result
@@ -310,17 +310,33 @@ class BaseBotRouter(ABC):
         keyboard: InlineKeyboardMarkup = None,
         is_editable: bool = True,
     ):
+        import asyncio
+        import logging
+
         params = {
             "text": text,
             "reply_markup": keyboard,
             "parse_mode": "Markdown",
         }
 
-        if isinstance(message, types.Message):
-            await message.answer(**params)
-            return
+        try:
+            if isinstance(message, types.Message):
+                await message.answer(**params)
+                return
 
-        if isinstance(message, types.CallbackQuery) and is_editable:
-            await message.message.edit_text(**params)
-        else:
-            await message.message.answer(**params)
+            if isinstance(message, types.CallbackQuery) and is_editable:
+                await message.message.edit_text(**params)
+            else:
+                await message.message.answer(**params)
+        except (RuntimeError, asyncio.CancelledError) as e:
+            if "Event loop is closed" in str(e) or isinstance(
+                e, asyncio.CancelledError
+            ):
+                logging.warning(
+                    f"Telegram bot operation cancelled or event loop closed: {e}"
+                )
+                return
+            raise
+        except Exception as e:
+            logging.error(f"Error in telegram_response: {e}")
+            raise

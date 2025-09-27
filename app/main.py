@@ -1,8 +1,7 @@
 import asyncio
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import aiogram.exceptions
 import httpx
@@ -96,7 +95,16 @@ async def run_polling_bot(dp, bot):
     logging.info("Delete webhook before run polling")
     await bot.delete_webhook()
     logging.info("Run polling")
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    try:
+        await dp.start_polling(
+            bot, allowed_updates=dp.resolve_used_update_types()
+        )
+    except asyncio.CancelledError:
+        logging.info("Polling bot task cancelled")
+        raise
+    except Exception as e:
+        logging.error(f"Error in polling bot: {e}")
+        raise
 
 
 async def run_webhook_bot(dp, bot):
@@ -106,6 +114,7 @@ async def run_webhook_bot(dp, bot):
         logging.info("Delete webhook before set new webhook")
         await bot.delete_webhook()
 
+    # Wait for webhook endpoint to be ready
     inc = 0
     while True:
         result = httpx.post(
@@ -130,22 +139,47 @@ async def run_webhook_bot(dp, bot):
     except aiogram.exceptions.TelegramBadRequest:
         logging.info("Error set TG bot webhook url")
 
+    # Keep the task alive to maintain the webhook connection
+    try:
+        while True:
+            await asyncio.sleep(60)  # Keep alive with periodic checks
+            # Optionally verify webhook is still active
+            try:
+                webhook_info = await bot.get_webhook_info()
+                if not webhook_info.url:
+                    logging.warning("Webhook was removed, re-setting...")
+                    await bot.set_webhook(
+                        url=webhook_url,
+                        drop_pending_updates=False,
+                        allowed_updates=dp.resolve_used_update_types(),
+                    )
+            except Exception as e:
+                logging.warning(f"Webhook check failed: {e}")
+    except asyncio.CancelledError:
+        logging.info("Webhook bot task cancelled")
+        raise
+
+
+# Global variables to store tasks for proper cleanup
+_bot_tasks = []
+_mqtt_task = None
+
 
 async def init_telegram_bot(dp, bot):
     if not settings.telegram_bot_enable:
         return
 
     if settings.telegram_bot_mode == "pooling":
-        asyncio.get_event_loop().create_task(
+        task = asyncio.create_task(
             run_polling_bot(dp, bot), name="run_polling_bot"
         )
+        _bot_tasks.append(task)
     elif settings.telegram_bot_mode == "webhook":
-
-        def start_webhook_thread():
-            asyncio.run(run_webhook_bot(dp, bot))
-
-        executor = ThreadPoolExecutor(max_workers=1)
-        executor.submit(start_webhook_thread)
+        # Run webhook setup in the same event loop instead of creating a separate thread
+        task = asyncio.create_task(
+            run_webhook_bot(dp, bot), name="run_webhook_bot"
+        )
+        _bot_tasks.append(task)
 
 
 def sync_local_repository():
@@ -188,15 +222,33 @@ async def _lifespan(_app: FastAPI):
 
         mqtt_run_lock.close()
 
-    logo_to_console()
+        logo_to_console()
 
     wait_for_file_unlock(FILE_MQTT_RUN_LOCK)
 
-    asyncio.get_event_loop().create_task(
+    global _mqtt_task
+    _mqtt_task = asyncio.create_task(
         run_mqtt_client(mqtt, redis), name="run_mqtt_client"
     )
 
     yield
+
+    # Graceful shutdown of bot tasks
+    if _bot_tasks:
+        logging.info("Stopping Telegram bot tasks...")
+        for task in _bot_tasks:
+            if not task.done():
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+        _bot_tasks.clear()
+
+    # Graceful shutdown of MQTT task
+    if _mqtt_task and not _mqtt_task.done():
+        logging.info("Stopping MQTT task...")
+        _mqtt_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await _mqtt_task
 
     if init_lock:
         init_lock.close()
@@ -282,8 +334,13 @@ if settings.telegram_bot_enable:
         f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot"
     )
     async def bot_webhook(update: dict):
-        telegram_update = types.Update(**update)
-        await dp.feed_update(bot=bot, update=telegram_update)
+        try:
+            telegram_update = types.Update(**update)
+            await dp.feed_update(bot=bot, update=telegram_update)
+        except Exception as e:
+            logging.error(f"Error processing telegram update: {e}")
+            # Return 200 to prevent telegram from retrying
+            return {"status": "error", "message": str(e)}
 
 
 Instrumentator().instrument(app).expose(

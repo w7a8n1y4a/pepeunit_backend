@@ -194,7 +194,6 @@ class RepoBotRouter(BaseBotRouter):
         text += "\n```text\n"
 
         table = [
-            ["Param", "Value"],
             [
                 "Default Branch",
                 self.header_name_limit(repo.default_branch)
@@ -249,7 +248,7 @@ class RepoBotRouter(BaseBotRouter):
                 [
                     InlineKeyboardButton(
                         text="📈 Update Related Unit",
-                        callback_data=f"{self.entity_name}_decres_{DecreesNames.RELATED_UNIT}_{repo.uuid}",
+                        callback_data=f"{self.entity_name}_decres_{DecreesNames.RELATED_UNIT.value}_{repo.uuid}",
                     ),
                 ],
             )

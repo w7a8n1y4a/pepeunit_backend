@@ -211,7 +211,7 @@ class DataPipeRepository:
 
         if filters.relative_interval:
             current_datetime = datetime.now(UTC)
-            query += f" AND create_datetime >= '{current_datetime - filters.relative_interval}'"
+            query += f" AND create_datetime >= '{(current_datetime - filters.relative_interval).replace(tzinfo=None)}'"
 
         return query
 

@@ -285,7 +285,6 @@ class UnitBotRouter(BaseBotRouter):
         text = f"*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*\n```text\n"
 
         table = [
-            ["Param", "Value"],
             ["Auto-update ?", unit.is_auto_update_from_repo_unit],
         ]
 

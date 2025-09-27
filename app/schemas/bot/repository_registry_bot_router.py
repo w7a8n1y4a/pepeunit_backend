@@ -36,7 +36,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
         super().__init__(
             entity_name=entity_name, states_group=RepositoryRegistryStates
         )
-        self.router.message(Command(CommandNames.REGISTRY))(self.repo_resolver)
+        self.router.message(Command(CommandNames.REGISTRY.value))(
+            self.repo_resolver
+        )
 
     async def repo_resolver(self, message: types.Message, state: FSMContext):
         await state.set_state(None)
@@ -203,7 +205,6 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
         text += "\n```text\n"
 
         table = [
-            ["Param", "Value"],
             ["Platform", repository_registry.platform],
             ["Sync status", repository_registry.sync_status],
             [
@@ -232,7 +233,9 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                     ["Creds status", credentials.status.value.capitalize()]
                 )
 
-        text += make_monospace_table_with_title(table, "Base Info")
+        text += make_monospace_table_with_title(
+            table, "Base Info", lengths=[15, 30]
+        )
 
         text += "```"
 
@@ -242,7 +245,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                 [
                     InlineKeyboardButton(
                         text="🫀 Update Local Registry",
-                        callback_data=f"{self.entity_name}_decres_{DecreesNames.LOCAL_UPDATE}_{repository_registry.uuid}",
+                        callback_data=f"{self.entity_name}_decres_{DecreesNames.LOCAL_UPDATE.value}_{repository_registry.uuid}",
                     ),
                 ],
             )
