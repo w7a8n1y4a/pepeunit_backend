@@ -1,3 +1,4 @@
+import enum
 import uuid as uuid_pkg
 
 from clickhouse_driver import Client
@@ -53,7 +54,12 @@ class UnitLogRepository:
                 if isinstance(filters.level, Query)
                 else filters.level
             )
-            data = ", ".join([f"'{item}'" for item in filters.level])
+            data = ", ".join(
+                [
+                    f"'{item.value if isinstance(item, enum.Enum) else item}'"
+                    for item in filters.level
+                ]
+            )
             level_append = f" AND level in ({data})"
 
             query += level_append
