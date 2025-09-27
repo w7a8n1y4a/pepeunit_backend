@@ -15,7 +15,6 @@ cache = TTLCache(maxsize=1, ttl=600)
 
 
 class MetricsService:
-
     def __init__(
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
@@ -40,7 +39,9 @@ class MetricsService:
         if cache_key in cache:
             return cache[cache_key]
 
-        self.access_service.authorization.check_access([AgentType.BOT, AgentType.USER, AgentType.UNIT])
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER, AgentType.UNIT]
+        )
 
         metrics = BaseMetricsRead(
             user_count=self.user_repository.get_all_count(),

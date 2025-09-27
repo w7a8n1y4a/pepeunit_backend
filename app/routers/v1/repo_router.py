@@ -33,7 +33,10 @@ def get(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_servic
 
 
 @router.get("", response_model=ReposResult)
-def get_repos(filters: RepoFilter = Depends(RepoFilter), repo_service: RepoService = Depends(get_repo_service)):
+def get_repos(
+    filters: RepoFilter = Depends(RepoFilter),
+    repo_service: RepoService = Depends(get_repo_service),
+):
     count, repos = repo_service.list(filters)
     return ReposResult(count=count, repos=[RepoRead(**repo.dict()) for repo in repos])
 
@@ -47,22 +50,32 @@ def get_available_platforms(
 ):
     return [
         PlatformRead(name=platform[0], link=platform[1])
-        for platform in repo_service.get_available_platforms(uuid, target_commit, target_tag)
+        for platform in repo_service.get_available_platforms(
+            uuid, target_commit, target_tag
+        )
     ]
 
 
 @router.get("/versions/{uuid}", response_model=RepoVersionsRead)
-def get_versions(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)):
+def get_versions(
+    uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)
+):
     return repo_service.get_versions(uuid)
 
 
 @router.patch("/{uuid}", response_model=RepoRead)
-def update(uuid: uuid_pkg.UUID, data: RepoUpdate, repo_service: RepoService = Depends(get_repo_service)):
+def update(
+    uuid: uuid_pkg.UUID,
+    data: RepoUpdate,
+    repo_service: RepoService = Depends(get_repo_service),
+):
     return repo_service.update(uuid, data)
 
 
 @router.patch("/update_units_firmware/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def update_units_firmware(uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)):
+def update_units_firmware(
+    uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)
+):
     return repo_service.update_units_firmware(uuid)
 
 

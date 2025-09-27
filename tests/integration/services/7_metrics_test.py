@@ -5,9 +5,10 @@ from app.configs.rest import get_metrics_service
 
 @pytest.mark.run(order=0)
 def test_get_metrics(database) -> None:
-
     current_user = pytest.users[0]
-    unit_metrics_service = get_metrics_service(database, pytest.user_tokens_dict[current_user.uuid])
+    unit_metrics_service = get_metrics_service(
+        database, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     metrics = unit_metrics_service.get_instance_metrics()
 

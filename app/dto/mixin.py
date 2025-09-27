@@ -14,4 +14,4 @@ class ClickHouseBaseMixin:
 
     @classmethod
     def get_keys(cls) -> str:
-        return ', '.join(cls.model_fields.keys())
+        return ", ".join(cls.model_fields.keys())

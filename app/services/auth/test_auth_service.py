@@ -26,7 +26,12 @@ def test_decode_user_token_success(mock_repos):
     user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
     user_repo.get.return_value = user
 
-    agent = AgentUser(uuid=user_uuid, name="test_user", type=AgentType.USER, status=AgentStatus.VERIFIED)
+    agent = AgentUser(
+        uuid=user_uuid,
+        name="test_user",
+        type=AgentType.USER,
+        status=AgentStatus.VERIFIED,
+    )
     token = agent.generate_agent_token()
 
     auth_service = JwtAuthService(user_repo, unit_repo, token)
@@ -44,7 +49,12 @@ def test_decode_expired_token(mock_repos):
     user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
     user_repo.get.return_value = user
 
-    agent = AgentUser(uuid=user_uuid, name="test_user", type=AgentType.USER, status=AgentStatus.VERIFIED)
+    agent = AgentUser(
+        uuid=user_uuid,
+        name="test_user",
+        type=AgentType.USER,
+        status=AgentStatus.VERIFIED,
+    )
     token = agent.generate_agent_token(10000)
 
     with pytest.raises(NoAccessError, match="Token expired"):
@@ -64,7 +74,12 @@ def test_user_not_found(mock_repos):
     user_uuid = uuid_pkg.uuid4()
     user_repo.get.return_value = None
 
-    agent = AgentUser(uuid=user_uuid, name="test_user", type=AgentType.USER, status=AgentStatus.VERIFIED)
+    agent = AgentUser(
+        uuid=user_uuid,
+        name="test_user",
+        type=AgentType.USER,
+        status=AgentStatus.VERIFIED,
+    )
     token = agent.generate_agent_token()
 
     with pytest.raises(NoAccessError, match="User not found"):
@@ -77,7 +92,12 @@ def test_agent_blocked(mock_repos):
     user = User(uuid=user_uuid, login="test_user", status=AgentStatus.BLOCKED)
     user_repo.get.return_value = user
 
-    agent = AgentUser(uuid=user_uuid, name="test_user", type=AgentType.USER, status=AgentStatus.BLOCKED)
+    agent = AgentUser(
+        uuid=user_uuid,
+        name="test_user",
+        type=AgentType.USER,
+        status=AgentStatus.BLOCKED,
+    )
     token = agent.generate_agent_token()
 
     with pytest.raises(NoAccessError, match="Agent is blocked or not found"):
@@ -90,7 +110,12 @@ def test_decode_unit_token_success(mock_repos):
     unit = Unit(uuid=unit_uuid, name="test_unit", status=AgentStatus.VERIFIED)
     unit_repo.get.return_value = unit
 
-    agent = AgentUnit(uuid=unit_uuid, name="test_unit", type=AgentType.UNIT, status=AgentStatus.VERIFIED)
+    agent = AgentUnit(
+        uuid=unit_uuid,
+        name="test_unit",
+        type=AgentType.UNIT,
+        status=AgentStatus.VERIFIED,
+    )
     token = agent.generate_agent_token()
 
     auth_service = JwtAuthService(user_repo, unit_repo, token)
@@ -107,7 +132,12 @@ def test_unit_not_found(mock_repos):
     unit_uuid = uuid_pkg.uuid4()
     unit_repo.get.return_value = None
 
-    agent = AgentUnit(uuid=unit_uuid, name="test_unit", type=AgentType.UNIT, status=AgentStatus.VERIFIED)
+    agent = AgentUnit(
+        uuid=unit_uuid,
+        name="test_unit",
+        type=AgentType.UNIT,
+        status=AgentStatus.VERIFIED,
+    )
     token = agent.generate_agent_token()
 
     with pytest.raises(NoAccessError, match="Unit not found"):
@@ -117,7 +147,11 @@ def test_unit_not_found(mock_repos):
 def test_decode_backend_token_success(mock_repos):
     user_repo, unit_repo = mock_repos
 
-    agent = AgentBackend(name=settings.backend_domain, type=AgentType.BACKEND, status=AgentStatus.VERIFIED)
+    agent = AgentBackend(
+        name=settings.backend_domain,
+        type=AgentType.BACKEND,
+        status=AgentStatus.VERIFIED,
+    )
     token = agent.generate_agent_token()
 
     auth_service = JwtAuthService(user_repo, unit_repo, token)
@@ -132,7 +166,9 @@ def test_unknown_agent_type(mock_repos):
     user_repo, unit_repo = mock_repos
 
     token = jwt.encode(
-        {"uuid": str(uuid_pkg.uuid4()), "type": "UNKNOWN_TYPE"}, settings.backend_secret_key, algorithm="HS256"
+        {"uuid": str(uuid_pkg.uuid4()), "type": "UNKNOWN_TYPE"},
+        settings.backend_secret_key,
+        algorithm="HS256",
     )
 
     with pytest.raises(NoAccessError, match="Invalid agent type"):

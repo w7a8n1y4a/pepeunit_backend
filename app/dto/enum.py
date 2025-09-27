@@ -5,14 +5,14 @@ import strawberry
 
 @strawberry.enum
 class OrderByDate(str, enum.Enum):
-    asc = 'asc'
-    desc = 'desc'
+    asc = "asc"
+    desc = "desc"
 
 
 @strawberry.enum
 class OrderByText(str, enum.Enum):
-    asc = 'asc'
-    desc = 'desc'
+    asc = "asc"
+    desc = "desc"
 
 
 @strawberry.enum
@@ -22,11 +22,11 @@ class VisibilityLevel(str, enum.Enum):
     """
 
     # for all
-    PUBLIC = 'Public'
+    PUBLIC = "Public"
     # for all with auth at current Instance
-    INTERNAL = 'Internal'
+    INTERNAL = "Internal"
     # for all with Permission at current Instance, by default - only for creator and created Unit
-    PRIVATE = 'Private'
+    PRIVATE = "Private"
 
 
 @strawberry.enum
@@ -35,8 +35,8 @@ class UserRole(str, enum.Enum):
     Role User in Pepeunit
     """
 
-    USER = 'User'
-    ADMIN = 'Admin'
+    USER = "User"
+    ADMIN = "Admin"
 
 
 @strawberry.enum
@@ -45,9 +45,9 @@ class UserStatus(str, enum.Enum):
     Status User in Pepeunit
     """
 
-    UNVERIFIED = 'Unverified'
-    VERIFIED = 'Verified'
-    BLOCKED = 'Blocked'
+    UNVERIFIED = "Unverified"
+    VERIFIED = "Verified"
+    BLOCKED = "Blocked"
 
 
 @strawberry.enum
@@ -56,12 +56,12 @@ class AgentType(str, enum.Enum):
     Agent type in the Pepeunit system
     """
 
-    BOT = 'Bot'
-    USER = 'User'
-    UNIT = 'Unit'
-    BACKEND = 'Backend'
-    GRAFANA = 'Grafana'
-    GRAFANA_UNIT_NODE = 'GrafanaUnitNode'
+    BOT = "Bot"
+    USER = "User"
+    UNIT = "Unit"
+    BACKEND = "Backend"
+    GRAFANA = "Grafana"
+    GRAFANA_UNIT_NODE = "GrafanaUnitNode"
 
 
 @strawberry.enum
@@ -70,9 +70,9 @@ class AgentStatus(str, enum.Enum):
     Status User in Pepeunit
     """
 
-    UNVERIFIED = 'Unverified'
-    VERIFIED = 'Verified'
-    BLOCKED = 'Blocked'
+    UNVERIFIED = "Unverified"
+    VERIFIED = "Verified"
+    BLOCKED = "Blocked"
 
 
 @strawberry.enum
@@ -81,9 +81,9 @@ class OwnershipType(str, enum.Enum):
     Ownership rules type
     """
 
-    CREATOR = 'Creator'
-    UNIT = 'Unit'
-    UNIT_TO_INPUT_NODE = 'UnitToInputNode'
+    CREATOR = "Creator"
+    UNIT = "Unit"
+    UNIT_TO_INPUT_NODE = "UnitToInputNode"
 
 
 @strawberry.enum
@@ -92,8 +92,8 @@ class UnitNodeTypeEnum(str, enum.Enum):
     UnitNode types for database
     """
 
-    OUTPUT = 'Output'
-    INPUT = 'Input'
+    OUTPUT = "Output"
+    INPUT = "Input"
 
 
 @strawberry.enum
@@ -102,9 +102,9 @@ class UnitFirmwareUpdateStatus(str, enum.Enum):
     Unit update status
     """
 
-    REQUEST_SENT = 'RequestSent'
-    ERROR = 'Error'
-    SUCCESS = 'Success'
+    REQUEST_SENT = "RequestSent"
+    ERROR = "Error"
+    SUCCESS = "Success"
 
 
 @strawberry.enum
@@ -113,8 +113,8 @@ class ReservedOutputBaseTopic(str, enum.Enum):
     Booked output topics at Unit
     """
 
-    STATE = 'state'
-    LOG = 'log'
+    STATE = "state"
+    LOG = "log"
 
 
 @strawberry.enum
@@ -123,10 +123,10 @@ class BackendTopicCommand(str, enum.Enum):
     Booked input topics at Unit
     """
 
-    UPDATE = 'Update'
-    ENV_UPDATE = 'EnvUpdate'
-    SCHEMA_UPDATE = 'SchemaUpdate'
-    LOG_SYNC = 'LogSync'
+    UPDATE = "Update"
+    ENV_UPDATE = "EnvUpdate"
+    SCHEMA_UPDATE = "SchemaUpdate"
+    LOG_SYNC = "LogSync"
 
 
 @strawberry.enum
@@ -135,10 +135,10 @@ class ReservedInputBaseTopic(str, enum.Enum):
     Booked input topics at Unit
     """
 
-    UPDATE = 'update'
-    ENV_UPDATE = 'env_update'
-    SCHEMA_UPDATE = 'schema_update'
-    LOG_SYNC = 'log_sync'
+    UPDATE = "update"
+    ENV_UPDATE = "env_update"
+    SCHEMA_UPDATE = "schema_update"
+    LOG_SYNC = "log_sync"
 
 
 @strawberry.enum
@@ -147,10 +147,10 @@ class DestinationTopicType(str, enum.Enum):
     Allowed types of mqtt topic destinations
     """
 
-    INPUT_BASE_TOPIC = 'input_base_topic'
-    OUTPUT_BASE_TOPIC = 'output_base_topic'
-    INPUT_TOPIC = 'input_topic'
-    OUTPUT_TOPIC = 'output_topic'
+    INPUT_BASE_TOPIC = "input_base_topic"
+    OUTPUT_BASE_TOPIC = "output_base_topic"
+    INPUT_TOPIC = "input_topic"
+    OUTPUT_TOPIC = "output_topic"
 
 
 @strawberry.enum
@@ -159,7 +159,9 @@ class GlobalPrefixTopic(str, enum.Enum):
     Global topic prefixes
     """
 
-    BACKEND_SUB_PREFIX = '/pepeunit'  # forwards the mqtt message to the Pepeunit instance
+    BACKEND_SUB_PREFIX = (
+        "/pepeunit"  # forwards the mqtt message to the Pepeunit instance
+    )
 
 
 @strawberry.enum
@@ -168,10 +170,10 @@ class StaticRepoFileName(str, enum.Enum):
     Static files
     """
 
-    SCHEMA_EXAMPLE = 'schema_example.json'
-    SCHEMA = 'schema.json'
-    ENV_EXAMPLE = 'env_example.json'
-    ENV = 'env.json'
+    SCHEMA_EXAMPLE = "schema_example.json"
+    SCHEMA = "schema.json"
+    ENV_EXAMPLE = "env_example.json"
+    ENV = "env.json"
 
 
 @strawberry.enum
@@ -180,13 +182,13 @@ class ReservedStateKey(str, enum.Enum):
     Reserved state Unit keys
     """
 
-    IFCONFIG = 'ifconfig'
-    MILLIS = 'millis'
-    MEM_FREE = 'mem_free'
-    MEM_ALLOC = 'mem_alloc'
-    FREQ = 'freq'
-    STATVFS = 'statvfs'
-    COMMIT_VERSION = 'commit_version'
+    IFCONFIG = "ifconfig"
+    MILLIS = "millis"
+    MEM_FREE = "mem_free"
+    MEM_ALLOC = "mem_alloc"
+    FREQ = "freq"
+    STATVFS = "statvfs"
+    COMMIT_VERSION = "commit_version"
 
 
 @strawberry.enum
@@ -195,17 +197,17 @@ class ReservedEnvVariableName(str, enum.Enum):
     Reserved environment variable names in Unit
     """
 
-    PEPEUNIT_URL = 'PEPEUNIT_URL'
-    HTTP_TYPE = 'HTTP_TYPE'
-    PEPEUNIT_APP_PREFIX = 'PEPEUNIT_APP_PREFIX'
-    PEPEUNIT_API_ACTUAL_PREFIX = 'PEPEUNIT_API_ACTUAL_PREFIX'
-    MQTT_URL = 'MQTT_URL'
-    MQTT_PORT = 'MQTT_PORT'
-    PEPEUNIT_TOKEN = 'PEPEUNIT_TOKEN'
-    SYNC_ENCRYPT_KEY = 'SYNC_ENCRYPT_KEY'
-    SECRET_KEY = 'SECRET_KEY'
-    PING_INTERVAL = 'PING_INTERVAL'
-    STATE_SEND_INTERVAL = 'STATE_SEND_INTERVAL'
+    PEPEUNIT_URL = "PEPEUNIT_URL"
+    HTTP_TYPE = "HTTP_TYPE"
+    PEPEUNIT_APP_PREFIX = "PEPEUNIT_APP_PREFIX"
+    PEPEUNIT_API_ACTUAL_PREFIX = "PEPEUNIT_API_ACTUAL_PREFIX"
+    MQTT_URL = "MQTT_URL"
+    MQTT_PORT = "MQTT_PORT"
+    PEPEUNIT_TOKEN = "PEPEUNIT_TOKEN"
+    SYNC_ENCRYPT_KEY = "SYNC_ENCRYPT_KEY"
+    SECRET_KEY = "SECRET_KEY"
+    PING_INTERVAL = "PING_INTERVAL"
+    STATE_SEND_INTERVAL = "STATE_SEND_INTERVAL"
 
 
 @strawberry.enum
@@ -214,14 +216,14 @@ class CommandNames(str, enum.Enum):
     Commands supported by the bot
     """
 
-    START = 'start'
-    HELP = 'help'
-    REGISTRY = 'registry'
-    REPO = 'repo'
-    UNIT = 'unit'
-    INFO = 'info'
-    VERIFICATION = 'verification'
-    DASHBOARD = 'dashboard'
+    START = "start"
+    HELP = "help"
+    REGISTRY = "registry"
+    REPO = "repo"
+    UNIT = "unit"
+    INFO = "info"
+    VERIFICATION = "verification"
+    DASHBOARD = "dashboard"
 
 
 @strawberry.enum
@@ -230,12 +232,12 @@ class EntityNames(str, enum.Enum):
     Commands supported by the bot
     """
 
-    REGISTRY = 'Registry'
-    REPO = 'Repo'
-    UNIT = 'Unit'
-    UNIT_NODE = 'UnitNode'
-    UNIT_LOG = 'UnitLog'
-    DASHBOARD = 'Dashboard'
+    REGISTRY = "Registry"
+    REPO = "Repo"
+    UNIT = "Unit"
+    UNIT_NODE = "UnitNode"
+    UNIT_LOG = "UnitLog"
+    DASHBOARD = "Dashboard"
 
 
 @strawberry.enum
@@ -244,12 +246,12 @@ class DecreesNames(str, enum.Enum):
     Commands supported by the bot
     """
 
-    RELATED_UNIT = 'RelatedUnit'
-    LOCAL_UPDATE = 'LocalUpdate'
-    GET_ENV = 'GetEnv'
-    TAR = 'Tar'
-    TGZ = 'Tgz'
-    ZIP = 'Zip'
+    RELATED_UNIT = "RelatedUnit"
+    LOCAL_UPDATE = "LocalUpdate"
+    GET_ENV = "GetEnv"
+    TAR = "Tar"
+    TGZ = "Tgz"
+    ZIP = "Zip"
 
 
 @strawberry.enum
@@ -258,10 +260,10 @@ class PermissionEntities(str, enum.Enum):
     Types of entities to which accesses are assigned
     """
 
-    USER = 'User'
-    UNIT = 'Unit'
-    REPO = 'Repo'
-    UNIT_NODE = 'UnitNode'
+    USER = "User"
+    UNIT = "Unit"
+    REPO = "Repo"
+    UNIT_NODE = "UnitNode"
 
 
 @strawberry.enum
@@ -270,8 +272,8 @@ class GitPlatform(str, enum.Enum):
     Types git platforms
     """
 
-    GITLAB = 'Gitlab'
-    GITHUB = 'Github'
+    GITLAB = "Gitlab"
+    GITHUB = "Github"
 
 
 @strawberry.enum
@@ -280,11 +282,11 @@ class LogLevel(str, enum.Enum):
     Types of log levels
     """
 
-    DEBUG = 'Debug'
-    INFO = 'Info'
-    WARNING = 'Warning'
-    ERROR = 'Error'
-    CRITICAL = 'Critical'
+    DEBUG = "Debug"
+    INFO = "Info"
+    WARNING = "Warning"
+    ERROR = "Error"
+    CRITICAL = "Critical"
 
 
 @strawberry.enum
@@ -293,9 +295,9 @@ class DataPipeStatus(str, enum.Enum):
     Types of state data pipeline
     """
 
-    ACTIVE = 'Active'
-    INACTIVE = 'Inactive'
-    ERROR = 'Error'
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+    ERROR = "Error"
 
 
 @strawberry.enum
@@ -304,10 +306,10 @@ class DataPipeStage(str, enum.Enum):
     Stages data pipeline
     """
 
-    ACTIVE_PERIOD = 'ActivePeriod'
-    FILTERS = 'Filters'
-    TRANSFORMATIONS = 'Transformations'
-    PROCESSING_POLICY = 'ProcessingPolicy'
+    ACTIVE_PERIOD = "ActivePeriod"
+    FILTERS = "Filters"
+    TRANSFORMATIONS = "Transformations"
+    PROCESSING_POLICY = "ProcessingPolicy"
 
 
 @strawberry.enum
@@ -364,9 +366,9 @@ class RepositoryRegistryStatus(str, enum.Enum):
     Types of state RepositoryRegistry
     """
 
-    UPDATED = 'Updated'
-    PROCESSING = 'Processing'
-    ERROR = 'Error'
+    UPDATED = "Updated"
+    PROCESSING = "Processing"
+    ERROR = "Error"
 
 
 @strawberry.enum
@@ -375,9 +377,9 @@ class CredentialStatus(str, enum.Enum):
     Types of state CredentialStatus
     """
 
-    VALID = 'Valid'
-    NOT_VERIFIED = 'NotVerified'
-    ERROR = 'Error'
+    VALID = "Valid"
+    NOT_VERIFIED = "NotVerified"
+    ERROR = "Error"
 
 
 @strawberry.enum
@@ -386,8 +388,8 @@ class RepositoryRegistryType(str, enum.Enum):
     Types of log levels
     """
 
-    PRIVATE = 'Private'
-    PUBLIC = 'Public'
+    PRIVATE = "Private"
+    PUBLIC = "Public"
 
 
 @strawberry.enum
@@ -396,9 +398,9 @@ class GrafanaUserRole(str, enum.Enum):
     Role User for Grafana
     """
 
-    VIEWER = 'Viewer'
-    EDITOR = 'Editor'
-    ADMIN = 'Admin'
+    VIEWER = "Viewer"
+    EDITOR = "Editor"
+    ADMIN = "Admin"
 
 
 @strawberry.enum
@@ -407,7 +409,7 @@ class CookieName(str, enum.Enum):
     All Cookies names
     """
 
-    PEPEUNIT_GRAFANA = 'PepeunitGrafana'
+    PEPEUNIT_GRAFANA = "PepeunitGrafana"
 
 
 @strawberry.enum
@@ -417,57 +419,57 @@ class DashboardPanelTypeEnum(str, enum.Enum):
     """
 
     # Обычный график
-    TIME_SERIES = 'timeseries'
+    TIME_SERIES = "timeseries"
     # Колончатый график
-    BAR_CHART = 'barchart'
+    BAR_CHART = "barchart"
     # График без лимбов и значение
-    STAT = 'stat'
+    STAT = "stat"
     # Спидометр, есть минимум и максимум, вычисляется автоматом из выборки
-    GAUGE = 'gauge'
+    GAUGE = "gauge"
     # Как gauge, но полоской
-    BAR_GAUGE = 'bargauge'
+    BAR_GAUGE = "bargauge"
     # Таблица
-    TABLE = 'table'
+    TABLE = "table"
     # Сегментный Бублик
-    PIE_CHART = 'piechart'
+    PIE_CHART = "piechart"
     # Категоризирующий, как heatmap, но позволяет установить пороговое значение
-    STATE_TIMELINE = 'state-timeline'
+    STATE_TIMELINE = "state-timeline"
     # Обычный heatmap, источник данных на все данные
-    HEATMAP = 'heatmap'
+    HEATMAP = "heatmap"
     # Похож на state-timeline, но отличается как минимум объединением дат
-    STATUS_HISTORY = 'status-history'
+    STATUS_HISTORY = "status-history"
     # Смотреть распределения в выборках
-    HISTOGRAM = 'histogram'
+    HISTOGRAM = "histogram"
     # Текст в формате md
-    TEXT = 'text'
+    TEXT = "text"
     # Список алертов
-    ALERT_LIST = 'alertlist'
+    ALERT_LIST = "alertlist"
     # Позволяет делать набор ссылок на существующие борды
-    DASHBOARD_LIST = 'dashlist'
+    DASHBOARD_LIST = "dashlist"
     # Новости в формате rss
-    NEWS = 'news'
+    NEWS = "news"
     # Список с возможностью фильтрации
-    ANNOTATION_LIST = 'annolist'
+    ANNOTATION_LIST = "annolist"
     # Биржевой график
-    CANDLESTICK = 'candlestick'
+    CANDLESTICK = "candlestick"
     # Полотно для рисования
-    CANVAS = 'canvas'
+    CANVAS = "canvas"
     # Хорошо отображает структуры на подобии папок
-    FLAME_GRAPH = 'flamegraph'
+    FLAME_GRAPH = "flamegraph"
     # Мировая карта
-    GEOMAP = 'geomap'
+    GEOMAP = "geomap"
     # Логи
-    LOGS = 'logs'
+    LOGS = "logs"
     # Нормальный heatmap, 24 часа на дни
-    HOURLY_HEATMAP = 'marcusolsson-hourly-heatmap-panel'
+    HOURLY_HEATMAP = "marcusolsson-hourly-heatmap-panel"
     # Графы
-    NODE_GRAPH = 'nodeGraph'
+    NODE_GRAPH = "nodeGraph"
     # Как время выполнение запросов в консоли браузера
-    TRACES = 'traces'
+    TRACES = "traces"
     # Как timeseries, но вместо времени - числа
-    TREND = 'trend'
+    TREND = "trend"
     # Точечный график
-    XY_CHART = 'xychart'
+    XY_CHART = "xychart"
 
 
 @strawberry.enum
@@ -476,6 +478,6 @@ class DashboardStatus(str, enum.Enum):
     Types of state Dashboard sync
     """
 
-    SUCCESS = 'Success'
-    PROCESSING = 'Processing'
-    ERROR = 'Error'
+    SUCCESS = "Success"
+    PROCESSING = "Processing"
+    ERROR = "Error"

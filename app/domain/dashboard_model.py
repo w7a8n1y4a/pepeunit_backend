@@ -11,9 +11,11 @@ class Dashboard(SQLModel, table=True):
     Отвечающая за взаимодействие с grafana, содержит в себе панели
     """
 
-    __tablename__ = 'dashboards'
+    __tablename__ = "dashboards"
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
+    uuid: uuid_pkg.UUID = Field(
+        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+    )
 
     # uuid in grafana
     grafana_uuid: uuid_pkg.UUID = Field(nullable=False, default_factory=uuid_pkg.uuid4)
@@ -36,5 +38,7 @@ class Dashboard(SQLModel, table=True):
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+        sa_column=Column(
+            UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
+        )
     )

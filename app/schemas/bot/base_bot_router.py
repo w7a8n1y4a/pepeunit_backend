@@ -9,7 +9,13 @@ from fastapi import Query
 from pydantic import BaseModel, field_validator
 
 from app import settings
-from app.dto.enum import EntityNames, LogLevel, RepositoryRegistryType, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import (
+    EntityNames,
+    LogLevel,
+    RepositoryRegistryType,
+    UnitNodeTypeEnum,
+    VisibilityLevel,
+)
 
 
 class DashboardStates(StatesGroup):
@@ -44,7 +50,7 @@ class BaseBotFilters(BaseModel):
     repo_uuid: Optional[str] = None
     unit_uuid: Optional[str] = None
 
-    @field_validator('previous_filters')
+    @field_validator("previous_filters")
     def validate_previous_filters(cls, v):
         if v is not None and v.previous_filters is not None:
             v.previous_filters = None
@@ -62,7 +68,11 @@ class BaseBotRouter(ABC):
         self._register_default_handlers()
 
     @abstractmethod
-    async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
+    async def show_entities(
+        self,
+        message: Union[types.Message, types.CallbackQuery],
+        filters: BaseBotFilters,
+    ):
         pass
 
     @abstractmethod
@@ -76,7 +86,9 @@ class BaseBotRouter(ABC):
         pass
 
     @abstractmethod
-    async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
+    async def handle_entity_click(
+        self, callback: types.CallbackQuery, state: FSMContext
+    ) -> None:
         pass
 
     @abstractmethod
@@ -86,7 +98,9 @@ class BaseBotRouter(ABC):
     async def handle_back(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
         filters: BaseBotFilters = (
-            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+            BaseBotFilters(**data.get("current_filters"))
+            if data.get("current_filters")
+            else BaseBotFilters()
         )
 
         if filters.previous_filters:
@@ -97,25 +111,47 @@ class BaseBotRouter(ABC):
 
     def _register_default_handlers(self):
         self.router.callback_query(F.data == "noop")(self.handle_noop)
-        self.router.callback_query(F.data.in_([f"{self.entity_name}_prev_page", f"{self.entity_name}_next_page"]))(
-            self.handle_pagination
+        self.router.callback_query(
+            F.data.in_(
+                [f"{self.entity_name}_prev_page", f"{self.entity_name}_next_page"]
+            )
+        )(self.handle_pagination)
+        self.router.callback_query(F.data == f"{self.entity_name}_back")(
+            self.handle_back
         )
-        self.router.callback_query(F.data == f"{self.entity_name}_back")(self.handle_back)
-        self.router.callback_query(F.data == f"{self.entity_name}_search")(self.handle_search)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(self.toggle_filter)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(self.handle_entity_click)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_decres_"))(self.handle_entity_decrees)
-        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates, DashboardStates):
-            self.router.message(self.states_group.waiting_for_search)(self.process_search)
+        self.router.callback_query(F.data == f"{self.entity_name}_search")(
+            self.handle_search
+        )
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_toggle_"))(
+            self.toggle_filter
+        )
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_uuid_"))(
+            self.handle_entity_click
+        )
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_decres_"))(
+            self.handle_entity_decrees
+        )
+        if self.states_group in (
+            RepositoryRegistryStates,
+            RepoStates,
+            UnitStates,
+            UnitNodeStates,
+            DashboardStates,
+        ):
+            self.router.message(self.states_group.waiting_for_search)(
+                self.process_search
+            )
 
     @staticmethod
     async def handle_noop(callback: types.CallbackQuery):
-        await callback.answer(parse_mode='Markdown')
+        await callback.answer(parse_mode="Markdown")
 
     async def handle_pagination(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
         filters: BaseBotFilters = (
-            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+            BaseBotFilters(**data.get("current_filters"))
+            if data.get("current_filters")
+            else BaseBotFilters()
         )
 
         if callback.data == f"{self.entity_name}_prev_page" and filters.page > 1:
@@ -128,25 +164,38 @@ class BaseBotRouter(ABC):
         await self.show_entities(callback, filters)
 
     async def handle_search(self, callback: types.CallbackQuery, state: FSMContext):
-
-        if self.states_group in (RepositoryRegistryStates, RepoStates, UnitStates, UnitNodeStates, DashboardStates):
-            await callback.message.edit_text("Please enter search query:", parse_mode='Markdown')
+        if self.states_group in (
+            RepositoryRegistryStates,
+            RepoStates,
+            UnitStates,
+            UnitNodeStates,
+            DashboardStates,
+        ):
+            await callback.message.edit_text(
+                "Please enter search query:", parse_mode="Markdown"
+            )
             await state.set_state(self.states_group.waiting_for_search)
         else:
-            await callback.message.edit_text("Command not available for this entity", parse_mode='Markdown')
+            await callback.message.edit_text(
+                "Command not available for this entity", parse_mode="Markdown"
+            )
 
     async def toggle_filter(self, callback: types.CallbackQuery, state: FSMContext):
         data = await state.get_data()
         filters: BaseBotFilters = (
-            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+            BaseBotFilters(**data.get("current_filters"))
+            if data.get("current_filters")
+            else BaseBotFilters()
         )
 
-        entity, *_, target = callback.data.split('_')
+        entity, *_, target = callback.data.split("_")
 
-        if target == 'mine':
+        if target == "mine":
             filters.is_only_my_entity = not filters.is_only_my_entity
         else:
-            if entity != EntityNames.REGISTRY and target in [item.value for item in VisibilityLevel]:
+            if entity != EntityNames.REGISTRY and target in [
+                item.value for item in VisibilityLevel
+            ]:
                 if target in filters.visibility_levels:
                     filters.visibility_levels.remove(target)
                 else:
@@ -176,14 +225,20 @@ class BaseBotRouter(ABC):
     async def process_search(self, message: types.Message, state: FSMContext):
         data = await state.get_data()
         current_filters = (
-            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+            BaseBotFilters(**data.get("current_filters"))
+            if data.get("current_filters")
+            else BaseBotFilters()
         )
         if self.entity_name == EntityNames.UNIT_NODE:
             filters = BaseBotFilters(
-                search_string=message.text, unit_uuid=current_filters.unit_uuid, previous_filters=current_filters
+                search_string=message.text,
+                unit_uuid=current_filters.unit_uuid,
+                previous_filters=current_filters,
             )
         else:
-            filters = BaseBotFilters(search_string=message.text, previous_filters=current_filters)
+            filters = BaseBotFilters(
+                search_string=message.text, previous_filters=current_filters
+            )
         await state.update_data(current_filters=filters)
         await state.set_state(None)
         await self.show_entities(message, filters)
@@ -198,14 +253,22 @@ class BaseBotRouter(ABC):
 
     @staticmethod
     def registry_url_small(data: str) -> str:
-        return data.replace('https://' if data.find('https://') == 0 else 'http://', '')[:-4]
+        return data.replace(
+            "https://" if data.find("https://") == 0 else "http://", ""
+        )[:-4]
 
     @staticmethod
     def registry_type_to_bool(data: list[RepositoryRegistryType]) -> bool | None:
         result = None
-        if RepositoryRegistryType.PUBLIC in data and RepositoryRegistryType.PRIVATE not in data:
+        if (
+            RepositoryRegistryType.PUBLIC in data
+            and RepositoryRegistryType.PRIVATE not in data
+        ):
             result = True
-        if RepositoryRegistryType.PRIVATE in data and RepositoryRegistryType.PUBLIC not in data:
+        if (
+            RepositoryRegistryType.PRIVATE in data
+            and RepositoryRegistryType.PUBLIC not in data
+        ):
             result = False
         return result
 
@@ -220,8 +283,7 @@ class BaseBotRouter(ABC):
         keyboard: InlineKeyboardMarkup = None,
         is_editable: bool = True,
     ):
-
-        params = {'text': text, 'reply_markup': keyboard, 'parse_mode': 'Markdown'}
+        params = {"text": text, "reply_markup": keyboard, "parse_mode": "Markdown"}
 
         if isinstance(message, types.Message):
             await message.answer(**params)

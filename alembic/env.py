@@ -31,16 +31,6 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
-from app.domain.dashboard_model import Dashboard
-from app.domain.dashboard_panel_model import DashboardPanel
-from app.domain.panels_unit_nodes_model import PanelsUnitNodes
-from app.domain.permission_model import Permission
-from app.domain.repo_model import Repo
-from app.domain.repository_registry_model import RepositoryRegistry
-from app.domain.unit_model import Unit
-from app.domain.unit_node_edge_model import UnitNodeEdge
-from app.domain.unit_node_model import UnitNode
-from app.domain.user_model import User
 
 target_metadata = SQLModel.metadata
 

@@ -9,7 +9,11 @@ from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_node_model import UnitNode
 from app.repositories.base_repository import BaseRepository
-from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
+from app.repositories.utils import (
+    apply_ilike_search_string,
+    apply_offset_and_limit,
+    apply_orders_by,
+)
 from app.schemas.pydantic.grafana import DashboardPanelFilter
 from app.services.validators import is_valid_uuid
 
@@ -22,13 +26,15 @@ class DashboardPanelRepository(BaseRepository):
         query = self.db.query(DashboardPanel)
 
         if filters.dashboard_uuid:
-            query = query.filter(DashboardPanel.dashboard_uuid == is_valid_uuid(filters.dashboard_uuid))
+            query = query.filter(
+                DashboardPanel.dashboard_uuid == is_valid_uuid(filters.dashboard_uuid)
+            )
 
         fields = [DashboardPanel.title]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {
-            'order_by_create_date': DashboardPanel.create_datetime,
+            "order_by_create_date": DashboardPanel.create_datetime,
         }
         query = apply_orders_by(query, filters, fields)
 
@@ -36,9 +42,15 @@ class DashboardPanelRepository(BaseRepository):
         return count, query.all()
 
     def get_count_unit_for_panel(self, uuid: uuid_pkg.UUID) -> int:
-        return self.db.query(PanelsUnitNodes).filter(PanelsUnitNodes.dashboard_panels_uuid == uuid).count()
+        return (
+            self.db.query(PanelsUnitNodes)
+            .filter(PanelsUnitNodes.dashboard_panels_uuid == uuid)
+            .count()
+        )
 
-    def check_unique_unit_node_for_panel(self, dashboard_panel: Dashboard, unit_node: UnitNode) -> int:
+    def check_unique_unit_node_for_panel(
+        self, dashboard_panel: Dashboard, unit_node: UnitNode
+    ) -> int:
         return (
             self.db.query(PanelsUnitNodes)
             .filter(

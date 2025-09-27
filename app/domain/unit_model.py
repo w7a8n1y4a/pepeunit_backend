@@ -15,9 +15,11 @@ class Unit(SQLModel, table=True):
     Представление физического устройства
     """
 
-    __tablename__ = 'units'
+    __tablename__ = "units"
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
+    uuid: uuid_pkg.UUID = Field(
+        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+    )
 
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
 
@@ -58,10 +60,16 @@ class Unit(SQLModel, table=True):
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+        sa_column=Column(
+            UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
+        )
     )
     # to Repo link
-    repo_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('repos.uuid', ondelete='CASCADE')))
+    repo_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(
+            UUID(as_uuid=True), ForeignKey("repos.uuid", ondelete="CASCADE")
+        )
+    )
 
     @property
     def unit_state(self) -> Optional[dict]:

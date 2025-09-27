@@ -1,4 +1,3 @@
-import json
 import uuid
 import uuid as uuid_pkg
 from typing import Annotated, Union
@@ -14,7 +13,9 @@ from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
 
 def token_depends(
-    jwt_token: Annotated[str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))] = None
+    jwt_token: Annotated[
+        str | None, Depends(APIKeyHeader(name="x-auth-token", auto_error=False))
+    ] = None,
 ):
     return jwt_token
 
@@ -28,18 +29,18 @@ def remove_none_value_dict(data: dict) -> dict:
 
 
 def get_topic_name(node_uuid: uuid_pkg.UUID, topic_name: str):
-    main_topic = f'{settings.backend_domain}/{node_uuid}'
+    main_topic = f"{settings.backend_domain}/{node_uuid}"
     main_topic += (
         GlobalPrefixTopic.BACKEND_SUB_PREFIX
-        if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :] == GlobalPrefixTopic.BACKEND_SUB_PREFIX
-        else ''
+        if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :]
+        == GlobalPrefixTopic.BACKEND_SUB_PREFIX
+        else ""
     )
 
     return main_topic
 
 
 def get_visibility_level_priority(visibility_level: VisibilityLevel) -> int:
-
     priority_dict = {
         VisibilityLevel.PUBLIC: 0,
         VisibilityLevel.INTERNAL: 1,
@@ -50,21 +51,23 @@ def get_visibility_level_priority(visibility_level: VisibilityLevel) -> int:
 
 
 async def yml_file_to_dict(yml_file: Union[Upload, UploadFile]) -> dict:
-    content = ''
+    content = ""
     if isinstance(yml_file, StarletteUploadFile):
         content = await yml_file.read()
 
     if isinstance(content, bytes):
-        content = content.decode('utf-8')
+        content = content.decode("utf-8")
 
     return yaml.safe_load(content)
 
 
 def dict_to_yml_file(yml_dict: dict) -> str:
-    yaml_content = yaml.safe_dump(yml_dict, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    yaml_content = yaml.safe_dump(
+        yml_dict, allow_unicode=True, default_flow_style=False, sort_keys=False
+    )
 
-    filename = f'tmp/data_pipe_yml_{uuid.uuid4()}'
-    with open(filename, 'w', encoding='utf-8') as f:
+    filename = f"tmp/data_pipe_yml_{uuid.uuid4()}"
+    with open(filename, "w", encoding="utf-8") as f:
         f.write(yaml_content)
 
     return filename

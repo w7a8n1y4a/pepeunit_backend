@@ -7,7 +7,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 from app.dto.enum import CredentialStatus
-from app.schemas.pydantic.repository_registry import Credentials, OneRepositoryRegistryCredentials
+from app.schemas.pydantic.repository_registry import (
+    Credentials,
+    OneRepositoryRegistryCredentials,
+)
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
@@ -15,9 +18,11 @@ from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 class RepositoryRegistry(SQLModel, table=True):
     """Реестр Репозиториев"""
 
-    __tablename__ = 'repository_registry'
+    __tablename__ = "repository_registry"
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
+    uuid: uuid_pkg.UUID = Field(
+        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+    )
 
     # type of remote hosting
     platform: str = Field(nullable=False)
@@ -45,10 +50,16 @@ class RepositoryRegistry(SQLModel, table=True):
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='SET NULL'), nullable=True)
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.uuid", ondelete="SET NULL"),
+            nullable=True,
+        )
     )
 
-    def set_credentials(self, creator_uuid: uuid_pkg.UUID, data: OneRepositoryRegistryCredentials) -> None:
+    def set_credentials(
+        self, creator_uuid: uuid_pkg.UUID, data: OneRepositoryRegistryCredentials
+    ) -> None:
         all_repository_credentials = self.get_credentials()
 
         if not all_repository_credentials:
@@ -57,7 +68,9 @@ class RepositoryRegistry(SQLModel, table=True):
         all_repository_credentials[str(creator_uuid)] = data
 
         self.cipher_credentials_private_repository = aes_gcm_encode(
-            json.dumps({key: value.dict() for key, value in all_repository_credentials.items()})
+            json.dumps(
+                {key: value.dict() for key, value in all_repository_credentials.items()}
+            )
         )
 
     def get_credentials(self) -> dict[str, OneRepositoryRegistryCredentials] | None:
@@ -66,14 +79,16 @@ class RepositoryRegistry(SQLModel, table=True):
                 creator_uuid: OneRepositoryRegistryCredentials(**credentials)
                 for creator_uuid, credentials in is_valid_json(
                     aes_gcm_decode(self.cipher_credentials_private_repository),
-                    'Cipher credentials private repository',
+                    "Cipher credentials private repository",
                 ).items()
             }
         else:
             return None
 
     @staticmethod
-    def get_first_valid_credentials(data: dict[str, OneRepositoryRegistryCredentials]) -> Credentials | None:
+    def get_first_valid_credentials(
+        data: dict[str, OneRepositoryRegistryCredentials],
+    ) -> Credentials | None:
         for creator_uuid, credentials in data.items():
             if credentials.status == CredentialStatus.VALID:
                 return credentials.credentials

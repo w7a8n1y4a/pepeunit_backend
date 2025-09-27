@@ -4,7 +4,7 @@ from app import settings
 
 
 class MetricsUser(HttpUser):
-    host = f'{settings.backend_http_type}://{settings.backend_domain}'
+    host = f"{settings.backend_http_type}://{settings.backend_domain}"
     wait_time = between(1, 1)
 
     @task
@@ -13,7 +13,7 @@ class MetricsUser(HttpUser):
 
 
 class MetricsGQLUser(HttpUser):
-    host = f'{settings.backend_http_type}://{settings.backend_domain}'
+    host = f"{settings.backend_http_type}://{settings.backend_domain}"
     wait_time = between(1, 1)
 
     @task
@@ -32,11 +32,13 @@ class MetricsGQLUser(HttpUser):
             }
             """
         }
-        self.client.post(f"{self.host}/pepeunit/graphql", json=graphql_query, headers=headers)
+        self.client.post(
+            f"{self.host}/pepeunit/graphql", json=graphql_query, headers=headers
+        )
 
 
 class RootUser(HttpUser):
-    host = f'{settings.backend_http_type}://{settings.backend_domain}'
+    host = f"{settings.backend_http_type}://{settings.backend_domain}"
     wait_time = between(1, 1)
 
     @task

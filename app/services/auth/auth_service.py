@@ -7,21 +7,27 @@ from app import settings
 from app.configs.errors import NoAccessError
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.dto.agent.abc import Agent, AgentBackend, AgentBot, AgentGrafana, AgentGrafanaUnitNode, AgentUnit, AgentUser
+from app.dto.agent.abc import (
+    Agent,
+    AgentBackend,
+    AgentBot,
+    AgentGrafana,
+    AgentGrafanaUnitNode,
+    AgentUnit,
+    AgentUser,
+)
 from app.dto.enum import AgentStatus, AgentType
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 
 
 class AuthService(ABC):
-
     @abstractmethod
     def get_current_agent(self) -> Agent:
         pass
 
 
 class JwtAuthService(AuthService):
-
     def __init__(
         self,
         user_repo: UserRepository,
@@ -40,7 +46,9 @@ class JwtAuthService(AuthService):
         if not self.jwt_token:
             return AgentBot
         try:
-            data = jwt.decode(self.jwt_token, settings.backend_secret_key, algorithms=['HS256'])
+            data = jwt.decode(
+                self.jwt_token, settings.backend_secret_key, algorithms=["HS256"]
+            )
         except jwt.ExpiredSignatureError:
             raise NoAccessError("Token expired")
         except jwt.InvalidTokenError:
@@ -64,13 +72,15 @@ class JwtAuthService(AuthService):
                 raise NoAccessError("Unit not found")
 
         elif data.get("type") == AgentType.BACKEND:
-            agent = AgentBackend(name=data['domain'], status=AgentStatus.VERIFIED)
+            agent = AgentBackend(name=data["domain"], status=AgentStatus.VERIFIED)
 
         elif data.get("type") == AgentType.GRAFANA:
-            agent = AgentGrafana(uuid=data['uuid'], name='grafana')
+            agent = AgentGrafana(uuid=data["uuid"], name="grafana")
 
         elif data.get("type") == AgentType.GRAFANA_UNIT_NODE:
-            agent = AgentGrafanaUnitNode(uuid=data['uuid'], name='grafana', panel_uuid=data['panel_uuid'])
+            agent = AgentGrafanaUnitNode(
+                uuid=data["uuid"], name="grafana", panel_uuid=data["panel_uuid"]
+            )
 
         else:
             raise NoAccessError("Invalid agent type")
@@ -85,7 +95,6 @@ class JwtAuthService(AuthService):
 
 
 class TgBotAuthService(AuthService):
-
     def __init__(
         self,
         user_repo: UserRepository,
@@ -101,7 +110,6 @@ class TgBotAuthService(AuthService):
             self.current_agent = AgentBot()
 
     def _get_agent_by_chat_id(self):
-
         user = self.user_repo.get_user_by_credentials(self.telegram_chat_id)
 
         if user:
@@ -120,7 +128,11 @@ class TgBotAuthService(AuthService):
 
 class AuthServiceFactory:
     def __init__(
-        self, unit_repo: UnitRepository, user_repo: UserRepository, jwt_token: str, is_bot_auth: bool = False
+        self,
+        unit_repo: UnitRepository,
+        user_repo: UserRepository,
+        jwt_token: str,
+        is_bot_auth: bool = False,
     ) -> None:
         self.user_repository = user_repo
         self.unit_repository = unit_repo
@@ -129,6 +141,10 @@ class AuthServiceFactory:
 
     def create(self) -> AuthService:
         if self.is_bot_auth:
-            return TgBotAuthService(self.user_repository, self.unit_repository, self.jwt_token)
+            return TgBotAuthService(
+                self.user_repository, self.unit_repository, self.jwt_token
+            )
         else:
-            return JwtAuthService(self.user_repository, self.unit_repository, self.jwt_token)
+            return JwtAuthService(
+                self.user_repository, self.unit_repository, self.jwt_token
+            )

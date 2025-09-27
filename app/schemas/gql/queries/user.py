@@ -23,7 +23,7 @@ def get_token(data: UserAuthInput, info: Info) -> str:
 
     user_token = user_service.get_token(data)
 
-    info.context['jwt_token'] = user_token
+    info.context["jwt_token"] = user_token
     authorized_user_service = get_user_service_gql(info)
 
     response: Response = info.context["response"]
@@ -48,4 +48,6 @@ async def get_verification_user(info: Info) -> str:
 def get_users(filters: UserFilterInput, info: Info) -> UsersResultType:
     user_service = get_user_service_gql(info)
     count, users = user_service.list(filters)
-    return UsersResultType(count=count, users=[UserType(**user.dict()) for user in users])
+    return UsersResultType(
+        count=count, users=[UserType(**user.dict()) for user in users]
+    )

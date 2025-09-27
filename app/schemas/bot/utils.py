@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import List, Optional
 
 
-def make_monospace_table_with_title(data: List[List], title: str = None, lengths: Optional[List] = None) -> str:
+def make_monospace_table_with_title(
+    data: List[List], title: str = None, lengths: Optional[List] = None
+) -> str:
     if not data:
         return ""
 
@@ -12,7 +14,9 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
     else:
         lengths = lengths[:num_columns] + [None] * (num_columns - len(lengths))
 
-    str_data = [[str(item) if item is not None else "-" for item in row] for row in data]
+    str_data = [
+        [str(item) if item is not None else "-" for item in row] for row in data
+    ]
 
     def wrap_text(text: str, max_len: Optional[int]) -> List[str]:
         if max_len is None:
@@ -24,14 +28,14 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
         current_line = []
         current_length = 0
 
-        for word in text.split(' '):
+        for word in text.split(" "):
             word_length = len(word)
             if current_length + word_length <= max_len:
                 current_line.append(word)
                 current_length += word_length + 1
             else:
                 if current_line:
-                    lines.append(' '.join(current_line))
+                    lines.append(" ".join(current_line))
                 if word_length > max_len:
                     for i in range(0, len(word), max_len):
                         lines.append(word[i : i + max_len])
@@ -42,7 +46,7 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
                     current_length = word_length + 1
 
         if current_line:
-            lines.append(' '.join(current_line))
+            lines.append(" ".join(current_line))
 
         return lines
 
@@ -64,30 +68,32 @@ def make_monospace_table_with_title(data: List[List], title: str = None, lengths
             column_width = actual_max
         column_widths.append(column_width)
 
-    horizontal_line = '+' + '+'.join('-' * (width + 2) for width in column_widths) + '+\n'
+    horizontal_line = (
+        "+" + "+".join("-" * (width + 2) for width in column_widths) + "+\n"
+    )
 
     result = [horizontal_line]
 
     if title:
         total_width = sum(column_widths) + 3 * len(column_widths) - 1
-        title_line = '|' + title.center(total_width) + '|\n'
+        title_line = "|" + title.center(total_width) + "|\n"
         result.append(title_line)
         result.append(horizontal_line)
 
     for row, max_lines in zip(wrapped_data, max_lines_per_row):
         for line_idx in range(max_lines):
-            row_line = '|'
+            row_line = "|"
             for cell, width in zip(row, column_widths):
                 if line_idx < len(cell):
                     line = cell[line_idx][:width]
-                    row_line += f' {line.ljust(width)} |'
+                    row_line += f" {line.ljust(width)} |"
                 else:
-                    row_line += f' {"".ljust(width)} |'
-            row_line += '\n'
+                    row_line += f" {''.ljust(width)} |"
+            row_line += "\n"
             result.append(row_line)
         result.append(horizontal_line)
 
-    return ''.join(result)
+    return "".join(result)
 
 
 def byte_converter(size_in_bytes: float) -> str:
@@ -103,7 +109,6 @@ def byte_converter(size_in_bytes: float) -> str:
 
 
 def format_millis(time: int | float) -> str:
-
     if isinstance(time, float):
         time = int(time)
 

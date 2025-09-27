@@ -16,7 +16,6 @@ class UnitNodeEdgeRepository(BaseRepository):
         super().__init__(UnitNodeEdge, db)
 
     def get_by_nodes(self, unit_nodes: list[UnitNode]) -> list[UnitNodeEdge]:
-
         uuids = [unit_node.uuid for unit_node in unit_nodes]
 
         return (

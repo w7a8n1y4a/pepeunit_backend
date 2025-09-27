@@ -39,7 +39,9 @@ def set_state_storage(info: Info, uuid: uuid_pkg.UUID, state: str) -> NoneType:
 
 
 @strawberry.mutation()
-def send_command_to_input_base_topic(info: Info, uuid: uuid_pkg.UUID, command: BackendTopicCommand) -> NoneType:
+def send_command_to_input_base_topic(
+    info: Info, uuid: uuid_pkg.UUID, command: BackendTopicCommand
+) -> NoneType:
     unit_service = get_unit_service_gql(info)
     unit_service.unit_node_service.command_to_input_base_topic(uuid, command)
     return NoneType()

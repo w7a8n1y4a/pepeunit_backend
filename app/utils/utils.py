@@ -29,7 +29,7 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
         raise CipherError(
-            'The encryption content is {} long, although only <= {} is allowed'.format(
+            "The encryption content is {} long, although only <= {} is allowed".format(
                 len_content, settings.backend_max_cipher_length
             )
         )
@@ -40,7 +40,7 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     # set encrypter
     encrypter = pyaes.Encrypter(pyaes.AESModeOfOperationCBC(key, iv))
     # encrypted binary to base64 str
-    cipher = base64.b64encode(encrypter.feed(data) + encrypter.feed()).decode('utf-8')
+    cipher = base64.b64encode(encrypter.feed(data) + encrypter.feed()).decode("utf-8")
 
     return f"{base64.b64encode(iv).decode('utf-8')}.{cipher}"
 
@@ -52,14 +52,14 @@ def aes_decode(data: str, key: str = settings.backend_encrypt_key) -> str:
     return: decode python str
     """
     key = base64.b64decode(key.encode())
-    iv = base64.b64decode(data.split('.')[0].encode())
+    iv = base64.b64decode(data.split(".")[0].encode())
 
     # set decrypter
     decrypter = pyaes.Decrypter(pyaes.AESModeOfOperationCBC(key, iv))
     # data (iv).(encrypted text) to binary encrypted text
-    cipher = base64.b64decode(data.split('.')[1].encode())
+    cipher = base64.b64decode(data.split(".")[1].encode())
 
-    return (decrypter.feed(cipher) + decrypter.feed()).decode('utf-8')
+    return (decrypter.feed(cipher) + decrypter.feed()).decode("utf-8")
 
 
 def aes_gcm_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
@@ -71,7 +71,7 @@ def aes_gcm_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
         raise CipherError(
-            f'The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed'
+            f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
         )
 
     key = base64.b64decode(key.encode())
@@ -90,45 +90,55 @@ def aes_gcm_decode(data: str, key: str = settings.backend_encrypt_key) -> str:
     return: decode python str
     """
     key = base64.b64decode(key.encode())
-    nonce, cipher = data.split('.')
+    nonce, cipher = data.split(".")
     nonce = base64.b64decode(nonce.encode())
     cipher = base64.b64decode(cipher.encode())
 
     aesgcm = AESGCM(key)
 
-    return aesgcm.decrypt(nonce, cipher, None).decode('utf-8')
+    return aesgcm.decrypt(nonce, cipher, None).decode("utf-8")
 
 
 def password_to_hash(password: str) -> (str, str):
-    dynamic_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
+    dynamic_salt = base64.b64encode(os.urandom(16)).decode("utf-8")
 
     hashed_password = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), (dynamic_salt + settings.backend_static_salt).encode('utf-8'), 100000
+        "sha256",
+        password.encode("utf-8"),
+        (dynamic_salt + settings.backend_static_salt).encode("utf-8"),
+        100000,
     )
 
-    return aes_gcm_encode(dynamic_salt), base64.b64encode(hashed_password).decode('utf-8')
+    return aes_gcm_encode(dynamic_salt), base64.b64encode(hashed_password).decode(
+        "utf-8"
+    )
 
 
-def check_password(password: str, hashed_password_db: str, cipher_dynamic_salt: str) -> bool:
+def check_password(
+    password: str, hashed_password_db: str, cipher_dynamic_salt: str
+) -> bool:
     dynamic_salt = aes_gcm_decode(cipher_dynamic_salt)
 
     hashed_password = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), (dynamic_salt + settings.backend_static_salt).encode('utf-8'), 100000
+        "sha256",
+        password.encode("utf-8"),
+        (dynamic_salt + settings.backend_static_salt).encode("utf-8"),
+        100000,
     )
 
-    return hashed_password_db == base64.b64encode(hashed_password).decode('utf-8')
+    return hashed_password_db == base64.b64encode(hashed_password).decode("utf-8")
 
 
 def generate_random_string(length=6):
     chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    return ''.join(chars[c % len(chars)] for c in os.urandom(length))
+    return "".join(chars[c % len(chars)] for c in os.urandom(length))
 
 
 def clean_files_with_pepeignore(directory: str, pepe_ignore_path: str) -> None:
     if not os.path.exists(pepe_ignore_path):
         return
 
-    with open(pepe_ignore_path, 'r') as f:
+    with open(pepe_ignore_path, "r") as f:
         pepeignore_rules = f.read().splitlines()
 
     spec = PathSpec.from_lines(GitWildMatchPattern, pepeignore_rules)
@@ -147,14 +157,16 @@ def timeit(func):
         result = func(*args, **kwargs)
         end_time = time.time()
         execution_time = end_time - start_time
-        logging.info(f"Function '{func.__name__}' executed in {execution_time:.6f} seconds.")
+        logging.info(
+            f"Function '{func.__name__}' executed in {execution_time:.6f} seconds."
+        )
         return result
 
     return wrapper
 
 
 def snake_to_camel(snake_str: str) -> str:
-    return ''.join(part.capitalize() for part in snake_str.split('_'))
+    return "".join(part.capitalize() for part in snake_str.split("_"))
 
 
 def obj_serializer(obj):
@@ -166,7 +178,11 @@ def obj_serializer(obj):
 
 
 async def create_upload_file_from_path(file_path: str) -> UploadFile:
-    return UploadFile(filename=file_path.split('/')[-1], file=open(file_path, "rb"), size=os.path.getsize(file_path))
+    return UploadFile(
+        filename=file_path.split("/")[-1],
+        file=open(file_path, "rb"),
+        size=os.path.getsize(file_path),
+    )
 
 
 def remove_dict_none(data):

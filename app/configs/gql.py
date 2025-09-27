@@ -30,57 +30,57 @@ async def get_graphql_context(
     clickhouse_client: Session = Depends(get_clickhouse_client),
     jwt_token: str = Depends(token_depends),
 ):
-    return {'db': db, 'clickhouse_client': clickhouse_client, 'jwt_token': jwt_token}
+    return {"db": db, "clickhouse_client": clickhouse_client, "jwt_token": jwt_token}
 
 
 def get_user_service_gql(info: Info) -> UserService:
-    db = info.context.get('db')
-    clickhouse_client = info.context.get('clickhouse_client')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    clickhouse_client = info.context.get("clickhouse_client")
+    jwt_token = info.context["jwt_token"]
     return get_user_service(db, clickhouse_client, jwt_token)
 
 
 def get_repository_registry_service_gql(info: Info) -> RepositoryRegistryService:
-    db = info.context.get('db')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    jwt_token = info.context["jwt_token"]
     return get_repository_registry_service(db, jwt_token)
 
 
 def get_repo_service_gql(info: Info) -> RepoService:
-    db = info.context.get('db')
-    clickhouse_client = info.context.get('clickhouse_client')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    clickhouse_client = info.context.get("clickhouse_client")
+    jwt_token = info.context["jwt_token"]
     return get_repo_service(db, clickhouse_client, jwt_token)
 
 
 def get_unit_service_gql(info: Info) -> UnitService:
-    db = info.context.get('db')
-    clickhouse_client = info.context.get('clickhouse_client')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    clickhouse_client = info.context.get("clickhouse_client")
+    jwt_token = info.context["jwt_token"]
     return get_unit_service(db, clickhouse_client, jwt_token)
 
 
 def get_unit_node_service_gql(info: Info) -> UnitNodeService:
-    db = info.context.get('db')
-    clickhouse_client = info.context.get('clickhouse_client')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    clickhouse_client = info.context.get("clickhouse_client")
+    jwt_token = info.context["jwt_token"]
     return get_unit_node_service(db, clickhouse_client, jwt_token)
 
 
 def get_grafana_service_gql(info: Info) -> GrafanaService:
-    db = info.context.get('db')
-    clickhouse_client = info.context.get('clickhouse_client')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    clickhouse_client = info.context.get("clickhouse_client")
+    jwt_token = info.context["jwt_token"]
     return get_grafana_service(db, clickhouse_client, jwt_token)
 
 
 def get_metrics_service_gql(info: Info) -> MetricsService:
-    db = info.context.get('db')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    jwt_token = info.context["jwt_token"]
     return get_metrics_service(db, jwt_token)
 
 
 def get_permission_service_gql(info: Info) -> PermissionService:
-    db = info.context.get('db')
-    jwt_token = info.context['jwt_token']
+    db = info.context.get("db")
+    jwt_token = info.context["jwt_token"]
     return get_permission_service(db, jwt_token)

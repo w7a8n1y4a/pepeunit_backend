@@ -9,8 +9,11 @@ from app.schemas.pydantic.repository_registry import Credentials
 
 
 class GitPlatformClientABC(ABC):
-
-    def __init__(self, repository_registry: RepositoryRegistry, credentials: Credentials | None = None):
+    def __init__(
+        self,
+        repository_registry: RepositoryRegistry,
+        credentials: Credentials | None = None,
+    ):
         self.repository_registry = repository_registry
         self.credentials = credentials
 
@@ -22,9 +25,9 @@ class GitPlatformClientABC(ABC):
         if not self.repository_registry.is_public_repository:
             username = self.credentials.username
             pat_token = self.credentials.pat_token
-            repo_url = repo_url.replace('https://', f"https://{username}:{pat_token}@").replace(
-                'http://', f"http://{username}:{pat_token}@"
-            )
+            repo_url = repo_url.replace(
+                "https://", f"https://{username}:{pat_token}@"
+            ).replace("http://", f"http://{username}:{pat_token}@")
 
         return repo_url
 
@@ -36,9 +39,9 @@ class GitPlatformClientABC(ABC):
     @abstractmethod
     def _get_repository_name(self) -> str:
         """Get repository name with group/creator"""
-        _, _, _, *name = self.repository_registry.repository_url.split('/')
+        _, _, _, *name = self.repository_registry.repository_url.split("/")
 
-        return '/'.join(name).replace('.git', '')
+        return "/".join(name).replace(".git", "")
 
     @abstractmethod
     def get_releases(self) -> dict[str, list[tuple[str, str]]]:
@@ -63,29 +66,29 @@ class GitlabPlatformClient(GitPlatformClientABC):
         return super().get_cloning_url()
 
     def _get_api_url(self) -> str:
-        http_str, _, domain, *_ = self.repository_registry.repository_url.split('/')
+        http_str, _, domain, *_ = self.repository_registry.repository_url.split("/")
 
-        return f'{http_str}//{domain}/api/v4/projects/'
+        return f"{http_str}//{domain}/api/v4/projects/"
 
     def _get_repository_name(self):
         return super()._get_repository_name()
 
     def _get_repository_id(self) -> int:
-
         headers = None
         if self.credentials:
             headers = {
-                'PRIVATE-TOKEN': self.credentials.pat_token,
+                "PRIVATE-TOKEN": self.credentials.pat_token,
             }
 
         result_data = httpx.get(
-            url=self._get_api_url() + self._get_repository_name().replace('/', '%2F'), headers=headers
+            url=self._get_api_url() + self._get_repository_name().replace("/", "%2F"),
+            headers=headers,
         )
 
         try:
-            target_id = result_data.json()['id']
+            target_id = result_data.json()["id"]
         except KeyError:
-            raise GitPlatformClientError('Invalid Credentials')
+            raise GitPlatformClientError("Invalid Credentials")
 
         return target_id
 
@@ -95,22 +98,23 @@ class GitlabPlatformClient(GitPlatformClientABC):
         headers = None
         if self.credentials:
             headers = {
-                'PRIVATE-TOKEN': self.credentials.pat_token,
+                "PRIVATE-TOKEN": self.credentials.pat_token,
             }
 
-        releases_data = httpx.get(url=f'{self._get_api_url()}{repository_id}/releases', headers=headers)
+        releases_data = httpx.get(
+            url=f"{self._get_api_url()}{repository_id}/releases", headers=headers
+        )
 
         result_dict = {}
         for item in releases_data.json():
-
             assets_list = []
-            for source in item['assets']["sources"]:
-                assets_list.append((source['format'], source['url']))
+            for source in item["assets"]["sources"]:
+                assets_list.append((source["format"], source["url"]))
 
-            for link in item['assets']["links"]:
-                assets_list.append((link['name'], link['url']))
+            for link in item["assets"]["links"]:
+                assets_list.append((link["name"], link["url"]))
 
-            result_dict[item['tag_name']] = assets_list
+            result_dict[item["tag_name"]] = assets_list
 
         return result_dict
 
@@ -119,18 +123,20 @@ class GitlabPlatformClient(GitPlatformClientABC):
 
         if self.credentials:
             headers = {
-                'PRIVATE-TOKEN': self.credentials.pat_token,
+                "PRIVATE-TOKEN": self.credentials.pat_token,
             }
         else:
             # BUG: gitlab (< 17.9) has no repository_size for user without role < REPORTER.
             return 0
 
-        repo_data = httpx.get(url=f'{self._get_api_url()}{repository_id}?statistics=true', headers=headers)
+        repo_data = httpx.get(
+            url=f"{self._get_api_url()}{repository_id}?statistics=true", headers=headers
+        )
 
         try:
-            repo_size = repo_data.json()['statistics']['repository_size']
+            repo_size = repo_data.json()["statistics"]["repository_size"]
         except KeyError:
-            raise GitPlatformClientError('Invalid Credentials')
+            raise GitPlatformClientError("Invalid Credentials")
 
         return repo_size
 
@@ -138,15 +144,16 @@ class GitlabPlatformClient(GitPlatformClientABC):
         headers = None
         if self.credentials:
             headers = {
-                'PRIVATE-TOKEN': self.credentials.pat_token,
+                "PRIVATE-TOKEN": self.credentials.pat_token,
             }
 
         result_data = httpx.get(
-            url=self._get_api_url() + self._get_repository_name().replace('/', '%2F'), headers=headers
+            url=self._get_api_url() + self._get_repository_name().replace("/", "%2F"),
+            headers=headers,
         )
 
         try:
-            result_data.json()['id']
+            result_data.json()["id"]
         except KeyError:
             return False
 
@@ -163,56 +170,61 @@ class GithubPlatformClient(GitPlatformClientABC):
     def _get_api_url(self) -> str:
         """Get url for api"""
 
-        credentials = ''
+        credentials = ""
         if self.credentials:
-            credentials = f'{self.credentials.username}:{self.credentials.pat_token}@'
+            credentials = f"{self.credentials.username}:{self.credentials.pat_token}@"
         elif len(settings.github_token_name) > 0 and len(settings.github_token_pat) > 0:
-            credentials = f'{settings.github_token_name}:{settings.github_token_pat}@'
+            credentials = f"{settings.github_token_name}:{settings.github_token_pat}@"
 
-        return f'https://{credentials}api.github.com/repos/'
+        return f"https://{credentials}api.github.com/repos/"
 
     def _get_repository_name(self):
         return super()._get_repository_name()
 
     def get_releases(self) -> dict[str, list[tuple[str, str]]]:
-
         headers = {"Accept": "application/vnd.github.v3+json"}
 
-        releases_data = httpx.get(url=f'{self._get_api_url()}{self._get_repository_name()}/releases', headers=headers)
+        releases_data = httpx.get(
+            url=f"{self._get_api_url()}{self._get_repository_name()}/releases",
+            headers=headers,
+        )
 
         result_dict = {}
         for item in releases_data.json():
-
             assets_list = []
-            for asset in item['assets']:
-                assets_list.append((asset['name'], asset['browser_download_url']))
+            for asset in item["assets"]:
+                assets_list.append((asset["name"], asset["browser_download_url"]))
 
-            result_dict[item['tag_name']] = assets_list
+            result_dict[item["tag_name"]] = assets_list
 
         return result_dict
 
     def get_repo_size(self) -> int:
         headers = {"Accept": "application/vnd.github.v3+json"}
 
-        repo_data = httpx.get(url=f'{self._get_api_url()}{self._get_repository_name()}', headers=headers)
+        repo_data = httpx.get(
+            url=f"{self._get_api_url()}{self._get_repository_name()}", headers=headers
+        )
 
         try:
-            repo_size = repo_data.json()['size']
+            repo_size = repo_data.json()["size"]
         except KeyError:
             if repo_data.status_code == 403:
-                raise GitPlatformClientError('Rate limit external API')
+                raise GitPlatformClientError("Rate limit external API")
             else:
-                raise GitPlatformClientError('Invalid Credentials')
+                raise GitPlatformClientError("Invalid Credentials")
 
         return repo_size * 1024
 
     def is_valid_token(self) -> bool:
         headers = {"Accept": "application/vnd.github.v3+json"}
 
-        repo_data = httpx.get(url=f'{self._get_api_url()}{self._get_repository_name()}', headers=headers)
+        repo_data = httpx.get(
+            url=f"{self._get_api_url()}{self._get_repository_name()}", headers=headers
+        )
 
         try:
-            repo_data.json()['id']
+            repo_data.json()["id"]
         except KeyError:
             return False
 

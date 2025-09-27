@@ -10,4 +10,6 @@ from app.schemas.gql.types.permission import PermissionsType, PermissionType
 def get_resource_agents(filters: PermissionFilterInput, info: Info) -> PermissionsType:
     permission_service = get_permission_service_gql(info)
     count, permissions = permission_service.get_resource_agents(filters)
-    return PermissionsType(count=count, permissions=[PermissionType(**item.dict()) for item in permissions])
+    return PermissionsType(
+        count=count, permissions=[PermissionType(**item.dict()) for item in permissions]
+    )

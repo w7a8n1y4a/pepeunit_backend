@@ -23,9 +23,10 @@ from app.utils.utils import create_upload_file_from_path
 
 @pytest.mark.run(order=0)
 async def test_update_unit_node(database, cc) -> None:
-
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_unit = pytest.units[-2]
 
@@ -35,13 +36,16 @@ async def test_update_unit_node(database, cc) -> None:
 
     # check update visibility level
     update_unit_node = await unit_node_service.update(
-        input_unit_node[0].uuid, UnitNodeUpdate(visibility_level=VisibilityLevel.PRIVATE)
+        input_unit_node[0].uuid,
+        UnitNodeUpdate(visibility_level=VisibilityLevel.PRIVATE),
     )
     assert update_unit_node.visibility_level == VisibilityLevel.PRIVATE
 
     # check update is_rewritable_input for input
-    update_unit_node = await unit_node_service.update(input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
-    assert update_unit_node.is_rewritable_input == True
+    update_unit_node = await unit_node_service.update(
+        input_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True)
+    )
+    assert update_unit_node.is_rewritable_input
 
     count, output_unit_node = unit_node_service.list(
         UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
@@ -62,7 +66,7 @@ async def test_update_unit_node(database, cc) -> None:
         update_unit_node = await unit_node_service.update(
             output_unit_node[0].uuid, UnitNodeUpdate(is_data_pipe_active=True)
         )
-        assert update_unit_node.is_data_pipe_active == True
+        assert update_unit_node.is_data_pipe_active
 
         # create only for grafana tests
         count, input_unit_node = unit_node_service.list(
@@ -72,24 +76,25 @@ async def test_update_unit_node(database, cc) -> None:
         update_unit_node = await unit_node_service.update(
             input_unit_node[0].uuid, UnitNodeUpdate(is_data_pipe_active=True)
         )
-        assert update_unit_node.is_data_pipe_active == True
+        assert update_unit_node.is_data_pipe_active
 
 
 @pytest.mark.run(order=1)
 async def test_set_data_pipe(database, cc) -> None:
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     yml_files_list = [
-        'tests/data/yaml/integra/data_pipe_aggregation.yaml',
-        'tests/data/yaml/integra/data_pipe_last_value.yaml',
-        'tests/data/yaml/integra/data_pipe_n_records.yaml',
-        'tests/data/yaml/integra/data_pipe_time_window.yaml',
+        "tests/data/yaml/integra/data_pipe_aggregation.yaml",
+        "tests/data/yaml/integra/data_pipe_last_value.yaml",
+        "tests/data/yaml/integra/data_pipe_n_records.yaml",
+        "tests/data/yaml/integra/data_pipe_time_window.yaml",
     ]
 
     # check set correct yaml
     for yml_file, target_unit in zip(yml_files_list, pytest.units[1:5]):
-
         count, output_unit_node = unit_node_service.list(
             UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
         )
@@ -108,13 +113,17 @@ async def test_set_data_pipe(database, cc) -> None:
         )
 
     # check bad yaml
-    bad_yml = 'tests/data/yaml/integra/data_pipe_bad.yaml'
-    data = await unit_node_service.check_data_pipe_config((await create_upload_file_from_path(bad_yml)))
+    bad_yml = "tests/data/yaml/integra/data_pipe_bad.yaml"
+    data = await unit_node_service.check_data_pipe_config(
+        (await create_upload_file_from_path(bad_yml))
+    )
 
     assert len(data) == 2
 
     # check correct yaml
-    data = await unit_node_service.check_data_pipe_config((await create_upload_file_from_path(yml_files_list[0])))
+    data = await unit_node_service.check_data_pipe_config(
+        (await create_upload_file_from_path(yml_files_list[0]))
+    )
 
     assert len(data) == 0
 
@@ -122,7 +131,9 @@ async def test_set_data_pipe(database, cc) -> None:
 @pytest.mark.run(order=2)
 async def test_get_data_pipe_config(database, cc) -> None:
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     _, output_unit_node = unit_node_service.list(
         UnitNodeFilter(unit_uuid=pytest.units[1].uuid, type=[UnitNodeTypeEnum.OUTPUT])
@@ -137,7 +148,9 @@ async def test_get_data_pipe_config(database, cc) -> None:
     # check not filed active data pipe
     with pytest.raises(DataPipeError):
         _, output_unit_node = unit_node_service.list(
-            UnitNodeFilter(unit_uuid=pytest.units[5].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+            UnitNodeFilter(
+                unit_uuid=pytest.units[5].uuid, type=[UnitNodeTypeEnum.OUTPUT]
+            )
         )
 
         unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
@@ -145,7 +158,9 @@ async def test_get_data_pipe_config(database, cc) -> None:
     # check not active data pipe get config
     with pytest.raises(DataPipeError):
         _, output_unit_node = unit_node_service.list(
-            UnitNodeFilter(unit_uuid=pytest.units[6].uuid, type=[UnitNodeTypeEnum.OUTPUT])
+            UnitNodeFilter(
+                unit_uuid=pytest.units[6].uuid, type=[UnitNodeTypeEnum.OUTPUT]
+            )
         )
 
         unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
@@ -153,17 +168,18 @@ async def test_get_data_pipe_config(database, cc) -> None:
 
 @pytest.mark.run(order=3)
 def test_create_unit_node_edge(database, cc) -> None:
-
     current_user = pytest.users[0]
     token = pytest.user_tokens_dict[current_user.uuid]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_units = pytest.units[-4:-1]
 
     def update_schema(token: str, unit_uuid: uuid_pkg.UUID) -> int:
-        headers = {'accept': 'application/json', 'x-auth-token': token}
+        headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f'{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit_uuid}?command=SchemaUpdate'
+        url = f"{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit_uuid}?command=SchemaUpdate"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -171,12 +187,14 @@ def test_create_unit_node_edge(database, cc) -> None:
         return r.status_code
 
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
-        headers = {'accept': 'application/json', 'x-auth-token': token}
+        headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}'
+        url = f"{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
 
         # send over http, in tests not work mqtt pub and sub
-        r = httpx.patch(url=url, json=UnitNodeSetState(state=state).dict(), headers=headers)
+        r = httpx.patch(
+            url=url, json=UnitNodeSetState(state=state).dict(), headers=headers
+        )
 
         return r.status_code
 
@@ -193,12 +211,18 @@ def test_create_unit_node_edge(database, cc) -> None:
 
     # output 0 unit to input 1 unit
     unit_node_service.create_node_edge(
-        UnitNodeEdgeCreate(node_output_uuid=io_units_list[0][1].uuid, node_input_uuid=io_units_list[1][0].uuid)
+        UnitNodeEdgeCreate(
+            node_output_uuid=io_units_list[0][1].uuid,
+            node_input_uuid=io_units_list[1][0].uuid,
+        )
     )
 
     # output 1 unit to input 2 unit
     unit_node_service.create_node_edge(
-        UnitNodeEdgeCreate(node_output_uuid=io_units_list[1][1].uuid, node_input_uuid=io_units_list[2][0].uuid)
+        UnitNodeEdgeCreate(
+            node_output_uuid=io_units_list[1][1].uuid,
+            node_input_uuid=io_units_list[2][0].uuid,
+        )
     )
 
     # test update schema 3 Unit
@@ -210,7 +234,7 @@ def test_create_unit_node_edge(database, cc) -> None:
     time.sleep(2)
 
     # target value for chain unit
-    state = '0'
+    state = "0"
 
     # run chain input set
     assert set_input_state(token, io_units_list[0][0].uuid, state) < 400
@@ -225,33 +249,38 @@ def test_create_unit_node_edge(database, cc) -> None:
     for unit in target_units:
         logging.info(unit.uuid)
 
-        filepath = f'tmp/test_units/{unit.uuid}/log_state.json'
+        filepath = f"tmp/test_units/{unit.uuid}/log_state.json"
 
         assert os.path.exists(filepath)
 
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             log_dict = json.loads(f.read())
 
-            assert log_dict['value'] == 0
+            assert log_dict["value"] == 0
 
 
 @pytest.mark.run(order=4)
 async def test_set_state_input_unit_node(database, cc) -> None:
-
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_unit = pytest.units[-4]
-    unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_service = get_unit_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
     unit_token = unit_service.generate_token(target_unit.uuid)
 
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
-        headers = {'accept': 'application/json', 'x-auth-token': token}
+        headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f'{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}'
+        url = f"{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
 
         # send over http, in tests not work mqtt pub and sub
-        r = httpx.patch(url=url, json=UnitNodeSetState(state=state).dict(), headers=headers)
+        r = httpx.patch(
+            url=url, json=UnitNodeSetState(state=state).dict(), headers=headers
+        )
 
         return r.status_code
 
@@ -259,12 +288,14 @@ async def test_set_state_input_unit_node(database, cc) -> None:
         UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
     )
 
-    state = 'test'
+    state = "test"
 
     # check set with is_rewritable_input=False
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) >= 400
 
-    await unit_node_service.update(unit_nodes[0].uuid, UnitNodeUpdate(is_rewritable_input=True))
+    await unit_node_service.update(
+        unit_nodes[0].uuid, UnitNodeUpdate(is_rewritable_input=True)
+    )
 
     # check set with is_rewritable_input=True
     assert set_input_state(unit_token, unit_nodes[0].uuid, state) < 400
@@ -272,9 +303,10 @@ async def test_set_state_input_unit_node(database, cc) -> None:
 
 @pytest.mark.run(order=5)
 def test_get_unit_node_edge(database, cc) -> None:
-
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_unit = pytest.units[-3]
 
@@ -287,13 +319,16 @@ def test_get_unit_node_edge(database, cc) -> None:
 
 @pytest.mark.run(order=6)
 def test_delete_unit_node_edge(database, cc) -> None:
-
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
     target_edge = pytest.edges[0]
 
     # check del edge
-    unit_node_service.delete_node_edge(target_edge.node_input_uuid, target_edge.node_output_uuid)
+    unit_node_service.delete_node_edge(
+        target_edge.node_input_uuid, target_edge.node_output_uuid
+    )
 
     # check del with invalid del
     with pytest.raises(ValidationError):
@@ -302,22 +337,29 @@ def test_delete_unit_node_edge(database, cc) -> None:
 
 @pytest.mark.run(order=7)
 def test_get_many_unit_node(database, cc) -> None:
-
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     # check many get with all filters
     count, units_nodes = unit_node_service.list(
-        UnitNodeFilter(search_string='input', type=[UnitNodeTypeEnum.INPUT], offset=0, limit=1_000_000)
+        UnitNodeFilter(
+            search_string="input",
+            type=[UnitNodeTypeEnum.INPUT],
+            offset=0,
+            limit=1_000_000,
+        )
     )
     assert len(units_nodes) >= 8
 
 
 @pytest.mark.run(order=8)
 def test_delete_unit(database, cc) -> None:
-
     current_user = pytest.users[0]
-    unit_service = get_unit_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_service = get_unit_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_unit = pytest.units[0]
 
@@ -330,7 +372,9 @@ def test_delete_unit(database, cc) -> None:
 @pytest.mark.run(order=9)
 def test_get_repo_versions(database, cc) -> None:
     current_user = pytest.users[0]
-    repo_service = get_repo_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    repo_service = get_repo_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_repo = pytest.repos[6]
 
@@ -342,7 +386,9 @@ def test_get_repo_versions(database, cc) -> None:
 @pytest.mark.run(order=10)
 async def test_get_data_pipe_data(database, cc) -> None:
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     # check data last value
     count, output_unit_node = unit_node_service.list(
@@ -420,7 +466,9 @@ async def test_get_data_pipe_data(database, cc) -> None:
 @pytest.mark.run(order=11)
 async def test_get_data_pipe_data_csv(database, cc) -> None:
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     # check get csv for n_records
     count, output_unit_node = unit_node_service.list(
@@ -435,7 +483,9 @@ async def test_get_data_pipe_data_csv(database, cc) -> None:
 @pytest.mark.run(order=12)
 async def test_delete_data_pipe_data(database, cc) -> None:
     current_user = pytest.users[0]
-    unit_node_service = get_unit_node_service(database, cc, pytest.user_tokens_dict[current_user.uuid])
+    unit_node_service = get_unit_node_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     # check delete pipe data in cc
     for target_unit in pytest.units[1:6]:

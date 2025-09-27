@@ -26,7 +26,6 @@ from app.schemas.pydantic.grafana import (
     UnitNodeForPanel,
 )
 from app.services.grafana_service import GrafanaService
-from app.utils.utils import generate_random_string
 
 router = APIRouter()
 
@@ -36,7 +35,10 @@ router = APIRouter()
     response_model=DashboardRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create_dashboard(data: DashboardCreate, grafana_service: GrafanaService = Depends(get_grafana_service)):
+def create_dashboard(
+    data: DashboardCreate,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
+):
     return grafana_service.create_dashboard(data)
 
 
@@ -45,8 +47,13 @@ def create_dashboard(data: DashboardCreate, grafana_service: GrafanaService = De
     response_model=DashboardPanelRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create_dashboard_panel(data: DashboardPanelCreate, grafana_service: GrafanaService = Depends(get_grafana_service)):
-    return DashboardPanelRead(unit_nodes_for_panel=[], **grafana_service.create_dashboard_panel(data).dict())
+def create_dashboard_panel(
+    data: DashboardPanelCreate,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
+):
+    return DashboardPanelRead(
+        unit_nodes_for_panel=[], **grafana_service.create_dashboard_panel(data).dict()
+    )
 
 
 @router.post(
@@ -54,25 +61,36 @@ def create_dashboard_panel(data: DashboardPanelCreate, grafana_service: GrafanaS
     response_model=UnitNodeForPanel,
     status_code=status.HTTP_201_CREATED,
 )
-def link_unit_node_to_panel(data: LinkUnitNodeToPanel, grafana_service: GrafanaService = Depends(get_grafana_service)):
+def link_unit_node_to_panel(
+    data: LinkUnitNodeToPanel,
+    grafana_service: GrafanaService = Depends(get_grafana_service),
+):
     return grafana_service.link_unit_node_to_panel(data)
 
 
 @router.get("/get_dashboard/{uuid}", response_model=DashboardRead)
-def get_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+def get_dashboard(
+    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+):
     return grafana_service.get_dashboard(uuid)
 
 
 @router.get("/get_dashboards", response_model=DashboardsResult)
 def get_dashboards(
-    filters: DashboardFilter = Depends(DashboardFilter), grafana_service: GrafanaService = Depends(get_grafana_service)
+    filters: DashboardFilter = Depends(DashboardFilter),
+    grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     count, dashboards = grafana_service.list_dashboards(filters)
-    return DashboardsResult(count=count, dashboards=[DashboardRead(**dashboard.dict()) for dashboard in dashboards])
+    return DashboardsResult(
+        count=count,
+        dashboards=[DashboardRead(**dashboard.dict()) for dashboard in dashboards],
+    )
 
 
 @router.get("/get_dashboard_panels/{uuid}", response_model=DashboardPanelsResult)
-def get_dashboard_panels(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+def get_dashboard_panels(
+    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+):
     return grafana_service.get_dashboard_panels(uuid)
 
 
@@ -81,17 +99,23 @@ def get_dashboard_panels(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = 
     response_model=DashboardRead,
     status_code=status.HTTP_200_OK,
 )
-async def sync_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+async def sync_dashboard(
+    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+):
     return DashboardRead(**(await grafana_service.sync_dashboard(uuid)).dict())
 
 
 @router.delete("/delete_dashboard/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_dashboard(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+def delete_dashboard(
+    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+):
     return grafana_service.delete_dashboard(uuid)
 
 
 @router.delete("/delete_panel/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_panel(uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)):
+def delete_panel(
+    uuid: uuid_pkg.UUID, grafana_service: GrafanaService = Depends(get_grafana_service)
+):
     return grafana_service.delete_panel(uuid)
 
 
@@ -106,23 +130,34 @@ def delete_link(
 
 @router.get("/oidc/authorize")
 async def authorize(
-    request: Request, client_id: str, redirect_uri: str, scope: str, state: str, nonce: Optional[str] = None
+    request: Request,
+    client_id: str,
+    redirect_uri: str,
+    scope: str,
+    state: str,
+    nonce: Optional[str] = None,
 ):
     session_cookie = request.cookies
     with get_hand_session() as db:
         with get_hand_clickhouse_client() as cc:
             user_service = get_user_service(
-                db=db, client=cc, jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value)
+                db=db,
+                client=cc,
+                jwt_token=session_cookie.get(CookieName.PEPEUNIT_GRAFANA.value),
             )
 
-            user_service.create_org_if_not_exists(user_service.access_service.current_agent.uuid)
-            current_user = user_service.get(user_service.access_service.current_agent.uuid)
+            user_service.create_org_if_not_exists(
+                user_service.access_service.current_agent.uuid
+            )
+            current_user = user_service.get(
+                user_service.access_service.current_agent.uuid
+            )
 
     redis = await anext(get_redis_session())
 
     code = str(uuid_pkg.uuid4())
     await redis.set(
-        f'grafana:{code}',
+        f"grafana:{code}",
         json.dumps(
             {
                 "client_id": client_id,
@@ -150,7 +185,7 @@ async def token(
 ):
     redis = await anext(get_redis_session())
 
-    auth_data = await redis.get(f'grafana:{code}')
+    auth_data = await redis.get(f"grafana:{code}")
     if not auth_data:
         return JSONResponse(status_code=400, content={"error": "invalid_grant"})
 
@@ -172,13 +207,13 @@ async def userinfo(request: Request):
 
     redis = await anext(get_redis_session())
 
-    auth_data = await redis.get(f'grafana:{code}')
+    auth_data = await redis.get(f"grafana:{code}")
     if not auth_data:
         return JSONResponse(status_code=400, content={"error": "invalid_grant"})
 
-    await redis.delete(f'grafana:{code}')
+    await redis.delete(f"grafana:{code}")
 
-    return json.loads(auth_data)['user']
+    return json.loads(auth_data)["user"]
 
 
 @router.get("/datasource/")

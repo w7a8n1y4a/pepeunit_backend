@@ -23,6 +23,10 @@ class AccessService:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
         self.permission_repository = permission_repository
-        self.auth = AuthServiceFactory(self.unit_repository, self.user_repository, jwt_token, is_bot_auth).create()
+        self.auth = AuthServiceFactory(
+            self.unit_repository, self.user_repository, jwt_token, is_bot_auth
+        ).create()
         self.current_agent = self.auth.get_current_agent()
-        self.authorization = AuthorizationService(permission_repository, self.current_agent)
+        self.authorization = AuthorizationService(
+            permission_repository, self.current_agent
+        )

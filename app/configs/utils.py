@@ -9,18 +9,20 @@ from app import settings
 
 def get_emqx_link():
     if settings.mqtt_secure:
-        return f'{settings.mqtt_http_type}://{settings.mqtt_host}'
+        return f"{settings.mqtt_http_type}://{settings.mqtt_host}"
     else:
-        return f'{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}'
+        return (
+            f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
+        )
 
 
 def get_directory_size(directory: str) -> int:
     # analog du -sb
-    return sum(f.stat().st_size for f in Path(directory).rglob('*') if f.is_file())
+    return sum(f.stat().st_size for f in Path(directory).rglob("*") if f.is_file())
 
 
 def acquire_file_lock(file_lock: str):
-    lock_fd = open(file_lock, 'w')
+    lock_fd = open(file_lock, "w")
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return lock_fd

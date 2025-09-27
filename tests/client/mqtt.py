@@ -16,9 +16,9 @@ class MQTTClient:
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
-        self.env_file = f'tmp/test_units/{unit.uuid}/env.json'
-        self.schema_file = f'tmp/test_units/{unit.uuid}/schema.json'
-        self.log_file = f'tmp/test_units/{unit.uuid}/log.json'
+        self.env_file = f"tmp/test_units/{unit.uuid}/env.json"
+        self.schema_file = f"tmp/test_units/{unit.uuid}/schema.json"
+        self.log_file = f"tmp/test_units/{unit.uuid}/log.json"
 
         self.client = PepeunitClient(
             env_file_path=self.env_file,
@@ -32,7 +32,7 @@ class MQTTClient:
 
     def mqtt_input_handler(self, msg):
         try:
-            topic_parts = msg.topic.split('/')
+            topic_parts = msg.topic.split("/")
 
             if len(topic_parts) == 3:
                 domain, unit_node_uuid, _ = topic_parts
@@ -41,16 +41,22 @@ class MQTTClient:
                     msg.topic, SearchTopicType.FULL_NAME, SearchScope.INPUT
                 )
 
-                if topic_name == 'input/pepeunit':
+                if topic_name == "input/pepeunit":
                     value = msg.payload.decode()
                     try:
                         value = int(value)
                         if value == 0:
-                            log_state = {'value': value, 'input_topic': topic_parts, 'timestamp': time.time()}
-                            with open(f'tmp/test_units/{self.unit.uuid}/log_state.json', 'w') as f:
+                            log_state = {
+                                "value": value,
+                                "input_topic": topic_parts,
+                                "timestamp": time.time(),
+                            }
+                            with open(
+                                f"tmp/test_units/{self.unit.uuid}/log_state.json", "w"
+                            ) as f:
                                 json.dump(log_state, f, indent=4)
 
-                            self.client.publish_to_topics('output/pepeunit', str(value))
+                            self.client.publish_to_topics("output/pepeunit", str(value))
 
                     except ValueError:
                         pass
@@ -63,9 +69,11 @@ class MQTTClient:
         while self._running:
             try:
                 current_time = time.time()
-                if (current_time - self.client.settings.DELAY_PUB_MSG) >= self.client.settings.DELAY_PUB_MSG:
+                if (
+                    current_time - self.client.settings.DELAY_PUB_MSG
+                ) >= self.client.settings.DELAY_PUB_MSG:
                     msg = f"{msg_count // 10}"
-                    self.client.publish_to_topics('output/pepeunit', msg)
+                    self.client.publish_to_topics("output/pepeunit", msg)
                     msg_count += 1
 
                 self.client._base_mqtt_output_handler()
@@ -83,7 +91,7 @@ class MQTTClient:
             self.client.subscribe_all_schema_topics()
             await self.publish_messages()
         except Exception as e:
-            self.client.logger.error(f'Exception: {e}')
+            self.client.logger.error(f"Exception: {e}")
         finally:
             self._running = False
 
@@ -93,9 +101,9 @@ class MQTTClient:
             self.client.logger.info("Stopping Pepeunit client")
 
 
-if __name__ == '__main__':
-    UnitType = namedtuple('Unit', ['uuid'])
-    test_unit = UnitType(uuid='a3946222-3ac9-4d2e-b366-5c258cf70471')
+if __name__ == "__main__":
+    UnitType = namedtuple("Unit", ["uuid"])
+    test_unit = UnitType(uuid="a3946222-3ac9-4d2e-b366-5c258cf70471")
 
     mqtt_client = MQTTClient(test_unit)
     asyncio.run(mqtt_client.run())

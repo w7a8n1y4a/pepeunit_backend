@@ -5,7 +5,12 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.dto.enum import DashboardPanelTypeEnum, DashboardStatus, DatasourceFormat, OrderByDate
+from app.dto.enum import (
+    DashboardPanelTypeEnum,
+    DashboardStatus,
+    DatasourceFormat,
+    OrderByDate,
+)
 from app.schemas.pydantic.shared import UnitNodeRead
 from app.utils.utils import parse_interval
 

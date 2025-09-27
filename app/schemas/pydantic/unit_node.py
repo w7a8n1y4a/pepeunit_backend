@@ -38,7 +38,9 @@ class UnitNodeFilter:
     search_string: Optional[str] = None
 
     type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])
-    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
+    visibility_level: Optional[list[str]] = Query(
+        [item.value for item in VisibilityLevel]
+    )
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
@@ -75,7 +77,9 @@ class DataPipeFilter:
 
     search_string: Optional[str] = None
 
-    aggregation_type: Optional[list[str]] = Query([item.value for item in AggregationFunctions])
+    aggregation_type: Optional[list[str]] = Query(
+        [item.value for item in AggregationFunctions]
+    )
     time_window_size: Optional[int] = None
 
     start_agg_window_datetime: Optional[datetime.datetime] = None

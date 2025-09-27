@@ -7,9 +7,11 @@ from sqlmodel import Field, SQLModel
 class User(SQLModel, table=True):
     """Пользователь узла"""
 
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
+    uuid: uuid_pkg.UUID = Field(
+        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+    )
 
     # User role on this Instance
     role: str = Field(nullable=False)
@@ -25,7 +27,9 @@ class User(SQLModel, table=True):
     cipher_dynamic_salt: str = Field(nullable=False)
 
     # uuid name in grafana organisation, unique for all users
-    grafana_org_name: uuid_pkg.UUID = Field(nullable=False, default_factory=uuid_pkg.uuid4)
+    grafana_org_name: uuid_pkg.UUID = Field(
+        nullable=False, default_factory=uuid_pkg.uuid4
+    )
     # id grafana org from grafana
     grafana_org_id: str = Field(nullable=True)
 

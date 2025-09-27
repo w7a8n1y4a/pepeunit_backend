@@ -14,7 +14,11 @@ from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_bot_unit_node_service, get_bot_unit_service
 from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
-from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter, UnitNodeStates
+from app.schemas.bot.base_bot_router import (
+    BaseBotFilters,
+    BaseBotRouter,
+    UnitNodeStates,
+)
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.validators import is_valid_json
@@ -24,18 +28,28 @@ class UnitNodeBotRouter(BaseBotRouter):
     def __init__(self):
         entity_name = EntityNames.UNIT_NODE
         super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
-        self.router.callback_query(F.data.startswith(f"{self.entity_name}_unit_"))(self.handle_by_unit)
+        self.router.callback_query(F.data.startswith(f"{self.entity_name}_unit_"))(
+            self.handle_by_unit
+        )
 
     async def handle_by_unit(self, callback: types.CallbackQuery, state: FSMContext):
-        *_, unit_uuid = callback.data.split('_')
+        *_, unit_uuid = callback.data.split("_")
 
         await state.set_state(None)
         filters = BaseBotFilters(unit_uuid=unit_uuid)
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)
 
-    async def show_entities(self, message: Union[types.Message, types.CallbackQuery], filters: BaseBotFilters):
-        chat_id = message.chat.id if isinstance(message, types.Message) else message.from_user.id
+    async def show_entities(
+        self,
+        message: Union[types.Message, types.CallbackQuery],
+        filters: BaseBotFilters,
+    ):
+        chat_id = (
+            message.chat.id
+            if isinstance(message, types.Message)
+            else message.from_user.id
+        )
 
         entities, total_pages = await self.get_entities_page(filters, str(chat_id))
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
@@ -54,7 +68,9 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         await self.telegram_response(message, text, keyboard)
 
-    async def get_entities_page(self, filters: BaseBotFilters, chat_id: str) -> tuple[list, int]:
+    async def get_entities_page(
+        self, filters: BaseBotFilters, chat_id: str
+    ) -> tuple[list, int]:
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 unit_node_service = get_bot_unit_node_service(db, cc, str(chat_id))
@@ -70,7 +86,9 @@ class UnitNodeBotRouter(BaseBotRouter):
                     )
                 )
 
-                total_pages = (count + settings.telegram_items_per_page - 1) // settings.telegram_items_per_page
+                total_pages = (
+                    count + settings.telegram_items_per_page - 1
+                ) // settings.telegram_items_per_page
 
         return unit_nodes, total_pages
 
@@ -79,12 +97,17 @@ class UnitNodeBotRouter(BaseBotRouter):
     ) -> InlineKeyboardMarkup:
         builder = InlineKeyboardBuilder()
 
-        filter_buttons = [InlineKeyboardButton(text="🔍 Search", callback_data=f"{self.entity_name}_search")]
+        filter_buttons = [
+            InlineKeyboardButton(
+                text="🔍 Search", callback_data=f"{self.entity_name}_search"
+            )
+        ]
         builder.row(*filter_buttons)
 
         filter_unit_types_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.unit_types else "🔴️ ") + item.value,
+                text=("🟢 " if item.value in filters.unit_types else "🔴️ ")
+                + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
             for item in UnitNodeTypeEnum
@@ -93,7 +116,8 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
-                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ") + item.value,
+                text=("🟢 " if item.value in filters.visibility_levels else "🔴️ ")
+                + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
             for item in VisibilityLevel
@@ -113,30 +137,47 @@ class UnitNodeBotRouter(BaseBotRouter):
         if total_pages > 1:
             pagination_row = []
             if filters.page > 1:
-                pagination_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"{self.entity_name}_prev_page"))
+                pagination_row.append(
+                    InlineKeyboardButton(
+                        text="⬅️", callback_data=f"{self.entity_name}_prev_page"
+                    )
+                )
 
-            pagination_row.append(InlineKeyboardButton(text=f"{filters.page}/{total_pages}", callback_data="noop"))
+            pagination_row.append(
+                InlineKeyboardButton(
+                    text=f"{filters.page}/{total_pages}", callback_data="noop"
+                )
+            )
 
             if filters.page < total_pages:
-                pagination_row.append(InlineKeyboardButton(text="➡️", callback_data=f"{self.entity_name}_next_page"))
+                pagination_row.append(
+                    InlineKeyboardButton(
+                        text="➡️", callback_data=f"{self.entity_name}_next_page"
+                    )
+                )
             builder.row(*pagination_row)
 
         builder.row(
             InlineKeyboardButton(
-                text='← Back', callback_data=f'{EntityNames.UNIT}_uuid_{filters.unit_uuid}_{filters.page}'
+                text="← Back",
+                callback_data=f"{EntityNames.UNIT}_uuid_{filters.unit_uuid}_{filters.page}",
             )
         )
 
         return builder.as_markup()
 
-    async def handle_entity_click(self, callback: types.CallbackQuery, state: FSMContext) -> None:
+    async def handle_entity_click(
+        self, callback: types.CallbackQuery, state: FSMContext
+    ) -> None:
         data = await state.get_data()
         filters: BaseBotFilters = (
-            BaseBotFilters(**data.get("current_filters")) if data.get("current_filters") else BaseBotFilters()
+            BaseBotFilters(**data.get("current_filters"))
+            if data.get("current_filters")
+            else BaseBotFilters()
         )
 
-        unit_node_uuid = UUID(callback.data.split('_')[-2])
-        current_page = int(callback.data.split('_')[-1])
+        unit_node_uuid = UUID(callback.data.split("_")[-2])
+        current_page = int(callback.data.split("_")[-1])
 
         if not filters.previous_filters:
             filters.page = current_page
@@ -145,26 +186,31 @@ class UnitNodeBotRouter(BaseBotRouter):
 
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
-                unit_node_service = get_bot_unit_node_service(db, cc, str(callback.from_user.id))
+                unit_node_service = get_bot_unit_node_service(
+                    db, cc, str(callback.from_user.id)
+                )
                 unit_node = unit_node_service.get(unit_node_uuid)
 
-        text = f'*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`'
+        text = f"*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`"
 
-        text += f'\n```text\n'
+        text += "\n```text\n"
 
         table = [
-            ['Type', unit_node.type],
-            ['Visibility', unit_node.visibility_level],
-            ['Last Update', unit_node.last_update_datetime.strftime("%Y-%m-%d %H:%M:%S")],
+            ["Type", unit_node.type],
+            ["Visibility", unit_node.visibility_level],
+            [
+                "Last Update",
+                unit_node.last_update_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            ],
         ]
 
         if unit_node.type == UnitNodeTypeEnum.INPUT:
-            table.append(['Rewritable?', unit_node.is_rewritable_input])
+            table.append(["Rewritable?", unit_node.is_rewritable_input])
 
-        text += make_monospace_table_with_title(table, 'Base Info')
+        text += make_monospace_table_with_title(table, "Base Info")
 
         if unit_node.state:
-            text += '\nState:\n\n'
+            text += "\nState:\n\n"
 
             try:
                 unit_state = is_valid_json(unit_node.state, "UnitNode state")
@@ -173,24 +219,32 @@ class UnitNodeBotRouter(BaseBotRouter):
             except JSONDecodeError:
                 text += unit_node.state
 
-        text += '```'
+        text += "```"
 
         keyboard = [
             [
-                InlineKeyboardButton(text='← Back', callback_data=f'{self.entity_name}_back'),
                 InlineKeyboardButton(
-                    text='↻ Refresh', callback_data=f'{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}'
+                    text="← Back", callback_data=f"{self.entity_name}_back"
                 ),
-                InlineKeyboardButton(text='Browser', url=f'{settings.backend_link}/unit-node/{unit_node.uuid}'),
+                InlineKeyboardButton(
+                    text="↻ Refresh",
+                    callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+                ),
+                InlineKeyboardButton(
+                    text="Browser",
+                    url=f"{settings.backend_link}/unit-node/{unit_node.uuid}",
+                ),
             ],
         ]
 
-        await callback.answer(parse_mode='Markdown')
+        await callback.answer(parse_mode="Markdown")
 
         try:
-            await self.telegram_response(callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard))
+            await self.telegram_response(
+                callback, text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+            )
         except TelegramBadRequest:
             pass
 
     async def handle_entity_decrees(self, callback: types.CallbackQuery) -> None:
-        await callback.answer(parse_mode='Markdown')
+        await callback.answer(parse_mode="Markdown")

@@ -4,7 +4,10 @@ import strawberry
 from strawberry.types import Info
 
 from app.configs.gql import get_repository_registry_service_gql
-from app.schemas.gql.inputs.repository_registry import CredentialsInput, RepositoryRegistryCreateInput
+from app.schemas.gql.inputs.repository_registry import (
+    CredentialsInput,
+    RepositoryRegistryCreateInput,
+)
 from app.schemas.gql.types.repository_registry import RepositoryRegistryType
 from app.schemas.gql.types.shared import NoneType
 
@@ -16,12 +19,17 @@ def create_repository_registry(
     repository_registry_service = get_repository_registry_service_gql(info)
     repository = repository_registry_service.create(repository_registry)
     return RepositoryRegistryType(
-        branches=repository_registry_service.mapper_registry_to_registry_read(repository).branches, **repository.dict()
+        branches=repository_registry_service.mapper_registry_to_registry_read(
+            repository
+        ).branches,
+        **repository.dict(),
     )
 
 
 @strawberry.mutation()
-def set_credentials(info: Info, uuid: uuid_pkg.UUID, data: CredentialsInput) -> NoneType:
+def set_credentials(
+    info: Info, uuid: uuid_pkg.UUID, data: CredentialsInput
+) -> NoneType:
     repository_registry_service = get_repository_registry_service_gql(info)
     repository_registry_service.set_credentials(uuid, data)
     return NoneType()

@@ -4,7 +4,13 @@ from typing import Optional
 
 import strawberry
 
-from app.dto.enum import AggregationFunctions, OrderByDate, ProcessingPolicyType, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import (
+    AggregationFunctions,
+    OrderByDate,
+    ProcessingPolicyType,
+    UnitNodeTypeEnum,
+    VisibilityLevel,
+)
 from app.schemas.gql.type_input_mixin import TypeInputMixin
 from app.utils.utils import parse_interval
 
@@ -29,7 +35,9 @@ class UnitNodeFilterInput(TypeInputMixin):
     search_string: Optional[str] = None
 
     type: Optional[list[UnitNodeTypeEnum]] = tuple([item for item in UnitNodeTypeEnum])
-    visibility_level: Optional[list[VisibilityLevel]] = tuple([item for item in VisibilityLevel])
+    visibility_level: Optional[list[VisibilityLevel]] = tuple(
+        [item for item in VisibilityLevel]
+    )
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
 
@@ -53,7 +61,9 @@ class DataPipeFilterInput(TypeInputMixin):
 
     search_string: Optional[str] = None
 
-    aggregation_type: Optional[list[AggregationFunctions]] = tuple([item for item in AggregationFunctions])
+    aggregation_type: Optional[list[AggregationFunctions]] = tuple(
+        [item for item in AggregationFunctions]
+    )
     time_window_size: Optional[int] = None
 
     start_agg_window_datetime: Optional[datetime] = None

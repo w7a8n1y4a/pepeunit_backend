@@ -25,17 +25,24 @@ def get_repo(uuid: uuid_pkg.UUID, info: Info) -> RepoType:
 def get_repos(filters: RepoFilterInput, info: Info) -> ReposResultType:
     repo_service = get_repo_service_gql(info)
     count, repos = repo_service.list(filters)
-    return ReposResultType(count=count, repos=[RepoType(**repo.dict()) for repo in repos])
+    return ReposResultType(
+        count=count, repos=[RepoType(**repo.dict()) for repo in repos]
+    )
 
 
 @strawberry.field()
 def get_available_platforms(
-    uuid: uuid_pkg.UUID, info: Info, target_commit: Optional[str] = None, target_tag: Optional[str] = None
+    uuid: uuid_pkg.UUID,
+    info: Info,
+    target_commit: Optional[str] = None,
+    target_tag: Optional[str] = None,
 ) -> list[PlatformType]:
     repo_service = get_repo_service_gql(info)
     return [
         PlatformType(name=platform[0], link=platform[1])
-        for platform in repo_service.get_available_platforms(uuid, target_commit, target_tag)
+        for platform in repo_service.get_available_platforms(
+            uuid, target_commit, target_tag
+        )
     ]
 
 

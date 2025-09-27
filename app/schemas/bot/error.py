@@ -9,8 +9,7 @@ error_router = Router()
 
 @error_router.error(F.update.message.as_("message"))
 async def handle_my_custom_exception(event: ErrorEvent, message: Message):
-
-    error_text = 'Unknown error'
+    error_text = "Unknown error"
     if str(event.exception):
         error_text = str(event.exception)
     elif isinstance(event.exception, exceptions.HTTPException):

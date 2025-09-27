@@ -17,16 +17,24 @@ from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
 from app.dto.clickhouse.time_window import TimeWindow
-from app.dto.enum import DatasourceFormat, GrafanaUserRole, ProcessingPolicyType, TypeInputValue
+from app.dto.enum import (
+    DatasourceFormat,
+    GrafanaUserRole,
+    ProcessingPolicyType,
+    TypeInputValue,
+)
 from app.repositories.data_pipe_repository import DataPipeRepository
-from app.schemas.pydantic.grafana import DashboardPanelRead, DatasourceTimeSeriesData, UnitNodeForPanel
+from app.schemas.pydantic.grafana import (
+    DashboardPanelRead,
+    DatasourceTimeSeriesData,
+    UnitNodeForPanel,
+)
 from app.schemas.pydantic.unit_node import DataPipeFilter
 from app.utils.utils import generate_random_string
 from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
 
 
 class GrafanaRepository:
-
     def __init__(
         self,
         data_pipe_repository: DataPipeRepository = Depends(),
@@ -34,9 +42,12 @@ class GrafanaRepository:
         self.data_pipe_repository = data_pipe_repository
 
     admin_token: str = base64.b64encode(
-        f'{settings.gf_admin_user}:{settings.gf_admin_password}'.encode('utf-8')
-    ).decode('utf-8')
-    headers: dict = {"Authorization": 'Basic ' + admin_token, "Content-Type": "application/json"}
+        f"{settings.gf_admin_user}:{settings.gf_admin_password}".encode("utf-8")
+    ).decode("utf-8")
+    headers: dict = {
+        "Authorization": "Basic " + admin_token,
+        "Content-Type": "application/json",
+    }
     base_grafana_url: str = f"{settings.backend_link}/grafana"
 
     @staticmethod
@@ -60,25 +71,37 @@ class GrafanaRepository:
         for item in iterable:
             yield next(gen), item
 
-    async def generate_dashboard(self, dashboard: Dashboard, panels: list[DashboardPanelRead]) -> dict:
-
+    async def generate_dashboard(
+        self, dashboard: Dashboard, panels: list[DashboardPanelRead]
+    ) -> dict:
         if len(panels) == 0:
-            raise GrafanaError('Dashboard does not have Panels')
+            raise GrafanaError("Dashboard does not have Panels")
 
         panels_list = []
         for panel in panels:
-
             targets_list = []
             for ref_id, unit_node in self.enumerate_refid(panel.unit_nodes_for_panel):
-
                 if not unit_node.unit_node.is_data_pipe_active:
-                    raise GrafanaError('{} has no active DataPipe'.format(unit_node.unit_with_unit_node_name))
+                    raise GrafanaError(
+                        "{} has no active DataPipe".format(
+                            unit_node.unit_with_unit_node_name
+                        )
+                    )
 
                 data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
-                data_pipe_entity = is_valid_data_pipe_config(data_pipe_dict, is_business_validator=True)
+                data_pipe_entity = is_valid_data_pipe_config(
+                    data_pipe_dict, is_business_validator=True
+                )
 
-                if isinstance(data_pipe_entity, list) or unit_node.unit_node.data_pipe_yml is None:
-                    raise GrafanaError('{} has no valid yml DataPipe'.format(unit_node.unit_with_unit_node_name))
+                if (
+                    isinstance(data_pipe_entity, list)
+                    or unit_node.unit_node.data_pipe_yml is None
+                ):
+                    raise GrafanaError(
+                        "{} has no valid yml DataPipe".format(
+                            unit_node.unit_with_unit_node_name
+                        )
+                    )
 
                 columns, root_selector = self.get_columns(unit_node, data_pipe_entity)
 
@@ -97,13 +120,17 @@ class GrafanaRepository:
                             {
                                 "key": "x-auth-token",
                                 "value": AgentGrafanaUnitNode(
-                                    uuid=unit_node.unit_node.uuid, panel_uuid=panel.uuid, name='grafana'
+                                    uuid=unit_node.unit_node.uuid,
+                                    panel_uuid=panel.uuid,
+                                    name="grafana",
                                 ).generate_agent_token(),
                             }
                         ],
                         "params": [
                             {"key": key, "value": value}
-                            for key, value in (await self.get_params(unit_node, data_pipe_entity)).items()
+                            for key, value in (
+                                await self.get_params(unit_node, data_pipe_entity)
+                            ).items()
                         ],
                     },
                     "columns": columns,
@@ -145,10 +172,10 @@ class GrafanaRepository:
 
     def sync_dashboard(self, current_org: str, dashboard_dict: dict) -> dict:
         headers_deepcopy = copy.deepcopy(self.headers)
-        headers_deepcopy['X-Grafana-Org-Id'] = current_org
+        headers_deepcopy["X-Grafana-Org-Id"] = current_org
 
         response = httpx.post(
-            f'{self.base_grafana_url}/api/dashboards/db',
+            f"{self.base_grafana_url}/api/dashboards/db",
             headers=headers_deepcopy,
             data=json.dumps(dashboard_dict),
         )
@@ -158,8 +185,9 @@ class GrafanaRepository:
         return response.json()
 
     @staticmethod
-    async def get_params(unit_node: UnitNodeForPanel, data_pipe_entity: DataPipeConfig) -> dict:
-
+    async def get_params(
+        unit_node: UnitNodeForPanel, data_pipe_entity: DataPipeConfig
+    ) -> dict:
         params = {
             "format": DatasourceFormat.TIME_SERIES,
             "order_by_create_date": "asc",
@@ -175,18 +203,25 @@ class GrafanaRepository:
             params['limit'] = data_pipe_entity.processing_policy.n_records_count
         """
 
-        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.TIME_WINDOW:
-            params['relative_time'] = str(data_pipe_entity.processing_policy.time_window_size) + 's'
+        if (
+            data_pipe_entity.processing_policy.policy_type
+            == ProcessingPolicyType.TIME_WINDOW
+        ):
+            params["relative_time"] = (
+                str(data_pipe_entity.processing_policy.time_window_size) + "s"
+            )
 
-        if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.AGGREGATION:
-            params['relative_time'] = '30d'
+        if (
+            data_pipe_entity.processing_policy.policy_type
+            == ProcessingPolicyType.AGGREGATION
+        ):
+            params["relative_time"] = "30d"
 
         return params
 
     def get_columns(
         self, unit_node_panel: UnitNodeForPanel, data_pipe_entity: DataPipeConfig
     ) -> tuple[list[dict], str]:
-
         data = self.get_datasource_data(
             DataPipeFilter(
                 uuid=unit_node_panel.unit_node.uuid,
@@ -198,22 +233,22 @@ class GrafanaRepository:
         )
 
         columns = [{"selector": "time", "text": "", "type": "timestamp_epoch"}]
-        root_selector = ''
+        root_selector = ""
 
         if len(data) == 0:
-            return columns, ''
+            return columns, ""
         else:
             if isinstance(data[0].value, str):
                 columns.append({"selector": "value", "text": "", "type": "string"})
             elif isinstance(data[0].value, (float, int)):
                 columns.append({"selector": "value", "text": "", "type": "number"})
             elif isinstance(data[0].value, dict):
-                root_selector = 'value'
+                root_selector = "value"
                 for key, value in data[0].value.items():
                     if isinstance(value, (float, int)):
-                        columns.append({"selector": key, "text": '', "type": "number"})
+                        columns.append({"selector": key, "text": "", "type": "number"})
                     if isinstance(value, str):
-                        columns.append({"selector": key, "text": '', "type": "string"})
+                        columns.append({"selector": key, "text": "", "type": "string"})
 
         return columns, root_selector
 
@@ -228,7 +263,9 @@ class GrafanaRepository:
         return [
             DatasourceTimeSeriesData(
                 time=self.get_time_datasource_value(item),
-                value=self.get_typed_datasource_value(item.state, data_pipe_entity, unit_node_panel),
+                value=self.get_typed_datasource_value(
+                    item.state, data_pipe_entity, unit_node_panel
+                ),
             )
             for item in data
         ]
@@ -246,10 +283,12 @@ class GrafanaRepository:
         elif data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
             return value
         else:
-            raise GrafanaError('Processing this value not supported')
+            raise GrafanaError("Processing this value not supported")
 
     @staticmethod
-    def get_time_datasource_value(data: Union[NRecords, TimeWindow, Aggregation, LastValue]) -> int:
+    def get_time_datasource_value(
+        data: Union[NRecords, TimeWindow, Aggregation, LastValue],
+    ) -> int:
         value = None
         if isinstance(data, NRecords):
             value = data.create_datetime
@@ -263,15 +302,18 @@ class GrafanaRepository:
         if value:
             return int(value.timestamp() * 1000)
         else:
-            raise GrafanaError('Data type not supported')
+            raise GrafanaError("Data type not supported")
 
     def create_org_if_not_exists(self, user: User):
-
-        resp = httpx.get(f"{settings.backend_link}/grafana/api/orgs", headers=self.headers)
+        resp = httpx.get(
+            f"{settings.backend_link}/grafana/api/orgs", headers=self.headers
+        )
         resp.raise_for_status()
         orgs = resp.json()
 
-        existing = next((o for o in orgs if o["name"] == str(user.grafana_org_name)), None)
+        existing = next(
+            (o for o in orgs if o["name"] == str(user.grafana_org_name)), None
+        )
         if not existing:
             resp = httpx.post(
                 f"{settings.backend_link}/grafana/api/orgs",
@@ -286,7 +328,12 @@ class GrafanaRepository:
         resp = httpx.post(
             f"{settings.backend_link}/grafana/api/admin/users",
             headers=self.headers,
-            json={"name": user.login, "email": user.login, "login": user.login, "password": generate_random_string(16)},
+            json={
+                "name": user.login,
+                "email": user.login,
+                "login": user.login,
+                "password": generate_random_string(16),
+            },
         )
 
         if resp.status_code not in (200, 412):
@@ -314,7 +361,7 @@ class GrafanaRepository:
         }
 
         headers_deepcopy = copy.deepcopy(self.headers)
-        headers_deepcopy['X-Grafana-Org-Id'] = str(org_id)
+        headers_deepcopy["X-Grafana-Org-Id"] = str(org_id)
 
         resp = httpx.post(
             f"{settings.backend_link}/grafana/api/datasources",

@@ -36,9 +36,8 @@ def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultTyp
     count, pipe_data = unit_node_service.get_data_pipe_data(filters)
 
     def get_gql_type(
-        input_value: Union[NRecords, TimeWindow, Aggregation, LastValue]
+        input_value: Union[NRecords, TimeWindow, Aggregation, LastValue],
     ) -> Union[NRecordsType, TimeWindowType, AggregationType]:
-
         if isinstance(input_value, NRecords):
             return NRecordsType
         elif isinstance(input_value, TimeWindow):
@@ -60,13 +59,21 @@ def get_pipe_data(filters: DataPipeFilterInput, info: Info) -> PipeDataResultTyp
 def get_unit_nodes(filters: UnitNodeFilterInput, info: Info) -> UnitNodesResultType:
     unit_node_service = get_unit_node_service_gql(info)
     count, unit_nodes = unit_node_service.list(filters)
-    return UnitNodesResultType(count=count, unit_nodes=[UnitNodeType(**unit_node.dict()) for unit_node in unit_nodes])
+    return UnitNodesResultType(
+        count=count,
+        unit_nodes=[UnitNodeType(**unit_node.dict()) for unit_node in unit_nodes],
+    )
 
 
 @strawberry.field()
-async def check_data_pipe_config(file: Upload, info: Info) -> list[DataPipeValidationErrorType]:
+async def check_data_pipe_config(
+    file: Upload, info: Info
+) -> list[DataPipeValidationErrorType]:
     unit_node_service = get_unit_node_service_gql(info)
-    return [DataPipeValidationErrorType(**item.dict()) for item in await unit_node_service.check_data_pipe_config(file)]
+    return [
+        DataPipeValidationErrorType(**item.dict())
+        for item in await unit_node_service.check_data_pipe_config(file)
+    ]
 
 
 @strawberry.field()
@@ -74,7 +81,7 @@ def get_data_pipe_config(uuid: uuid_pkg.UUID, info: Info) -> str:
     unit_node_service = get_unit_node_service_gql(info)
     yml_filepath = unit_node_service.get_data_pipe_config(uuid)
 
-    with open(yml_filepath, 'r') as f:
+    with open(yml_filepath, "r") as f:
         file_data = f.read()
 
     os.remove(yml_filepath)

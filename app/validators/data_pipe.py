@@ -1,5 +1,4 @@
 import datetime
-from enum import Enum
 from numbers import Real
 from typing import Optional, Union
 
@@ -25,7 +24,7 @@ class ActivePeriod(BaseModel):
     start: Optional[datetime.datetime] = None
     end: Optional[datetime.datetime] = None
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def check_active_period(cls, self):
         if self.type == ActivePeriodType.FROM_DATE and not self.start:
             raise ValueError("start must be provided for FROM_DATE")
@@ -53,7 +52,7 @@ class FiltersConfig(BaseModel):
     last_unique_check: bool = False
     max_size: int = Field(ge=0)
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_filters(self):
         if self.type_value_filtering and self.filtering_values:
             if self.type_input_value == TypeInputValue.NUMBER and not all(
@@ -66,18 +65,28 @@ class FiltersConfig(BaseModel):
                 raise ValueError("filtering_values must be strings for TEXT input")
 
         if self.type_input_value == TypeInputValue.NUMBER:
-            if self.type_value_threshold == FilterTypeValueThreshold.MIN and self.threshold_min is None:
+            if (
+                self.type_value_threshold == FilterTypeValueThreshold.MIN
+                and self.threshold_min is None
+            ):
                 raise ValueError("threshold_min is required for MIN threshold")
-            if self.type_value_threshold == FilterTypeValueThreshold.MAX and self.threshold_max is None:
+            if (
+                self.type_value_threshold == FilterTypeValueThreshold.MAX
+                and self.threshold_max is None
+            ):
                 raise ValueError("threshold_max is required for MAX threshold")
             if self.type_value_threshold == FilterTypeValueThreshold.RANGE:
                 if self.threshold_min is None or self.threshold_max is None:
-                    raise ValueError("Both threshold_min and threshold_max are required for RANGE threshold")
+                    raise ValueError(
+                        "Both threshold_min and threshold_max are required for RANGE threshold"
+                    )
                 if self.threshold_min >= self.threshold_max:
                     raise ValueError("threshold_min must be less than threshold_max")
 
         if self.max_size > settings.mqtt_max_payload_size * 1024:
-            raise ValueError(f"max_size must be <= {settings.mqtt_max_payload_size * 1024}")
+            raise ValueError(
+                f"max_size must be <= {settings.mqtt_max_payload_size * 1024}"
+            )
 
         return self
 
@@ -95,7 +104,7 @@ class ProcessingPolicyConfig(BaseModel):
     time_window_size: Optional[int] = None
     aggregation_functions: Optional[AggregationFunctions] = None
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_processing(self):
         if self.policy_type == ProcessingPolicyType.N_RECORDS:
             if self.n_records_count is None:
@@ -103,13 +112,21 @@ class ProcessingPolicyConfig(BaseModel):
             if not (0 < self.n_records_count <= 1024):
                 raise ValueError("n_records_count must be between 1 and 1024")
 
-        if self.policy_type in [ProcessingPolicyType.TIME_WINDOW, ProcessingPolicyType.AGGREGATION]:
+        if self.policy_type in [
+            ProcessingPolicyType.TIME_WINDOW,
+            ProcessingPolicyType.AGGREGATION,
+        ]:
             if self.time_window_size is None:
                 raise ValueError("time_window_size is required")
             if self.time_window_size not in settings.time_window_sizes:
-                raise ValueError(f"Invalid time_window_size. Must be one of: {settings.time_window_sizes}")
+                raise ValueError(
+                    f"Invalid time_window_size. Must be one of: {settings.time_window_sizes}"
+                )
 
-        if self.policy_type == ProcessingPolicyType.AGGREGATION and self.aggregation_functions is None:
+        if (
+            self.policy_type == ProcessingPolicyType.AGGREGATION
+            and self.aggregation_functions is None
+        ):
             raise ValueError("aggregation_functions is required for AGGREGATION")
 
         return self
@@ -122,7 +139,9 @@ class DataPipeConfig(BaseModel):
     processing_policy: ProcessingPolicyConfig
 
 
-def format_validation_error_dict(e: ValidationError) -> list[DataPipeValidationErrorRead]:
+def format_validation_error_dict(
+    e: ValidationError,
+) -> list[DataPipeValidationErrorRead]:
     validation_errors = []
     for err in e.errors():
         validation_errors.append(
@@ -138,7 +157,6 @@ def format_validation_error_dict(e: ValidationError) -> list[DataPipeValidationE
 def is_valid_data_pipe_config(
     data: dict, is_business_validator: bool = False
 ) -> DataPipeConfig | list[DataPipeValidationErrorRead]:
-
     if data is None:
         raise DataPipeError("DataPipe is None")
 
@@ -146,7 +164,9 @@ def is_valid_data_pipe_config(
         try:
             return DataPipeConfig.model_validate(data)
         except ValidationError as e:
-            raise DataPipeError("{} validation errors for DataPipeConfig".format(len(e.errors())))
+            raise DataPipeError(
+                "{} validation errors for DataPipeConfig".format(len(e.errors()))
+            )
     else:
         try:
             DataPipeConfig.model_validate(data)

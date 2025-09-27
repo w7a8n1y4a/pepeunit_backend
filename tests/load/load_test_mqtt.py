@@ -42,7 +42,10 @@ class LoadTester:
         num_workers = min(self.config.workers, num_units)
 
         batch_size = math.ceil(num_units / num_workers)
-        return [self.preparation.units[i : i + batch_size] for i in range(0, num_units, batch_size)]
+        return [
+            self.preparation.units[i : i + batch_size]
+            for i in range(0, num_units, batch_size)
+        ]
 
     def run_mqtt_batch(self, units_batch):
         mqtt_test = MQTTLoadTest(self.config, units_batch)
@@ -58,7 +61,9 @@ class LoadTester:
             while time.time() - start_time < duration:
                 time.sleep(1)
                 if not self.preparation.is_backend_subs():
-                    logging.warning(f'Backend crash on {round(time.time()-start_time, 2)} s')
+                    logging.warning(
+                        f"Backend crash on {round(time.time() - start_time, 2)} s"
+                    )
 
                     terminate_all_children()
                     os.kill(os.getpid(), signal.SIGTERM)
@@ -83,19 +88,19 @@ class LoadTester:
                 check_backend_thread.join()
 
                 logging.warning(
-                    f'Backend sustained {round(sum(results)/self.config.duration, 2)} rps for {self.config.duration} seconds'
+                    f"Backend sustained {round(sum(results) / self.config.duration, 2)} rps for {self.config.duration} seconds"
                 )
 
             except Exception as e:
                 print(e)
 
     def save_report(self, data):
-        with open(self.report_path, 'w') as f:
+        with open(self.report_path, "w") as f:
             json.dump(data, f)
 
 
 async def main():
-    url = f'{settings.backend_http_type}://{settings.backend_domain}'
+    url = f"{settings.backend_http_type}://{settings.backend_domain}"
 
     config = LoadTestConfig(
         url=url,
@@ -109,7 +114,7 @@ async def main():
         workers=settings.test_load_mqtt_workers,
         mqtt_admin=settings.mqtt_username,
         mqtt_password=settings.mqtt_password,
-        test_hash=hashlib.md5(url.encode('utf-8')).hexdigest()[:10],
+        test_hash=hashlib.md5(url.encode("utf-8")).hexdigest()[:10],
     )
 
     preparation = MqttTestPreparation(config)

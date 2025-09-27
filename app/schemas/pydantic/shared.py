@@ -14,9 +14,9 @@ class Root(BaseModel):
     description: str = settings.description
     license: str = settings.license
     authors: list = settings.authors
-    swagger: str = f'{settings.backend_link_prefix}/docs'
-    graphql: str = f'{settings.backend_link_prefix}/graphql'
-    grafana: str = f'{settings.backend_link}/grafana/'
+    swagger: str = f"{settings.backend_link_prefix}/docs"
+    graphql: str = f"{settings.backend_link_prefix}/graphql"
+    grafana: str = f"{settings.backend_link}/grafana/"
     telegram_bot: str = settings.telegram_bot_link
 
 

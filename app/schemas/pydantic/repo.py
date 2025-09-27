@@ -81,7 +81,9 @@ class RepoFilter:
 
     is_auto_update_repo: Optional[bool] = None
 
-    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
+    visibility_level: Optional[list[str]] = Query(
+        [item.value for item in VisibilityLevel]
+    )
 
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
     order_by_last_update: Optional[OrderByDate] = OrderByDate.desc

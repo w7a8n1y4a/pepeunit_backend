@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 from app.configs.config import Settings
-from app.dto.enum import AgentType
 
 load_dotenv()
 
@@ -19,14 +18,14 @@ class ClickHouseConnectionParams:
     database: str
 
     @classmethod
-    def from_connection_string(cls, conn_str: str) -> 'ClickHouseConnectionParams':
+    def from_connection_string(cls, conn_str: str) -> "ClickHouseConnectionParams":
         # Удаляем префикс "clickhouse+" если он есть
         if conn_str.startswith("clickhouse+"):
             conn_str = conn_str.split("+", 1)[1]
 
         parsed = urlparse(conn_str)
 
-        database = parsed.path.lstrip('/') or 'default'
+        database = parsed.path.lstrip("/") or "default"
 
         return cls(
             protocol=parsed.scheme,
@@ -39,12 +38,31 @@ class ClickHouseConnectionParams:
 
 
 settings = Settings()
-settings.backend_http_type = 'https' if settings.backend_secure else 'http'
-settings.mqtt_http_type = 'https' if settings.mqtt_secure else 'http'
+settings.backend_http_type = "https" if settings.backend_secure else "http"
+settings.mqtt_http_type = "https" if settings.mqtt_secure else "http"
 
-settings.backend_link = f'{settings.backend_http_type}://{settings.backend_domain}'
+settings.backend_link = f"{settings.backend_http_type}://{settings.backend_domain}"
 settings.backend_link_prefix = settings.backend_link + settings.backend_app_prefix
-settings.backend_link_prefix_and_v1 = settings.backend_link_prefix + settings.backend_api_v1_prefix
+settings.backend_link_prefix_and_v1 = (
+    settings.backend_link_prefix + settings.backend_api_v1_prefix
+)
 if settings.clickhouse_database_url:
-    settings.clickhouse_connection = ClickHouseConnectionParams.from_connection_string(settings.clickhouse_database_url)
-settings.time_window_sizes = [60, 300, 600, 900, 1200, 1800, 3600, 7200, 10800, 14400, 21600, 28800, 43200, 86400]
+    settings.clickhouse_connection = ClickHouseConnectionParams.from_connection_string(
+        settings.clickhouse_database_url
+    )
+settings.time_window_sizes = [
+    60,
+    300,
+    600,
+    900,
+    1200,
+    1800,
+    3600,
+    7200,
+    10800,
+    14400,
+    21600,
+    28800,
+    43200,
+    86400,
+]

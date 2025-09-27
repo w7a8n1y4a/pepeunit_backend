@@ -6,7 +6,14 @@ from typing import Optional
 from fastapi import Query
 from pydantic import BaseModel, root_validator
 
-from app.dto.enum import LogLevel, OrderByDate, OrderByText, UnitFirmwareUpdateStatus, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import (
+    LogLevel,
+    OrderByDate,
+    OrderByText,
+    UnitFirmwareUpdateStatus,
+    UnitNodeTypeEnum,
+    VisibilityLevel,
+)
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -124,7 +131,9 @@ class UnitFilter:
 
     is_auto_update_from_repo_unit: Optional[bool] = None
 
-    visibility_level: Optional[list[str]] = Query([item.value for item in VisibilityLevel])
+    visibility_level: Optional[list[str]] = Query(
+        [item.value for item in VisibilityLevel]
+    )
 
     order_by_unit_name: Optional[OrderByText] = OrderByText.asc
     order_by_create_date: Optional[OrderByDate] = OrderByDate.desc
@@ -136,7 +145,9 @@ class UnitFilter:
     # Only with is_include_output_unit_nodes = True
     unit_node_input_uuid: Optional[uuid_pkg.UUID] = None
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_type: Optional[list[str]] = Query([item.value for item in UnitNodeTypeEnum])
+    unit_node_type: Optional[list[str]] = Query(
+        [item.value for item in UnitNodeTypeEnum]
+    )
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
     unit_node_uuids: Optional[list[uuid_pkg.UUID]] = Query([])
 

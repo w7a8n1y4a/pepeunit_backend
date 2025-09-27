@@ -7,7 +7,6 @@ from tests.load.src.dto.config import LoadTestConfig
 
 
 class MqttTestPreparation:
-
     repo: dict
     units: list[dict]
     rest_client: RestClient
@@ -31,16 +30,18 @@ class MqttTestPreparation:
             "Content-Type": "application/json",
         }
         data = {
-            'username': self.rest_client.config.mqtt_admin,
-            'password': self.rest_client.config.mqtt_password,
+            "username": self.rest_client.config.mqtt_admin,
+            "password": self.rest_client.config.mqtt_password,
         }
 
-        mqtt_url = self.units[0]['env']['MQTT_URL']
-        mqtt_http_type = self.units[0]['env']['HTTP_TYPE']
+        mqtt_url = self.units[0]["env"]["MQTT_URL"]
+        mqtt_http_type = self.units[0]["env"]["HTTP_TYPE"]
 
-        response = httpx.post(f"{mqtt_http_type}://{mqtt_url}/api/v5/login", json=data, headers=headers)
+        response = httpx.post(
+            f"{mqtt_http_type}://{mqtt_url}/api/v5/login", json=data, headers=headers
+        )
 
-        return response.json()['token']
+        return response.json()["token"]
 
     def is_backend_subs(self):
         headers = {
@@ -49,14 +50,14 @@ class MqttTestPreparation:
             "Content-Type": "application/json",
         }
 
-        mqtt_url = self.units[0]['env']['MQTT_URL']
-        mqtt_http_type = self.units[0]['env']['HTTP_TYPE']
+        mqtt_url = self.units[0]["env"]["MQTT_URL"]
+        mqtt_http_type = self.units[0]["env"]["HTTP_TYPE"]
 
         link = f"{mqtt_http_type}://{mqtt_url}/api/v5/subscriptions?page=1&limit=50&qos=0&topic={self.units[0]['env']['PEPEUNIT_URL']}%2F%2B%2Fpepeunit"
 
         data = httpx.get(link, headers=headers)
 
-        count = data.json()['meta']['count']
-        logging.warning(f'Count mqtt client with sub topics: {count}')
+        count = data.json()["meta"]["count"]
+        logging.warning(f"Count mqtt client with sub topics: {count}")
 
         return count >= 1

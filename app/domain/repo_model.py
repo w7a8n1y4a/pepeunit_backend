@@ -11,9 +11,11 @@ from app.dto.enum import VisibilityLevel
 class Repo(SQLModel, table=True):
     """Репозиторий"""
 
-    __tablename__ = 'repos'
+    __tablename__ = "repos"
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
+    uuid: uuid_pkg.UUID = Field(
+        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+    )
 
     visibility_level: str = Field(nullable=False, default=VisibilityLevel.PUBLIC)
 
@@ -46,10 +48,16 @@ class Repo(SQLModel, table=True):
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+        sa_column=Column(
+            UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
+        )
     )
 
     # to RepositoryRegistry link
     repository_registry_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('repository_registry.uuid', ondelete='CASCADE'), nullable=False)
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("repository_registry.uuid", ondelete="CASCADE"),
+            nullable=False,
+        )
     )

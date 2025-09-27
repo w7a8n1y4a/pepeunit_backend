@@ -24,7 +24,9 @@ class PanelsUnitNodesRepository(BaseRepository):
         self.db.commit()
         self.db.flush()
 
-    def get_by_parent(self, unit_node: UnitNode, dashboard_panel: DashboardPanel) -> PanelsUnitNodes:
+    def get_by_parent(
+        self, unit_node: UnitNode, dashboard_panel: DashboardPanel
+    ) -> PanelsUnitNodes:
         return (
             self.db.query(PanelsUnitNodes)
             .filter(

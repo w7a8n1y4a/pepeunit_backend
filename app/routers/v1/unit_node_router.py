@@ -23,38 +23,55 @@ router = APIRouter()
 
 
 @router.get("/{uuid}", response_model=UnitNodeRead)
-def get(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+def get(
+    uuid: uuid_pkg.UUID,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
+):
     return UnitNodeRead(**unit_node_service.get(uuid).dict())
 
 
 @router.patch("/{uuid}", response_model=UnitNodeRead)
 async def update(
-    uuid: uuid_pkg.UUID, data: UnitNodeUpdate, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
+    uuid: uuid_pkg.UUID,
+    data: UnitNodeUpdate,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     return UnitNodeRead(**(await unit_node_service.update(uuid, data)).dict())
 
 
 @router.patch("/set_state_input/{uuid}", response_model=UnitNodeRead)
 def set_state_input(
-    uuid: uuid_pkg.UUID, data: UnitNodeSetState, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
+    uuid: uuid_pkg.UUID,
+    data: UnitNodeSetState,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     return UnitNodeRead(**unit_node_service.set_state_input(uuid, data).dict())
 
 
-@router.post("/check_data_pipe_config", response_model=list[DataPipeValidationErrorRead])
-async def check_data_pipe_config(data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+@router.post(
+    "/check_data_pipe_config", response_model=list[DataPipeValidationErrorRead]
+)
+async def check_data_pipe_config(
+    data: UploadFile,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
+):
     return await unit_node_service.check_data_pipe_config(data)
 
 
 @router.post("/set_data_pipe_config", status_code=status.HTTP_204_NO_CONTENT)
 async def set_data_pipe_config(
-    uuid: uuid_pkg.UUID, data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
+    uuid: uuid_pkg.UUID,
+    data: UploadFile,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     return await unit_node_service.set_data_pipe_config(uuid, data)
 
 
 @router.get("/get_data_pipe_config/{uuid}", response_model=bytes)
-def get_data_pipe_config(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+def get_data_pipe_config(
+    uuid: uuid_pkg.UUID,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
+):
     yml_filepath = unit_node_service.get_data_pipe_config(uuid)
 
     def cleanup():
@@ -73,7 +90,10 @@ def get_data_pipe_data(
 
 
 @router.get("/get_data_pipe_data_csv/{uuid}", response_model=bytes)
-def get_data_pipe_data_csv(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+def get_data_pipe_data_csv(
+    uuid: uuid_pkg.UUID,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
+):
     csv_filepath = unit_node_service.get_data_pipe_data_csv(uuid)
 
     def cleanup():
@@ -84,13 +104,18 @@ def get_data_pipe_data_csv(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeServi
 
 @router.post("/set_data_pipe_data_csv", status_code=status.HTTP_204_NO_CONTENT)
 async def set_data_pipe_data_csv(
-    uuid: uuid_pkg.UUID, data: UploadFile, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
+    uuid: uuid_pkg.UUID,
+    data: UploadFile,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     return await unit_node_service.set_data_pipe_data_csv(uuid, data)
 
 
 @router.delete("/delete_data_pipe_data/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_data_pipe_data(uuid: uuid_pkg.UUID, unit_node_service: UnitNodeService = Depends(get_unit_node_service)):
+def delete_data_pipe_data(
+    uuid: uuid_pkg.UUID,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
+):
     return unit_node_service.delete_data_pipe_data(uuid)
 
 
@@ -100,7 +125,10 @@ def get_unit_nodes(
     unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     count, unit_nodes = unit_node_service.list(filters)
-    return UnitNodesResult(count=count, unit_nodes=[UnitNodeRead(**unit_node.dict()) for unit_node in unit_nodes])
+    return UnitNodesResult(
+        count=count,
+        unit_nodes=[UnitNodeRead(**unit_node.dict()) for unit_node in unit_nodes],
+    )
 
 
 @router.post(
@@ -109,6 +137,7 @@ def get_unit_nodes(
     status_code=status.HTTP_201_CREATED,
 )
 def create_unit_node_edge(
-    data: UnitNodeEdgeCreate, unit_node_service: UnitNodeService = Depends(get_unit_node_service)
+    data: UnitNodeEdgeCreate,
+    unit_node_service: UnitNodeService = Depends(get_unit_node_service),
 ):
     return UnitNodeEdgeRead(**unit_node_service.create_node_edge(data).dict())

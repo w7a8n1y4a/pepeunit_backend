@@ -21,7 +21,7 @@ from app.schemas.pydantic.repository_registry import Credentials
 from app.services.validators import is_valid_json
 from tests.client.mqtt import MQTTClient
 
-test_hash = hashlib.md5(settings.backend_domain.encode('utf-8')).hexdigest()[:5]
+test_hash = hashlib.md5(settings.backend_domain.encode("utf-8")).hexdigest()[:5]
 
 
 def pytest_configure():
@@ -55,8 +55,8 @@ def clear_database(database) -> None:
     """
 
     # del files
-    shutil.rmtree('tmp/test_units', ignore_errors=True)
-    shutil.rmtree('tmp/test_units_tar_tgz', ignore_errors=True)
+    shutil.rmtree("tmp/test_units", ignore_errors=True)
+    shutil.rmtree("tmp/test_units_tar_tgz", ignore_errors=True)
 
     for item in os.listdir(settings.backend_save_repo_path):
         item_path = os.path.join(settings.backend_save_repo_path, item)
@@ -66,16 +66,16 @@ def clear_database(database) -> None:
     database.query(RepositoryRegistry).where(
         RepositoryRegistry.repository_url.in_(
             [
-                'https://github.com/w7a8n1y4a/github_unit_priv_test.git',
-                'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_priv_test.git',
-                'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
-                'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
-                'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
+                "https://github.com/w7a8n1y4a/github_unit_priv_test.git",
+                "https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_priv_test.git",
+                "https://github.com/w7a8n1y4a/github_unit_pub_test.git",
+                "https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git",
+                "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git",
             ]
         )
     ).delete()
 
-    database.query(User).where(User.login.ilike(f'%{test_hash}%')).delete()
+    database.query(User).where(User.login.ilike(f"%{test_hash}%")).delete()
     database.commit()
 
 
@@ -83,8 +83,8 @@ def clear_database(database) -> None:
 def test_users() -> list[dict]:
     return [
         {
-            "login": f'test_{inc}_{test_hash}',
-            "password": f'testtest{inc}',
+            "login": f"test_{inc}_{test_hash}",
+            "password": f"testtest{inc}",
         }
         for inc in range(2)
     ]
@@ -92,48 +92,51 @@ def test_users() -> list[dict]:
 
 @pytest.fixture()
 def test_external_repository() -> list[dict]:
-
     # get private repository
     test_external_repository = []
     try:
-        data = is_valid_json(settings.test_integration_private_repo_json, "Private Repo")
+        data = is_valid_json(
+            settings.test_integration_private_repo_json, "Private Repo"
+        )
         if isinstance(data, str):
             data = is_valid_json(data, "Private Repo")
     except JSONDecodeError:
         assert False
 
-    test_external_repository.extend(data['data'])
+    test_external_repository.extend(data["data"])
 
     # add public repository
     test_external_repository.extend(
         [
             {
-                'is_public': True,
-                'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
-                'platform': 'Github',
+                "is_public": True,
+                "link": "https://github.com/w7a8n1y4a/github_unit_pub_test.git",
+                "platform": "Github",
             },
             {
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
-                'platform': 'Gitlab',
-                'compile': True,
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git",
+                "platform": "Gitlab",
+                "compile": True,
             },
             {
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
-                'platform': 'Gitlab',
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git",
+                "platform": "Gitlab",
             },
         ]
     )
 
     return [
         {
-            'repository_url': repo['link'],
-            'is_public_repository': repo['is_public'],
-            'platform': repo['platform'],
-            'is_compilable_repo': repo['compile'] if 'compile' in repo else False,
-            'credentials': (
-                None if repo['is_public'] == True else {'username': repo['username'], 'pat_token': repo['pat_token']}
+            "repository_url": repo["link"],
+            "is_public_repository": repo["is_public"],
+            "platform": repo["platform"],
+            "is_compilable_repo": repo["compile"] if "compile" in repo else False,
+            "credentials": (
+                None
+                if repo["is_public"]
+                else {"username": repo["username"], "pat_token": repo["pat_token"]}
             ),
         }
         for inc, repo in enumerate(test_external_repository)
@@ -142,82 +145,83 @@ def test_external_repository() -> list[dict]:
 
 @pytest.fixture()
 def test_repos() -> list[dict]:
-
     # get private repository
     test_repos = []
     try:
-        data = is_valid_json(settings.test_integration_private_repo_json, "Private Repo")
+        data = is_valid_json(
+            settings.test_integration_private_repo_json, "Private Repo"
+        )
         if isinstance(data, str):
             data = is_valid_json(data, "Private Repo")
     except JSONDecodeError:
         assert False
 
-    test_repos.extend(data['data'])
+    test_repos.extend(data["data"])
 
     # add public repository
     test_repos.extend(
         [
             {
-                'type': VisibilityLevel.PUBLIC,
-                'is_public': True,
-                'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
-                'platform': 'Github',
+                "type": VisibilityLevel.PUBLIC,
+                "is_public": True,
+                "link": "https://github.com/w7a8n1y4a/github_unit_pub_test.git",
+                "platform": "Github",
             },
             {
-                'type': VisibilityLevel.PUBLIC,
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git',
-                'platform': 'Gitlab',
-                'compile': True,
+                "type": VisibilityLevel.PUBLIC,
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git",
+                "platform": "Gitlab",
+                "compile": True,
             },
             {
-                'type': VisibilityLevel.PUBLIC,
-                'is_public': True,
-                'link': 'https://github.com/w7a8n1y4a/github_unit_pub_test.git',
-                'platform': 'Github',
-                'compile': True,
+                "type": VisibilityLevel.PUBLIC,
+                "is_public": True,
+                "link": "https://github.com/w7a8n1y4a/github_unit_pub_test.git",
+                "platform": "Github",
+                "compile": True,
             },
             {
-                'type': VisibilityLevel.PUBLIC,
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
-                'platform': 'Gitlab',
+                "type": VisibilityLevel.PUBLIC,
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git",
+                "platform": "Gitlab",
             },
             {
-                'type': VisibilityLevel.INTERNAL,
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
-                'platform': 'Gitlab',
+                "type": VisibilityLevel.INTERNAL,
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git",
+                "platform": "Gitlab",
             },
             {
-                'type': VisibilityLevel.PRIVATE,
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
-                'platform': 'Gitlab',
+                "type": VisibilityLevel.PRIVATE,
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git",
+                "platform": "Gitlab",
             },
             {
-                'type': VisibilityLevel.PUBLIC,
-                'is_public': True,
-                'link': 'https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git',
-                'platform': 'Gitlab',
-                'compile': True,
+                "type": VisibilityLevel.PUBLIC,
+                "is_public": True,
+                "link": "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git",
+                "platform": "Gitlab",
+                "compile": True,
             },
         ]
     )
     return [
         {
-            'visibility_level': repo['type'],
-            'name': f'test_{inc}_{test_hash}',
-            'repository_url': repo['link'],
-            'is_public_repository': repo['is_public'],
-            'platform': repo['platform'],
-            'is_compilable_repo': repo['compile'] if 'compile' in repo else False,
-            'credentials': (
+            "visibility_level": repo["type"],
+            "name": f"test_{inc}_{test_hash}",
+            "repository_url": repo["link"],
+            "is_public_repository": repo["is_public"],
+            "platform": repo["platform"],
+            "is_compilable_repo": repo["compile"] if "compile" in repo else False,
+            "credentials": (
                 None
-                if repo['is_public'] == True
-                else Credentials(username=repo['username'], pat_token=repo['pat_token'])
+                if repo["is_public"]
+                else Credentials(username=repo["username"], pat_token=repo["pat_token"])
             ),
-            'is_auto_update_repo': True,
+            "is_auto_update_repo": True,
         }
         for inc, repo in enumerate(test_repos)
     ]
@@ -225,7 +229,7 @@ def test_repos() -> list[dict]:
 
 @pytest.fixture()
 def test_dashboards() -> list[str]:
-    return [f'test_{inc}_{test_hash}' for inc in range(2)]
+    return [f"test_{inc}_{test_hash}" for inc in range(2)]
 
 
 class ClientEmulatorThread(threading.Thread):
@@ -246,11 +250,13 @@ class ClientEmulatorThread(threading.Thread):
 
                 if isinstance(task, list):
                     for unit in task:
-                        thread = threading.Thread(target=self.start_mqtt_client, args=(unit,), daemon=True)
+                        thread = threading.Thread(
+                            target=self.start_mqtt_client, args=(unit,), daemon=True
+                        )
                         self.clients.append(thread)
                         thread.start()
 
-                    self.result_queue.put({'run_client': [unit.uuid for unit in task]})
+                    self.result_queue.put({"run_client": [unit.uuid for unit in task]})
                 if task == "STOP":
                     break
 

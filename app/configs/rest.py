@@ -32,7 +32,11 @@ from app.services.utils import token_depends
 
 class ServiceFactory:
     def __init__(
-        self, db: Session, client: Optional[Client] = None, jwt_token: Optional[str] = None, is_bot_auth: bool = False
+        self,
+        db: Session,
+        client: Optional[Client] = None,
+        jwt_token: Optional[str] = None,
+        is_bot_auth: bool = False,
     ):
         self.db = db
         self.client = client
@@ -216,7 +220,8 @@ def get_metrics_service(
 
 
 def get_permission_service(
-    db: Session = Depends(get_session), jwt_token: Optional[str] = Depends(token_depends)
+    db: Session = Depends(get_session),
+    jwt_token: Optional[str] = Depends(token_depends),
 ) -> PermissionService:
     return create_service_factory(db, None, jwt_token).get_permission_service()
 
@@ -241,7 +246,9 @@ def get_bot_repository_registry_service(
     db: Session = Depends(get_session),
     jwt_token: Optional[str] = Depends(token_depends),
 ) -> RepositoryRegistryService:
-    return create_bot_service_factory(db, None, jwt_token).get_repository_registry_service()
+    return create_bot_service_factory(
+        db, None, jwt_token
+    ).get_repository_registry_service()
 
 
 def get_bot_repo_service(

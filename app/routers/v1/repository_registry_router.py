@@ -25,42 +25,42 @@ from app.services.repository_registry_service import RepositoryRegistryService
 router = APIRouter()
 
 
-@router.on_event('startup')
-@repeat_at(cron='0 * * * *')
+@router.on_event("startup")
+@repeat_at(cron="0 * * * *")
 def automatic_update_repositories():
-    lock_fd = acquire_file_lock('tmp/update_repos.lock')
+    lock_fd = acquire_file_lock("tmp/update_repos.lock")
 
     time.sleep(10)
 
     if lock_fd:
-        logging.info('Run update with lock')
+        logging.info("Run update with lock")
         with get_hand_session() as db:
             with get_hand_clickhouse_client() as cc:
                 repo_service = get_repo_service(db, cc, None)
                 repo_service.bulk_update_units_firmware(is_auto_update=True)
 
     else:
-        logging.info('Skip update without lock')
+        logging.info("Skip update without lock")
 
     if lock_fd:
         lock_fd.close()
 
 
-@router.on_event('startup')
-@repeat_at(cron='30 * * * *')
+@router.on_event("startup")
+@repeat_at(cron="30 * * * *")
 def automatic_update_registry():
-    lock_fd = acquire_file_lock('tmp/update_registry.lock')
+    lock_fd = acquire_file_lock("tmp/update_registry.lock")
 
     time.sleep(10)
 
     if lock_fd:
-        logging.info('Run update with lock')
+        logging.info("Run update with lock")
         with get_hand_session() as db:
             repository_registry_service = get_repository_registry_service(db, None)
             repository_registry_service.sync_local_repository_storage(True)
 
     else:
-        logging.info('Skip update without lock')
+        logging.info("Skip update without lock")
 
     if lock_fd:
         lock_fd.close()
@@ -73,24 +73,34 @@ def automatic_update_registry():
 )
 def create(
     data: RepositoryRegistryCreate,
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
-    return repository_registry_service.mapper_registry_to_registry_read(repository_registry_service.create(data))
+    return repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.create(data)
+    )
 
 
 @router.get("/{uuid}", response_model=RepositoryRegistryRead)
 def get(
     uuid: uuid_pkg.UUID,
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
-    return repository_registry_service.mapper_registry_to_registry_read(repository_registry_service.get(uuid))
+    return repository_registry_service.mapper_registry_to_registry_read(
+        repository_registry_service.get(uuid)
+    )
 
 
 @router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
 def get_branch_commits(
     uuid: uuid_pkg.UUID,
     filters: CommitFilter = Depends(CommitFilter),
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     return repository_registry_service.get_branch_commits(uuid, filters)
 
@@ -99,15 +109,21 @@ def get_branch_commits(
 def set_credentials(
     uuid: uuid_pkg.UUID,
     data: Credentials,
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     return repository_registry_service.set_credentials(uuid, data)
 
 
-@router.get("/get_credentials/{uuid}", response_model=Optional[OneRepositoryRegistryCredentials])
+@router.get(
+    "/get_credentials/{uuid}", response_model=Optional[OneRepositoryRegistryCredentials]
+)
 def get_credentials(
     uuid: uuid_pkg.UUID,
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     return repository_registry_service.get_credentials(uuid)
 
@@ -115,14 +131,18 @@ def get_credentials(
 @router.patch("/update_local_repository/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def update_local_repository(
     uuid: uuid_pkg.UUID,
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     return repository_registry_service.update_local_repository(uuid)
 
 
 @router.patch("/backend_sync_registry", status_code=status.HTTP_204_NO_CONTENT)
 def backend_force_sync(
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     return repository_registry_service.backend_force_sync_local_repository_storage()
 
@@ -130,13 +150,16 @@ def backend_force_sync(
 @router.get("", response_model=RepositoriesRegistryResult)
 def get_repos(
     filters: RepositoryRegistryFilter = Depends(RepositoryRegistryFilter),
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     count, repositories_registry = repository_registry_service.list(filters)
     return RepositoriesRegistryResult(
         count=count,
         repositories_registry=[
-            repository_registry_service.mapper_registry_to_registry_read(item) for item in repositories_registry
+            repository_registry_service.mapper_registry_to_registry_read(item)
+            for item in repositories_registry
         ],
     )
 
@@ -144,6 +167,8 @@ def get_repos(
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(
     uuid: uuid_pkg.UUID,
-    repository_registry_service: RepositoryRegistryService = Depends(get_repository_registry_service),
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
 ):
     return repository_registry_service.delete(uuid)

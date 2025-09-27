@@ -2,8 +2,12 @@ from fastapi import status
 
 
 class CustomException(Exception):
-    def __init__(self, message: str, status_code: int, message_template: str, error_code: int):
-        self.message = '{}: {}: {}'.format(status_code, error_code, message_template.format(message))
+    def __init__(
+        self, message: str, status_code: int, message_template: str, error_code: int
+    ):
+        self.message = "{}: {}: {}".format(
+            status_code, error_code, message_template.format(message)
+        )
         self.status_code = status_code
         self.message_template = message_template
         self.error_code = error_code
@@ -12,7 +16,12 @@ class CustomException(Exception):
 
 class NoAccessError(CustomException):
     def __init__(self, message):
-        super().__init__(message, status_code=status.HTTP_403_FORBIDDEN, message_template="No Access: {}", error_code=1)
+        super().__init__(
+            message,
+            status_code=status.HTTP_403_FORBIDDEN,
+            message_template="No Access: {}",
+            error_code=1,
+        )
 
 
 class ValidationError(CustomException):
@@ -108,7 +117,10 @@ class CustomJSONDecodeError(CustomException):
 class MqttError(CustomException):
     def __init__(self, message):
         super().__init__(
-            message, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, message_template="MQTT Error: {}", error_code=10
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="MQTT Error: {}",
+            error_code=10,
         )
 
 

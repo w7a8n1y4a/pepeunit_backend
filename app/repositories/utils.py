@@ -8,9 +8,9 @@ from app.dto.enum import OrderByDate, VisibilityLevel
 
 
 def apply_ilike_search_string(query, filters, fields: list):
-    if filters.dict()['search_string'] and len(filters.dict()['search_string']) > 0:
+    if filters.dict()["search_string"] and len(filters.dict()["search_string"]) > 0:
         for word in filters.search_string.split():
-            query = query.where(or_(*[field.ilike(f'%{word}%') for field in fields]))
+            query = query.where(or_(*[field.ilike(f"%{word}%") for field in fields]))
 
     return query
 
@@ -30,7 +30,6 @@ def apply_enums(query, filters, fields: dict):
 
 
 def apply_restriction(query, filters, entity_type: any, restriction: list):
-
     visibility_levels = (
         filters.visibility_level.default
         if isinstance(filters.visibility_level, params.Query)
@@ -43,8 +42,13 @@ def apply_restriction(query, filters, entity_type: any, restriction: list):
     if restriction and VisibilityLevel.PRIVATE in visibility_levels:
         query = query.filter(
             or_(
-                entity_type.visibility_level.in_([VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]),
-                and_(entity_type.visibility_level == VisibilityLevel.PRIVATE, entity_type.uuid.in_(restriction)),
+                entity_type.visibility_level.in_(
+                    [VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]
+                ),
+                and_(
+                    entity_type.visibility_level == VisibilityLevel.PRIVATE,
+                    entity_type.uuid.in_(restriction),
+                ),
             )
         )
 
@@ -52,9 +56,9 @@ def apply_restriction(query, filters, entity_type: any, restriction: list):
 
 
 def apply_offset_and_limit(query, filters) -> tuple[int, Any]:
-    return query.count(), query.offset(filters.offset if filters.offset else None).limit(
-        filters.limit if filters.limit else None
-    )
+    return query.count(), query.offset(
+        filters.offset if filters.offset else None
+    ).limit(filters.limit if filters.limit else None)
 
 
 def apply_orders_by(query, filters, fields: dict):

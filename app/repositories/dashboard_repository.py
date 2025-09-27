@@ -12,8 +12,16 @@ from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.repositories.base_repository import BaseRepository
-from app.repositories.utils import apply_ilike_search_string, apply_offset_and_limit, apply_orders_by
-from app.schemas.pydantic.grafana import DashboardFilter, DashboardPanelRead, UnitNodeForPanel
+from app.repositories.utils import (
+    apply_ilike_search_string,
+    apply_offset_and_limit,
+    apply_orders_by,
+)
+from app.schemas.pydantic.grafana import (
+    DashboardFilter,
+    DashboardPanelRead,
+    UnitNodeForPanel,
+)
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -33,25 +41,34 @@ class DashboardRepository(BaseRepository):
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {
-            'order_by_create_date': Dashboard.create_datetime,
+            "order_by_create_date": Dashboard.create_datetime,
         }
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
         return count, query.all()
 
-    def get_dashboard_panels(self, uuid: uuid_pkg.UUID) -> tuple[int, List[DashboardPanelRead]]:
-
+    def get_dashboard_panels(
+        self, uuid: uuid_pkg.UUID
+    ) -> tuple[int, List[DashboardPanelRead]]:
         query = (
             self.db.query(DashboardPanel, PanelsUnitNodes, UnitNode, Unit)
-            .outerjoin(PanelsUnitNodes, DashboardPanel.uuid == PanelsUnitNodes.dashboard_panels_uuid, full=True)
-            .outerjoin(UnitNode, PanelsUnitNodes.unit_node_uuid == UnitNode.uuid, full=True)
+            .outerjoin(
+                PanelsUnitNodes,
+                DashboardPanel.uuid == PanelsUnitNodes.dashboard_panels_uuid,
+                full=True,
+            )
+            .outerjoin(
+                UnitNode, PanelsUnitNodes.unit_node_uuid == UnitNode.uuid, full=True
+            )
             .outerjoin(Unit, UnitNode.unit_uuid == Unit.uuid, full=True)
             .filter(DashboardPanel.dashboard_uuid == uuid)
             .all()
         )
 
-        panels_dict: dict[uuid_pkg.UUID, dict] = defaultdict(lambda: {"panel": None, "unit_nodes": []})
+        panels_dict: dict[uuid_pkg.UUID, dict] = defaultdict(
+            lambda: {"panel": None, "unit_nodes": []}
+        )
 
         for panel, panel_unit_node, unit_node, unit in query:
             if panels_dict[panel.uuid]["panel"] is None:

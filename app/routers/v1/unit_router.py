@@ -51,17 +51,23 @@ def get_env(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_se
 
 
 @router.get("/get_target_version/{uuid}", response_model=TargetVersionRead)
-def get_target_version(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get_target_version(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     return unit_service.get_target_version(uuid)
 
 
 @router.get("/get_current_schema/{uuid}", response_model=str)
-def get_current_schema(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get_current_schema(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     return json.dumps(unit_service.get_current_schema(uuid))
 
 
 @router.get("/firmware/zip/{uuid}", response_model=bytes)
-def get_firmware_zip(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get_firmware_zip(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     zip_filepath = unit_service.get_unit_firmware_zip(uuid)
 
     def cleanup():
@@ -71,7 +77,9 @@ def get_firmware_zip(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(ge
 
 
 @router.get("/firmware/tar/{uuid}", response_model=bytes)
-def get_firmware_tar(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get_firmware_tar(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     tar_filepath = unit_service.get_unit_firmware_tar(uuid)
 
     def cleanup():
@@ -82,7 +90,10 @@ def get_firmware_tar(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(ge
 
 @router.get("/firmware/tgz/{uuid}", response_model=bytes)
 def get_firmware_tgz(
-    uuid: uuid_pkg.UUID, wbits: int = 9, level: int = 9, unit_service: UnitService = Depends(get_unit_service)
+    uuid: uuid_pkg.UUID,
+    wbits: int = 9,
+    level: int = 9,
+    unit_service: UnitService = Depends(get_unit_service),
 ):
     tgz_filepath = unit_service.get_unit_firmware_tgz(uuid, wbits, level)
 
@@ -93,18 +104,23 @@ def get_firmware_tgz(
 
 
 @router.post("/set_state_storage/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def set_state_storage(uuid: uuid_pkg.UUID, state: StateStorage, unit_service: UnitService = Depends(get_unit_service)):
+def set_state_storage(
+    uuid: uuid_pkg.UUID,
+    state: StateStorage,
+    unit_service: UnitService = Depends(get_unit_service),
+):
     return unit_service.set_state_storage(uuid, state.state)
 
 
 @router.get("/get_state_storage/{uuid}", response_model=str)
-def get_state_storage(uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)):
+def get_state_storage(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
     return unit_service.get_state_storage(uuid)
 
 
 @router.post("/auth", response_model=MqttRead, status_code=status.HTTP_200_OK)
 def get_mqtt_auth(data: UnitMqttTokenAuth):
-
     with get_hand_session() as db:
         with get_hand_clickhouse_client() as cc:
             try:
@@ -113,25 +129,37 @@ def get_mqtt_auth(data: UnitMqttTokenAuth):
                 db.close()
             except Exception as e:
                 logging.info(repr(e))
-                return MqttRead(result='deny')
+                return MqttRead(result="deny")
 
-    return MqttRead(result='allow')
+    return MqttRead(result="allow")
 
 
 @router.patch("/{uuid}", response_model=UnitRead)
-def update(uuid: uuid_pkg.UUID, data: UnitUpdate, unit_service: UnitService = Depends(get_unit_service)):
+def update(
+    uuid: uuid_pkg.UUID,
+    data: UnitUpdate,
+    unit_service: UnitService = Depends(get_unit_service),
+):
     return UnitRead(**unit_service.update(uuid, data).to_dict())
 
 
-@router.post("/send_command_to_input_base_topic/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/send_command_to_input_base_topic/{uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 def send_command_to_input_base_topic(
-    uuid: uuid_pkg.UUID, command: BackendTopicCommand, unit_service: UnitService = Depends(get_unit_service)
+    uuid: uuid_pkg.UUID,
+    command: BackendTopicCommand,
+    unit_service: UnitService = Depends(get_unit_service),
 ):
     return unit_service.unit_node_service.command_to_input_base_topic(uuid, command)
 
 
 @router.patch("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def set_env(uuid: uuid_pkg.UUID, env_json_str: EnvJsonString, unit_service: UnitService = Depends(get_unit_service)):
+def set_env(
+    uuid: uuid_pkg.UUID,
+    env_json_str: EnvJsonString,
+    unit_service: UnitService = Depends(get_unit_service),
+):
     return unit_service.set_env(uuid, env_json_str.env_json_string)
 
 
@@ -147,7 +175,10 @@ def get_units(
     unit_service: UnitService = Depends(get_unit_service),
 ):
     count, units = unit_service.list(filters, is_include_output_unit_nodes)
-    return UnitsResult(count=count, units=[unit_service.mapper_unit_to_unit_read(unit) for unit in units])
+    return UnitsResult(
+        count=count,
+        units=[unit_service.mapper_unit_to_unit_read(unit) for unit in units],
+    )
 
 
 @router.get("/log_list/", response_model=UnitLogsResult)
@@ -156,4 +187,7 @@ def get_unit_logs(
     unit_service: UnitService = Depends(get_unit_service),
 ):
     count, unit_logs = unit_service.log_list(filters)
-    return UnitLogsResult(count=count, unit_logs=[UnitLogRead(**unit_log.dict()) for unit_log in unit_logs])
+    return UnitLogsResult(
+        count=count,
+        unit_logs=[UnitLogRead(**unit_log.dict()) for unit_log in unit_logs],
+    )

@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from typing import Optional, Union
+from typing import Union
 
 from fastapi import Depends
 
@@ -11,7 +11,10 @@ from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import AgentType, OwnershipType
 from app.repositories.permission_repository import PermissionRepository
-from app.schemas.gql.inputs.permission import PermissionCreateInput, PermissionFilterInput
+from app.schemas.gql.inputs.permission import (
+    PermissionCreateInput,
+    PermissionFilterInput,
+)
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object, is_valid_uuid
@@ -27,7 +30,9 @@ class PermissionService:
         self.permission_repository = permission_repository
 
     def create(
-        self, data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType], is_api: bool = True
+        self,
+        data: Union[PermissionCreate, PermissionCreateInput, PermissionBaseType],
+        is_api: bool = True,
     ) -> PermissionBaseType:
         is_valid_uuid(data.agent_uuid)
         is_valid_uuid(data.resource_uuid)
@@ -44,18 +49,21 @@ class PermissionService:
         is_valid_object(resource)
 
         if is_api:
-            self.access_service.authorization.check_ownership(resource, [[OwnershipType.CREATOR]])
+            self.access_service.authorization.check_ownership(
+                resource, [[OwnershipType.CREATOR]]
+            )
 
         agent = self.permission_repository.get_agent(new_permission)
         is_valid_object(agent)
 
         if self.permission_repository.check(new_permission):
-            raise CustomPermissionError('Permission is exist')
+            raise CustomPermissionError("Permission is exist")
 
         return self.permission_repository.create(new_permission)
 
-    def create_by_domains(self, agent: Union[User, Unit], resource: Union[Repo, Unit, UnitNode]) -> PermissionBaseType:
-
+    def create_by_domains(
+        self, agent: Union[User, Unit], resource: Union[Repo, Unit, UnitNode]
+    ) -> PermissionBaseType:
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
 
@@ -76,20 +84,31 @@ class PermissionService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         resource_entity = self.permission_repository.get_resource(
-            PermissionBaseType(resource_uuid=filters.resource_uuid, resource_type=filters.resource_type)
+            PermissionBaseType(
+                resource_uuid=filters.resource_uuid, resource_type=filters.resource_type
+            )
         )
 
         is_valid_object(resource_entity)
 
-        self.access_service.authorization.check_ownership(resource_entity, [[OwnershipType.CREATOR]])
+        self.access_service.authorization.check_ownership(
+            resource_entity, [[OwnershipType.CREATOR]]
+        )
 
         return self.permission_repository.get_resource_agents(filters)
 
-    def delete(self, agent_uuid: uuid_pkg.UUID, resource_uuid: uuid_pkg.UUID, is_api: bool = True) -> None:
+    def delete(
+        self,
+        agent_uuid: uuid_pkg.UUID,
+        resource_uuid: uuid_pkg.UUID,
+        is_api: bool = True,
+    ) -> None:
         if is_api:
             self.access_service.authorization.check_access([AgentType.USER])
 
-        permission = self.permission_repository.get_by_uuid(agent_uuid=agent_uuid, resource_uuid=resource_uuid)
+        permission = self.permission_repository.get_by_uuid(
+            agent_uuid=agent_uuid, resource_uuid=resource_uuid
+        )
         is_valid_object(permission)
 
         base_permission = self.permission_repository.domain_to_base_type(permission)
@@ -98,18 +117,36 @@ class PermissionService:
 
         # available delete permission - creator and resource agent
         if is_api and self.access_service.current_agent.uuid != agent.uuid:
-            self.access_service.authorization.check_ownership(resource, [[OwnershipType.CREATOR]])
+            self.access_service.authorization.check_ownership(
+                resource, [[OwnershipType.CREATOR]]
+            )
 
         if agent.uuid == resource.uuid:
-            raise CustomPermissionError('A resource\'s access to itself cannot be removed')
+            raise CustomPermissionError(
+                "A resource's access to itself cannot be removed"
+            )
 
         if agent.uuid == resource.creator_uuid:
-            raise CustomPermissionError('The creator of the resource cannot remove his access to the resource')
+            raise CustomPermissionError(
+                "The creator of the resource cannot remove his access to the resource"
+            )
 
-        if isinstance(agent, Unit) and isinstance(resource, Repo) and resource.uuid == agent.repo_uuid:
-            raise CustomPermissionError('You cannot remove Unit\'s access to the parent Repo')
+        if (
+            isinstance(agent, Unit)
+            and isinstance(resource, Repo)
+            and resource.uuid == agent.repo_uuid
+        ):
+            raise CustomPermissionError(
+                "You cannot remove Unit's access to the parent Repo"
+            )
 
-        if isinstance(agent, Unit) and isinstance(resource, UnitNode) and resource.unit_uuid == agent.uuid:
-            raise CustomPermissionError('You cannot remove a Unit\'s access to its child UnitNodes')
+        if (
+            isinstance(agent, Unit)
+            and isinstance(resource, UnitNode)
+            and resource.unit_uuid == agent.uuid
+        ):
+            raise CustomPermissionError(
+                "You cannot remove a Unit's access to its child UnitNodes"
+            )
 
         return self.permission_repository.delete(permission)

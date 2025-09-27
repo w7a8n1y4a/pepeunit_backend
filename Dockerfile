@@ -3,8 +3,7 @@ FROM python:3.13.7-slim-trixie
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
   PYTHONHASHSEED=random \
-  PIP_DEFAULT_TIMEOUT=100 \
-  POETRY_VERSION=2.2.1
+  PIP_DEFAULT_TIMEOUT=100
 
 WORKDIR /app
 
@@ -20,10 +19,14 @@ RUN apt update && apt install -y \
     python3-dev \
  && apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
-COPY poetry.lock pyproject.toml /app/
-RUN poetry config virtualenvs.create false
-RUN poetry install --no-interaction --no-root --no-ansi
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Copy dependency files
+COPY uv.lock pyproject.toml README.md /app/
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
 
 COPY . .
 

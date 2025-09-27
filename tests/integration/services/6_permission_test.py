@@ -10,9 +10,10 @@ from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 
 @pytest.mark.run(order=0)
 def test_create_permission(database) -> None:
-
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service(database, pytest.user_tokens_dict[current_user.uuid])
+    unit_permission_service = get_permission_service(
+        database, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_agent = pytest.users[1]
     target_resource = pytest.units[-1]
@@ -53,15 +54,18 @@ def test_create_permission(database) -> None:
 
 @pytest.mark.run(order=1)
 def test_get_permission(database) -> None:
-
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service(database, pytest.user_tokens_dict[current_user.uuid])
+    unit_permission_service = get_permission_service(
+        database, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_resource = pytest.units[-1]
 
     # get resource agents
     count, target_agents = unit_permission_service.get_resource_agents(
-        PermissionFilter(resource_uuid=target_resource.uuid, resource_type=PermissionEntities.UNIT)
+        PermissionFilter(
+            resource_uuid=target_resource.uuid, resource_type=PermissionEntities.UNIT
+        )
     )
 
     assert len(target_agents) == 3
@@ -69,20 +73,26 @@ def test_get_permission(database) -> None:
     # check get invalid resource agents
     with pytest.raises(ValidationError):
         unit_permission_service.get_resource_agents(
-            PermissionFilter(resource_uuid=target_resource.uuid, resource_type=PermissionEntities.USER)
+            PermissionFilter(
+                resource_uuid=target_resource.uuid,
+                resource_type=PermissionEntities.USER,
+            )
         )
 
 
 @pytest.mark.run(order=2)
 def test_delete_permission(database) -> None:
-
     current_user = pytest.users[0]
-    unit_permission_service = get_permission_service(database, pytest.user_tokens_dict[current_user.uuid])
+    unit_permission_service = get_permission_service(
+        database, pytest.user_tokens_dict[current_user.uuid]
+    )
 
     target_permission = pytest.permissions[0]
 
     # check delete permission
-    unit_permission_service.delete(target_permission.agent_uuid, target_permission.resource_uuid)
+    unit_permission_service.delete(
+        target_permission.agent_uuid, target_permission.resource_uuid
+    )
 
     # check del invalid permission
     with pytest.raises(ValidationError):

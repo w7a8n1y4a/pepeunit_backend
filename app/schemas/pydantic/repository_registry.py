@@ -7,7 +7,12 @@ from fastapi import Query
 from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import BaseModel
 
-from app.dto.enum import CredentialStatus, GitPlatform, OrderByDate, RepositoryRegistryStatus
+from app.dto.enum import (
+    CredentialStatus,
+    GitPlatform,
+    OrderByDate,
+    RepositoryRegistryStatus,
+)
 
 
 class Credentials(BaseModel):

@@ -13,9 +13,11 @@ class UnitNode(SQLModel, table=True):
     Представление состояния input или output топика Unit
     """
 
-    __tablename__ = 'units_nodes'
+    __tablename__ = "units_nodes"
 
-    uuid: uuid_pkg.UUID = Field(primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4)
+    uuid: uuid_pkg.UUID = Field(
+        primary_key=True, nullable=False, index=True, default_factory=uuid_pkg.uuid4
+    )
 
     # Input or Output
     type: str = Field(nullable=False)
@@ -43,7 +45,13 @@ class UnitNode(SQLModel, table=True):
 
     # to User link
     creator_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey('users.uuid', ondelete='CASCADE'))
+        sa_column=Column(
+            UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
+        )
     )
     # to Unit link
-    unit_uuid: uuid_pkg.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey('units.uuid', ondelete='CASCADE')))
+    unit_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(
+            UUID(as_uuid=True), ForeignKey("units.uuid", ondelete="CASCADE")
+        )
+    )
