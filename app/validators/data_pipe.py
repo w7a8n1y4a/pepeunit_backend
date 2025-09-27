@@ -26,16 +26,18 @@ class ActivePeriod(BaseModel):
     @model_validator(mode="after")
     def check_active_period(cls, self):
         if self.type == ActivePeriodType.FROM_DATE and not self.start:
-            raise ValueError("start must be provided for FROM_DATE")
+            msg = "start must be provided for FROM_DATE"
+            raise ValueError(msg)
         if self.type == ActivePeriodType.TO_DATE and not self.end:
-            raise ValueError("end must be provided for TO_DATE")
+            msg = "end must be provided for TO_DATE"
+            raise ValueError(msg)
         if self.type == ActivePeriodType.DATE_RANGE:
             if not self.start or not self.end:
-                raise ValueError(
-                    "start and end must be provided for DATE_RANGE"
-                )
+                msg = "start and end must be provided for DATE_RANGE"
+                raise ValueError(msg)
             if self.start >= self.end:
-                raise ValueError("start must be before end for DATE_RANGE")
+                msg = "start must be before end for DATE_RANGE"
+                raise ValueError(msg)
         return self
 
 
@@ -61,13 +63,13 @@ class FiltersConfig(BaseModel):
         if self.type_input_value == TypeInputValue.NUMBER and not all(
             isinstance(x, Real) for x in self.filtering_values
         ):
-            raise ValueError(
-                "filtering_values must be numeric for NUMBER input"
-            )
+            msg = "filtering_values must be numeric for NUMBER input"
+            raise ValueError(msg)
         if self.type_input_value == TypeInputValue.TEXT and not all(
             isinstance(x, str) for x in self.filtering_values
         ):
-            raise ValueError("filtering_values must be strings for TEXT input")
+            msg = "filtering_values must be strings for TEXT input"
+            raise ValueError(msg)
 
     def _validate_thresholds(self):
         """Validate threshold configuration for numeric input."""
@@ -78,29 +80,30 @@ class FiltersConfig(BaseModel):
             self.type_value_threshold == FilterTypeValueThreshold.MIN
             and self.threshold_min is None
         ):
-            raise ValueError("threshold_min is required for MIN threshold")
+            msg = "threshold_min is required for MIN threshold"
+            raise ValueError(msg)
 
         if (
             self.type_value_threshold == FilterTypeValueThreshold.MAX
             and self.threshold_max is None
         ):
-            raise ValueError("threshold_max is required for MAX threshold")
+            msg = "threshold_max is required for MAX threshold"
+            raise ValueError(msg)
 
         if self.type_value_threshold == FilterTypeValueThreshold.RANGE:
             if self.threshold_min is None or self.threshold_max is None:
-                raise ValueError(
-                    "Both threshold_min and threshold_max are required for RANGE threshold"
-                )
+                msg = "Both threshold_min and threshold_max are required for RANGE threshold"
+                raise ValueError(msg)
             if self.threshold_min >= self.threshold_max:
-                raise ValueError(
-                    "threshold_min must be less than threshold_max"
-                )
+                msg = "threshold_min must be less than threshold_max"
+                raise ValueError(msg)
 
     def _validate_max_size(self):
         """Validate max_size against MQTT payload limit."""
         max_allowed_size = settings.mqtt_max_payload_size * 1024
         if self.max_size > max_allowed_size:
-            raise ValueError(f"max_size must be <= {max_allowed_size}")
+            msg = f"max_size must be <= {max_allowed_size}"
+            raise ValueError(msg)
 
     @model_validator(mode="after")
     def validate_filters(self):
@@ -127,28 +130,29 @@ class ProcessingPolicyConfig(BaseModel):
     def validate_processing(self):
         if self.policy_type == ProcessingPolicyType.N_RECORDS:
             if self.n_records_count is None:
-                raise ValueError("n_records_count is required for N_RECORDS")
+                msg = "n_records_count is required for N_RECORDS"
+                raise ValueError(msg)
             if not (0 < self.n_records_count <= 1024):
-                raise ValueError("n_records_count must be between 1 and 1024")
+                msg = "n_records_count must be between 1 and 1024"
+                raise ValueError(msg)
 
         if self.policy_type in [
             ProcessingPolicyType.TIME_WINDOW,
             ProcessingPolicyType.AGGREGATION,
         ]:
             if self.time_window_size is None:
-                raise ValueError("time_window_size is required")
+                msg = "time_window_size is required"
+                raise ValueError(msg)
             if self.time_window_size not in settings.time_window_sizes:
-                raise ValueError(
-                    f"Invalid time_window_size. Must be one of: {settings.time_window_sizes}"
-                )
+                msg = f"Invalid time_window_size. Must be one of: {settings.time_window_sizes}"
+                raise ValueError(msg)
 
         if (
             self.policy_type == ProcessingPolicyType.AGGREGATION
             and self.aggregation_functions is None
         ):
-            raise ValueError(
-                "aggregation_functions is required for AGGREGATION"
-            )
+            msg = "aggregation_functions is required for AGGREGATION"
+            raise ValueError(msg)
 
         return self
 
@@ -163,31 +167,28 @@ class DataPipeConfig(BaseModel):
 def format_validation_error_dict(
     e: ValidationError,
 ) -> list[DataPipeValidationErrorRead]:
-    validation_errors = []
-    for err in e.errors():
-        validation_errors.append(
-            DataPipeValidationErrorRead(
-                stage=DataPipeStage(snake_to_camel(err["loc"][0])),
-                message=err["msg"],
-            )
+    return [
+        DataPipeValidationErrorRead(
+            stage=DataPipeStage(snake_to_camel(err["loc"][0])),
+            message=err["msg"],
         )
-
-    return validation_errors
+        for err in e.errors()
+    ]
 
 
 def is_valid_data_pipe_config(
     data: dict, is_business_validator: bool = False
 ) -> DataPipeConfig | list[DataPipeValidationErrorRead]:
     if data is None:
-        raise DataPipeError("DataPipe is None")
+        msg = "DataPipe is None"
+        raise DataPipeError(msg)
 
     if is_business_validator:
         try:
             return DataPipeConfig.model_validate(data)
         except ValidationError as err:
-            raise DataPipeError(
-                f"{len(err.errors())} validation errors for DataPipeConfig"
-            ) from err
+            msg = f"{len(err.errors())} validation errors for DataPipeConfig"
+            raise DataPipeError(msg) from err
     else:
         try:
             DataPipeConfig.model_validate(data)

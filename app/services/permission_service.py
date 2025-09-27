@@ -56,7 +56,8 @@ class PermissionService:
         is_valid_object(agent)
 
         if self.permission_repository.check(new_permission):
-            raise CustomPermissionError("Permission is exist")
+            msg = "Permission is exist"
+            raise CustomPermissionError(msg)
 
         return self.permission_repository.create(new_permission)
 
@@ -124,31 +125,27 @@ class PermissionService:
             )
 
         if agent.uuid == resource.uuid:
-            raise CustomPermissionError(
-                "A resource's access to itself cannot be removed"
-            )
+            msg = "A resource's access to itself cannot be removed"
+            raise CustomPermissionError(msg)
 
         if agent.uuid == resource.creator_uuid:
-            raise CustomPermissionError(
-                "The creator of the resource cannot remove his access to the resource"
-            )
+            msg = "The creator of the resource cannot remove his access to the resource"
+            raise CustomPermissionError(msg)
 
         if (
             isinstance(agent, Unit)
             and isinstance(resource, Repo)
             and resource.uuid == agent.repo_uuid
         ):
-            raise CustomPermissionError(
-                "You cannot remove Unit's access to the parent Repo"
-            )
+            msg = "You cannot remove Unit's access to the parent Repo"
+            raise CustomPermissionError(msg)
 
         if (
             isinstance(agent, Unit)
             and isinstance(resource, UnitNode)
             and resource.unit_uuid == agent.uuid
         ):
-            raise CustomPermissionError(
-                "You cannot remove a Unit's access to its child UnitNodes"
-            )
+            msg = "You cannot remove a Unit's access to its child UnitNodes"
+            raise CustomPermissionError(msg)
 
         return self.permission_repository.delete(permission)

@@ -21,12 +21,10 @@ class UnitLogRepository:
         self.orm = ClickhouseOrm(client)
 
     def create(self, unit_log: UnitLog) -> int:
-        unit_log = self.orm.insert("unit_logs", [unit_log])
-        return unit_log
+        return self.orm.insert("unit_logs", [unit_log])
 
     def bulk_create(self, unit_logs: list[UnitLog]) -> int:
-        unit_logs = self.orm.insert("unit_logs", unit_logs)
-        return unit_logs
+        return self.orm.insert("unit_logs", unit_logs)
 
     def get(self, uuid: uuid_pkg.UUID) -> UnitLog | None:
         return self.orm.get(

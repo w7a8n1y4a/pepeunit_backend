@@ -11,8 +11,7 @@ from app import settings
 def get_emqx_link():
     if settings.mqtt_secure:
         return f"{settings.mqtt_http_type}://{settings.mqtt_host}"
-    else:
-        return f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
+    return f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
 
 
 def get_directory_size(directory: str) -> int:

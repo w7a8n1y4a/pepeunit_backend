@@ -91,23 +91,20 @@ class RepositoryRegistryService:
                 )
 
                 if not credentials_with_status:
-                    raise RepositoryRegistryError(
-                        "This User has no Credentials"
-                    )
+                    msg = "This User has no Credentials"
+                    raise RepositoryRegistryError(msg)
 
                 if credentials_with_status.status == CredentialStatus.ERROR:
-                    raise RepositoryRegistryError(
-                        "Credentials has no permission, status: Error"
-                    )
+                    msg = "Credentials has no permission, status: Error"
+                    raise RepositoryRegistryError(msg)
 
                 if (
                     not skip_check_credentials
                     and credentials_with_status.status
                     == CredentialStatus.NOT_VERIFIED
                 ):
-                    raise RepositoryRegistryError(
-                        "Credentials has no permission, status: NotVerified"
-                    )
+                    msg = "Credentials has no permission, status: NotVerified"
+                    raise RepositoryRegistryError(msg)
 
                 credentials = credentials_with_status.credentials
 
@@ -404,9 +401,8 @@ class RepositoryRegistryService:
         if url[-4:] != ".git" or not (
             url.find("https://") == 0 or url.find("http://") == 0
         ):
-            raise RepositoryRegistryError(
-                "Repo URL is not correct check the .git at the end of the link and the correctness of https / http"
-            )
+            msg = "Repo URL is not correct check the .git at the end of the link and the correctness of https / http"
+            raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_valid_private_repository(
@@ -423,7 +419,8 @@ class RepositoryRegistryService:
                 )
             )
         ):
-            raise RepositoryRegistryError("Credentials is not valid")
+            msg = "Credentials is not valid"
+            raise RepositoryRegistryError(msg)
 
         if (
             isinstance(data, RepositoryRegistry)
@@ -432,32 +429,32 @@ class RepositoryRegistryService:
             all_repository_credentials = data.get_credentials()
 
             if not all_repository_credentials:
-                raise RepositoryRegistryError("Credentials not Exist")
+                msg = "Credentials not Exist"
+                raise RepositoryRegistryError(msg)
 
             if not data.get_first_valid_credentials(
                 all_repository_credentials
             ):
-                raise RepositoryRegistryError(
-                    "No valid credentials in credential list"
-                )
+                msg = "No valid credentials in credential list"
+                raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_private_repository(
         data: RepositoryRegistryCreate | RepositoryRegistry,
     ):
         if data.is_public_repository:
-            raise RepositoryRegistryError("This Repository is Public")
+            msg = "This Repository is Public"
+            raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_valid_platform(
         repository_registry: RepositoryRegistryCreate | RepositoryRegistry,
     ):
         if repository_registry.platform not in list(GitPlatform):
-            raise RepositoryRegistryError(
-                "Platform {} is not supported - available: {}".format(
-                    repository_registry.platform, ", ".join(list(GitPlatform))
-                )
+            msg = "Platform {} is not supported - available: {}".format(
+                repository_registry.platform, ", ".join(list(GitPlatform))
             )
+            raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_sync_available(repository_registry: RepositoryRegistry):
@@ -471,9 +468,8 @@ class RepositoryRegistryService:
                 - repository_registry.last_update_datetime
             ).total_seconds()
             if delta <= settings.backend_min_interval_sync_repository:
-                raise RepositoryRegistryError(
-                    f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.backend_min_interval_sync_repository} s"
-                )
+                msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.backend_min_interval_sync_repository} s"
+                raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_valid_repo_size(
@@ -486,9 +482,8 @@ class RepositoryRegistryService:
             if delete_path:
                 shutil.rmtree(delete_path, ignore_errors=True)
 
-            raise GitRepoError(
-                f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {settings.physic_repo_size} MB"
-            )
+            msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {settings.physic_repo_size} MB"
+            raise GitRepoError(msg)
 
     def mapper_registry_to_registry_read(
         self, repository_registry: RepositoryRegistry

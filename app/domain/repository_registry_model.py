@@ -92,14 +92,13 @@ class RepositoryRegistry(SQLModel, table=True):
                     "Cipher credentials private repository",
                 ).items()
             }
-        else:
-            return None
+        return None
 
     @staticmethod
     def get_first_valid_credentials(
         data: dict[str, OneRepositoryRegistryCredentials],
     ) -> Credentials | None:
-        for _creator_uuid, credentials in data.items():
+        for credentials in data.values():
             if credentials.status == CredentialStatus.VALID:
                 return credentials.credentials
         return None

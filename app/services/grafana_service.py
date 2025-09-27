@@ -128,7 +128,8 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         if not is_valid_string_with_rules(data.name):
-            raise GrafanaError("Name is not correct")
+            msg = "Name is not correct"
+            raise GrafanaError(msg)
 
         dashboard = Dashboard(
             name=data.name,
@@ -152,7 +153,8 @@ class GrafanaService:
         )
 
         if not is_valid_string_with_rules(data.title):
-            raise GrafanaError("Title is not correct")
+            msg = "Title is not correct"
+            raise GrafanaError(msg)
 
         dashboard_panel = DashboardPanel(
             title=data.title,
@@ -366,7 +368,8 @@ class GrafanaService:
         if self.dashboard_panel_repository.check_unique_unit_node_for_panel(
             dashboard_panel, unit_node
         ):
-            raise GrafanaError("This UnitNode is not unique for this Panel")
+            msg = "This UnitNode is not unique for this Panel"
+            raise GrafanaError(msg)
 
     def is_valid_unit_node_in_panel_count(self, uuid: uuid_pkg.UUID):
         limit = settings.gf_limit_unit_node_per_one_panel
@@ -374,4 +377,5 @@ class GrafanaService:
             self.dashboard_panel_repository.get_count_unit_for_panel(uuid)
             >= limit
         ):
-            raise GrafanaError(f"Limit UnitNode for one panel is {limit}")
+            msg = f"Limit UnitNode for one panel is {limit}"
+            raise GrafanaError(msg)

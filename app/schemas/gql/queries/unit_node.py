@@ -44,14 +44,14 @@ def get_pipe_data(
     ) -> NRecordsType | TimeWindowType | AggregationType:
         if isinstance(input_value, NRecords):
             return NRecordsType
-        elif isinstance(input_value, TimeWindow):
+        if isinstance(input_value, TimeWindow):
             return TimeWindowType
-        elif isinstance(input_value, Aggregation):
+        if isinstance(input_value, Aggregation):
             return AggregationType
-        elif isinstance(input_value, LastValue):
+        if isinstance(input_value, LastValue):
             return LastValueType
-        else:
-            raise DataPipeError("Other types are not supported")
+        msg = "Other types are not supported"
+        raise DataPipeError(msg)
 
     return PipeDataResultType(
         count=count,

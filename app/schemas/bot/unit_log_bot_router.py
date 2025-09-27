@@ -62,14 +62,16 @@ class UnitLogBotRouter(BaseBotRouter):
         table = [["Time", "Level", "Text"]]
 
         if entities:
-            for unit_log in entities[::-1]:
-                table.append(
+            table.extend(
+                [
                     [
                         unit_log.create_datetime.strftime("%Y-%m-%d%H:%M:%S"),
                         unit_log.level.value,
                         unit_log.text,
                     ]
-                )
+                    for unit_log in entities[::-1]
+                ]
+            )
         else:
             table.append(["-", "-", "-"])
 

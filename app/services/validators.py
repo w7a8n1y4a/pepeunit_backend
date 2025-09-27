@@ -16,28 +16,32 @@ from app.utils.utils import check_password
 
 def is_valid_object(obj: any) -> None:
     if not obj:
-        raise ValidationError("The object does not exist")
+        msg = "The object does not exist"
+        raise ValidationError(msg)
 
 
 def is_emtpy_sequence(obj: Sequence):
     if len(obj) != 0:
-        raise ValidationError(
+        msg = (
             "The array was expected to be empty, but it turned out to be full"
         )
+        raise ValidationError(msg)
 
 
 def is_valid_password(password: str, user: User) -> None:
     if not check_password(
         password, user.hashed_password, user.cipher_dynamic_salt
     ):
-        raise NoAccessError("Password hash mismatched")
+        msg = "Password hash mismatched"
+        raise NoAccessError(msg)
 
 
 def is_valid_json(json_str: str, name: str) -> dict:
     try:
         return json.loads(json_str)
     except JSONDecodeError as err:
-        raise CustomJSONDecodeError(f"Data {name} is invalid") from err
+        msg = f"Data {name} is invalid"
+        raise CustomJSONDecodeError(msg) from err
 
 
 def is_valid_uuid(uuid: str | uuid_pkg.UUID) -> uuid_pkg.UUID:
@@ -47,7 +51,8 @@ def is_valid_uuid(uuid: str | uuid_pkg.UUID) -> uuid_pkg.UUID:
     try:
         return uuid_pkg.UUID(uuid)
     except ValueError as err:
-        raise ValidationError(f"This {uuid} string is not UUID") from err
+        msg = f"This {uuid} string is not UUID"
+        raise ValidationError(msg) from err
 
 
 def is_valid_string_with_rules(
@@ -71,6 +76,5 @@ def is_valid_visibility_level(parent_obj: any, child_objs: list) -> None:
         if get_visibility_level_priority(
             parent_obj.visibility_level
         ) > get_visibility_level_priority(child_obj.visibility_level):
-            raise ValidationError(
-                f"The visibility level of the parent object {parent_obj.__class__.__name__} is lower than that of the child object {child_obj.__class__.__name__}"
-            )
+            msg = f"The visibility level of the parent object {parent_obj.__class__.__name__} is lower than that of the child object {child_obj.__class__.__name__}"
+            raise ValidationError(msg)

@@ -79,19 +79,16 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
 
     if (current_time - last_time) < settings.backend_state_send_interval:
         if settings.backend_debug:
-            raise MqttError(
-                f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.backend_state_send_interval}"
-            )
-        else:
-            return None
+            msg = f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.backend_state_send_interval}"
+            raise MqttError(msg)
+        return
 
     cache_dict[topic] = current_time
 
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:
-        raise MqttError(
-            f"Payload size is {payload_size}, limit is {settings.mqtt_max_payload_size} KB"
-        )
+        msg = f"Payload size is {payload_size}, limit is {settings.mqtt_max_payload_size} KB"
+        raise MqttError(msg)
 
     if (
         destination == DestinationTopicType.OUTPUT_BASE_TOPIC
@@ -109,7 +106,8 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
             unit.unit_state_dict = json.dumps(unit_state_dict)
 
             if "commit_version" not in unit.unit_state_dict:
-                raise MqttError("State dict has no commit_version key")
+                msg = "State dict has no commit_version key"
+                raise MqttError(msg)
 
             unit.current_commit_version = unit_state_dict["commit_version"]
 
@@ -148,9 +146,8 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
 
                 elif delta > settings.backend_state_send_interval * 2:
                     try:
-                        raise UpdateError(
-                            f"Device firmware update time is twice as fast as {settings.backend_state_send_interval}s times"
-                        )
+                        msg = f"Device firmware update time is twice as fast as {settings.backend_state_send_interval}s times"
+                        raise UpdateError(msg)
                     except UpdateError as e:
                         unit.firmware_update_error = e.message
 

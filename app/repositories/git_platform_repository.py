@@ -34,7 +34,6 @@ class GitPlatformClientABC(ABC):
     @abstractmethod
     def _get_api_url(self) -> str:
         """Get url for api"""
-        pass
 
     @abstractmethod
     def _get_repository_name(self) -> str:
@@ -46,17 +45,14 @@ class GitPlatformClientABC(ABC):
     @abstractmethod
     def get_releases(self) -> dict[str, list[tuple[str, str]]]:
         """Get release information -> {tag: [(name_package, download_link)]}"""
-        pass
 
     @abstractmethod
     def get_repo_size(self) -> int:
         """Get release information -> {tag: [(name_package, download_link)]}"""
-        pass
 
     @abstractmethod
     def is_valid_token(self) -> bool:
         """Check valid pat token"""
-        pass
 
 
 class GitlabPlatformClient(GitPlatformClientABC):
@@ -91,7 +87,8 @@ class GitlabPlatformClient(GitPlatformClientABC):
         try:
             target_id = result_data.json()["id"]
         except KeyError as err:
-            raise GitPlatformClientError("Invalid Credentials") from err
+            msg = "Invalid Credentials"
+            raise GitPlatformClientError(msg) from err
 
         return target_id
 
@@ -111,12 +108,16 @@ class GitlabPlatformClient(GitPlatformClientABC):
 
         result_dict = {}
         for item in releases_data.json():
-            assets_list = []
-            for source in item["assets"]["sources"]:
-                assets_list.append((source["format"], source["url"]))
-
-            for link in item["assets"]["links"]:
-                assets_list.append((link["name"], link["url"]))
+            assets_list = [
+                (source["format"], source["url"])
+                for source in item["assets"]["sources"]
+            ]
+            assets_list.extend(
+                [
+                    (link["name"], link["url"])
+                    for link in item["assets"]["links"]
+                ]
+            )
 
             result_dict[item["tag_name"]] = assets_list
 
@@ -141,7 +142,8 @@ class GitlabPlatformClient(GitPlatformClientABC):
         try:
             repo_size = repo_data.json()["statistics"]["repository_size"]
         except KeyError as err:
-            raise GitPlatformClientError("Invalid Credentials") from err
+            msg = "Invalid Credentials"
+            raise GitPlatformClientError(msg) from err
 
         return repo_size
 
@@ -204,13 +206,10 @@ class GithubPlatformClient(GitPlatformClientABC):
 
         result_dict = {}
         for item in releases_data.json():
-            assets_list = []
-            for asset in item["assets"]:
-                assets_list.append(
-                    (asset["name"], asset["browser_download_url"])
-                )
-
-            result_dict[item["tag_name"]] = assets_list
+            result_dict[item["tag_name"]] = [
+                (asset["name"], asset["browser_download_url"])
+                for asset in item["assets"]
+            ]
 
         return result_dict
 
@@ -226,11 +225,10 @@ class GithubPlatformClient(GitPlatformClientABC):
             repo_size = repo_data.json()["size"]
         except KeyError as err:
             if repo_data.status_code == 403:
-                raise GitPlatformClientError(
-                    "Rate limit external API"
-                ) from err
-            else:
-                raise GitPlatformClientError("Invalid Credentials") from err
+                msg = "Rate limit external API"
+                raise GitPlatformClientError(msg) from err
+            msg = "Invalid Credentials"
+            raise GitPlatformClientError(msg) from err
 
         return repo_size * 1024
 

@@ -51,9 +51,11 @@ class JwtAuthService(AuthService):
                 algorithms=["HS256"],
             )
         except jwt.ExpiredSignatureError as err:
-            raise NoAccessError("Token expired") from err
+            msg = "Token expired"
+            raise NoAccessError(msg) from err
         except jwt.InvalidTokenError as err:
-            raise NoAccessError("Token is invalid") from err
+            msg = "Token is invalid"
+            raise NoAccessError(msg) from err
 
         return self._get_agent_from_token(data)
 
@@ -63,14 +65,16 @@ class JwtAuthService(AuthService):
             if user:
                 agent = AgentUser(**user.dict())
             else:
-                raise NoAccessError("User not found")
+                msg = "User not found"
+                raise NoAccessError(msg)
 
         elif data.get("type") == AgentType.UNIT:
             unit = self.unit_repo.get(Unit(uuid=data["uuid"]))
             if unit:
                 agent = AgentUnit(**unit.dict())
             else:
-                raise NoAccessError("Unit not found")
+                msg = "Unit not found"
+                raise NoAccessError(msg)
 
         elif data.get("type") == AgentType.BACKEND:
             agent = AgentBackend(
@@ -88,10 +92,12 @@ class JwtAuthService(AuthService):
             )
 
         else:
-            raise NoAccessError("Invalid agent type")
+            msg = "Invalid agent type"
+            raise NoAccessError(msg)
 
         if not agent or agent.status == AgentStatus.BLOCKED:
-            raise NoAccessError("Agent is blocked or not found")
+            msg = "Agent is blocked or not found"
+            raise NoAccessError(msg)
 
         return agent
 
@@ -120,10 +126,12 @@ class TgBotAuthService(AuthService):
         if user:
             agent = AgentUser(**user.dict())
         else:
-            raise NoAccessError("User not found")
+            msg = "User not found"
+            raise NoAccessError(msg)
 
         if agent.status == AgentStatus.BLOCKED:
-            raise NoAccessError("User is Blocked")
+            msg = "User is Blocked"
+            raise NoAccessError(msg)
 
         return agent
 
@@ -149,7 +157,6 @@ class AuthServiceFactory:
             return TgBotAuthService(
                 self.user_repository, self.unit_repository, self.jwt_token
             )
-        else:
-            return JwtAuthService(
-                self.user_repository, self.unit_repository, self.jwt_token
-            )
+        return JwtAuthService(
+            self.user_repository, self.unit_repository, self.jwt_token
+        )

@@ -69,7 +69,8 @@ class Agent(ABC, BaseModel):
                 "HS256",
             )
         else:
-            raise NoAccessError("Unknown agent type")
+            msg = "Unknown agent type"
+            raise NoAccessError(msg)
 
         return token
 

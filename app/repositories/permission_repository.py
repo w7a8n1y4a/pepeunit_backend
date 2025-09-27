@@ -195,11 +195,10 @@ class PermissionRepository(BaseRepository):
         entities.remove(PermissionEntities.UNIT_NODE)
 
         if permission.agent_type not in entities:
-            raise CustomPermissionError(
-                "Agent type {} is invalid, available: {}".format(
-                    permission.agent_type, ", ".join(entities)
-                )
+            msg = "Agent type {} is invalid, available: {}".format(
+                permission.agent_type, ", ".join(entities)
             )
+            raise CustomPermissionError(msg)
 
     @staticmethod
     def is_valid_resource_type(permission: Permission) -> None:
@@ -207,8 +206,7 @@ class PermissionRepository(BaseRepository):
         entities.remove(PermissionEntities.USER)
 
         if permission.resource_type not in entities:
-            raise CustomPermissionError(
-                "Resource type {} is invalid, available: {}".format(
-                    permission.resource_type, ", ".join(entities)
-                )
+            msg = "Resource type {} is invalid, available: {}".format(
+                permission.resource_type, ", ".join(entities)
             )
+            raise CustomPermissionError(msg)

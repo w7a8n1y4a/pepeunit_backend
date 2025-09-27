@@ -74,7 +74,8 @@ class GrafanaRepository:
         self, dashboard: Dashboard, panels: list[DashboardPanelRead]
     ) -> dict:
         if len(panels) == 0:
-            raise GrafanaError("Dashboard does not have Panels")
+            msg = "Dashboard does not have Panels"
+            raise GrafanaError(msg)
 
         panels_list = []
         for panel in panels:
@@ -83,9 +84,8 @@ class GrafanaRepository:
                 panel.unit_nodes_for_panel
             ):
                 if not unit_node.unit_node.is_data_pipe_active:
-                    raise GrafanaError(
-                        f"{unit_node.unit_with_unit_node_name} has no active DataPipe"
-                    )
+                    msg = f"{unit_node.unit_with_unit_node_name} has no active DataPipe"
+                    raise GrafanaError(msg)
 
                 data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
                 data_pipe_entity = is_valid_data_pipe_config(
@@ -96,9 +96,8 @@ class GrafanaRepository:
                     isinstance(data_pipe_entity, list)
                     or unit_node.unit_node.data_pipe_yml is None
                 ):
-                    raise GrafanaError(
-                        f"{unit_node.unit_with_unit_node_name} has no valid yml DataPipe"
-                    )
+                    msg = f"{unit_node.unit_with_unit_node_name} has no valid yml DataPipe"
+                    raise GrafanaError(msg)
 
                 columns, root_selector = self.get_columns(
                     unit_node, data_pipe_entity
@@ -240,26 +239,21 @@ class GrafanaRepository:
 
         if len(data) == 0:
             return columns, ""
-        else:
-            if isinstance(data[0].value, str):
-                columns.append(
-                    {"selector": "value", "text": "", "type": "string"}
-                )
-            elif isinstance(data[0].value, float | int):
-                columns.append(
-                    {"selector": "value", "text": "", "type": "number"}
-                )
-            elif isinstance(data[0].value, dict):
-                root_selector = "value"
-                for key, value in data[0].value.items():
-                    if isinstance(value, float | int):
-                        columns.append(
-                            {"selector": key, "text": "", "type": "number"}
-                        )
-                    if isinstance(value, str):
-                        columns.append(
-                            {"selector": key, "text": "", "type": "string"}
-                        )
+        if isinstance(data[0].value, str):
+            columns.append({"selector": "value", "text": "", "type": "string"})
+        elif isinstance(data[0].value, float | int):
+            columns.append({"selector": "value", "text": "", "type": "number"})
+        elif isinstance(data[0].value, dict):
+            root_selector = "value"
+            for key, value in data[0].value.items():
+                if isinstance(value, float | int):
+                    columns.append(
+                        {"selector": key, "text": "", "type": "number"}
+                    )
+                if isinstance(value, str):
+                    columns.append(
+                        {"selector": key, "text": "", "type": "string"}
+                    )
 
         return columns, root_selector
 
@@ -289,14 +283,12 @@ class GrafanaRepository:
     ) -> str | float | dict:
         if unit_node_panel.is_forced_to_json:
             return json.loads(value)
-        elif (
-            data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER
-        ):
+        if data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER:
             return float(value)
-        elif data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
+        if data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
             return value
-        else:
-            raise GrafanaError("Processing this value not supported")
+        msg = "Processing this value not supported"
+        raise GrafanaError(msg)
 
     @staticmethod
     def get_time_datasource_value(
@@ -314,8 +306,8 @@ class GrafanaRepository:
 
         if value:
             return int(value.timestamp() * 1000)
-        else:
-            raise GrafanaError("Data type not supported")
+        msg = "Data type not supported"
+        raise GrafanaError(msg)
 
     def create_org_if_not_exists(self, user: User):
         resp = httpx.get(

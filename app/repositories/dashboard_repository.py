@@ -89,7 +89,7 @@ class DashboardRepository(BaseRepository):
                 )
 
         panels = []
-        for _panel_uuid, data in panels_dict.items():
+        for data in panels_dict.values():
             panel = data["panel"]
             panels.append(
                 DashboardPanelRead(

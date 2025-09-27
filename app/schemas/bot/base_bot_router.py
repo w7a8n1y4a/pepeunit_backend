@@ -216,32 +216,31 @@ class BaseBotRouter(ABC):
 
         if target == "mine":
             filters.is_only_my_entity = not filters.is_only_my_entity
-        else:
-            if entity != EntityNames.REGISTRY and target in [
-                item.value for item in VisibilityLevel
-            ]:
-                if target in filters.visibility_levels:
-                    filters.visibility_levels.remove(target)
-                else:
-                    filters.visibility_levels.append(target)
+        elif entity != EntityNames.REGISTRY and target in [
+            item.value for item in VisibilityLevel
+        ]:
+            if target in filters.visibility_levels:
+                filters.visibility_levels.remove(target)
+            else:
+                filters.visibility_levels.append(target)
 
-            elif target in [item.value for item in UnitNodeTypeEnum]:
-                if target in filters.unit_types:
-                    filters.unit_types.remove(target)
-                else:
-                    filters.unit_types.append(target)
+        elif target in [item.value for item in UnitNodeTypeEnum]:
+            if target in filters.unit_types:
+                filters.unit_types.remove(target)
+            else:
+                filters.unit_types.append(target)
 
-            elif target in [item.value for item in LogLevel]:
-                if target in filters.log_levels:
-                    filters.log_levels.remove(target)
-                else:
-                    filters.log_levels.append(target)
+        elif target in [item.value for item in LogLevel]:
+            if target in filters.log_levels:
+                filters.log_levels.remove(target)
+            else:
+                filters.log_levels.append(target)
 
-            elif target in [item.value for item in RepositoryRegistryType]:
-                if target in filters.repository_types:
-                    filters.repository_types.remove(target)
-                else:
-                    filters.repository_types.append(target)
+        elif target in [item.value for item in RepositoryRegistryType]:
+            if target in filters.repository_types:
+                filters.repository_types.remove(target)
+            else:
+                filters.repository_types.append(target)
 
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)

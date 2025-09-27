@@ -71,7 +71,8 @@ class UserRepository(BaseRepository):
         uuid = str(uuid)
 
         if not is_valid_string_with_rules(login):
-            raise UserError("Login is not correct")
+            msg = "Login is not correct"
+            raise UserError(msg)
 
         user_uuid = self.db.exec(
             select(User.uuid).where(User.login == login)
@@ -81,14 +82,16 @@ class UserRepository(BaseRepository):
         if (uuid is None and user_uuid) or (
             uuid and user_uuid != uuid and user_uuid is not None
         ):
-            raise UserError("Login is not unique")
+            msg = "Login is not unique"
+            raise UserError(msg)
 
     @staticmethod
     def is_valid_password(password: str):
         if not is_valid_string_with_rules(
             password, settings.available_password_symbols, 8, 100
         ):
-            raise UserError("Password is not correct")
+            msg = "Password is not correct"
+            raise UserError(msg)
 
     def is_valid_telegram_chat_id(
         self, telegram_chat_id: str, uuid: uuid_pkg.UUID | None = None
@@ -102,4 +105,5 @@ class UserRepository(BaseRepository):
         if (uuid is None and user_uuid) or (
             uuid and user_uuid != uuid and user_uuid is not None
         ):
-            raise UserError("This Telegram User is already verified")
+            msg = "This Telegram User is already verified"
+            raise UserError(msg)

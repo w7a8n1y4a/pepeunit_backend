@@ -570,7 +570,7 @@ class UnitService:
             len_struct = len(struct_topic)
             if len_struct == 5:
                 if isinstance(self.access_service.current_agent, AgentBackend):
-                    return None
+                    return
 
                 backend_domain, destination, unit_uuid, topic_name, *_ = (
                     struct_topic
@@ -582,11 +582,11 @@ class UnitService:
                     DestinationTopicType.OUTPUT_BASE_TOPIC,
                 ]:
                     if self.access_service.current_agent.uuid != unit_uuid:
-                        raise NoAccessError("Available only for a docked Unit")
+                        msg = "Available only for a docked Unit"
+                        raise NoAccessError(msg)
                 else:
-                    raise NoAccessError(
-                        f"Topic destination {destination} is invalid, available {list(DestinationTopicType)}"
-                    )
+                    msg = f"Topic destination {destination} is invalid, available {list(DestinationTopicType)}"
+                    raise NoAccessError(msg)
 
             elif len_struct in [2, 3]:
                 backend_domain, unit_node_uuid, *_ = struct_topic
@@ -596,7 +596,7 @@ class UnitService:
                     and self.access_service.current_agent.type
                     == AgentType.BACKEND
                 ):
-                    return None
+                    return
 
                 unit_node_uuid = is_valid_uuid(unit_node_uuid)
 
@@ -607,11 +607,11 @@ class UnitService:
 
                 self.access_service.authorization.check_visibility(unit_node)
             else:
-                raise MqttError(
-                    f"Topic struct is invalid, len {len_struct}, available - [2, 3]"
-                )
+                msg = f"Topic struct is invalid, len {len_struct}, available - [2, 3]"
+                raise MqttError(msg)
         else:
-            raise MqttError("Only for Unit available topic communication")
+            msg = "Only for Unit available topic communication"
+            raise MqttError(msg)
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -759,9 +759,8 @@ class UnitService:
         if not data.is_auto_update_from_repo_unit and (
             not data.repo_branch or not data.repo_commit
         ):
-            raise UnitError(
-                "Unit updated manually requires branch and commit to be filled out"
-            )
+            msg = "Unit updated manually requires branch and commit to be filled out"
+            raise UnitError(msg)
 
         # check commit and branch for not auto updated unit
         if not data.is_auto_update_from_repo_unit:
@@ -803,14 +802,12 @@ class UnitService:
             itertools.chain(range(-15, -8), range(9, 16), range(25, 32))
         )
         if wbits not in available_values_list:
-            raise UnitError(
-                f"Wbits {wbits} is not valid, available {available_values_list}"
-            )
+            msg = f"Wbits {wbits} is not valid, available {available_values_list}"
+            raise UnitError(msg)
 
     @staticmethod
     def is_valid_level(level: int):
         available_values_list = list(range(-1, 10))
         if level not in available_values_list:
-            raise UnitError(
-                f"Level {level} is not valid, available {available_values_list}"
-            )
+            msg = f"Level {level} is not valid, available {available_values_list}"
+            raise UnitError(msg)

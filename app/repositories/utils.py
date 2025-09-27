@@ -70,8 +70,8 @@ def apply_orders_by(query, filters, fields: dict):
     for filter_name, _value in fields.items():
         if filter_name in filters.dict() and filters.dict()[filter_name]:
             query = query.order_by(
-                asc(fields[filter_name])
+                asc(_value)
                 if filters.dict()[filter_name] == OrderByDate.asc
-                else desc(fields[filter_name])
+                else desc(_value)
             )
     return query

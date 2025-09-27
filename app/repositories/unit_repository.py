@@ -170,7 +170,8 @@ class UnitRepository(BaseRepository):
 
     def is_valid_name(self, name: str, uuid: uuid_pkg.UUID | None = None):
         if not is_valid_string_with_rules(name):
-            raise UnitError("Name is not correct")
+            msg = "Name is not correct"
+            raise UnitError(msg)
 
         uuid = str(uuid)
         unit_uuid = self.db.exec(
@@ -181,4 +182,5 @@ class UnitRepository(BaseRepository):
         if (uuid is None and unit_uuid) or (
             uuid and unit_uuid != uuid and unit_uuid is not None
         ):
-            raise UnitError("Name is not unique")
+            msg = "Name is not unique"
+            raise UnitError(msg)

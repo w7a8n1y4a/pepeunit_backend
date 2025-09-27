@@ -23,12 +23,10 @@ def publish_to_topic(topic: str, msg: dict or str) -> None:
     try:
         mqtt.publish(topic, json.dumps(msg) if isinstance(msg, dict) else msg)
     except AttributeError as err:
-        raise MqttError(
-            "Error when publish message to topic {}: {}".format(
-                topic, "Backend MQTT session is invalid"
-            )
-        ) from err
+        msg = "Error when publish message to topic {}: {}".format(
+            topic, "Backend MQTT session is invalid"
+        )
+        raise MqttError(msg) from err
     except Exception as err:
-        raise MqttError(
-            f"Error when publish message to topic {topic}: {err}"
-        ) from err
+        msg = f"Error when publish message to topic {topic}: {err}"
+        raise MqttError(msg) from err

@@ -37,8 +37,12 @@ def make_monospace_table_with_title(
                 if current_line:
                     lines.append(" ".join(current_line))
                 if word_length > max_len:
-                    for i in range(0, len(word), max_len):
-                        lines.append(word[i : i + max_len])
+                    lines.extend(
+                        [
+                            word[i : i + max_len]
+                            for i in range(0, len(word), max_len)
+                        ]
+                    )
                     current_line = []
                     current_length = 0
                 else:

@@ -100,7 +100,7 @@ select = [
     "W",   # pycodestyle warnings
     "F",   # pyflakes
     "I",   # isort
-    "B",   # flake8-bugbear (включает проверку deprecated функций)
+    "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
@@ -108,17 +108,67 @@ select = [
     "TCH", # flake8-type-checking
     "Q",   # flake8-quotes
     "C90", # mccabe
-    "B008", # flake8-bugbear (проверка default arguments)
-    "B028", # flake8-bugbear (проверка deprecated функций)
+    "B008", # flake8-bugbear
+    "B028", # flake8-bugbear
     "DTZ", # flake8-datetimez
+    "PL",  # pylint rules
+    "PERF", # perflint
+    "S",   # flake8-bandit (security)
+    "A",   # flake8-builtins
+    "COM", # flake8-commas
+    "PIE", # flake8-pie
+    "PT",  # flake8-pytest-style
+    "RET", # flake8-return
+    "SLF", # flake8-self
+    "TID", # flake8-tidy-imports
+    "T20", # flake8-print
+    "EM",  # flake8-errmsg
+    "EXE", # flake8-executable
+    "FA",  # flake8-future-annotations
+    "ISC", # flake8-implicit-str-concat
+    "ICN", # flake8-import-conventions
+    "G",   # flake8-logging-format
+    "INP", # flake8-no-pep420
+    "ERA", # eradicate
+    "PD",  # pandas-vet
+    "PGH", # pygrep-hooks
+    "PLR", # pylint refactor
+    "PLW", # pylint warnings
+    "PLE", # pylint errors
 ]
 
 ignore = [
+    "C901",  # too complex (temporarily disabled)
+    "PLR0915", # too long func (temporarily disable)
     "E501",  # line too long
     "B008",  # Do not perform function calls in argument defaults
     "B006",  # Do not use mutable data structures for argument defaults
-    "C901",  # too complex (temporarily disabled)
-    "SIM115" # with for files (for lock work disable)
+    "SIM115", # with for files (for lock work disable)
+    "PLR0913", # too many arguments to function call
+    "PLR0912", # too many branches
+    "PLR2004", # magic value used in comparison
+    "PLW0603", # using the global statement
+    "S105", # hardcode password
+    "S101",   # use of assert detected
+    "S307",   # insecure eval
+    "S608",   # sql inject
+    "S311",   # standard pseudo-random generators are not suitable for cryptographic purposes
+    "S603",   # subprocess call - check for execution of untrusted input
+    "TID252", # relative imports banned
+    "COM812", # missing trailing comma
+    "ISC001", # implicitly concatenated string literals over continuation line
+    "ERA001", # commented out code
+    "G004", # logging uses f-string
+    "INP001", # import implict
+    "PLC0415", # top level import
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # assert в тестах это нормально
+    "S311",    # random в тестах это нормально
+    "PLR2004", # magic values в тестах это нормально
+    "TID252",  # relative imports в тестах
 ]
 
 [tool.ruff.lint.isort]

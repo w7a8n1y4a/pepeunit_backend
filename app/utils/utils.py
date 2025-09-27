@@ -29,9 +29,8 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
 
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
-        raise CipherError(
-            f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
-        )
+        msg = f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
+        raise CipherError(msg)
 
     key = base64.b64decode(key.encode())
     iv = os.urandom(16)
@@ -71,9 +70,8 @@ def aes_gcm_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     """
     len_content = len(data)
     if len_content > settings.backend_max_cipher_length:
-        raise CipherError(
-            f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
-        )
+        msg = f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
+        raise CipherError(msg)
 
     key = base64.b64decode(key.encode())
     nonce = os.urandom(12)  # 96-bit nonce for AES-GCM
@@ -161,7 +159,7 @@ def timeit(func):
         end_time = time.time()
         execution_time = end_time - start_time
         logging.info(
-            f"Function '{func.__name__}' executed in {execution_time:.6f} seconds."
+            f"Function '{func.__name__}' executed in {execution_time} seconds."
         )
         return result
 
@@ -177,7 +175,8 @@ def obj_serializer(obj):
         return obj.isoformat()
     if isinstance(obj, uuid.UUID):
         return str(obj)
-    raise TypeError(f"Type {type(obj)} not serializable")
+    msg = f"Type {type(obj)} not serializable"
+    raise TypeError(msg)
 
 
 async def create_upload_file_from_path(file_path: str) -> UploadFile:
@@ -193,10 +192,9 @@ def remove_dict_none(data):
         return {
             k: remove_dict_none(v) for k, v in data.items() if v is not None
         }
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return [remove_dict_none(item) for item in data if item is not None]
-    else:
-        return data
+    return data
 
 
 T = TypeVar("T")
@@ -229,4 +227,5 @@ def parse_interval(s: str) -> datetime.timedelta | relativedelta:
         case "y":
             return relativedelta(years=value)
         case _:
-            raise ValueError(f"Unknown interval: {s}")
+            msg = f"Unknown interval: {s}"
+            raise ValueError(msg)

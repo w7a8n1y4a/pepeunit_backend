@@ -263,7 +263,7 @@ class RepoService:
             logging.info(f"Run update unit {unit.uuid}")
 
             try:
-                unit = self.unit_service.sync_state_unit_nodes_for_version(
+                self.unit_service.sync_state_unit_nodes_for_version(
                     repo, unit, repository_registry
                 )
                 self.unit_service.unit_node_service.command_to_input_base_topic(

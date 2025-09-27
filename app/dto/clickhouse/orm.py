@@ -15,15 +15,12 @@ class ClickhouseOrm:
     def insert(self, table_name: str, data: list[BaseModel]) -> int:
         if len(data) == 0:
             return 0
-        else:
-            keys = data[0].model_fields.keys()
+        keys = data[0].model_fields.keys()
 
-        unit_log = self.client.execute(
+        return self.client.execute(
             f"INSERT INTO {table_name} ({', '.join(keys)}) VALUES",
             [item.to_dict() for item in data],
         )
-
-        return unit_log
 
     def get(self, query: str, params: dict, result_model: type[T]) -> T | None:
         data = self.client.execute(query, params, with_column_types=True)

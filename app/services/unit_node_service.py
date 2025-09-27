@@ -143,12 +143,11 @@ class UnitNodeService:
                         pass
                     else:
                         continue
-                else:
-                    if assignment not in [
-                        DestinationTopicType.INPUT_TOPIC,
-                        DestinationTopicType.OUTPUT_TOPIC,
-                    ]:
-                        continue
+                elif assignment not in [
+                    DestinationTopicType.INPUT_TOPIC,
+                    DestinationTopicType.OUTPUT_TOPIC,
+                ]:
+                    continue
 
                 unit_node = UnitNode(
                     type=(
@@ -166,18 +165,20 @@ class UnitNodeService:
                 unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
 
-                for agent in [
-                    unit,
-                    User(uuid=self.access_service.current_agent.uuid),
-                ]:
-                    agents_default_permission_list.append(
+                agents_default_permission_list.extend(
+                    [
                         PermissionBaseType(
                             agent_uuid=agent.uuid,
                             agent_type=agent.__class__.__name__,
                             resource_uuid=unit_node.uuid,
                             resource_type=unit_node.__class__.__name__,
                         )
-                    )
+                        for agent in [
+                            unit,
+                            User(uuid=self.access_service.current_agent.uuid),
+                        ]
+                    ]
+                )
 
         self.unit_node_repository.bulk_save(unit_nodes_list)
         self.access_service.permission_repository.bulk_save(
@@ -419,7 +420,8 @@ class UnitNodeService:
         new_edge.creator_uuid = self.access_service.current_agent.uuid
 
         if self.unit_node_edge_repository.check(new_edge):
-            raise UnitNodeError("Edge exist")
+            msg = "Edge exist"
+            raise UnitNodeError(msg)
 
         with contextlib.suppress(CustomPermissionError):
             self.permission_service.create_by_domains(
@@ -658,7 +660,6 @@ class UnitNodeService:
             logging.info(ex.message)
             # At the time of deletion, the user may have already deleted access,
             # so there should be immunity to this error.
-            pass
 
         self.unit_node_edge_repository.delete(unit_node_edge)
 
@@ -698,22 +699,26 @@ class UnitNodeService:
     @staticmethod
     def is_valid_input_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.INPUT:
-            raise UnitNodeError(f"This Node {unit_node.uuid} is not Input")
+            msg = f"This Node {unit_node.uuid} is not Input"
+            raise UnitNodeError(msg)
 
     @staticmethod
     def is_valid_output_unit_node(unit_node: UnitNode) -> None:
         if unit_node.type != UnitNodeTypeEnum.OUTPUT:
-            raise UnitNodeError(f"This Node {unit_node.uuid} is not Output")
+            msg = f"This Node {unit_node.uuid} is not Output"
+            raise UnitNodeError(msg)
 
     @staticmethod
     def is_valid_active_data_pipe(unit_node: UnitNode) -> None:
         if not unit_node.is_data_pipe_active:
-            raise DataPipeError("Data pipe is not active")
+            msg = "Data pipe is not active"
+            raise DataPipeError(msg)
 
     @staticmethod
     def is_valid_filled_config(unit_node: UnitNode) -> None:
         if not unit_node.data_pipe_yml:
-            raise DataPipeError("Data pipe is not filled")
+            msg = "Data pipe is not filled"
+            raise DataPipeError(msg)
 
     @staticmethod
     def is_valid_policy(data_pipe_entity: DataPipeValidationErrorRead) -> None:
@@ -721,6 +726,5 @@ class UnitNodeService:
             data_pipe_entity.processing_policy.policy_type
             == ProcessingPolicyType.LAST_VALUE
         ):
-            raise DataPipeError(
-                "LastValue type is not supported on this function"
-            )
+            msg = "LastValue type is not supported on this function"
+            raise DataPipeError(msg)

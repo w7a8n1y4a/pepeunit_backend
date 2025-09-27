@@ -81,18 +81,19 @@ class RepositoryRegistryRepository(BaseRepository):
         )
 
         if repository_registry:
-            raise RepositoryRegistryError(f'Url "{url}" is exist')
+            msg = f'Url "{url}" is exist'
+            raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_private_repository(repository_registry: RepositoryRegistry):
         if repository_registry.is_public_repository:
-            raise RepositoryRegistryError("Is public repo")
+            msg = "Is public repo"
+            raise RepositoryRegistryError(msg)
 
     @staticmethod
     def is_valid_platform(repository_registry: RepositoryRegistry):
         if repository_registry.platform not in list(GitPlatform):
-            raise RepositoryRegistryError(
-                "Platform {} is not supported - available: {}".format(
-                    repository_registry.platform, ", ".join(list(GitPlatform))
-                )
+            msg = "Platform {} is not supported - available: {}".format(
+                repository_registry.platform, ", ".join(list(GitPlatform))
             )
+            raise RepositoryRegistryError(msg)

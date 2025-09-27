@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 
 import aiogram.exceptions
 import httpx
-import uvicorn
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
@@ -142,7 +141,8 @@ async def _lifespan(_app: FastAPI):
                 await asyncio.sleep(2)
 
                 if inc > 10:
-                    raise Exception("Webhook route not valid")
+                    msg = "Webhook route not valid"
+                    raise Exception(msg)
 
                 inc += 1
 
@@ -153,8 +153,7 @@ async def _lifespan(_app: FastAPI):
                     allowed_updates=dp.resolve_used_update_types(),
                 )
                 logging.info("Success set TG bot webhook url")
-            except aiogram.exceptions.TelegramBadRequest as e:
-                print(e.__dict__)
+            except aiogram.exceptions.TelegramBadRequest:
                 logging.info("Error set TG bot webhook url")
 
         if settings.telegram_bot_enable:
@@ -264,8 +263,7 @@ async def _lifespan(_app: FastAPI):
 class CustomExceptionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
-            response = await call_next(request)
-            return response
+            return await call_next(request)
         except CustomException as e:
             return JSONResponse(
                 status_code=e.status_code, content={"detail": e.message}
@@ -354,6 +352,3 @@ app.include_router(
 )
 
 mqtt.init_app(app)
-
-if __name__ == "__main__":
-    uvicorn.run("app.main:app", port=8080, host="0.0.0.0", reload=True)

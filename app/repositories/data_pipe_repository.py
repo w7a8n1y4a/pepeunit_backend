@@ -39,7 +39,8 @@ class DataPipeRepository:
 
     def bulk_create(self, policy: ProcessingPolicyType, data: list[BaseModel]):
         if policy == ProcessingPolicyType.LAST_VALUE:
-            raise DataPipeError("Bulk create for LastValue not available")
+            msg = "Bulk create for LastValue not available"
+            raise DataPipeError(msg)
 
         table_names = {
             ProcessingPolicyType.AGGREGATION: "aggregation_entry",
@@ -72,15 +73,14 @@ class DataPipeRepository:
 
         if not unit_node:
             return 0, []
-        else:
-            return 1, [
-                LastValue(
-                    uuid=unit_node.uuid,
-                    unit_node_uuid=unit_node.uuid,
-                    state=unit_node.state,
-                    last_update_datetime=unit_node.last_update_datetime,
-                )
-            ]
+        return 1, [
+            LastValue(
+                uuid=unit_node.uuid,
+                unit_node_uuid=unit_node.uuid,
+                state=unit_node.state,
+                last_update_datetime=unit_node.last_update_datetime,
+            )
+        ]
 
     def list(
         self, filters: DataPipeFilter
@@ -213,7 +213,8 @@ class DataPipeRepository:
         data: builtins.list[NRecords | TimeWindow | Aggregation],
     ) -> str:
         if not len(data):
-            raise DataPipeError("No data found")
+            msg = "No data found"
+            raise DataPipeError(msg)
 
         csv_data = StringIO()
         writer = csv.writer(csv_data)

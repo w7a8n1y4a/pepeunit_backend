@@ -39,7 +39,8 @@ class GitRepoRepository:
                 env={"GIT_TERMINAL_PROMPT": "0"},
             )
         except GitCommandError as err:
-            raise GitRepoError("No valid repo_url or credentials") from err
+            msg = "No valid repo_url or credentials"
+            raise GitRepoError(msg) from err
 
         # get all remotes branches to local repo
         for remote in git_repo.remotes:
@@ -82,7 +83,8 @@ class GitRepoRepository:
         try:
             repo = GitRepo(repo_save_path)
         except Exception as err:
-            raise GitRepoError("Physic repository not exist") from err
+            msg = "Physic repository not exist"
+            raise GitRepoError(msg) from err
 
         return repo
 
@@ -101,7 +103,8 @@ class GitRepoRepository:
         try:
             repo = GitRepo(tmp_path)
         except Exception as err:
-            raise GitRepoError("Physic repository not exist") from err
+            msg = "Physic repository not exist"
+            raise GitRepoError(msg) from err
 
         return repo
 
@@ -204,15 +207,11 @@ class GitRepoRepository:
 
         target_commit = None
         if repo.is_auto_update_repo:
-            if repo.is_compilable_repo:
+            if repo.is_compilable_repo or repo.is_only_tag_update:
                 if len(tags) != 0:
                     target_commit = tags[0]
             else:
-                if repo.is_only_tag_update:
-                    if len(tags) != 0:
-                        target_commit = tags[0]
-                else:
-                    target_commit = all_commits[0]
+                target_commit = all_commits[0]
 
         else:
             self.is_valid_commit(
@@ -224,14 +223,12 @@ class GitRepoRepository:
             )
 
             if repo.is_compilable_repo and target_commit["tag"] is None:
-                raise GitRepoError(
-                    "Commit {} without Tag".format(target_commit["commit"])
-                )
+                msg = "Commit {} without Tag".format(target_commit["commit"])
+                raise GitRepoError(msg)
 
         if not target_commit:
-            raise GitRepoError(
-                "Version is missing: The tags are not in the repository"
-            )
+            msg = "Version is missing: The tags are not in the repository"
+            raise GitRepoError(msg)
 
         return target_commit["commit"], target_commit["tag"]
 
@@ -256,12 +253,12 @@ class GitRepoRepository:
                 and repo.is_compilable_repo
                 and target_commit["tag"] is None
             ):
-                raise GitRepoError(
-                    "Commit {} without Tag".format(target_commit["commit"])
-                )
+                msg = "Commit {} without Tag".format(target_commit["commit"])
+                raise GitRepoError(msg)
 
         if not target_commit:
-            raise GitRepoError("Version is missing")
+            msg = "Version is missing"
+            raise GitRepoError(msg)
 
         return target_commit["commit"], target_commit["tag"]
 
@@ -271,14 +268,14 @@ class GitRepoRepository:
         repo = self.get_repo(repository_registry)
 
         if commit is None:
-            raise GitRepoError("Commit not found")
+            msg = "Commit not found"
+            raise GitRepoError(msg)
 
         try:
             target_file = repo.commit(commit).tree / path
         except KeyError as err:
-            raise GitRepoError(
-                f"File {path} not found in repo commit {commit}"
-            ) from err
+            msg = f"File {path} not found in repo commit {commit}"
+            raise GitRepoError(msg) from err
 
         buffer = io.BytesIO()
 
@@ -318,7 +315,6 @@ class GitRepoRepository:
             self.get_path_physic_repository(repository_registry),
             ignore_errors=True,
         )
-        return None
 
     def is_valid_schema_file(
         self, repository_registry: RepositoryRegistry, commit: str
@@ -331,9 +327,8 @@ class GitRepoRepository:
         if len(binding_schema_keys) != len(
             set(schema_dict.keys()) & set(binding_schema_keys)
         ):
-            raise GitRepoError(
-                "This schema file has unresolved IO and base IO keys"
-            )
+            msg = "This schema file has unresolved IO and base IO keys"
+            raise GitRepoError(msg)
 
         schema_dict_values_type = [
             type(value) for value in schema_dict.values()
@@ -341,9 +336,8 @@ class GitRepoRepository:
 
         # check - all values first layer schema is list
         if Counter(schema_dict_values_type)[list] != len(schema_dict):
-            raise GitRepoError(
-                "This schema file has not available value types, only list is available"
-            )
+            msg = "This schema file has not available value types, only list is available"
+            raise GitRepoError(msg)
 
         all_unique_chars_topic = Counter(
             "".join([item for value in schema_dict.values() for item in value])
@@ -353,9 +347,8 @@ class GitRepoRepository:
         if (
             set(all_unique_chars_topic) - set(settings.available_topic_symbols)
         ) != set():
-            raise GitRepoError(
-                f"Topics in the schema use characters that are not allowed, allowed: {settings.available_topic_symbols}"
-            )
+            msg = f"Topics in the schema use characters that are not allowed, allowed: {settings.available_topic_symbols}"
+            raise GitRepoError(msg)
 
         # check - length topics. 100 chars is stock for system track parts
         current_len = max(
@@ -363,9 +356,8 @@ class GitRepoRepository:
         )
         max_value = 65535 - 100
         if current_len >= max_value:
-            raise GitRepoError(
-                f"The length {current_len} of the topic title is too long, max: {max_value}"
-            )
+            msg = f"The length {current_len} of the topic title is too long, max: {max_value}"
+            raise GitRepoError(msg)
 
     def is_valid_env_file(
         self, repository_registry: RepositoryRegistry, commit: str, env: dict
@@ -374,18 +366,16 @@ class GitRepoRepository:
 
         unresolved_set = env_example_dict.keys() - env.keys()
         if unresolved_set != set():
-            raise GitRepoError(
-                f"This env file has {unresolved_set} unresolved variable"
-            )
+            msg = f"This env file has {unresolved_set} unresolved variable"
+            raise GitRepoError(msg)
 
     def is_valid_branch(
         self, repository_registry: RepositoryRegistry, branch: str
     ):
         available_branches = self.get_branches(repository_registry)
         if not branch or branch not in available_branches:
-            raise GitRepoError(
-                f"Branch {branch} not found, available: {available_branches}"
-            )
+            msg = f"Branch {branch} not found, available: {available_branches}"
+            raise GitRepoError(msg)
 
     def is_valid_commit(
         self, repository_registry: RepositoryRegistry, branch: str, commit: str
@@ -396,7 +386,8 @@ class GitRepoRepository:
                 repository_registry, branch
             )
         ]:
-            raise GitRepoError(f"Commit {commit} not in branch {branch}")
+            msg = f"Commit {commit} not in branch {branch}"
+            raise GitRepoError(msg)
 
     @staticmethod
     def find_by_platform(
@@ -431,9 +422,9 @@ class GitRepoRepository:
                     self.find_by_platform(target_platforms, firmware_platform)
                     is None
                 ):
-                    raise GitRepoError(
-                        f"Not find platform {firmware_platform}, available: {[item[0] for item in target_platforms]}"
-                    )
+                    msg = f"Not find platform {firmware_platform}, available: {[item[0] for item in target_platforms]}"
+                    raise GitRepoError(msg)
 
             else:
-                raise GitRepoError("Target Tag has no platforms")
+                msg = "Target Tag has no platforms"
+                raise GitRepoError(msg)

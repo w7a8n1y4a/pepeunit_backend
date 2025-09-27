@@ -13,8 +13,7 @@ class ControlEmqx:
     def get_emqx_link():
         if settings.mqtt_secure:
             return f"{settings.mqtt_http_type}://{settings.mqtt_host}"
-        else:
-            return f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
+        return f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
 
     def __init__(self):
         self.current_link = self.get_emqx_link()

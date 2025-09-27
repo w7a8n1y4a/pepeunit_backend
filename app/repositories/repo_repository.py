@@ -153,7 +153,8 @@ class RepoRepository(BaseRepository):
 
     def is_valid_name(self, name: str, uuid: uuid_pkg.UUID | None = None):
         if not is_valid_string_with_rules(name):
-            raise RepoError("Name is not correct")
+            msg = "Name is not correct"
+            raise RepoError(msg)
 
         uuid = str(uuid)
         repo_uuid = self.db.exec(
@@ -164,7 +165,8 @@ class RepoRepository(BaseRepository):
         if (uuid is None and repo_uuid) or (
             uuid and repo_uuid != uuid and repo_uuid is not None
         ):
-            raise RepoError("Name is not unique")
+            msg = "Name is not unique"
+            raise RepoError(msg)
 
     @staticmethod
     def is_valid_compilable_repo(repo: RepoUpdate):
@@ -173,9 +175,8 @@ class RepoRepository(BaseRepository):
             and repo.is_auto_update_repo
             and not repo.is_only_tag_update
         ):
-            raise RepoError(
-                "Compiled repositories use only tags when updating automatically"
-            )
+            msg = "Compiled repositories use only tags when updating automatically"
+            raise RepoError(msg)
 
     def is_valid_auto_updated_repo(
         self, repo: Repo, repository_registry: RepositoryRegistry
@@ -187,7 +188,8 @@ class RepoRepository(BaseRepository):
                 repository_registry, repo
             )
         ):
-            raise RepoError("Invalid auto updated target version")
+            msg = "Invalid auto updated target version"
+            raise RepoError(msg)
 
     def is_valid_no_auto_updated_repo(
         self, repo: Repo, repository_registry: RepositoryRegistry
@@ -195,9 +197,8 @@ class RepoRepository(BaseRepository):
         if not repo.is_auto_update_repo and (
             not repo.default_branch or not repo.default_commit
         ):
-            raise RepoError(
-                "Repo updated manually requires branch and commit to be filled out"
-            )
+            msg = "Repo updated manually requires branch and commit to be filled out"
+            raise RepoError(msg)
 
         # check commit and branch for not auto updated repo
         if not repo.is_auto_update_repo:

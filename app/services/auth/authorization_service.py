@@ -30,17 +30,15 @@ class AuthorizationService:
         allowed_roles: list[UserRole] = (UserRole.USER, UserRole.ADMIN),
     ) -> None:
         if self.current_agent.type not in allowed_agent_types:
-            raise NoAccessError(
-                f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_agent_types}"
-            )
+            msg = f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_agent_types}"
+            raise NoAccessError(msg)
 
         if (
             self.current_agent.type == AgentType.USER
             and self.current_agent.role not in allowed_roles
         ):
-            raise NoAccessError(
-                f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_roles}"
-            )
+            msg = f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_roles}"
+            raise NoAccessError(msg)
 
     def check_ownership(
         self, entity, ownership_types: list[OwnershipType]
@@ -50,18 +48,16 @@ class AuthorizationService:
             and self.current_agent.type == AgentType.USER
             and self.current_agent.uuid != entity.creator_uuid
         ):
-            raise NoAccessError(
-                f"{self.current_agent.__class__.__name__} is not creator this entity - {entity.__class__.__name__}."
-            )
+            msg = f"{self.current_agent.__class__.__name__} is not creator this entity - {entity.__class__.__name__}."
+            raise NoAccessError(msg)
         if (
             OwnershipType.UNIT in ownership_types
             and self.current_agent.type == AgentType.UNIT
             and isinstance(entity, Unit)
             and entity.uuid != self.current_agent.uuid
         ):
-            raise NoAccessError(
-                f"The Unit {self.current_agent.name} requesting the information does not have access to it"
-            )
+            msg = f"The Unit {self.current_agent.name} requesting the information does not have access to it"
+            raise NoAccessError(msg)
 
         if (
             OwnershipType.UNIT_TO_INPUT_NODE in ownership_types
@@ -69,24 +65,22 @@ class AuthorizationService:
             and isinstance(entity, UnitNode)
             and not entity.is_rewritable_input
         ):
-            raise NoAccessError(
-                "The Unit requesting the information does not have access to it"
-            )
+            msg = "The Unit requesting the information does not have access to it"
+            raise NoAccessError(msg)
 
     def check_visibility(self, check_entity):
         if isinstance(check_entity, RepositoryRegistry):
             if not check_entity.is_public_repository:
                 if self.current_agent.type in [AgentType.BOT]:
-                    raise NoAccessError(
-                        "Private RepositoryRegistry is not allowed"
-                    )
-                elif self.current_agent.type == [
+                    msg = "Private RepositoryRegistry is not allowed"
+                    raise NoAccessError(msg)
+                if self.current_agent.type == [
                     AgentType.BACKEND,
                     AgentType.USER,
                     AgentType.UNIT,
                 ]:
-                    return None
-            return None
+                    return
+            return
 
         if (
             self.current_agent.type == AgentType.BACKEND
@@ -95,7 +89,8 @@ class AuthorizationService:
             pass
         elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
             if self.current_agent.type not in [AgentType.USER, AgentType.UNIT]:
-                raise NoAccessError("Internal visibility level is not allowed")
+                msg = "Internal visibility level is not allowed"
+                raise NoAccessError(msg)
         elif check_entity.visibility_level == VisibilityLevel.PRIVATE:
             permission_check = PermissionBaseType(
                 agent_type=self.current_agent.type,
@@ -104,37 +99,35 @@ class AuthorizationService:
                 resource_uuid=check_entity.uuid,
             )
             if not self.permission_repo.check(permission_check):
-                raise NoAccessError("Private visibility level is not allowed")
+                msg = "Private visibility level is not allowed"
+                raise NoAccessError(msg)
 
     def check_repository_registry_access(self, check_entity):
         if not isinstance(check_entity, RepositoryRegistry):
-            raise NoAccessError("Only RepositoryRegistry entity")
+            msg = "Only RepositoryRegistry entity"
+            raise NoAccessError(msg)
 
         if self.current_agent.type is not AgentType.USER:
-            raise NoAccessError(
-                "RepositoryRegistry operation allowed only for Users"
-            )
+            msg = "RepositoryRegistry operation allowed only for Users"
+            raise NoAccessError(msg)
 
         if not check_entity.is_public_repository:
             all_credentials_with_status = check_entity.get_credentials()
             if not all_credentials_with_status:
-                raise NoAccessError(
-                    "This RepositoryRegistry has no Credentials"
-                )
+                msg = "This RepositoryRegistry has no Credentials"
+                raise NoAccessError(msg)
 
             current_user_credentials = check_entity.get_credentials_by_user(
                 all_credentials_with_status, str(self.current_agent.uuid)
             )
 
             if not current_user_credentials:
-                raise NoAccessError(
-                    "This User has no external Platform Credentials for operation with RepositoryRegistry"
-                )
+                msg = "This User has no external Platform Credentials for operation with RepositoryRegistry"
+                raise NoAccessError(msg)
 
             if current_user_credentials.status != CredentialStatus.VALID:
-                raise NoAccessError(
-                    f"Status Credentials external Platform: {current_user_credentials.status}"
-                )
+                msg = f"Status Credentials external Platform: {current_user_credentials.status}"
+                raise NoAccessError(msg)
 
     def access_restriction(
         self, resource_type: PermissionEntities | None = None
@@ -157,8 +150,6 @@ class AuthorizationService:
     ) -> list[VisibilityLevel]:
         if self.current_agent.type == AgentType.BOT:
             return [VisibilityLevel.PUBLIC]
-        else:
-            if restriction:
-                return levels
-            else:
-                return [VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]
+        if restriction:
+            return levels
+        return [VisibilityLevel.PUBLIC, VisibilityLevel.INTERNAL]
