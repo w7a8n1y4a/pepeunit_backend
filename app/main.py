@@ -233,7 +233,6 @@ async def _lifespan(_app: FastAPI):
 
     yield
 
-    # Graceful shutdown of bot tasks
     if _bot_tasks:
         logging.info("Stopping Telegram bot tasks...")
         for task in _bot_tasks:
@@ -243,7 +242,6 @@ async def _lifespan(_app: FastAPI):
                     await task
         _bot_tasks.clear()
 
-    # Graceful shutdown of MQTT task
     if _mqtt_task and not _mqtt_task.done():
         logging.info("Stopping MQTT task...")
         _mqtt_task.cancel()
