@@ -208,6 +208,7 @@ class ReservedEnvVariableName(str, enum.Enum):
     SECRET_KEY = "SECRET_KEY"
     PING_INTERVAL = "PING_INTERVAL"
     STATE_SEND_INTERVAL = "STATE_SEND_INTERVAL"
+    MINIMAL_LOG_LEVEL = "MINIMAL_LOG_LEVEL"
 
 
 @strawberry.enum

@@ -24,6 +24,7 @@ from app.dto.enum import (
     AgentType,
     BackendTopicCommand,
     DestinationTopicType,
+    LogLevel,
     OwnershipType,
     PermissionEntities,
     ReservedEnvVariableName,
@@ -751,6 +752,7 @@ class UnitService:
             ).decode("utf-8"),
             ReservedEnvVariableName.PING_INTERVAL: 30,
             ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.backend_state_send_interval,
+            ReservedEnvVariableName.MINIMAL_LOG_LEVEL: LogLevel.DEBUG.value,
         }
 
     def is_valid_no_auto_updated_unit(
