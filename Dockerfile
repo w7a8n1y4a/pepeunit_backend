@@ -13,10 +13,7 @@ RUN apt update && apt install -y \
     cron \
     git \
     gcc \
-    g++ \
     make \
-    libc-dev \
-    python3-dev \
  && apt autoremove -y && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
