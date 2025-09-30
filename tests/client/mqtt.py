@@ -6,7 +6,7 @@ from collections import namedtuple
 from typing import Optional
 
 from pepeunit_client import PepeunitClient
-from pepeunit_client.enums import SearchScope, SearchTopicType
+from pepeunit_client.enums import SearchScope, SearchTopicType, RestartMode
 
 
 class MQTTClient:
@@ -26,18 +26,20 @@ class MQTTClient:
             log_file_path=self.log_file,
             enable_mqtt=True,
             enable_rest=True,
+            restart_mode=RestartMode.ENV_SCHEMA_ONLY
         )
 
         self.client.set_mqtt_input_handler(self.mqtt_input_handler)
 
-    def mqtt_input_handler(self, msg):
+    @staticmethod
+    def mqtt_input_handler(client: PepeunitClient, msg):
         try:
             topic_parts = msg.topic.split("/")
 
             if len(topic_parts) == 3:
                 domain, unit_node_uuid, _ = topic_parts
 
-                topic_name = self.client.schema.find_topic_by_unit_node(
+                topic_name = client.schema.find_topic_by_unit_node(
                     msg.topic, SearchTopicType.FULL_NAME, SearchScope.INPUT
                 )
 
@@ -52,11 +54,11 @@ class MQTTClient:
                                 "timestamp": time.time(),
                             }
                             with open(
-                                f"tmp/test_units/{self.unit.uuid}/log_state.json", "w"
+                                f"tmp/test_units/{client.unit_uuid}/log_state.json", "w"
                             ) as f:
                                 json.dump(log_state, f, indent=4)
 
-                            self.client.publish_to_topics("output/pepeunit", str(value))
+                            client.publish_to_topics("output/pepeunit", str(value))
 
                     except ValueError:
                         pass

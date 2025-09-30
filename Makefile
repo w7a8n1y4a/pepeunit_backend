@@ -1,12 +1,13 @@
-.PHONY: help install install-all test-module test-integration test-load-rest test-load-mqtt lint migrate migrate-rollback uvi gun clean
+.PHONY: help install install-all update-deps test-module test-integration test-load-rest test-load-mqtt lint migrate migrate-rollback uvi gun clean
 
 help:
 	@echo "Pepeunit Backend - Commands:"
 	@echo ""
 	@echo "install:          Install main project dependencies"
 	@echo "install-all:      Install all dependencies including dev and load tests"
-	@echo "uvi:              Run development server with uvicorn"
-	@echo "gun:              Run production server with gunicorn"
+	@echo "update-deps:      Update all project dependencies with UV"
+	@echo "uvi:              Run development server with uvicorn on port 5291 with 2 workers"
+	@echo "gun:              Run production server with gunicorn on port 5291 with 2 workers"
 	@echo "clean:            Clean temporary files and stop processes on port 5291"
 	@echo "lint:             Check and fix code with Ruff"
 	@echo "migrate:          Apply all database migrations"
@@ -23,6 +24,10 @@ install:
 install-all:
 	@echo "Install all dependencies..."
 	uv sync --extra dev --extra load
+
+update-deps:
+	@echo "Update all project dependencies with UV..."
+	uv sync --upgrade
 
 test-module:
 	@echo "Module test run..."

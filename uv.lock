@@ -481,16 +481,16 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.117.1"
+version = "0.118.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/7e/d9788300deaf416178f61fb3c2ceb16b7d0dc9f82a08fdb87a5e64ee3cc7/fastapi-0.117.1.tar.gz", hash = "sha256:fb2d42082d22b185f904ca0ecad2e195b851030bd6c5e4c032d1c981240c631a", size = 307155, upload-time = "2025-09-20T20:16:56.663Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/3c/2b9345a6504e4055eaa490e0b41c10e338ad61d9aeaae41d97807873cdf2/fastapi-0.118.0.tar.gz", hash = "sha256:5e81654d98c4d2f53790a7d32d25a7353b30c81441be7d0958a26b5d761fa1c8", size = 310536, upload-time = "2025-09-29T03:37:23.126Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/45/d9d3e8eeefbe93be1c50060a9d9a9f366dba66f288bb518a9566a23a8631/fastapi-0.117.1-py3-none-any.whl", hash = "sha256:33c51a0d21cab2b9722d4e56dbb9316f3687155be6b276191790d8da03507552", size = 95959, upload-time = "2025-09-20T20:16:53.661Z" },
+    { url = "https://files.pythonhosted.org/packages/54/20/54e2bdaad22ca91a59455251998d43094d5c3d3567c52c7c04774b3f43f2/fastapi-0.118.0-py3-none-any.whl", hash = "sha256:705137a61e2ef71019d2445b123aa8845bd97273c395b744d5a7dfe559056855", size = 97694, upload-time = "2025-09-29T03:37:21.338Z" },
 ]
 
 [[package]]
@@ -887,7 +887,7 @@ wheels = [
 
 [[package]]
 name = "locust"
-version = "2.41.1"
+version = "2.41.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "configargparse" },
@@ -908,9 +908,9 @@ dependencies = [
     { name = "setuptools" },
     { name = "werkzeug" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/55/13/c331f43b1aa8465a1a0d40b8a6c1afb8a46b871e232e13f4e5c11ca8adfa/locust-2.41.1.tar.gz", hash = "sha256:0e6165d042ac2daaf868c195ad6ade766b70979644903312be4526331c822008", size = 1417067, upload-time = "2025-09-25T08:19:04.947Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/fc/f60a7c924768ec1d25c0f24e6f070f7d634fb08ea4ad9ec7e37b94c579e9/locust-2.41.2.tar.gz", hash = "sha256:16238c09374871c1462f9d6035b8c969ad46f7e88e14c08295ecadd99e0ef90e", size = 1415445, upload-time = "2025-09-29T08:46:10.807Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/bd/4477e05b224c69bf7c1a91498154d991b195a055b5b2e84561e16af6007f/locust-2.41.1-py3-none-any.whl", hash = "sha256:71b5ce8231cfe9a2923c274aa90083a441eed4aa7234b404218f2ff744826ad0", size = 1435342, upload-time = "2025-09-25T08:19:03.534Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/0b/dee1d86bd74321ddb93f662730a4a81edd9aba9c30e9893a44988e0e6982/locust-2.41.2-py3-none-any.whl", hash = "sha256:35799e246e9c39c0c0e4dbecca2a4b6ca9c14382d94dfdd27a9713e53d5a2814", size = 1433966, upload-time = "2025-09-29T08:46:08.666Z" },
 ]
 
 [[package]]
@@ -1004,7 +1004,7 @@ wheels = [
 
 [[package]]
 name = "minio"
-version = "7.2.17"
+version = "7.2.18"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argon2-cffi" },
@@ -1013,9 +1013,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/bd/d263db8993b7a771e7f7ee98029f9685995d4c152f025753ebf00c17206e/minio-7.2.17.tar.gz", hash = "sha256:4a5c887a4b0891b1ebd88584372732a1913ce81171d640ea7bbad0d0c4583e6d", size = 135455, upload-time = "2025-09-26T19:52:08.937Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/99/1ad8733fa3f2fa82726e470f8c321e17f9321083b234ab45ad6b59d80d9f/minio-7.2.18.tar.gz", hash = "sha256:173402a5716099159c5659f9de75be204ebe248557b9f1cc9cf45aa70e9d3024", size = 135544, upload-time = "2025-09-29T17:00:28.238Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/2e/2cc4946b8b42500132e931487e73f895c02e0b96563152f21be234e175f8/minio-7.2.17-py3-none-any.whl", hash = "sha256:075fbc14b8a57140b300fefd92d94554a2e850e2f3582e17752d6fdd9553edbc", size = 92917, upload-time = "2025-09-26T19:52:07.198Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/ae/f32695da4f93de50dd7075100dab8cf689a9d96270f58ce6f940fd044a3e/minio-7.2.18-py3-none-any.whl", hash = "sha256:f23a6edbff8d0bc4b5c1a61b2628a01c5a3342aefc613ff9c276012e6321108f", size = 93120, upload-time = "2025-09-29T17:00:26.86Z" },
 ]
 
 [[package]]
@@ -1229,14 +1229,14 @@ provides-extras = ["dev", "load"]
 
 [[package]]
 name = "pepeunit-client"
-version = "0.10.7"
+version = "0.10.12"
 source = { registry = "https://test.pypi.org/simple/" }
 dependencies = [
     { name = "psutil", marker = "platform_system != 'emscripten'" },
 ]
-sdist = { url = "https://test-files.pythonhosted.org/packages/9d/1a/7e69b9de512c92eac7fb3fc3cbee6bf6977143f844a9bf99b85e37cd1e77/pepeunit_client-0.10.7.tar.gz", hash = "sha256:28e94f784dd26fcd14e762f8c40b3d07a3ef71510074903efa769507e4b8fc63", size = 27785, upload-time = "2025-09-27T23:49:25.343Z" }
+sdist = { url = "https://test-files.pythonhosted.org/packages/fe/60/057d1fde4ba4227eee3597af923dd0db4e288a9a13616e1ba5de574b127a/pepeunit_client-0.10.12.tar.gz", hash = "sha256:9d5c6934dfb425daf15a51f35a38a237fbcaaa2ec45b1d3c92d32307b19958b7", size = 58033, upload-time = "2025-09-30T21:57:38.559Z" }
 wheels = [
-    { url = "https://test-files.pythonhosted.org/packages/77/b8/7301d038d89e82d9a427de615e0f8d17786d228fa594ce08ac4a495753c1/pepeunit_client-0.10.7-py3-none-any.whl", hash = "sha256:770253fb87d9e33ecc06ef1205fa8d4c6bfd4a91f4ada1a5681a04c9ea240432", size = 24218, upload-time = "2025-09-27T23:49:22.864Z" },
+    { url = "https://test-files.pythonhosted.org/packages/a9/b6/775bbbf6152caf1ab8ad5769857931c23b3106d7acd6556514a3b38c5aa5/pepeunit_client-0.10.12-py3-none-any.whl", hash = "sha256:78542e5b6185b2ddb36e1653de595c98cf86ea2819906e461efc5e9887496c9c", size = 29438, upload-time = "2025-09-30T21:57:36.794Z" },
 ]
 
 [[package]]
@@ -1542,14 +1542,14 @@ wheels = [
 
 [[package]]
 name = "python-engineio"
-version = "4.12.2"
+version = "4.12.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "simple-websocket" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/0b/67295279b66835f9fa7a491650efcd78b20321c127036eef62c11a31e028/python_engineio-4.12.2.tar.gz", hash = "sha256:e7e712ffe1be1f6a05ee5f951e72d434854a32fcfc7f6e4d9d3cae24ec70defa", size = 91677, upload-time = "2025-06-04T19:22:18.789Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/d8/63e5535ab21dc4998ba1cfe13690ccf122883a38f025dca24d6e56c05eba/python_engineio-4.12.3.tar.gz", hash = "sha256:35633e55ec30915e7fc8f7e34ca8d73ee0c080cec8a8cd04faf2d7396f0a7a7a", size = 91910, upload-time = "2025-09-28T06:31:36.765Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0c/fa/df59acedf7bbb937f69174d00f921a7b93aa5a5f5c17d05296c814fff6fc/python_engineio-4.12.2-py3-none-any.whl", hash = "sha256:8218ab66950e179dfec4b4bbb30aecf3f5d86f5e58e6fc1aa7fde2c698b2804f", size = 59536, upload-time = "2025-06-04T19:22:16.916Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/f0/c5aa0a69fd9326f013110653543f36ece4913c17921f3e1dbd78e1b423ee/python_engineio-4.12.3-py3-none-any.whl", hash = "sha256:7c099abb2a27ea7ab429c04da86ab2d82698cdd6c52406cb73766fe454feb7e1", size = 59637, upload-time = "2025-09-28T06:31:35.354Z" },
 ]
 
 [[package]]
