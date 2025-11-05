@@ -166,45 +166,50 @@ async def _handle_state_message(unit_uuid, payload):
 
 async def _handle_log_message(unit_uuid, payload):
     with get_hand_clickhouse_client() as cc, get_hand_session() as db:
-        unit_repository = UnitRepository(db)
-        unit_log_repository = UnitLogRepository(cc)
+        try:
+            unit_repository = UnitRepository(db)
+            unit_log_repository = UnitLogRepository(cc)
 
-        log_data = is_valid_json(payload.decode(), "Unit hardware log")
+            log_data = is_valid_json(payload.decode(), "Unit hardware log")
 
-        unit = unit_repository.get(Unit(uuid=unit_uuid))
-        is_valid_object(unit)
+            unit = unit_repository.get(Unit(uuid=unit_uuid))
+            is_valid_object(unit)
 
-        if isinstance(log_data, dict):
-            log_data = [log_data]
+            if isinstance(log_data, dict):
+                log_data = [log_data]
 
-        server_datetime = datetime.datetime.now(datetime.UTC)
+            server_datetime = datetime.datetime.now(datetime.UTC)
 
-        unit_log_repository.bulk_create(
-            [
-                UnitLog(
-                    uuid=uuid.uuid4(),
-                    level=item["level"].capitalize(),
-                    unit_uuid=unit.uuid,
-                    text=item["text"],
-                    create_datetime=(
-                        item["create_datetime"]
-                        if item.get("create_datetime")
-                        else server_datetime + datetime.timedelta(seconds=inc)
-                    ),
-                    expiration_datetime=datetime.datetime.now(datetime.UTC)
-                    + datetime.timedelta(
-                        seconds=settings.backend_unit_log_expiration
-                    ),
-                )
-                for inc, item in enumerate(log_data)
-            ]
-        )
+            unit_log_repository.bulk_create(
+                [
+                    UnitLog(
+                        uuid=uuid.uuid4(),
+                        level=item["level"].capitalize(),
+                        unit_uuid=unit.uuid,
+                        text=item["text"],
+                        create_datetime=(
+                            item["create_datetime"]
+                            if item.get("create_datetime")
+                            else server_datetime
+                            + datetime.timedelta(seconds=inc)
+                        ),
+                        expiration_datetime=datetime.datetime.now(datetime.UTC)
+                        + datetime.timedelta(
+                            seconds=settings.backend_unit_log_expiration
+                        ),
+                    )
+                    for inc, item in enumerate(log_data)
+                ]
+            )
 
-        unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
-        unit_repository.update(
-            unit_uuid,
-            unit,
-        )
+            unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
+            unit_repository.update(
+                unit_uuid,
+                unit,
+            )
+
+        except Exception as e:
+            logging.error(e)
 
 
 @mqtt.on_disconnect()
