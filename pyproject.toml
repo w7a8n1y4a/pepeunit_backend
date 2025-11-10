@@ -46,7 +46,7 @@ dependencies = [
     "clickhouse-driver>=0.2.9",
     "redis>=5.2.1",
     "pyyaml>=6.0.2",
-    "pepeunit-client>=0.10.6",
+    "pepeunit-client>=0.10.19",
     "pathspec>=0.12.1",
 ]
 
@@ -159,6 +159,7 @@ ignore = [
     "G004",   # logging uses f-string
     "INP001", # import implict
     "PLC0415", # top level import
+    "T201", # print deletion without except
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -26,7 +26,8 @@ class MQTTClient:
             log_file_path=self.log_file,
             enable_mqtt=True,
             enable_rest=True,
-            restart_mode=RestartMode.ENV_SCHEMA_ONLY
+            restart_mode=RestartMode.ENV_SCHEMA_ONLY,
+            skip_version_check=True
         )
 
         self.client.set_mqtt_input_handler(self.mqtt_input_handler)
@@ -44,7 +45,7 @@ class MQTTClient:
                 )
 
                 if topic_name == "input/pepeunit":
-                    value = msg.payload.decode()
+                    value = msg.payload
                     try:
                         value = int(value)
                         if value == 0:
@@ -54,7 +55,7 @@ class MQTTClient:
                                 "timestamp": time.time(),
                             }
                             with open(
-                                f"tmp/test_units/{client.unit_uuid}/log_state.json", "w"
+                                f"tmp/test_units/{client.settings.unit_uuid}/log_state.json", "w"
                             ) as f:
                                 json.dump(log_state, f, indent=4)
 

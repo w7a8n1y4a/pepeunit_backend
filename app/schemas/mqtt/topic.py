@@ -169,6 +169,7 @@ async def _handle_log_message(unit_uuid, payload):
         try:
             unit_repository = UnitRepository(db)
             unit_log_repository = UnitLogRepository(cc)
+            print(payload.decode())
 
             log_data = is_valid_json(payload.decode(), "Unit hardware log")
 
