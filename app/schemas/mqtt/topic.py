@@ -75,17 +75,6 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
     backend_domain, destination, unit_uuid, topic_name, *_ = topic_split
     unit_uuid = is_valid_uuid(unit_uuid)
 
-    last_time = cache_dict.get(topic, 0)
-    current_time = time.time()
-
-    if (current_time - last_time) < settings.backend_state_send_interval:
-        if settings.backend_debug:
-            msg = f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.backend_state_send_interval}"
-            raise MqttError(msg)
-        return
-
-    cache_dict[topic] = current_time
-
     payload_size = len(payload.decode())
     if payload_size > settings.mqtt_max_payload_size * 1024:
         msg = f"Payload size is {payload_size}, limit is {settings.mqtt_max_payload_size} KB"
@@ -93,6 +82,18 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
 
     if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
         if topic_name == ReservedOutputBaseTopic.STATE:
+            last_time = cache_dict.get(topic, 0)
+            current_time = time.time()
+
+            if (
+                current_time - last_time
+            ) < settings.backend_state_send_interval:
+                if settings.backend_debug:
+                    msg = f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.backend_state_send_interval}"
+                    raise MqttError(msg)
+                return
+
+            cache_dict[topic] = current_time
             await _handle_state_message(unit_uuid, payload)
         elif topic_name == ReservedOutputBaseTopic.LOG:
             await _handle_log_message(unit_uuid, payload)
@@ -169,7 +170,6 @@ async def _handle_log_message(unit_uuid, payload):
         try:
             unit_repository = UnitRepository(db)
             unit_log_repository = UnitLogRepository(cc)
-            print(payload.decode())
 
             log_data = is_valid_json(payload.decode(), "Unit hardware log")
 
