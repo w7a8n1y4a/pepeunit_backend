@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import strawberry
 from strawberry.types import Info
 
+from app import settings
 from app.configs.gql import get_user_service_gql
 from app.dto.enum import CookieName
 from app.schemas.gql.inputs.user import UserCreateInput, UserUpdateInput
@@ -25,6 +26,22 @@ def update_user(info: Info, user: UserUpdateInput) -> UserType:
     user_service = get_user_service_gql(info)
     user = user_service.update(user).dict()
     return UserType(**user)
+
+
+@strawberry.mutation()
+def set_grafana_cookies(info: Info) -> NoneType:
+    user_service = get_user_service_gql(info)
+
+    response: Response = info.context["response"]
+    response.set_cookie(
+        key=CookieName.PEPEUNIT_GRAFANA.value,
+        value=user_service.get_grafana_token(),
+        httponly=True,
+        samesite="lax",
+        secure=settings.backend_secure,
+    )
+
+    return NoneType()
 
 
 @strawberry.mutation()

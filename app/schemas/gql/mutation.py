@@ -47,6 +47,7 @@ from app.schemas.gql.mutations.user import (
     block_user,
     create_user,
     delete_user_cookies,
+    set_grafana_cookies,
     unblock_user,
     update_user,
 )
@@ -56,6 +57,7 @@ Mutation = create_type(
     [
         create_user,
         update_user,
+        set_grafana_cookies,
         block_user,
         unblock_user,
         delete_user_cookies,
