@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import logging
 import os
+import shutil
 import string
 import time
 import uuid
@@ -144,12 +145,24 @@ def clean_files_with_pepeignore(directory: str, pepe_ignore_path: str) -> None:
 
     spec = PathSpec.from_lines(GitWildMatchPattern, pepeignore_rules)
 
-    for root, _dirs, files in os.walk(directory):
+    for root, dirs, files in os.walk(directory, topdown=False):
+        rel_root = os.path.relpath(root, directory)
         for file in files:
-            file_path = os.path.relpath(os.path.join(root, file), directory)
+            if rel_root == ".":
+                file_path = file
+            else:
+                file_path = os.path.join(rel_root, file)
             if spec.match_file(file_path):
                 full_path = os.path.join(directory, file_path)
                 os.remove(full_path)
+        for dir_name in dirs:
+            if rel_root == ".":
+                dir_path = dir_name
+            else:
+                dir_path = os.path.join(rel_root, dir_name)
+            if spec.match_file(dir_path) or spec.match_file(f"{dir_path}/"):
+                full_dir_path = os.path.join(directory, dir_path)
+                shutil.rmtree(full_dir_path, ignore_errors=True)
 
 
 def timeit(func):
