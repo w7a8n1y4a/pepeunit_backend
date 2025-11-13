@@ -240,23 +240,15 @@ class UnitService:
         self.git_repo_repository.is_valid_schema_file(
             repository_registry, target_version
         )
-        target_env_dict = self.git_repo_repository.get_env_dict(
-            repository_registry, target_version
-        )
 
         if unit.cipher_env_dict:
-            current_env_dict = is_valid_json(
-                aes_gcm_decode(unit.cipher_env_dict), "Cipher env"
-            )
-
-            # create env with default pepeunit vars, and default repo vars
-            gen_env_dict = self.gen_env_dict(unit.uuid)
-            merged_env_dict = merge_two_dict_first_priority(
-                gen_env_dict, target_env_dict
-            )
-
-            new_env_dict = merge_two_dict_first_priority(
-                current_env_dict, merged_env_dict
+            new_env_dict = self.generate_unified_env(
+                unit=unit,
+                repository_registry=repository_registry,
+                target_version=target_version,
+                user_env_dict=None,
+                include_commit_version=True,
+                filter_by_allowed_keys=True,
             )
 
             self.git_repo_repository.is_valid_env_file(
@@ -317,39 +309,24 @@ class UnitService:
                 repo, repository_registry, unit
             )
         )
-        env_dict = self.git_repo_repository.get_env_example(
-            repository_registry, target_commit
+
+        return self.generate_unified_env(
+            unit=unit,
+            repository_registry=repository_registry,
+            target_version=target_commit,
+            user_env_dict=None,
+            include_commit_version=True,
+            filter_by_allowed_keys=True,
         )
-
-        if unit.cipher_env_dict:
-            current_unit_env_dict = is_valid_json(
-                aes_gcm_decode(unit.cipher_env_dict), "Cipher env"
-            )
-            env_dict = merge_two_dict_first_priority(
-                current_unit_env_dict, env_dict
-            )
-
-        target_commit, target_tag = (
-            self.git_repo_repository.get_target_unit_version(
-                repo, repository_registry, unit
-            )
-        )
-        env_dict["COMMIT_VERSION"] = target_commit
-
-        return env_dict
 
     def set_env(self, uuid: uuid_pkg.UUID, env_json_str: str) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
-        env_dict = is_valid_json(env_json_str, StaticRepoFileName.ENV.value)
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR]
         )
-
-        gen_env_dict = self.gen_env_dict(unit.uuid)
-        merged_env_dict = merge_two_dict_first_priority(env_dict, gen_env_dict)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         is_valid_object(repo)
@@ -362,14 +339,22 @@ class UnitService:
             repo, repository_registry, unit
         )[0]
 
-        if "COMMIT_VERSION" in merged_env_dict:
-            del merged_env_dict["COMMIT_VERSION"]
-
-        self.git_repo_repository.is_valid_env_file(
-            repository_registry, target_version, merged_env_dict
+        env_dict = self.generate_unified_env(
+            unit=unit,
+            repository_registry=repository_registry,
+            target_version=target_version,
+            user_env_dict=is_valid_json(
+                env_json_str, StaticRepoFileName.ENV.value
+            ),
+            include_commit_version=False,
+            filter_by_allowed_keys=True,
         )
 
-        unit.cipher_env_dict = aes_gcm_encode(json.dumps(merged_env_dict))
+        self.git_repo_repository.is_valid_env_file(
+            repository_registry, target_version, env_dict
+        )
+
+        unit.cipher_env_dict = aes_gcm_encode(json.dumps(env_dict))
         unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
         self.unit_repository.update(unit.uuid, unit)
 
@@ -755,6 +740,70 @@ class UnitService:
             ReservedEnvVariableName.MIN_LOG_LEVEL: LogLevel.DEBUG.value,
             ReservedEnvVariableName.MAX_LOG_LENGTH: 64,
         }
+
+    def generate_unified_env(
+        self,
+        unit: Unit,
+        repository_registry: RepositoryRegistry,
+        target_version: str,
+        user_env_dict: dict | None = None,
+        include_commit_version: bool = True,
+        filter_by_allowed_keys: bool = True,
+    ) -> dict:
+        """
+        Priority, 1-Upper, 4-Lower:
+        1. user_env_dict - env, user write env
+        2. current_env_dict - env of unit.cipher_env_dict - if exist
+        3. gen_env_dict - pepeunit generating env
+        4. target_env_dict - programmer unit template from repository - schema_example.json
+
+        """
+        target_env_dict = self.git_repo_repository.get_env_dict(
+            repository_registry, target_version
+        )
+
+        gen_env_dict = self.gen_env_dict(unit.uuid)
+
+        current_env_dict = None
+        if unit.cipher_env_dict:
+            current_env_dict = is_valid_json(
+                aes_gcm_decode(unit.cipher_env_dict), "Cipher env"
+            )
+
+        merged_env_dict = target_env_dict.copy()
+
+        merged_env_dict = merge_two_dict_first_priority(
+            gen_env_dict, merged_env_dict
+        )
+
+        if current_env_dict:
+            merged_env_dict = merge_two_dict_first_priority(
+                current_env_dict, merged_env_dict
+            )
+
+        if user_env_dict:
+            merged_env_dict = merge_two_dict_first_priority(
+                user_env_dict, merged_env_dict
+            )
+
+        if "COMMIT_VERSION" in merged_env_dict and not include_commit_version:
+            del merged_env_dict["COMMIT_VERSION"]
+
+        if filter_by_allowed_keys:
+            env_example_dict = self.git_repo_repository.get_env_example(
+                repository_registry, target_version
+            )
+            allowed_keys = set(env_example_dict.keys()) | set(
+                gen_env_dict.keys()
+            )
+            merged_env_dict = {
+                k: v for k, v in merged_env_dict.items() if k in allowed_keys
+            }
+
+        if include_commit_version:
+            merged_env_dict["COMMIT_VERSION"] = target_version
+
+        return merged_env_dict
 
     def is_valid_no_auto_updated_unit(
         self, repository_registry: RepositoryRegistry, data: Unit | UnitCreate

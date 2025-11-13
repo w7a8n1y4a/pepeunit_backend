@@ -250,8 +250,10 @@ def test_env_unit(database, cc) -> None:
     assert count > 0
 
     # check set invalid variable
-    with pytest.raises(GitRepoError):
-        unit_service.set_env(target_unit.uuid, json.dumps({"test": ""}))
+    unit_service.set_env(target_unit.uuid, json.dumps({"test": ""}))
+
+    current_env = unit_service.get_env(target_unit.uuid)
+    assert 'test' not in current_env.keys()
 
     # set valid env variable for Units
     for unit in pytest.units:
@@ -262,7 +264,7 @@ def test_env_unit(database, cc) -> None:
         unit_service.set_env(unit.uuid, json.dumps(current_env))
         count_after = len(unit_service.get_env(unit.uuid).keys())
 
-        assert count_before < count_after
+        assert count_before <= count_after
 
 
 @pytest.mark.run(order=4)
