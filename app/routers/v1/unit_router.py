@@ -173,6 +173,13 @@ def set_env(
     return unit_service.set_env(uuid, env_json_str.env_json_string)
 
 
+@router.delete("/env/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def reset_env(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
+    return unit_service.reset_env(uuid)
+
+
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(
     uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)

@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -23,7 +24,7 @@ from app.configs.rest import (
     get_unit_service,
 )
 from app.domain.repo_model import Repo
-from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel
+from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel, ReservedEnvVariableName
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.repo import RepoUpdate
 from app.schemas.pydantic.repository_registry import CommitFilter
@@ -265,6 +266,18 @@ def test_env_unit(database, cc) -> None:
         count_after = len(unit_service.get_env(unit.uuid).keys())
 
         assert count_before <= count_after
+
+    # test reset_env to default
+    test_unit = pytest.units[0]
+    current_env = unit_service.get_env(test_unit.uuid)
+    old_env = copy.deepcopy(current_env)
+
+    unit_service.reset_env(test_unit.uuid)
+
+    unit_service.set_env(test_unit.uuid, json.dumps(unit_service.get_env(test_unit.uuid)))
+    new_env = unit_service.get_env(test_unit.uuid)
+
+    assert old_env.get(ReservedEnvVariableName.SYNC_ENCRYPT_KEY.value) != new_env.get(ReservedEnvVariableName.SYNC_ENCRYPT_KEY.value)
 
 
 @pytest.mark.run(order=4)

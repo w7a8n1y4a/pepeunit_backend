@@ -36,6 +36,13 @@ def update_unit_env(
 
 
 @strawberry.mutation()
+def reset_unit_env(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
+    unit_service = get_unit_service_gql(info)
+    unit_service.reset_env(uuid)
+    return NoneType()
+
+
+@strawberry.mutation()
 def set_state_storage(info: Info, uuid: uuid_pkg.UUID, state: str) -> NoneType:
     unit_service = get_unit_service_gql(info)
     unit_service.set_state_storage(uuid, state)

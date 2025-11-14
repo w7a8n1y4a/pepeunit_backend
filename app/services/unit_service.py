@@ -358,6 +358,19 @@ class UnitService:
         unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
         self.unit_repository.update(unit.uuid, unit)
 
+    def reset_env(self, uuid: uuid_pkg.UUID) -> None:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+
+        self.access_service.authorization.check_ownership(
+            unit, [OwnershipType.CREATOR]
+        )
+
+        unit.cipher_env_dict = None
+        unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
+        self.unit_repository.update(unit.uuid, unit)
+
     def get_target_version(self, uuid: uuid_pkg.UUID) -> TargetVersionRead:
         self.access_service.authorization.check_access(
             [AgentType.USER, AgentType.UNIT]
