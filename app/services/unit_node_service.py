@@ -246,6 +246,10 @@ class UnitNodeService:
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_node(unit_node)
 
+        if data.max_connections is not None and data.max_connections < 1:
+            msg = "max_connections must be at least 1"
+            raise UnitNodeError(msg)
+
         update_unit_node = UnitNode(
             **merge_two_dict_first_priority(
                 remove_none_value_dict(data.dict()), unit_node.dict()
@@ -433,6 +437,24 @@ class UnitNodeService:
         is_valid_object(input_node)
         self.is_valid_input_unit_node(input_node)
         self.access_service.authorization.check_visibility(input_node)
+
+        # Check connection limit for input node (incoming connections)
+        current_input_connections = (
+            self.unit_node_edge_repository.count_by_input_node(input_node.uuid)
+        )
+        if current_input_connections >= input_node.max_connections:
+            msg = f"Maximum number of incoming connections ({input_node.max_connections}) reached for input node {input_node.uuid}"
+            raise UnitNodeError(msg)
+
+        # Check connection limit for output node (outgoing connections)
+        current_output_connections = (
+            self.unit_node_edge_repository.count_by_output_node(
+                output_node.uuid
+            )
+        )
+        if current_output_connections >= output_node.max_connections:
+            msg = f"Maximum number of outgoing connections ({output_node.max_connections}) reached for output node {output_node.uuid}"
+            raise UnitNodeError(msg)
 
         new_edge = UnitNodeEdge(**data.dict())
         new_edge.creator_uuid = self.access_service.current_agent.uuid

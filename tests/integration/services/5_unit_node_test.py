@@ -34,6 +34,9 @@ async def test_update_unit_node(database, cc) -> None:
         UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
     )
 
+    # check default max_connections value is 10
+    assert input_unit_node[0].max_connections == 10
+
     # check update visibility level
     update_unit_node = await unit_node_service.update(
         input_unit_node[0].uuid,
@@ -47,14 +50,31 @@ async def test_update_unit_node(database, cc) -> None:
     )
     assert update_unit_node.is_rewritable_input
 
+    # check update max_connections for input node
+    update_unit_node = await unit_node_service.update(
+        input_unit_node[0].uuid, UnitNodeUpdate(max_connections=5)
+    )
+    assert update_unit_node.max_connections == 5
+
+    # check update max_connections for output node
     count, output_unit_node = unit_node_service.list(
         UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
     )
+    update_unit_node = await unit_node_service.update(
+        output_unit_node[0].uuid, UnitNodeUpdate(max_connections=3)
+    )
+    assert update_unit_node.max_connections == 3
 
     # check update is_rewritable_input for output
     with pytest.raises(UnitNodeError):
         update_unit_node = await unit_node_service.update(
             output_unit_node[0].uuid, UnitNodeUpdate(is_rewritable_input=True)
+        )
+
+    # check max_connections validation (must be at least 1)
+    with pytest.raises(UnitNodeError):
+        update_unit_node = await unit_node_service.update(
+            input_unit_node[0].uuid, UnitNodeUpdate(max_connections=0)
         )
 
     # check set active data pipe config

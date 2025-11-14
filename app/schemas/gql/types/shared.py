@@ -22,6 +22,8 @@ class UnitNodeType(TypeInputMixin):
 
     is_rewritable_input: bool
 
+    max_connections: int
+
     topic_name: str
     last_update_datetime: datetime
 

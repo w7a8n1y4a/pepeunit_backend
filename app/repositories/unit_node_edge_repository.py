@@ -53,3 +53,21 @@ class UnitNodeEdgeRepository(BaseRepository):
         )
 
         return bool(check)
+
+    def count_by_input_node(self, input_uuid: uuid_pkg.UUID) -> int:
+        """Count the number of edges connected to an input node"""
+        return (
+            self.db.query(UnitNodeEdge)
+            .filter(UnitNodeEdge.node_input_uuid == is_valid_uuid(input_uuid))
+            .count()
+        )
+
+    def count_by_output_node(self, output_uuid: uuid_pkg.UUID) -> int:
+        """Count the number of edges connected from an output node"""
+        return (
+            self.db.query(UnitNodeEdge)
+            .filter(
+                UnitNodeEdge.node_output_uuid == is_valid_uuid(output_uuid)
+            )
+            .count()
+        )

@@ -31,6 +31,11 @@ class UnitNode(SQLModel, table=True):
     # if is_rewritable_input = False - no Unit can set a value for this UnitNode
     is_rewritable_input: bool = Field(nullable=False, default=False)
 
+    # maximum number of edge connections
+    # for input nodes: incoming connections limit
+    # for output nodes: outgoing connections limit
+    max_connections: int = Field(nullable=False, default=10)
+
     # linked topic name
     topic_name: str = Field(nullable=False)
     create_datetime: datetime = Field(nullable=False)

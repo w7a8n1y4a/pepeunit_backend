@@ -23,6 +23,7 @@ class UnitNodeUpdate(BaseModel):
     visibility_level: VisibilityLevel | None = None
     is_rewritable_input: bool | None = None
     is_data_pipe_active: bool | None = None
+    max_connections: int | None = None
 
 
 class UnitNodeSetState(BaseModel):
