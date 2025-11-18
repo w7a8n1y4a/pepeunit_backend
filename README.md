@@ -1,6 +1,6 @@
 # Pepeunit Backend
 
-## [Репозиторий документации](https://git.pepemoss.com/pepe/pepeunit/pepeunit.git) Pepeunit
+## [Карта проекта](https://pepeunit.com/development-pepeunit/maps.html)
 
 ## Управление проектом
 ```bash
@@ -28,21 +28,9 @@ help - About Instance
    make uvi
    ```
 
-## Что произойдёт в момент запуска приложения ?
-1. Будут выполнены миграции `Clickhouse` в автоматическом режиме.
-1. Проверка cоединения с `EMQX MQTT Broker` и его настройка
-1. Будет настроена интеграция с `Telegram Bot` в зависимости от `.env` переменных
-1. `Fastapi-mqtt` установит соединение с `EMQX MQTT Broker`
-1. Бэкенд подпишется на топик `example.com/+/+/+/pepeunit`, авторизация при этом произойдёт через `redis`
-1. Бэкенд скачает все отсутствующие локальные репозитории
-1. Запуск веб сервера
+## Важно
 
-## Как найти playground`s Swagger UI и GraphQL
-1. Введите в связанном Телеграм боте команду `/info`. Команда доступна после верификации, в сообщении будут все основные ссылки
-2. `https://BACKEND_DOMAIN/BACKEND_APP_PREFIX/docs` - Swagger UI
-3. `https://BACKEND_DOMAIN/BACKEND_APP_PREFIX/graphql` - GraphQL
-
-## Поддержание формата кода
+### Поддержание формата кода
 1. Установите `.pre-commit-config.yaml` на основе `.pre-commit-config.example.yaml`
 2. Теперь при каждом коммите у вас будет происходить проверка модульных тестов и линтера `Ruff`
 3. В случае, если нужно запустить вручную
@@ -50,7 +38,7 @@ help - About Instance
    pre-commit run --all-files
    ```
 
-## Миграции базы данных
+### Миграции базы данных
 1. Создание новой миграции:
    ```bash
    alembic revision -m 'best_revision_name'
@@ -58,11 +46,14 @@ help - About Instance
 1. Применение новой миграции:
    ```bash
    make migrate
-   ```   
+   ```
 
-## Тестирование
-Подробности на страницах документации:
-
-- [Модульное](https://pepeunit.com/tests/module-test.html)
-- [Интеграционное](https://pepeunit.com/tests/integration-test.html)
-- [Нагрузочное](https://pepeunit.com/tests/load-test.html)
+### Набор команд для установки в BotFather
+```text
+registry - Repo Registry
+repo - Repo Actions
+unit - Unit Actions
+dashboard - Dashboard List url
+info - Instance Metrics
+help - About Instance
+```
