@@ -1,5 +1,9 @@
 # Pepeunit Backend
 
+<div align="center">
+    <img align="center" src="https://pepeunit.com/pepeunit-og.jpg"  width="640" height="320">
+</div>
+
 ## [Карта проекта](https://pepeunit.com/development-pepeunit/maps.html)
 
 ## Управление проектом
