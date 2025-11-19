@@ -11,16 +11,6 @@
 make help
 ```
 
-## Набор команд для установки в BotFather
-```text
-registry - Repo Registry
-repo - Repo Actions
-unit - Unit Actions
-dashboard - Dashboard List url
-info - Instance Metrics
-help - About Instance
-```
-
 ## Основные этапы развёртывания
 1. Настройте `.env` файл по образцу `.env_example` - [Подробнее о переменных окружения](https://pepeunit.com/deployment/env-variables.html#backend)
 1. Выполните миграцию в БД, требуется только при первом запуске и добавлении новых миграций:
