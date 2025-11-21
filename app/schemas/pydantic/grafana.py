@@ -10,12 +10,13 @@ from app.dto.enum import (
     DatasourceFormat,
     OrderByDate,
 )
+from app.schemas.pydantic.pagination import BasePaginationRestMixin
 from app.schemas.pydantic.shared import UnitNodeRead
 from app.utils.utils import parse_interval
 
 
 @dataclass
-class DatasourceFilter:
+class DatasourceFilter(BasePaginationRestMixin):
     format: DatasourceFormat
 
     start_agg_datetime: datetime.datetime | None = None
@@ -27,9 +28,6 @@ class DatasourceFilter:
     relative_time: str | None = None
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     @property
     def relative_interval(self):
@@ -47,28 +45,22 @@ class DatasourceTimeSeriesData(BaseModel):
 
 
 @dataclass
-class DashboardFilter:
+class DashboardFilter(BasePaginationRestMixin):
     search_string: str | None = None
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     def dict(self):
         return self.__dict__
 
 
 @dataclass
-class DashboardPanelFilter:
+class DashboardPanelFilter(BasePaginationRestMixin):
     dashboard_uuid: uuid_pkg.UUID | None = None
 
     search_string: str | None = None
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     def dict(self):
         return self.__dict__

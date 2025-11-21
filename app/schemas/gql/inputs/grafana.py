@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 import strawberry
 
 from app.dto.enum import DashboardPanelTypeEnum, OrderByDate
-from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.type_input_mixin import BasePaginationGql, TypeInputMixin
 
 
 @strawberry.input()
@@ -28,10 +28,7 @@ class LinkUnitNodeToPanelInput(TypeInputMixin):
 
 
 @strawberry.input()
-class DashboardFilterInput(TypeInputMixin):
+class DashboardFilterInput(BasePaginationGql):
     search_string: str | None = None
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None

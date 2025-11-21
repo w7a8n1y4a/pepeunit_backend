@@ -368,7 +368,7 @@ def test_get_many_unit_node(database, cc) -> None:
             search_string="input",
             type=[UnitNodeTypeEnum.INPUT],
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert len(units_nodes) >= 8

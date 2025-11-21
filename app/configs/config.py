@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     backend_min_topic_update_time: int = 30
     backend_unit_log_expiration: int = 86400
 
+    backend_max_pagination_size: int = 500
+
     available_topic_symbols: str = string.ascii_letters + string.digits + "/_-"
     available_name_entity_symbols: str = (
         string.ascii_letters + string.digits + "_-."

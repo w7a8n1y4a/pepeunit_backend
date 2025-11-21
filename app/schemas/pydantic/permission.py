@@ -3,6 +3,7 @@ import uuid as uuid_pkg
 from pydantic import BaseModel
 
 from app.dto.enum import PermissionEntities
+from app.schemas.pydantic.pagination import BasePaginationRest
 
 
 class PermissionRead(BaseModel):
@@ -23,13 +24,10 @@ class PermissionCreate(BaseModel):
     resource_type: PermissionEntities
 
 
-class PermissionFilter(BaseModel):
+class PermissionFilter(BasePaginationRest):
     resource_uuid: uuid_pkg.UUID
     resource_type: PermissionEntities
     agent_type: PermissionEntities | None = None
-
-    offset: int | None = None
-    limit: int | None = None
 
 
 class PermissionsRead(BaseModel):

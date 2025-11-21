@@ -9,6 +9,7 @@ from app.schemas.pydantic.repository_registry import (
     CommitFilter,
     RepositoryRegistryFilter,
 )
+from app import settings
 
 
 @pytest.mark.run(order=0)
@@ -318,7 +319,7 @@ def test_get_many_repo(database, cc) -> None:
             search_string=pytest.test_hash,
             is_auto_update_repo=True,
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert len(repos) == 7

@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 import strawberry
 
 from app.dto.enum import PermissionEntities
-from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.type_input_mixin import BasePaginationGql, TypeInputMixin
 
 
 @strawberry.input()
@@ -22,11 +22,8 @@ class ResourceInput(TypeInputMixin):
 
 
 @strawberry.input()
-class PermissionFilterInput(TypeInputMixin):
+class PermissionFilterInput(BasePaginationGql):
     resource_uuid: uuid_pkg.UUID
     resource_type: PermissionEntities
 
     agent_type: PermissionEntities | None = None
-
-    offset: int | None = None
-    limit: int | None = None

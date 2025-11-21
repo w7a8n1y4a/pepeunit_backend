@@ -10,7 +10,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
     VisibilityLevel,
 )
-from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.type_input_mixin import BasePaginationGql, TypeInputMixin
 from app.utils.utils import parse_interval
 
 
@@ -28,7 +28,7 @@ class UnitNodeSetStateInput(TypeInputMixin):
 
 
 @strawberry.input()
-class UnitNodeFilterInput(TypeInputMixin):
+class UnitNodeFilterInput(BasePaginationGql):
     uuids: list[uuid_pkg.UUID] | None = ()
 
     unit_uuid: uuid_pkg.UUID | None = None
@@ -38,9 +38,6 @@ class UnitNodeFilterInput(TypeInputMixin):
     visibility_level: list[VisibilityLevel] | None = tuple(VisibilityLevel)
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     # get only input UnitNode linked with this output UnitNode
     output_uuid: uuid_pkg.UUID | None = None
@@ -53,7 +50,7 @@ class UnitNodeEdgeCreateInput(TypeInputMixin):
 
 
 @strawberry.input()
-class DataPipeFilterInput(TypeInputMixin):
+class DataPipeFilterInput(BasePaginationGql):
     uuid: uuid_pkg.UUID
     type: ProcessingPolicyType
 
@@ -73,9 +70,6 @@ class DataPipeFilterInput(TypeInputMixin):
     relative_time: str | None = None
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     @property
     def relative_interval(self):

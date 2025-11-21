@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 import strawberry
 
 from app.dto.enum import OrderByDate, VisibilityLevel
-from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.type_input_mixin import BasePaginationGql, TypeInputMixin
 
 
 @strawberry.input()
@@ -33,7 +33,7 @@ class RepoUpdateInput(TypeInputMixin):
 
 
 @strawberry.input()
-class RepoFilterInput(TypeInputMixin):
+class RepoFilterInput(BasePaginationGql):
     repository_registry_uuid: uuid_pkg.UUID | None = None
 
     uuids: list[uuid_pkg.UUID] | None = ()
@@ -48,6 +48,3 @@ class RepoFilterInput(TypeInputMixin):
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None

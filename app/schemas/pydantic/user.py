@@ -6,6 +6,7 @@ from fastapi import Query
 from pydantic import BaseModel
 
 from app.dto.enum import OrderByDate, UserRole, UserStatus
+from app.schemas.pydantic.pagination import BasePaginationRestMixin
 
 
 class UserRead(BaseModel):
@@ -43,7 +44,7 @@ class AccessToken(BaseModel):
 
 
 @dataclass
-class UserFilter:
+class UserFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     search_string: str | None = None
@@ -52,9 +53,6 @@ class UserFilter:
     status: list[str] | None = Query([item.value for item in UserStatus])
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     def dict(self):
         return self.__dict__

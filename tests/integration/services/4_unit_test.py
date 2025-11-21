@@ -717,7 +717,7 @@ def test_get_many_unit(database, cc) -> None:
             search_string=pytest.test_hash,
             is_auto_update_from_repo_unit=True,
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert len(units) == 2
@@ -737,7 +737,7 @@ def test_get_unit_logs(database, cc) -> None:
         UnitLogFilter(
             uuid=target_unit.uuid,
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert len(units) > 0

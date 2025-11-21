@@ -16,6 +16,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
     VisibilityLevel,
 )
+from app.schemas.pydantic.pagination import BasePaginationRestMixin
 from app.utils.utils import parse_interval
 
 
@@ -31,7 +32,7 @@ class UnitNodeSetState(BaseModel):
 
 
 @dataclass
-class UnitNodeFilter:
+class UnitNodeFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     unit_uuid: uuid_pkg.UUID | None = None
@@ -43,9 +44,6 @@ class UnitNodeFilter:
     )
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     # get only input UnitNode linked with this output UnitNode
     output_uuid: uuid_pkg.UUID | None = None
@@ -71,7 +69,7 @@ class DataPipeValidationErrorRead(BaseModel):
 
 
 @dataclass
-class DataPipeFilter:
+class DataPipeFilter(BasePaginationRestMixin):
     uuid: uuid_pkg.UUID
     type: ProcessingPolicyType
 
@@ -91,9 +89,6 @@ class DataPipeFilter:
     relative_time: str | None = None
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     @property
     def relative_interval(self):

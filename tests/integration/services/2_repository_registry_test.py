@@ -89,7 +89,7 @@ def test_get_commits_repository(database, cc) -> None:
     )[0]
 
     branch_commits = repository_registry_service.get_branch_commits(
-        target_repository.uuid, CommitFilter(repo_branch=target_branch, limit=1000)
+        target_repository.uuid, CommitFilter(repo_branch=target_branch, limit=settings.backend_max_pagination_size)
     )
 
     # check first commit repository
@@ -196,7 +196,7 @@ def test_get_many_repository(database, cc) -> None:
             search_string=".git",
             is_public_repository=True,
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert len(repositories_registry) >= 3
@@ -208,7 +208,7 @@ def test_get_many_repository(database, cc) -> None:
         RepositoryRegistryFilter(
             search_string=".git",
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert all([item.is_public_repository for item in repositories_registry])

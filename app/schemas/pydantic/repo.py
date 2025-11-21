@@ -6,6 +6,7 @@ from fastapi import Query
 from pydantic import BaseModel
 
 from app.dto.enum import OrderByDate, VisibilityLevel
+from app.schemas.pydantic.pagination import BasePaginationRestMixin
 
 
 class PlatformRead(BaseModel):
@@ -69,7 +70,7 @@ class RepoUpdate(BaseModel):
 
 
 @dataclass
-class RepoFilter:
+class RepoFilter(BasePaginationRestMixin):
     repository_registry_uuid: uuid_pkg.UUID | None = None
 
     uuids: list[uuid_pkg.UUID] | None = Query([])
@@ -86,9 +87,6 @@ class RepoFilter:
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     def dict(self):
         return self.__dict__

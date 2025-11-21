@@ -13,6 +13,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
     VisibilityLevel,
 )
+from app.schemas.pydantic.pagination import BasePaginationRestMixin
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
@@ -119,7 +120,7 @@ class UnitUpdate(BaseModel):
 
 
 @dataclass
-class UnitFilter:
+class UnitFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     creator_uuid: uuid_pkg.UUID | None = None
@@ -137,9 +138,6 @@ class UnitFilter:
     order_by_unit_name: OrderByText | None = OrderByText.asc
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     # Only with is_include_output_unit_nodes = True
     unit_node_input_uuid: uuid_pkg.UUID | None = None
@@ -168,15 +166,12 @@ class EnvJsonString(BaseModel):
 
 
 @dataclass
-class UnitLogFilter:
+class UnitLogFilter(BasePaginationRestMixin):
     uuid: uuid_pkg.UUID
 
     level: list[str] | None = Query([item.value for item in LogLevel])
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     def dict(self):
         return self.__dict__

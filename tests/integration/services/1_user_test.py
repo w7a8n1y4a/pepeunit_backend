@@ -188,7 +188,7 @@ def test_get_many_user(database, cc) -> None:
             search_string=pytest.test_hash,
             role=[UserRole.USER],
             offset=0,
-            limit=1_000_000,
+            limit=settings.backend_max_pagination_size,
         )
     )
     assert len(users) == len(pytest.users) - 1

@@ -9,7 +9,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
     VisibilityLevel,
 )
-from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.type_input_mixin import BasePaginationGql, TypeInputMixin
 
 
 @strawberry.input()
@@ -41,7 +41,7 @@ class UnitUpdateInput(TypeInputMixin):
 
 
 @strawberry.input()
-class UnitFilterInput(TypeInputMixin):
+class UnitFilterInput(BasePaginationGql):
     uuids: list[uuid_pkg.UUID] | None = ()
 
     creator_uuid: uuid_pkg.UUID | None = None
@@ -58,9 +58,6 @@ class UnitFilterInput(TypeInputMixin):
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    offset: int | None = None
-    limit: int | None = None
-
     # Only with is_include_output_unit_nodes = True
     unit_node_input_uuid: uuid_pkg.UUID | None = None
     # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
@@ -70,12 +67,9 @@ class UnitFilterInput(TypeInputMixin):
 
 
 @strawberry.input()
-class UnitLogFilterInput(TypeInputMixin):
+class UnitLogFilterInput(BasePaginationGql):
     uuid: uuid_pkg.UUID
 
     level: list[LogLevel] | None = tuple(LogLevel)
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None

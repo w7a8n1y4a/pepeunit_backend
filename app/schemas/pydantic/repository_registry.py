@@ -4,14 +4,16 @@ from datetime import datetime
 
 from fastapi import Query
 from fastapi_filter.contrib.sqlalchemy import Filter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app import settings
 from app.dto.enum import (
     CredentialStatus,
     GitPlatform,
     OrderByDate,
     RepositoryRegistryStatus,
 )
+from app.schemas.pydantic.pagination import BasePaginationRestMixin
 
 
 class Credentials(BaseModel):
@@ -61,7 +63,7 @@ class RepositoriesRegistryResult(BaseModel):
 
 
 @dataclass
-class RepositoryRegistryFilter:
+class RepositoryRegistryFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     creator_uuid: uuid_pkg.UUID | None = None
@@ -71,9 +73,6 @@ class RepositoryRegistryFilter:
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
 
     def dict(self):
         return self.__dict__
@@ -89,5 +88,9 @@ class CommitFilter(Filter):
     repo_branch: str
     only_tag: bool = False
 
-    offset: int | None = 0
-    limit: int | None = 10
+    offset: int | None = Field(default=0, ge=0)
+    limit: int | None = Field(
+        default=10,
+        ge=0,
+        le=settings.backend_max_pagination_size,
+    )

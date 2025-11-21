@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 import strawberry
 
 from app.dto.enum import OrderByDate, UserRole, UserStatus
-from app.schemas.gql.type_input_mixin import TypeInputMixin
+from app.schemas.gql.type_input_mixin import BasePaginationGql, TypeInputMixin
 
 
 @strawberry.input()
@@ -25,7 +25,7 @@ class UserUpdateInput(TypeInputMixin):
 
 
 @strawberry.input()
-class UserFilterInput(TypeInputMixin):
+class UserFilterInput(BasePaginationGql):
     uuids: list[uuid_pkg.UUID] | None = ()
 
     search_string: str | None = None
@@ -34,6 +34,3 @@ class UserFilterInput(TypeInputMixin):
     status: list[UserStatus] | None = tuple(UserStatus)
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
-
-    offset: int | None = None
-    limit: int | None = None
