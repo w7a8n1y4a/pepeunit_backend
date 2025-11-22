@@ -7,6 +7,17 @@ from app import settings
 from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 
 
+class FeatureFlags(BaseModel):
+    backend_ff_telegram_bot_enable: bool = (
+        settings.backend_ff_telegram_bot_enable
+    )
+    backend_ff_grafana_integration_enable: bool = (
+        settings.backend_ff_grafana_integration_enable
+    )
+    backend_ff_datapipe_enable: bool = settings.backend_ff_datapipe_enable
+    backend_ff_prometheus_enable: bool = settings.backend_ff_prometheus_enable
+
+
 class Root(BaseModel):
     name: str = settings.project_name
     version: str = settings.version
@@ -17,6 +28,7 @@ class Root(BaseModel):
     graphql: str = f"{settings.backend_link_prefix}/graphql"
     grafana: str = f"{settings.backend_link}/grafana/"
     telegram_bot: str = settings.telegram_bot_link
+    feature_flags: FeatureFlags = FeatureFlags()
 
 
 class MqttRead(BaseModel):

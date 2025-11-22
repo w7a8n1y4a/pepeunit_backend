@@ -5,6 +5,7 @@ import strawberry
 from strawberry.types import Info
 
 from app import settings
+from app.configs.errors import FeatureFlagError
 from app.configs.gql import get_user_service_gql
 from app.dto.enum import CookieName
 from app.schemas.gql.inputs.user import UserCreateInput, UserUpdateInput
@@ -30,6 +31,9 @@ def update_user(info: Info, user: UserUpdateInput) -> UserType:
 
 @strawberry.mutation()
 def set_grafana_cookies(info: Info) -> NoneType:
+    if not settings.backend_ff_grafana_integration_enable:
+        raise FeatureFlagError()
+
     user_service = get_user_service_gql(info)
 
     response: Response = info.context["response"]

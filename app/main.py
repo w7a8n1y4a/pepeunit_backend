@@ -57,7 +57,8 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.INFO)
 
 
-recreate_directory(settings.prometheus_multiproc_dir)
+if settings.backend_ff_prometheus_enable:
+    recreate_directory(settings.prometheus_multiproc_dir)
 
 
 async def init_clickhouse():
@@ -166,7 +167,7 @@ _mqtt_task = None
 
 
 async def init_telegram_bot(dp, bot):
-    if not settings.telegram_bot_enable:
+    if not settings.backend_ff_telegram_bot_enable:
         return
 
     if settings.telegram_bot_mode == "pooling":
@@ -217,7 +218,8 @@ async def _lifespan(_app: FastAPI):
         control_emqx = ControlEmqx()
         await control_emqx.init()
         await setup_backend_acl(redis)
-        await init_telegram_bot(dp, bot)
+        if settings.backend_ff_telegram_bot_enable:
+            await init_telegram_bot(dp, bot)
         sync_local_repository()
 
         mqtt_run_lock.close()
@@ -309,7 +311,7 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
-if settings.telegram_bot_enable:
+if settings.backend_ff_telegram_bot_enable:
     bot = Bot(token=settings.telegram_token)
     storage = RedisStorage.from_url(
         settings.redis_url,
@@ -325,7 +327,8 @@ if settings.telegram_bot_enable:
     dp.include_router(UnitBotRouter().router)
     dp.include_router(UnitNodeBotRouter().router)
     dp.include_router(UnitLogBotRouter().router)
-    dp.include_router(DashboardBotRouter().router)
+    if settings.backend_ff_grafana_integration_enable:
+        dp.include_router(DashboardBotRouter().router)
     dp.include_router(error_router)
 
     @app.post(
@@ -341,9 +344,10 @@ if settings.telegram_bot_enable:
             return {"status": "error", "message": str(e)}
 
 
-Instrumentator().instrument(app).expose(
-    app, endpoint=f"{settings.backend_app_prefix}/metrics"
-)
+if settings.backend_ff_prometheus_enable:
+    Instrumentator().instrument(app).expose(
+        app, endpoint=f"{settings.backend_app_prefix}/metrics"
+    )
 
 app.include_router(
     api_router,

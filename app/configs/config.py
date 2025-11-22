@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     authors: list = data["project"]["authors"]
     license: str = data["project"]["license"]["text"]
 
+    backend_ff_telegram_bot_enable: bool = True
+    backend_ff_grafana_integration_enable: bool = True
+    backend_ff_datapipe_enable: bool = True
+    backend_ff_prometheus_enable: bool = True
+
     backend_debug: bool = False
     backend_app_prefix: str = "/pepeunit"
     backend_api_v1_prefix: str = "/api/v1"
@@ -54,7 +59,6 @@ class Settings(BaseSettings):
         string.ascii_letters + string.digits + string.punctuation
     )
 
-    telegram_bot_enable: bool = True
     telegram_bot_mode: str = "webhook"
     telegram_del_old_webhook: bool = True
     telegram_token: str

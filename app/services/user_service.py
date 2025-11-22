@@ -4,6 +4,7 @@ import uuid as uuid_pkg
 from fastapi import Depends
 
 from app import settings
+from app.configs.errors import FeatureFlagError
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentGrafana, AgentUser
@@ -36,7 +37,7 @@ class UserService:
         access_service: AccessService = Depends(),
     ) -> None:
         self.user_repository = user_repository
-        self.grafana_repository = GrafanaRepository(data_pipe_repository)
+        self.data_pipe_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
 
     def create(self, data: UserCreate | UserCreateInput) -> User:
@@ -107,6 +108,9 @@ class UserService:
         return self.user_repository.update(user.uuid, user)
 
     async def generate_verification_link(self) -> str:
+        if not settings.backend_ff_telegram_bot_enable:
+            raise FeatureFlagError()
+
         self.access_service.authorization.check_access([AgentType.USER])
         redis = await anext(get_redis_session())
 
@@ -167,10 +171,13 @@ class UserService:
         return self.user_repository.list(filters)
 
     def create_org_if_not_exists(self, uuid: uuid_pkg.UUID) -> None:
+        if not settings.backend_ff_grafana_integration_enable:
+            return
+
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
 
         if not user.grafana_org_id:
-            org_id = self.grafana_repository.create_org_if_not_exists(user)
+            org_id = self.data_pipe_repository.create_org_if_not_exists(user)
             user.grafana_org_id = str(org_id)
             self.user_repository.update(user.uuid, user)

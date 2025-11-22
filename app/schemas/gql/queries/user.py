@@ -25,18 +25,18 @@ def get_token(data: UserAuthInput, info: Info) -> str:
     user_service = get_user_service_gql(info)
 
     user_token = user_service.get_token(data)
-
     info.context["jwt_token"] = user_token
-    authorized_user_service = get_user_service_gql(info)
 
-    response: Response = info.context["response"]
-    response.set_cookie(
-        key=CookieName.PEPEUNIT_GRAFANA.value,
-        value=authorized_user_service.get_grafana_token(),
-        httponly=True,
-        samesite="lax",
-        secure=settings.backend_secure,
-    )
+    if settings.backend_ff_grafana_integration_enable:
+        authorized_user_service = get_user_service_gql(info)
+        response: Response = info.context["response"]
+        response.set_cookie(
+            key=CookieName.PEPEUNIT_GRAFANA.value,
+            value=authorized_user_service.get_grafana_token(),
+            httponly=True,
+            samesite="lax",
+            secure=settings.backend_secure,
+        )
 
     return user_token
 

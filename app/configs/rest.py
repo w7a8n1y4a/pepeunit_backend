@@ -2,8 +2,10 @@ from clickhouse_driver import Client
 from fastapi import Depends
 from sqlmodel import Session
 
+from app import settings
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
+from app.configs.errors import FeatureFlagError
 from app.repositories.dashboard_panel_repository import (
     DashboardPanelRepository,
 )
@@ -138,6 +140,8 @@ class ServiceFactory:
         )
 
     def get_grafana_service(self) -> GrafanaService:
+        if not settings.backend_ff_grafana_integration_enable:
+            raise FeatureFlagError()
         return GrafanaService(
             dashboard_repository=self.dashboard_repository,
             dashboard_panel_repository=self.dashboard_panel_repository,

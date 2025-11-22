@@ -176,3 +176,13 @@ class GrafanaError(CustomException):
             message_template="Grafana Error: {}",
             error_code=14,
         )
+
+
+class FeatureFlagError(CustomException):
+    def __init__(self):
+        super().__init__(
+            "This feature has been disabled by the instance Owner",
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            message_template="Feature Flag Error: {}",
+            error_code=15,
+        )
