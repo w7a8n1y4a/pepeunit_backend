@@ -65,6 +65,7 @@ from app.services.utils import (
     get_topic_name,
     merge_two_dict_first_priority,
     remove_none_value_dict,
+    toml_file_to_md,
 )
 from app.services.validators import (
     is_valid_json,
@@ -519,6 +520,10 @@ class UnitService:
         os.remove(firmware_tar_path + ".tar")
 
         return f"{firmware_tar_path}.tgz"
+
+    async def convert_toml_file_to_md(self, file) -> str:
+        self.access_service.authorization.check_access([AgentType.USER])
+        return await toml_file_to_md(file)
 
     def set_state_storage(self, uuid: uuid_pkg.UUID, state: str) -> None:
         self.access_service.authorization.check_access(

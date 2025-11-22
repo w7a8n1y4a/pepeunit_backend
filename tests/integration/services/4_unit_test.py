@@ -741,3 +741,35 @@ def test_get_unit_logs(database, cc) -> None:
         )
     )
     assert len(units) > 0
+
+
+@pytest.mark.run(order=13)
+@pytest.mark.asyncio
+async def test_convert_toml_file_to_md(database, cc) -> None:
+    current_user = pytest.users[0]
+    unit_service = get_unit_service(
+        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    )
+
+    class DummyUploadFile:
+        def __init__(self, content: bytes):
+            self._content = content
+
+        async def read(self):
+            return self._content
+
+    tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    toml_path = os.path.join(tests_dir, "data", "toml", "pepeunit.toml")
+
+    with open(toml_path, "rb") as f:
+        content = f.read()
+
+    file = DummyUploadFile(content)
+
+    md = await unit_service.convert_toml_file_to_md(file)
+
+    assert isinstance(md, str)
+    assert md.strip() != ""
+    assert md.lstrip().startswith("# WiFi Temp Sensor ds18b20")
+    assert "Parameter | Implementation" in md
+    assert "## Files" in md

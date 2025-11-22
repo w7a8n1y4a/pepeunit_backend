@@ -20,6 +20,7 @@ from app.schemas.gql.queries.repository_registry import (
     get_repository_registry,
 )
 from app.schemas.gql.queries.unit import (
+    get_convert_toml_to_md,
     get_state_storage,
     get_target_version,
     get_unit,
@@ -64,6 +65,7 @@ Query = create_type(
         get_state_storage,
         get_units,
         get_unit_logs,
+        get_convert_toml_to_md,
         get_unit_node,
         get_pipe_data,
         get_unit_nodes,

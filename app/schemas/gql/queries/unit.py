@@ -2,6 +2,7 @@ import json
 import uuid as uuid_pkg
 
 import strawberry
+from strawberry.file_uploads import Upload
 from strawberry.types import Info
 
 from app.configs.gql import get_unit_service_gql
@@ -68,3 +69,9 @@ def get_unit_logs(
         count=count,
         unit_logs=[UnitLogType(**unit_log.dict()) for unit_log in unit_logs],
     )
+
+
+@strawberry.field()
+async def get_convert_toml_to_md(file: Upload, info: Info) -> str:
+    unit_service = get_unit_service_gql(info)
+    return await unit_service.convert_toml_file_to_md(file)
