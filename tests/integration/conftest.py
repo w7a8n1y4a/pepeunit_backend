@@ -96,7 +96,7 @@ def test_external_repository() -> list[dict]:
     test_external_repository = []
     try:
         data = is_valid_json(
-            settings.test_integration_private_repo_json, "Private Repo"
+            settings.pu_test_integration_private_repo_json, "Private Repo"
         )
         if isinstance(data, str):
             data = is_valid_json(data, "Private Repo")
@@ -149,7 +149,7 @@ def test_repos() -> list[dict]:
     test_repos = []
     try:
         data = is_valid_json(
-            settings.test_integration_private_repo_json, "Private Repo"
+            settings.pu_test_integration_private_repo_json, "Private Repo"
         )
         if isinstance(data, str):
             data = is_valid_json(data, "Private Repo")

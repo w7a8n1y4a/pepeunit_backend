@@ -104,17 +104,17 @@ class Settings(BaseSettings):
     pu_grafana_admin_password: str = ""
     pu_grafana_limit_unit_node_per_one_panel: int = 10
 
-    test_integration_clear_data: bool = True
-    test_integration_private_repo_json: str = ""
+    pu_test_integration_clear_data: bool = True
+    pu_test_integration_private_repo_json: str = ""
 
-    test_load_mqtt_duration: int = 120
-    test_load_mqtt_unit_count: int = 100
-    test_load_mqtt_rps: int = 200
-    test_load_mqtt_value_type: str = "Text"
-    test_load_mqtt_duplicate_count: int = 10
-    test_load_mqtt_message_size: int = 15
-    test_load_mqtt_policy_type: str = "TimeWindow"
-    test_load_mqtt_workers: int = 10
+    pu_test_load_mqtt_duration: int = 120
+    pu_test_load_mqtt_unit_count: int = 100
+    pu_test_load_mqtt_rps: int = 200
+    pu_test_load_mqtt_value_type: str = "Text"
+    pu_test_load_mqtt_duplicate_count: int = 10
+    pu_test_load_mqtt_message_size: int = 15
+    pu_test_load_mqtt_policy_type: str = "TimeWindow"
+    pu_test_load_mqtt_workers: int = 10
 
     locust_headless: bool = True
     locust_users: int = 400
