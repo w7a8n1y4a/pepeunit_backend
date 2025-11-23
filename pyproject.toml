@@ -46,7 +46,7 @@ dependencies = [
     "clickhouse-driver>=0.2.9",
     "redis>=5.2.1",
     "pyyaml>=6.0.2",
-    "pepeunit-client>=0.10.19",
+    "pepeunit-client>=0.10.23",
     "pathspec>=0.12.1",
 ]
 

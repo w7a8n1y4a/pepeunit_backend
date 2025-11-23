@@ -21,6 +21,7 @@ from app.dto.enum import (
     DestinationTopicType,
     GlobalPrefixTopic,
     ReservedOutputBaseTopic,
+    ReservedStateKey,
     UnitFirmwareUpdateStatus,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -109,11 +110,16 @@ async def _handle_state_message(unit_uuid, payload):
 
         unit.unit_state_dict = json.dumps(unit_state_dict)
 
-        if "commit_version" not in unit.unit_state_dict:
-            msg = "State dict has no commit_version key"
+        if (
+            ReservedStateKey.PU_COMMIT_VERSION.value
+            not in unit.unit_state_dict
+        ):
+            msg = "State dict has no pu_commit_version key"
             raise MqttError(msg)
 
-        unit.current_commit_version = unit_state_dict["commit_version"]
+        unit.current_commit_version = unit_state_dict[
+            ReservedStateKey.PU_COMMIT_VERSION.value
+        ]
 
         if (
             unit.firmware_update_status

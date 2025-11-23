@@ -36,6 +36,7 @@ from app.dto.enum import (
     OwnershipType,
     PermissionEntities,
     ProcessingPolicyType,
+    ReservedEnvVariableName,
     ReservedInputBaseTopic,
     UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
@@ -404,7 +405,9 @@ class UnitNodeService:
         message_dict = {"COMMAND": command}
 
         if command == BackendTopicCommand.UPDATE:
-            message_dict["NEW_COMMIT_VERSION"] = target_version
+            message_dict[ReservedEnvVariableName.PU_COMMIT_VERSION.value] = (
+                target_version
+            )
             if repo.is_compilable_repo:
                 links = is_valid_json(
                     repository_registry.releases_data,

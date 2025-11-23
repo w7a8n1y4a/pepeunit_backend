@@ -277,7 +277,7 @@ def test_env_unit(database, cc) -> None:
     unit_service.set_env(test_unit.uuid, json.dumps(unit_service.get_env(test_unit.uuid)))
     new_env = unit_service.get_env(test_unit.uuid)
 
-    assert old_env.get(ReservedEnvVariableName.SYNC_ENCRYPT_KEY.value) != new_env.get(ReservedEnvVariableName.SYNC_ENCRYPT_KEY.value)
+    assert old_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value) != new_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value)
 
 
 @pytest.mark.run(order=4)
@@ -332,7 +332,7 @@ def test_get_firmware(database, cc) -> None:
         # check env.json file
         with open(f"{unpack_path}/{StaticRepoFileName.ENV.value}", "r") as f:
             env_dict = json.loads(f.read())
-            assert len(env_dict["PEPEUNIT_TOKEN"]) > 100
+            assert len(env_dict["PU_AUTH_TOKEN"]) > 100
 
     for item in del_file_list:
         os.remove(item)
@@ -478,7 +478,7 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
     # set bad env
     target_unit = pytest.units[1]
     env_dict = unit_service.get_env(target_unit.uuid)
-    del env_dict["SYNC_ENCRYPT_KEY"]
+    del env_dict["PU_SECRET_KEY"]
 
     logging.info(env_dict)
 
@@ -631,7 +631,7 @@ def test_env_update_command(database, cc) -> None:
 
     # set new variable for unit
     current_env = unit_service.get_env(target_unit.uuid)
-    current_env["MIN_LOG_LEVEL"] = "Info"
+    current_env["PU_MIN_LOG_LEVEL"] = "Info"
     unit_service.set_env(target_unit.uuid, json.dumps(current_env))
 
     # send command update env on unit
@@ -644,7 +644,7 @@ def test_env_update_command(database, cc) -> None:
         with open(filepath, "r") as f:
             env_dict = json.loads(f.read())
 
-            if env_dict["MIN_LOG_LEVEL"] == "Info":
+            if env_dict["PU_MIN_LOG_LEVEL"] == "Info":
                 break
 
         time.sleep(2)

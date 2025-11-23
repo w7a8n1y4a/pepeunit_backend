@@ -199,7 +199,7 @@ class RestClient:
 
     async def patch_unit_env(self, client, unit):
         unit_env_link = f"{self.config.url}/pepeunit/api/v1/units/env/{unit['uuid']}"
-        payload = {"env_json_string": '{"PING_INTERVAL": 30}'}
+        payload = {"env_json_string": '{"PU_MQTT_PING_INTERVAL": 30}'}
         return await client.patch(unit_env_link, json=payload, headers=self.headers)
 
     async def patch_unit_data_pipe(self, client, unit_node):
