@@ -71,11 +71,11 @@ integration_test:image:master:
     - when: never
   before_script:
     - echo "Waiting for the backend to be responsive..."
-    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
+    - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
-        if curl -s -o /dev/null -w "%{http_code}" https://$BACKEND_DOMAIN/pepeunit | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit | grep -q "200"; then
           echo "Backend is responsive, continuing..."
           break
         else
@@ -100,11 +100,11 @@ load_test_api:image:master:
     - when: never
   before_script:
     - echo "Waiting for the backend to be responsive..."
-    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
+    - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
-        if curl -s -o /dev/null -w "%{http_code}" https://$BACKEND_DOMAIN/pepeunit | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit | grep -q "200"; then
           echo "Backend is responsive, continuing..."
           break
         else
@@ -129,11 +129,11 @@ load_test_mqtt:image:master:
     - when: never
   before_script:
     - echo "Waiting for the backend to be responsive..."
-    - export BACKEND_DOMAIN=$(grep '^BACKEND_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
+    - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
   script:
     - |
       for i in {1..30}; do
-        if curl -s -o /dev/null -w "%{http_code}" https://$BACKEND_DOMAIN/pepeunit | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit | grep -q "200"; then
           echo "Backend is responsive, continuing..."
           break
         else
