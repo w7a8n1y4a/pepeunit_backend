@@ -31,7 +31,7 @@ class MQTTLoadTest:
 
     async def publish(self, client, unit):
         topic_dict = self.get_dict_by_topic(unit, "output/pepeunit")
-        topic = f"{unit['env']['PEPEUNIT_URL']}/{topic_dict['uuid']}/pepeunit"
+        topic = f"{unit['env']['PU_DOMAIN']}/{topic_dict['uuid']}/pepeunit"
         client.loop_start()
 
         message = generate_random_string(self.config.message_size)
@@ -54,9 +54,9 @@ class MQTTLoadTest:
         tasks = []
         for unit in self.units:
             client = await self.connect_mqtt(
-                unit["env"]["PEPEUNIT_TOKEN"],
-                unit["env"]["MQTT_URL"],
-                unit["env"]["MQTT_PORT"],
+                unit["env"]["PU_AUTH_TOKEN"],
+                unit["env"]["PU_MQTT_HOST"],
+                unit["env"]["PU_MQTT_PORT"],
             )
             self.clients.append(client)
             tasks.append(asyncio.create_task(self.publish(client, unit)))

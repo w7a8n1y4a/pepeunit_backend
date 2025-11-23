@@ -148,7 +148,7 @@ def test_decode_backend_token_success(mock_repos):
     user_repo, unit_repo = mock_repos
 
     agent = AgentBackend(
-        name=settings.backend_domain,
+        name=settings.pu_domain,
         type=AgentType.BACKEND,
         status=AgentStatus.VERIFIED,
     )
@@ -158,7 +158,7 @@ def test_decode_backend_token_success(mock_repos):
     current_agent = auth_service.get_current_agent()
 
     assert isinstance(current_agent, AgentBackend)
-    assert current_agent.name == settings.backend_domain
+    assert current_agent.name == settings.pu_domain
     assert current_agent.status == AgentStatus.VERIFIED
 
 
@@ -167,7 +167,7 @@ def test_unknown_agent_type(mock_repos):
 
     token = jwt.encode(
         {"uuid": str(uuid_pkg.uuid4()), "type": "UNKNOWN_TYPE"},
-        settings.backend_secret_key,
+        settings.pu_secret_key,
         algorithm="HS256",
     )
 

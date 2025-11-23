@@ -40,25 +40,21 @@ class ClickHouseConnectionParams:
 
 
 settings = Settings()
-settings.backend_http_type = "https" if settings.backend_secure else "http"
-settings.mqtt_http_type = "https" if settings.mqtt_secure else "http"
+settings.pu_http_type = "https" if settings.pu_secure else "http"
+settings.pu_mqtt_http_type = "https" if settings.pu_mqtt_secure else "http"
 
-settings.backend_link = (
-    f"{settings.backend_http_type}://{settings.backend_domain}"
+settings.pu_link = f"{settings.pu_http_type}://{settings.pu_domain}"
+settings.pu_link_prefix = settings.pu_link + settings.pu_app_prefix
+settings.pu_link_prefix_and_v1 = (
+    settings.pu_link_prefix + settings.pu_api_v1_prefix
 )
-settings.backend_link_prefix = (
-    settings.backend_link + settings.backend_app_prefix
-)
-settings.backend_link_prefix_and_v1 = (
-    settings.backend_link_prefix + settings.backend_api_v1_prefix
-)
-if settings.clickhouse_database_url:
-    settings.clickhouse_connection = (
+if settings.pu_clickhouse_database_url:
+    settings.pu_clickhouse_connection = (
         ClickHouseConnectionParams.from_connection_string(
-            settings.clickhouse_database_url
+            settings.pu_clickhouse_database_url
         )
     )
-settings.time_window_sizes = [
+settings.pu_time_window_sizes = [
     60,
     300,
     600,

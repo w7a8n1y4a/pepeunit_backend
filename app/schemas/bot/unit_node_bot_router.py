@@ -80,8 +80,8 @@ class UnitNodeBotRouter(BaseBotRouter):
             count, unit_nodes = unit_node_service.list(
                 UnitNodeFilter(
                     offset=(filters.page - 1)
-                    * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
+                    * settings.pu_telegram_items_per_page,
+                    limit=settings.pu_telegram_items_per_page,
                     visibility_level=filters.visibility_levels or [],
                     type=filters.unit_types or [],
                     search_string=filters.search_string,
@@ -90,8 +90,8 @@ class UnitNodeBotRouter(BaseBotRouter):
             )
 
             total_pages = (
-                count + settings.telegram_items_per_page - 1
-            ) // settings.telegram_items_per_page
+                count + settings.pu_telegram_items_per_page - 1
+            ) // settings.pu_telegram_items_per_page
 
         return unit_nodes, total_pages
 
@@ -238,7 +238,7 @@ class UnitNodeBotRouter(BaseBotRouter):
                 ),
                 InlineKeyboardButton(
                     text="Browser",
-                    url=f"{settings.backend_link}/unit-node/{unit_node.uuid}",
+                    url=f"{settings.pu_link}/unit-node/{unit_node.uuid}",
                 ),
             ],
         ]

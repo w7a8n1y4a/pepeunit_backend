@@ -29,7 +29,7 @@ async def start_help_resolver(message: types.Message):
             )
 
             if user:
-                text = f"Your account is already linked to an account on instance {settings.backend_domain}"
+                text = f"Your account is already linked to an account on instance {settings.pu_domain}"
             else:
                 user_service = get_bot_user_service(db, cc, None)
                 try:
@@ -66,7 +66,7 @@ async def start_help_resolver(message: types.Message):
     text += "```"
 
     buttons = [
-        InlineKeyboardButton(text="Frontend", url=settings.backend_link),
+        InlineKeyboardButton(text="Frontend", url=settings.pu_link),
         InlineKeyboardButton(text="Documentation", url="https://pepeunit.com"),
     ]
     builder = InlineKeyboardBuilder()

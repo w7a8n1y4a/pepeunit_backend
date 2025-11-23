@@ -17,7 +17,7 @@ down_revision = "b552dfb75bb7"
 branch_labels = None
 depends_on = None
 
-db_name = urlparse(settings.sqlalchemy_database_url).path.lstrip("/")
+db_name = urlparse(settings.pu_sqlalchemy_database_url).path.lstrip("/")
 
 
 def upgrade() -> None:

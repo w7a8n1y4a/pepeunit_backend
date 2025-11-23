@@ -74,7 +74,7 @@ async def test_verification_user(database, cc) -> None:
         )
 
         link = await user_service.generate_verification_link()
-        code = link.replace(f"{settings.telegram_bot_link}?start=", "")
+        code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
 
         await user_service.verification(str(1_000_000), code[:-2])
 
@@ -88,7 +88,7 @@ async def test_verification_user(database, cc) -> None:
         logging.info(user.uuid)
 
         link = await user_service.generate_verification_link()
-        code = link.replace(f"{settings.telegram_bot_link}?start=", "")
+        code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
 
         logging.info(code)
         codes_list.append(code)
@@ -188,7 +188,7 @@ def test_get_many_user(database, cc) -> None:
             search_string=pytest.test_hash,
             role=[UserRole.USER],
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(users) == len(pytest.users) - 1

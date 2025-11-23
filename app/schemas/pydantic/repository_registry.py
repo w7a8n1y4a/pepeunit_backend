@@ -92,5 +92,5 @@ class CommitFilter(Filter):
     limit: int | None = Field(
         default=10,
         ge=0,
-        le=settings.backend_max_pagination_size,
+        le=settings.pu_max_pagination_size,
     )

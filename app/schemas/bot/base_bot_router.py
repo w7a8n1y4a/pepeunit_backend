@@ -268,12 +268,12 @@ class BaseBotRouter(ABC):
 
     @staticmethod
     def header_name_limit(data: str) -> str:
-        return data[: settings.telegram_header_entity_length]
+        return data[: settings.pu_telegram_header_entity_length]
 
     @staticmethod
     def registry_name_limit(data: str, coefficient: float = 1) -> str:
         return data[
-            -int(settings.telegram_header_entity_length * coefficient) :
+            -int(settings.pu_telegram_header_entity_length * coefficient) :
         ]
 
     @staticmethod
@@ -301,7 +301,7 @@ class BaseBotRouter(ABC):
 
     @staticmethod
     def git_hash_limit(data: str) -> str:
-        return data[: settings.telegram_git_hash_length]
+        return data[: settings.pu_telegram_git_hash_length]
 
     @staticmethod
     async def telegram_response(

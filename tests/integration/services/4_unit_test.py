@@ -277,7 +277,7 @@ def test_env_unit(database, cc) -> None:
     unit_service.set_env(test_unit.uuid, json.dumps(unit_service.get_env(test_unit.uuid)))
     new_env = unit_service.get_env(test_unit.uuid)
 
-    assert old_env.get(ReservedEnvVariableName.SYNC_ENCRYPT_KEY.value) != new_env.get(ReservedEnvVariableName.SYNC_ENCRYPT_KEY.value)
+    assert old_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value) != new_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value)
 
 
 @pytest.mark.run(order=4)
@@ -332,7 +332,7 @@ def test_get_firmware(database, cc) -> None:
         # check env.json file
         with open(f"{unpack_path}/{StaticRepoFileName.ENV.value}", "r") as f:
             env_dict = json.loads(f.read())
-            assert len(env_dict["PEPEUNIT_TOKEN"]) > 100
+            assert len(env_dict["PU_AUTH_TOKEN"]) > 100
 
     for item in del_file_list:
         os.remove(item)
@@ -367,7 +367,7 @@ def test_state_storage(database, cc) -> None:
 
     # check cipher long data
     with pytest.raises(CipherError):
-        state = "t" * (settings.backend_max_cipher_length + 1)
+        state = "t" * (settings.pu_max_cipher_length + 1)
         unit_service.set_state_storage(target_unit.uuid, state)
 
 
@@ -410,7 +410,7 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
     def set_unit_new_commit(token: str, unit, target_version: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/{unit.uuid}"
+        url = f"{settings.pu_link_prefix_and_v1}/units/{unit.uuid}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(
@@ -478,7 +478,7 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
     # set bad env
     target_unit = pytest.units[1]
     env_dict = unit_service.get_env(target_unit.uuid)
-    del env_dict["SYNC_ENCRYPT_KEY"]
+    del env_dict["PU_SECRET_KEY"]
 
     logging.info(env_dict)
 
@@ -506,7 +506,7 @@ def test_repo_update_firmware_unit(database, cc) -> None:
     def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/repos/{repo.uuid}"
+        url = f"{settings.pu_link_prefix_and_v1}/repos/{repo.uuid}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=repo_update.dict(), headers=headers)
@@ -516,7 +516,7 @@ def test_repo_update_firmware_unit(database, cc) -> None:
     def bulk_update_repo(token: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/repos/bulk_update"
+        url = f"{settings.pu_link_prefix_and_v1}/repos/bulk_update"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -613,7 +613,7 @@ def test_env_update_command(database, cc) -> None:
     def set_command(token: str, unit, command: BackendTopicCommand) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
+        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -631,7 +631,7 @@ def test_env_update_command(database, cc) -> None:
 
     # set new variable for unit
     current_env = unit_service.get_env(target_unit.uuid)
-    current_env["MIN_LOG_LEVEL"] = "Info"
+    current_env["PU_MIN_LOG_LEVEL"] = "Info"
     unit_service.set_env(target_unit.uuid, json.dumps(current_env))
 
     # send command update env on unit
@@ -644,7 +644,7 @@ def test_env_update_command(database, cc) -> None:
         with open(filepath, "r") as f:
             env_dict = json.loads(f.read())
 
-            if env_dict["MIN_LOG_LEVEL"] == "Info":
+            if env_dict["PU_MIN_LOG_LEVEL"] == "Info":
                 break
 
         time.sleep(2)
@@ -660,7 +660,7 @@ def test_log_sync_command(database) -> None:
     def set_command(token: str, unit, command: BackendTopicCommand) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
+        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -717,7 +717,7 @@ def test_get_many_unit(database, cc) -> None:
             search_string=pytest.test_hash,
             is_auto_update_from_repo_unit=True,
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(units) == 2
@@ -737,7 +737,7 @@ def test_get_unit_logs(database, cc) -> None:
         UnitLogFilter(
             uuid=target_unit.uuid,
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(units) > 0

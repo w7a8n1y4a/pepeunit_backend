@@ -24,7 +24,7 @@ class UnitStateRead(BaseModel):
     mem_alloc: float | None = None
     freq: float | None = None
     statvfs: list = []
-    commit_version: str | None = None
+    pu_commit_version: str | None = None
 
     @root_validator(pre=True)
     def check_types(cls, values):

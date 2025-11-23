@@ -461,7 +461,9 @@ class UnitService:
                 repository_registry, target_version, gen_uuid
             )
 
-        env_dict["COMMIT_VERSION"] = target_version
+        env_dict[ReservedEnvVariableName.PU_COMMIT_VERSION.value] = (
+            target_version
+        )
 
         with open(
             f"{tmp_git_repo_path}/{StaticRepoFileName.ENV.value}", "w"
@@ -723,7 +725,7 @@ class UnitService:
                     DestinationTopicType.OUTPUT_BASE_TOPIC,
                 ]:
                     new_schema_dict[destination][topic] = [
-                        f"{settings.backend_domain}/{destination}/{unit.uuid}/{topic}"
+                        f"{settings.pu_domain}/{destination}/{unit.uuid}/{topic}"
                     ]
                 elif destination == DestinationTopicType.INPUT_TOPIC:
                     new_schema_dict[destination][topic] = input_dict[topic]
@@ -740,23 +742,20 @@ class UnitService:
 
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {
-            ReservedEnvVariableName.PEPEUNIT_URL: settings.backend_domain,
-            ReservedEnvVariableName.HTTP_TYPE: settings.backend_http_type,
-            ReservedEnvVariableName.PEPEUNIT_APP_PREFIX: settings.backend_app_prefix,
-            ReservedEnvVariableName.PEPEUNIT_API_ACTUAL_PREFIX: settings.backend_api_v1_prefix,
-            ReservedEnvVariableName.MQTT_URL: settings.mqtt_host,
-            ReservedEnvVariableName.MQTT_PORT: settings.mqtt_port,
-            ReservedEnvVariableName.PEPEUNIT_TOKEN: self.generate_token(uuid),
-            ReservedEnvVariableName.SYNC_ENCRYPT_KEY: base64.b64encode(
+            ReservedEnvVariableName.PU_DOMAIN: settings.pu_domain,
+            ReservedEnvVariableName.PU_HTTP_TYPE: settings.pu_http_type,
+            ReservedEnvVariableName.PU_APP_PREFIX: settings.pu_app_prefix,
+            ReservedEnvVariableName.PU_API_ACTUAL_PREFIX: settings.pu_api_v1_prefix,
+            ReservedEnvVariableName.PU_MQTT_HOST: settings.pu_mqtt_host,
+            ReservedEnvVariableName.PU_MQTT_PORT: settings.pu_mqtt_port,
+            ReservedEnvVariableName.PU_AUTH_TOKEN: self.generate_token(uuid),
+            ReservedEnvVariableName.PU_SECRET_KEY: base64.b64encode(
                 os.urandom(16)
             ).decode("utf-8"),
-            ReservedEnvVariableName.SECRET_KEY: base64.b64encode(
-                os.urandom(16)
-            ).decode("utf-8"),
-            ReservedEnvVariableName.PING_INTERVAL: 30,
-            ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.backend_state_send_interval,
-            ReservedEnvVariableName.MIN_LOG_LEVEL: LogLevel.DEBUG.value,
-            ReservedEnvVariableName.MAX_LOG_LENGTH: 64,
+            ReservedEnvVariableName.PU_MQTT_PING_INTERVAL: 30,
+            ReservedEnvVariableName.PU_STATE_SEND_INTERVAL: settings.pu_state_send_interval,
+            ReservedEnvVariableName.PU_MIN_LOG_LEVEL: LogLevel.DEBUG.value,
+            ReservedEnvVariableName.PU_MAX_LOG_LENGTH: 64,
         }
 
     def generate_unified_env(
@@ -804,8 +803,13 @@ class UnitService:
                 user_env_dict, merged_env_dict
             )
 
-        if "COMMIT_VERSION" in merged_env_dict and not include_commit_version:
-            del merged_env_dict["COMMIT_VERSION"]
+        if (
+            ReservedEnvVariableName.PU_COMMIT_VERSION.value in merged_env_dict
+            and not include_commit_version
+        ):
+            del merged_env_dict[
+                ReservedEnvVariableName.PU_COMMIT_VERSION.value
+            ]
 
         if filter_by_allowed_keys:
             env_example_dict = self.git_repo_repository.get_env_example(
@@ -819,7 +823,9 @@ class UnitService:
             }
 
         if include_commit_version:
-            merged_env_dict["COMMIT_VERSION"] = target_version
+            merged_env_dict[
+                ReservedEnvVariableName.PU_COMMIT_VERSION.value
+            ] = target_version
 
         return merged_env_dict
 

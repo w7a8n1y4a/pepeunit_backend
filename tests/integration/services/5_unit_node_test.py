@@ -199,7 +199,7 @@ def test_create_unit_node_edge(database, cc) -> None:
     def update_schema(token: str, unit_uuid: uuid_pkg.UUID) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit_uuid}?command=SchemaUpdate"
+        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit_uuid}?command=SchemaUpdate"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -209,7 +209,7 @@ def test_create_unit_node_edge(database, cc) -> None:
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
+        url = f"{settings.pu_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(
@@ -295,7 +295,7 @@ async def test_set_state_input_unit_node(database, cc) -> None:
     def set_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
+        url = f"{settings.pu_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(
@@ -368,7 +368,7 @@ def test_get_many_unit_node(database, cc) -> None:
             search_string="input",
             type=[UnitNodeTypeEnum.INPUT],
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(units_nodes) >= 8

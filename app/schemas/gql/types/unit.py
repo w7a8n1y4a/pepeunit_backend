@@ -17,7 +17,7 @@ class UnitStateType(TypeInputMixin):
     mem_alloc: float | None = None
     freq: float | None = None
     statvfs: list[float] = field(default_factory=list)
-    commit_version: str | None = None
+    pu_commit_version: str | None = None
 
 
 @strawberry.type()

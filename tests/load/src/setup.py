@@ -34,11 +34,11 @@ class MqttTestPreparation:
             "password": self.rest_client.config.mqtt_password,
         }
 
-        mqtt_url = self.units[0]["env"]["MQTT_URL"]
-        mqtt_http_type = self.units[0]["env"]["HTTP_TYPE"]
+        pu_mqtt_host = self.units[0]["env"]["PU_MQTT_HOST"]
+        pu_mqtt_http_type = self.units[0]["env"]["PU_HTTP_TYPE"]
 
         response = httpx.post(
-            f"{mqtt_http_type}://{mqtt_url}/api/v5/login", json=data, headers=headers
+            f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/login", json=data, headers=headers
         )
 
         return response.json()["token"]
@@ -50,10 +50,10 @@ class MqttTestPreparation:
             "Content-Type": "application/json",
         }
 
-        mqtt_url = self.units[0]["env"]["MQTT_URL"]
-        mqtt_http_type = self.units[0]["env"]["HTTP_TYPE"]
+        pu_mqtt_host = self.units[0]["env"]["PU_MQTT_HOST"]
+        pu_mqtt_http_type = self.units[0]["env"]["PU_HTTP_TYPE"]
 
-        link = f"{mqtt_http_type}://{mqtt_url}/api/v5/subscriptions?page=1&limit=50&qos=0&topic={self.units[0]['env']['PEPEUNIT_URL']}%2F%2B%2Fpepeunit"
+        link = f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/subscriptions?page=1&limit=50&qos=0&topic={self.units[0]['env']['PU_DOMAIN']}%2F%2B%2Fpepeunit"
 
         data = httpx.get(link, headers=headers)
 

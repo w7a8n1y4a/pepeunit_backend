@@ -92,16 +92,16 @@ class UnitLogBotRouter(BaseBotRouter):
             count, unit_logs = unit_service.log_list(
                 UnitLogFilter(
                     offset=(filters.page - 1)
-                    * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
+                    * settings.pu_telegram_items_per_page,
+                    limit=settings.pu_telegram_items_per_page,
                     level=filters.log_levels or [],
                     uuid=filters.unit_uuid,
                 )
             )
 
             total_pages = (
-                count + settings.telegram_items_per_page - 1
-            ) // settings.telegram_items_per_page
+                count + settings.pu_telegram_items_per_page - 1
+            ) // settings.pu_telegram_items_per_page
 
         return unit_logs, total_pages
 

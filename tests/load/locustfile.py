@@ -4,7 +4,7 @@ from app import settings
 
 
 class MetricsUser(HttpUser):
-    host = f"{settings.backend_http_type}://{settings.backend_domain}"
+    host = f"{settings.pu_http_type}://{settings.pu_domain}"
     wait_time = between(1, 1)
 
     @task
@@ -13,7 +13,7 @@ class MetricsUser(HttpUser):
 
 
 class MetricsGQLUser(HttpUser):
-    host = f"{settings.backend_http_type}://{settings.backend_domain}"
+    host = f"{settings.pu_http_type}://{settings.pu_domain}"
     wait_time = between(1, 1)
 
     @task
@@ -38,7 +38,7 @@ class MetricsGQLUser(HttpUser):
 
 
 class RootUser(HttpUser):
-    host = f"{settings.backend_http_type}://{settings.backend_domain}"
+    host = f"{settings.pu_http_type}://{settings.pu_domain}"
     wait_time = between(1, 1)
 
     @task

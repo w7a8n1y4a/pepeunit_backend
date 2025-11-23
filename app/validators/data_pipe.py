@@ -100,7 +100,7 @@ class FiltersConfig(BaseModel):
 
     def _validate_max_size(self):
         """Validate max_size against MQTT payload limit."""
-        max_allowed_size = settings.mqtt_max_payload_size * 1024
+        max_allowed_size = settings.pu_mqtt_max_payload_size * 1024
         if self.max_size > max_allowed_size:
             msg = f"max_size must be <= {max_allowed_size}"
             raise ValueError(msg)
@@ -143,8 +143,8 @@ class ProcessingPolicyConfig(BaseModel):
             if self.time_window_size is None:
                 msg = "time_window_size is required"
                 raise ValueError(msg)
-            if self.time_window_size not in settings.time_window_sizes:
-                msg = f"Invalid time_window_size. Must be one of: {settings.time_window_sizes}"
+            if self.time_window_size not in settings.pu_time_window_sizes:
+                msg = f"Invalid time_window_size. Must be one of: {settings.pu_time_window_sizes}"
                 raise ValueError(msg)
 
         if (

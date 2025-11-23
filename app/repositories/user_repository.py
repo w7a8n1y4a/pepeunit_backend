@@ -88,7 +88,7 @@ class UserRepository(BaseRepository):
     @staticmethod
     def is_valid_password(password: str):
         if not is_valid_string_with_rules(
-            password, settings.available_password_symbols, 8, 100
+            password, settings.pu_available_password_symbols, 8, 100
         ):
             msg = "Password is not correct"
             raise UserError(msg)

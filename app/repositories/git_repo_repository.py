@@ -25,7 +25,7 @@ from app.utils.utils import clean_files_with_pepeignore
 class GitRepoRepository:
     @staticmethod
     def get_path_physic_repository(repository_registry: RepositoryRegistry):
-        return f"{settings.backend_save_repo_path}/{repository_registry.uuid}"
+        return f"{settings.pu_save_repo_path}/{repository_registry.uuid}"
 
     @staticmethod
     def clone(url: str, repo_save_path: str):
@@ -55,7 +55,7 @@ class GitRepoRepository:
 
     @staticmethod
     def get_local_registry() -> list[str]:
-        path = settings.backend_save_repo_path
+        path = settings.pu_save_repo_path
         return [
             name
             for name in os.listdir(path)
@@ -345,9 +345,10 @@ class GitRepoRepository:
 
         # check - all chars in topics is valid
         if (
-            set(all_unique_chars_topic) - set(settings.available_topic_symbols)
+            set(all_unique_chars_topic)
+            - set(settings.pu_available_topic_symbols)
         ) != set():
-            msg = f"Topics in the schema use characters that are not allowed, allowed: {settings.available_topic_symbols}"
+            msg = f"Topics in the schema use characters that are not allowed, allowed: {settings.pu_available_topic_symbols}"
             raise GitRepoError(msg)
 
         # check - length topics. 100 chars is stock for system track parts

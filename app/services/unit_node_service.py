@@ -36,6 +36,7 @@ from app.dto.enum import (
     OwnershipType,
     PermissionEntities,
     ProcessingPolicyType,
+    ReservedEnvVariableName,
     ReservedInputBaseTopic,
     UnitFirmwareUpdateStatus,
     UnitNodeTypeEnum,
@@ -270,7 +271,7 @@ class UnitNodeService:
         )
 
         if (
-            settings.backend_ff_datapipe_enable
+            settings.pu_ff_datapipe_enable
             and data.is_data_pipe_active is not None
         ):
             await send_to_data_pipe_stream(
@@ -370,7 +371,7 @@ class UnitNodeService:
 
             try:
                 publish_to_topic(
-                    f"{settings.backend_domain}/{DestinationTopicType.INPUT_BASE_TOPIC.value}/{unit.uuid}/{target_topic}",
+                    f"{settings.pu_domain}/{DestinationTopicType.INPUT_BASE_TOPIC.value}/{unit.uuid}/{target_topic}",
                     update_message_dict,
                 )
                 if command == BackendTopicCommand.UPDATE:
@@ -404,7 +405,9 @@ class UnitNodeService:
         message_dict = {"COMMAND": command}
 
         if command == BackendTopicCommand.UPDATE:
-            message_dict["NEW_COMMIT_VERSION"] = target_version
+            message_dict[ReservedEnvVariableName.PU_COMMIT_VERSION.value] = (
+                target_version
+            )
             if repo.is_compilable_repo:
                 links = is_valid_json(
                     repository_registry.releases_data,
@@ -521,7 +524,7 @@ class UnitNodeService:
     async def check_data_pipe_config(
         self, data_pipe
     ) -> list[DataPipeValidationErrorRead]:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access(
@@ -537,7 +540,7 @@ class UnitNodeService:
     async def set_data_pipe_config(
         self, uuid: uuid_pkg.UUID, data_pipe
     ) -> None:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -566,7 +569,7 @@ class UnitNodeService:
         )
 
     def get_data_pipe_config(self, uuid: uuid_pkg.UUID) -> str:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -584,7 +587,7 @@ class UnitNodeService:
         )
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -601,7 +604,7 @@ class UnitNodeService:
     def get_data_pipe_data(
         self, filters: DataPipeFilter | DataPipeFilterInput
     ) -> tuple[int, list[NRecords | TimeWindow | Aggregation | LastValue]]:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access(
@@ -618,7 +621,7 @@ class UnitNodeService:
         return self.data_pipe_repository.list(filters=filters)
 
     def get_data_pipe_data_csv(self, uuid: uuid_pkg.UUID) -> str:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access(
@@ -653,7 +656,7 @@ class UnitNodeService:
     async def set_data_pipe_data_csv(
         self, uuid: uuid_pkg.UUID, data_csv
     ) -> None:
-        if not settings.backend_ff_datapipe_enable:
+        if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])

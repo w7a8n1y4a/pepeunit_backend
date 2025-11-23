@@ -100,20 +100,20 @@ class LoadTester:
 
 
 async def main():
-    url = f"{settings.backend_http_type}://{settings.backend_domain}"
+    url = f"{settings.pu_http_type}://{settings.pu_domain}"
 
     config = LoadTestConfig(
         url=url,
-        duration=settings.test_load_mqtt_duration,
-        unit_count=settings.test_load_mqtt_unit_count,
-        rps=settings.test_load_mqtt_rps,
-        value_type=settings.test_load_mqtt_value_type,
-        duplicate_count=settings.test_load_mqtt_duplicate_count,
-        message_size=settings.test_load_mqtt_message_size,
-        policy_type=settings.test_load_mqtt_policy_type,
-        workers=settings.test_load_mqtt_workers,
-        mqtt_admin=settings.mqtt_username,
-        mqtt_password=settings.mqtt_password,
+        duration=settings.pu_test_load_mqtt_duration,
+        unit_count=settings.pu_test_load_mqtt_unit_count,
+        rps=settings.pu_test_load_mqtt_rps,
+        value_type=settings.pu_test_load_mqtt_value_type,
+        duplicate_count=settings.pu_test_load_mqtt_duplicate_count,
+        message_size=settings.pu_test_load_mqtt_message_size,
+        policy_type=settings.pu_test_load_mqtt_policy_type,
+        workers=settings.pu_test_load_mqtt_workers,
+        mqtt_admin=settings.pu_mqtt_username,
+        mqtt_password=settings.pu_mqtt_password,
         test_hash=hashlib.md5(url.encode("utf-8")).hexdigest()[:10],
     )
 

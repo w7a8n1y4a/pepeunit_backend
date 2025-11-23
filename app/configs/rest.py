@@ -140,7 +140,7 @@ class ServiceFactory:
         )
 
     def get_grafana_service(self) -> GrafanaService:
-        if not settings.backend_ff_grafana_integration_enable:
+        if not settings.pu_ff_grafana_integration_enable:
             raise FeatureFlagError()
         return GrafanaService(
             dashboard_repository=self.dashboard_repository,

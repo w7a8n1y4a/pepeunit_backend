@@ -319,7 +319,7 @@ def test_get_many_repo(database, cc) -> None:
             search_string=pytest.test_hash,
             is_auto_update_repo=True,
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(repos) == 7

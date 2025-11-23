@@ -70,8 +70,8 @@ class RepoBotRouter(BaseBotRouter):
             count, repos = repo_service.list(
                 RepoFilter(
                     offset=(filters.page - 1)
-                    * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
+                    * settings.pu_telegram_items_per_page,
+                    limit=settings.pu_telegram_items_per_page,
                     visibility_level=filters.visibility_levels or [],
                     creator_uuid=(
                         repo_service.access_service.current_agent.uuid
@@ -83,8 +83,8 @@ class RepoBotRouter(BaseBotRouter):
             )
 
             total_pages = (
-                count + settings.telegram_items_per_page - 1
-            ) // settings.telegram_items_per_page
+                count + settings.pu_telegram_items_per_page - 1
+            ) // settings.pu_telegram_items_per_page
 
         return repos, total_pages
 
@@ -275,7 +275,7 @@ class RepoBotRouter(BaseBotRouter):
                     ),
                     InlineKeyboardButton(
                         text="Browser",
-                        url=f"{settings.backend_link}/repo/{repo.uuid}",
+                        url=f"{settings.pu_link}/repo/{repo.uuid}",
                     ),
                 ],
             ]

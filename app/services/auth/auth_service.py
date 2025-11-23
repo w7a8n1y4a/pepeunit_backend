@@ -47,7 +47,7 @@ class JwtAuthService(AuthService):
         try:
             data = jwt.decode(
                 self.jwt_token,
-                settings.backend_secret_key,
+                settings.pu_secret_key,
                 algorithms=["HS256"],
             )
         except jwt.ExpiredSignatureError as err:

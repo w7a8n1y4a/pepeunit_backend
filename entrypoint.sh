@@ -1,10 +1,10 @@
 #!/bin/bash
 
-DB_USER=$(echo "$SQLALCHEMY_DATABASE_URL" | sed -E 's|.*://([^:]+):.*|\1|')
-DB_PASS=$(echo "$SQLALCHEMY_DATABASE_URL" | sed -E 's|.*://[^:]+:([^@]+)@.*|\1|')
-DB_HOST=$(echo "$SQLALCHEMY_DATABASE_URL" | sed -E 's|.*@([^:/]+):.*|\1|')
-DB_PORT=$(echo "$SQLALCHEMY_DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|')
-DB_NAME=$(echo "$SQLALCHEMY_DATABASE_URL" | sed -E 's|.*/([^/?]+).*|\1|')
+DB_USER=$(echo "$PU_SQLALCHEMY_DATABASE_URL" | sed -E 's|.*://([^:]+):.*|\1|')
+DB_PASS=$(echo "$PU_SQLALCHEMY_DATABASE_URL" | sed -E 's|.*://[^:]+:([^@]+)@.*|\1|')
+DB_HOST=$(echo "$PU_SQLALCHEMY_DATABASE_URL" | sed -E 's|.*@([^:/]+):.*|\1|')
+DB_PORT=$(echo "$PU_SQLALCHEMY_DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|')
+DB_NAME=$(echo "$PU_SQLALCHEMY_DATABASE_URL" | sed -E 's|.*/([^/?]+).*|\1|')
 
 export PGPASSWORD="$DB_PASS"
 

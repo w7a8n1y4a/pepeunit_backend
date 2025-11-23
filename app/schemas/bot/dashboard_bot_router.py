@@ -64,15 +64,15 @@ class DashboardBotRouter(BaseBotRouter):
             count, dashboards = grafana_service.list_dashboards(
                 DashboardFilter(
                     offset=(filters.page - 1)
-                    * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
+                    * settings.pu_telegram_items_per_page,
+                    limit=settings.pu_telegram_items_per_page,
                     search_string=filters.search_string,
                 )
             )
 
             total_pages = (
-                count + settings.telegram_items_per_page - 1
-            ) // settings.telegram_items_per_page
+                count + settings.pu_telegram_items_per_page - 1
+            ) // settings.pu_telegram_items_per_page
 
         return dashboards, total_pages
 
@@ -93,7 +93,7 @@ class DashboardBotRouter(BaseBotRouter):
                 builder.row(
                     InlineKeyboardButton(
                         text=f"{self.registry_name_limit(dashboard.name, 2)}",
-                        url=f"{settings.backend_link}/dashboard/{dashboard.uuid}",
+                        url=f"{settings.pu_link}/dashboard/{dashboard.uuid}",
                     )
                 )
         else:
