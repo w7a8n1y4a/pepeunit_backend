@@ -38,7 +38,7 @@ class MqttTestPreparation:
         pu_mqtt_http_type = self.units[0]["env"]["PU_HTTP_TYPE"]
 
         response = httpx.post(
-            f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/login", json=data, headers=headers
+            f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/login", json=data, headers=headers, timeout=10.0
         )
 
         return response.json()["token"]
