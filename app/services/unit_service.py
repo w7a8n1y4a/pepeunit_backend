@@ -723,7 +723,7 @@ class UnitService:
                     DestinationTopicType.OUTPUT_BASE_TOPIC,
                 ]:
                     new_schema_dict[destination][topic] = [
-                        f"{settings.backend_domain}/{destination}/{unit.uuid}/{topic}"
+                        f"{settings.pu_domain}/{destination}/{unit.uuid}/{topic}"
                     ]
                 elif destination == DestinationTopicType.INPUT_TOPIC:
                     new_schema_dict[destination][topic] = input_dict[topic]
@@ -740,12 +740,12 @@ class UnitService:
 
     def gen_env_dict(self, uuid: uuid_pkg.UUID) -> dict:
         return {
-            ReservedEnvVariableName.PEPEUNIT_URL: settings.backend_domain,
-            ReservedEnvVariableName.HTTP_TYPE: settings.backend_http_type,
-            ReservedEnvVariableName.PEPEUNIT_APP_PREFIX: settings.backend_app_prefix,
-            ReservedEnvVariableName.PEPEUNIT_API_ACTUAL_PREFIX: settings.backend_api_v1_prefix,
-            ReservedEnvVariableName.MQTT_URL: settings.mqtt_host,
-            ReservedEnvVariableName.MQTT_PORT: settings.mqtt_port,
+            ReservedEnvVariableName.PEPEUNIT_URL: settings.pu_domain,
+            ReservedEnvVariableName.HTTP_TYPE: settings.pu_http_type,
+            ReservedEnvVariableName.PEPEUNIT_APP_PREFIX: settings.pu_app_prefix,
+            ReservedEnvVariableName.PEPEUNIT_API_ACTUAL_PREFIX: settings.pu_api_v1_prefix,
+            ReservedEnvVariableName.MQTT_URL: settings.pu_mqtt_host,
+            ReservedEnvVariableName.MQTT_PORT: settings.pu_mqtt_port,
             ReservedEnvVariableName.PEPEUNIT_TOKEN: self.generate_token(uuid),
             ReservedEnvVariableName.SYNC_ENCRYPT_KEY: base64.b64encode(
                 os.urandom(16)
@@ -754,7 +754,7 @@ class UnitService:
                 os.urandom(16)
             ).decode("utf-8"),
             ReservedEnvVariableName.PING_INTERVAL: 30,
-            ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.backend_state_send_interval,
+            ReservedEnvVariableName.STATE_SEND_INTERVAL: settings.pu_state_send_interval,
             ReservedEnvVariableName.MIN_LOG_LEVEL: LogLevel.DEBUG.value,
             ReservedEnvVariableName.MAX_LOG_LENGTH: 64,
         }

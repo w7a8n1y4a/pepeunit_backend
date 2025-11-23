@@ -471,8 +471,8 @@ class RepositoryRegistryService:
             delta = (
                 datetime.datetime.now(datetime.UTC) - last_update_datetime
             ).total_seconds()
-            if delta <= settings.backend_min_interval_sync_repository:
-                msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.backend_min_interval_sync_repository} s"
+            if delta <= settings.pu_min_interval_sync_repository:
+                msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.pu_min_interval_sync_repository} s"
                 raise RepositoryRegistryError(msg)
 
     @staticmethod
@@ -481,7 +481,7 @@ class RepositoryRegistryService:
     ) -> None:
         if (
             repo_size < 0
-            or repo_size > settings.backend_max_external_repo_size * 2**20
+            or repo_size > settings.pu_max_external_repo_size * 2**20
         ):
             if delete_path:
                 shutil.rmtree(delete_path, ignore_errors=True)

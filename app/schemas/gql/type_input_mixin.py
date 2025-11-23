@@ -25,6 +25,6 @@ class BasePaginationGql(TypeInputMixin):
             msg = "limit must be >= 0"
             raise ValueError(msg)
 
-        if self.limit > settings.backend_max_pagination_size:
-            msg = f"limit must be <= {settings.backend_max_pagination_size}"
+        if self.limit > settings.pu_max_pagination_size:
+            msg = f"limit must be <= {settings.pu_max_pagination_size}"
             raise ValueError(msg)

@@ -23,7 +23,7 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
     def backend_force_sync_local_repository_storage(token: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/repository_registry/backend_sync_registry"
+        url = f"{settings.pu_link_prefix_and_v1}/repository_registry/backend_sync_registry"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url, headers=headers, timeout=60)
@@ -54,7 +54,7 @@ def test_create_repository_registry(test_external_repository, database, cc) -> N
 
     assert len(new_repositories) >= len(test_external_repository)
 
-    backend_token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+    backend_token = AgentBackend(name=settings.pu_domain).generate_agent_token()
     assert backend_force_sync_local_repository_storage(backend_token) < 400
 
     pytest.repository_registries = new_repositories
@@ -89,7 +89,7 @@ def test_get_commits_repository(database, cc) -> None:
     )[0]
 
     branch_commits = repository_registry_service.get_branch_commits(
-        target_repository.uuid, CommitFilter(repo_branch=target_branch, limit=settings.backend_max_pagination_size)
+        target_repository.uuid, CommitFilter(repo_branch=target_branch, limit=settings.pu_max_pagination_size)
     )
 
     # check first commit repository
@@ -196,7 +196,7 @@ def test_get_many_repository(database, cc) -> None:
             search_string=".git",
             is_public_repository=True,
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(repositories_registry) >= 3
@@ -208,7 +208,7 @@ def test_get_many_repository(database, cc) -> None:
         RepositoryRegistryFilter(
             search_string=".git",
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert all([item.is_public_repository for item in repositories_registry])

@@ -168,7 +168,7 @@ class StreamingCSVValidator:
             raise DataPipeError(msg)
 
         actual_delta = (create_datetime - end_window_datetime).total_seconds()
-        if abs(actual_delta) >= settings.time_window_sizes[0]:
+        if abs(actual_delta) >= settings.pu_time_window_sizes[0]:
             msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: The difference between create_datetime and end_window_datetime is greater than the minimum time_window_sizes"
             raise DataPipeError(msg)
 

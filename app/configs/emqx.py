@@ -11,9 +11,9 @@ class ControlEmqx:
 
     @staticmethod
     def get_emqx_link():
-        if settings.mqtt_secure:
-            return f"{settings.mqtt_http_type}://{settings.mqtt_host}"
-        return f"{settings.mqtt_http_type}://{settings.mqtt_host}:{settings.mqtt_api_port}"
+        if settings.pu_mqtt_secure:
+            return f"{settings.pu_mqtt_http_type}://{settings.pu_mqtt_host}"
+        return f"{settings.pu_mqtt_http_type}://{settings.pu_mqtt_host}:{settings.pu_mqtt_api_port}"
 
     def __init__(self):
         self.current_link = self.get_emqx_link()
@@ -67,8 +67,8 @@ class ControlEmqx:
             "Content-Type": "application/json",
         }
         data = {
-            "username": settings.mqtt_username,
-            "password": settings.mqtt_password,
+            "username": settings.pu_mqtt_username,
+            "password": settings.pu_mqtt_password,
         }
         response = httpx.post(
             f"{self.current_link}/api/v5/login", json=data, headers=headers
@@ -104,7 +104,7 @@ class ControlEmqx:
         self._log_response(response)
 
     async def set_redis_auth_hook(self) -> None:
-        redis_url = settings.mqtt_redis_auth_url
+        redis_url = settings.pu_mqtt_redis_auth_url
 
         data = {
             "type": "redis",
@@ -149,7 +149,7 @@ class ControlEmqx:
             "pool_size": 8,
             "request_timeout": "30s",
             "ssl": {
-                "enable": settings.backend_secure,
+                "enable": settings.pu_secure,
                 "versions": ["tlsv1.3", "tlsv1.2"],
                 "verify": "verify_none",
                 "reuse_sessions": True,
@@ -159,7 +159,7 @@ class ControlEmqx:
                 "depth": 10,
             },
             "type": "http",
-            "url": f"{settings.backend_link_prefix_and_v1}/units/auth",
+            "url": f"{settings.pu_link_prefix_and_v1}/units/auth",
         }
 
         logging.info("Set http auth hook MQTT Broker")
@@ -208,13 +208,13 @@ class ControlEmqx:
             "acceptors": 16,
             "access_rules": ["allow all"],
             "bind": "0.0.0.0:1883",
-            "bytes_rate": settings.mqtt_client_max_bytes_rate,
+            "bytes_rate": settings.pu_mqtt_client_max_bytes_rate,
             "enable": True,
             "enable_authn": True,
             "id": "tcp:default",
-            "max_conn_rate": settings.mqtt_max_client_connection_rate,
-            "max_connections": settings.mqtt_max_clients,
-            "messages_rate": settings.mqtt_client_max_messages_rate,
+            "max_conn_rate": settings.pu_mqtt_max_client_connection_rate,
+            "max_connections": settings.pu_mqtt_max_clients,
+            "messages_rate": settings.pu_mqtt_client_max_messages_rate,
             "mountpoint": "",
             "proxy_protocol": False,
             "proxy_protocol_timeout": "3s",
@@ -272,12 +272,12 @@ class ControlEmqx:
                 "max_mailbox_size": 1000,
             },
             "mqtt": {
-                "max_clientid_len": settings.mqtt_max_client_id_len,
-                "max_topic_alias": settings.mqtt_max_topic_alias,
-                "max_qos_allowed": settings.mqtt_max_qos,
-                "max_mqueue_len": settings.mqtt_max_len_message_queue,
-                "max_topic_levels": settings.mqtt_max_topic_levels,
-                "max_packet_size": f"{settings.mqtt_max_payload_size}KB",
+                "max_clientid_len": settings.pu_mqtt_max_client_id_len,
+                "max_topic_alias": settings.pu_mqtt_max_topic_alias,
+                "max_qos_allowed": settings.pu_mqtt_max_qos,
+                "max_mqueue_len": settings.pu_mqtt_max_len_message_queue,
+                "max_topic_levels": settings.pu_mqtt_max_topic_levels,
+                "max_packet_size": f"{settings.pu_mqtt_max_payload_size}KB",
                 "session_expiry_interval": "2h",
                 "max_subscriptions": "infinity",
                 "exclusive_subscription": False,

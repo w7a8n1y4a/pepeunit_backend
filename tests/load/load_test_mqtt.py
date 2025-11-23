@@ -100,7 +100,7 @@ class LoadTester:
 
 
 async def main():
-    url = f"{settings.backend_http_type}://{settings.backend_domain}"
+    url = f"{settings.pu_http_type}://{settings.pu_domain}"
 
     config = LoadTestConfig(
         url=url,
@@ -112,8 +112,8 @@ async def main():
         message_size=settings.test_load_mqtt_message_size,
         policy_type=settings.test_load_mqtt_policy_type,
         workers=settings.test_load_mqtt_workers,
-        mqtt_admin=settings.mqtt_username,
-        mqtt_password=settings.mqtt_password,
+        mqtt_admin=settings.pu_mqtt_username,
+        mqtt_password=settings.pu_mqtt_password,
         test_hash=hashlib.md5(url.encode("utf-8")).hexdigest()[:10],
     )
 

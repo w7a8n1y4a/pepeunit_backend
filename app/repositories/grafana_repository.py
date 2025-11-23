@@ -41,13 +41,13 @@ class GrafanaRepository:
         self.data_pipe_repository = data_pipe_repository
 
     admin_token: str = base64.b64encode(
-        f"{settings.gf_admin_user}:{settings.gf_admin_password}".encode()
+        f"{settings.pu_grafana_admin_user}:{settings.pu_grafana_admin_password}".encode()
     ).decode("utf-8")
     headers: dict = {
         "Authorization": "Basic " + admin_token,
         "Content-Type": "application/json",
     }
-    base_grafana_url: str = f"{settings.backend_link}/grafana"
+    base_grafana_url: str = f"{settings.pu_link}/grafana"
 
     @staticmethod
     def enumerate_refid(iterable, start=0):
@@ -311,7 +311,7 @@ class GrafanaRepository:
 
     def create_org_if_not_exists(self, user: User):
         resp = httpx.get(
-            f"{settings.backend_link}/grafana/api/orgs", headers=self.headers
+            f"{settings.pu_link}/grafana/api/orgs", headers=self.headers
         )
         resp.raise_for_status()
 
@@ -324,7 +324,7 @@ class GrafanaRepository:
 
         if not target_org:
             resp = httpx.post(
-                f"{settings.backend_link}/grafana/api/orgs",
+                f"{settings.pu_link}/grafana/api/orgs",
                 headers=self.headers,
                 json={"name": str(user.grafana_org_name)},
             )
@@ -334,7 +334,7 @@ class GrafanaRepository:
             org_id = target_org["id"]
 
         resp = httpx.post(
-            f"{settings.backend_link}/grafana/api/admin/users",
+            f"{settings.pu_link}/grafana/api/admin/users",
             headers=self.headers,
             json={
                 "name": user.login,
@@ -348,7 +348,7 @@ class GrafanaRepository:
             resp.raise_for_status()
 
         resp = httpx.post(
-            f"{settings.backend_link}/grafana/api/orgs/{org_id}/users",
+            f"{settings.pu_link}/grafana/api/orgs/{org_id}/users",
             headers=self.headers,
             json={
                 "loginOrEmail": user.login,
@@ -363,11 +363,11 @@ class GrafanaRepository:
             "name": "InfinityAPI",
             "type": "yesoreyeram-infinity-datasource",
             "access": "proxy",
-            "url": f"{settings.backend_link_prefix_and_v1}/grafana/datasource/",
+            "url": f"{settings.pu_link_prefix_and_v1}/grafana/datasource/",
             "jsonData": {
                 "auth_method": None,
                 "customHealthCheckEnabled": True,
-                "customHealthCheckUrl": settings.backend_link_prefix,
+                "customHealthCheckUrl": settings.pu_link_prefix,
             },
         }
 
@@ -375,7 +375,7 @@ class GrafanaRepository:
         headers_deepcopy["X-Grafana-Org-Id"] = str(org_id)
 
         resp = httpx.post(
-            f"{settings.backend_link}/grafana/api/datasources",
+            f"{settings.pu_link}/grafana/api/datasources",
             headers=headers_deepcopy,
             json=datasource_payload,
         )

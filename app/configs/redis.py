@@ -15,7 +15,7 @@ class DataPipeConfigAction(str, enum.Enum):
 
 async def get_redis_session() -> AsyncIterator[Redis]:
     session = from_url(
-        settings.redis_url, encoding="utf-8", decode_responses=True
+        settings.pu_redis_url, encoding="utf-8", decode_responses=True
     )
     yield session
     session.close()

@@ -21,7 +21,7 @@ from app import settings
 from app.configs.errors import CipherError
 
 
-def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
+def aes_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
     """
     data: any python str
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
@@ -29,8 +29,8 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     """
 
     len_content = len(data)
-    if len_content > settings.backend_max_cipher_length:
-        msg = f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
+    if len_content > settings.pu_max_cipher_length:
+        msg = f"The encryption content is {len_content} long, although only <= {settings.pu_max_cipher_length} is allowed"
         raise CipherError(msg)
 
     key = base64.b64decode(key.encode())
@@ -46,7 +46,7 @@ def aes_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     return f"{base64.b64encode(iv).decode('utf-8')}.{cipher}"
 
 
-def aes_decode(data: str, key: str = settings.backend_encrypt_key) -> str:
+def aes_decode(data: str, key: str = settings.pu_encrypt_key) -> str:
     """
     data: (base64 str - iv).(base64 str - encrypted data)
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
@@ -63,15 +63,15 @@ def aes_decode(data: str, key: str = settings.backend_encrypt_key) -> str:
     return (decrypter.feed(cipher) + decrypter.feed()).decode("utf-8")
 
 
-def aes_gcm_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
+def aes_gcm_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
     """
     data: any python str
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
     return: (base64 str - nonce).(base64 str - encrypted data).(base64 str - tag)
     """
     len_content = len(data)
-    if len_content > settings.backend_max_cipher_length:
-        msg = f"The encryption content is {len_content} long, although only <= {settings.backend_max_cipher_length} is allowed"
+    if len_content > settings.pu_max_cipher_length:
+        msg = f"The encryption content is {len_content} long, although only <= {settings.pu_max_cipher_length} is allowed"
         raise CipherError(msg)
 
     key = base64.b64decode(key.encode())
@@ -83,7 +83,7 @@ def aes_gcm_encode(data: str, key: str = settings.backend_encrypt_key) -> str:
     return f"{base64.b64encode(nonce).decode()}.{base64.b64encode(cipher).decode()}"
 
 
-def aes_gcm_decode(data: str, key: str = settings.backend_encrypt_key) -> str:
+def aes_gcm_decode(data: str, key: str = settings.pu_encrypt_key) -> str:
     """
     data: (base64 str - nonce).(base64 str - encrypted data)
     key: (base64 str) 16, 24, 32 bytes sync encrypt key
@@ -105,7 +105,7 @@ def password_to_hash(password: str) -> (str, str):
     hashed_password = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
-        (dynamic_salt + settings.backend_static_salt).encode("utf-8"),
+        (dynamic_salt + settings.pu_static_salt).encode("utf-8"),
         100000,
     )
 
@@ -122,7 +122,7 @@ def check_password(
     hashed_password = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
-        (dynamic_salt + settings.backend_static_salt).encode("utf-8"),
+        (dynamic_salt + settings.pu_static_salt).encode("utf-8"),
         100000,
     )
 
@@ -295,10 +295,10 @@ def logo_to_console():
 
        v{settings.version} - {settings.license}
        Federated IoT Platform
-       Front: {settings.backend_link}
-       REST:  {settings.backend_link_prefix}/docs
-       GQL:   {settings.backend_link_prefix}/graphql
-       TG:    {settings.telegram_bot_link}
+       Front: {settings.pu_link}
+       REST:  {settings.pu_link_prefix}/docs
+       GQL:   {settings.pu_link_prefix}/graphql
+       TG:    {settings.pu_telegram_bot_link}
        Docs:  https://pepeunit.com
               """
     )

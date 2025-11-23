@@ -39,10 +39,10 @@ from app.services.validators import (
 from app.utils.utils import ensure_timezone_aware
 
 mqtt_config = MQTTConfig(
-    host=settings.mqtt_host,
-    port=settings.mqtt_port,
-    keepalive=settings.mqtt_keepalive,
-    username=AgentBackend(name=settings.backend_domain).generate_agent_token(),
+    host=settings.pu_mqtt_host,
+    port=settings.pu_mqtt_port,
+    keepalive=settings.pu_mqtt_keepalive,
+    username=AgentBackend(name=settings.pu_domain).generate_agent_token(),
     password="",
 )
 
@@ -60,7 +60,7 @@ def connect(client, _flags, _rc, _properties):
     if lock_fd:
         logging.info("MQTT subscriptions initialized in this worker")
         client.subscribe(
-            f"{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
+            f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
         )
     else:
         logging.info("Another worker already subscribed to MQTT topics")
@@ -76,8 +76,8 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
     unit_uuid = is_valid_uuid(unit_uuid)
 
     payload_size = len(payload.decode())
-    if payload_size > settings.mqtt_max_payload_size * 1024:
-        msg = f"Payload size is {payload_size}, limit is {settings.mqtt_max_payload_size} KB"
+    if payload_size > settings.pu_mqtt_max_payload_size * 1024:
+        msg = f"Payload size is {payload_size}, limit is {settings.pu_mqtt_max_payload_size} KB"
         raise MqttError(msg)
 
     if destination == DestinationTopicType.OUTPUT_BASE_TOPIC:
@@ -85,11 +85,9 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
             last_time = cache_dict.get(topic, 0)
             current_time = time.time()
 
-            if (
-                current_time - last_time
-            ) < settings.backend_state_send_interval:
-                if settings.backend_debug:
-                    msg = f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.backend_state_send_interval}"
+            if (current_time - last_time) < settings.pu_state_send_interval:
+                if settings.pu_debug:
+                    msg = f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.pu_state_send_interval}"
                     raise MqttError(msg)
                 return
 
@@ -148,9 +146,9 @@ async def _handle_state_message(unit_uuid, payload):
                 unit.last_firmware_update_datetime = None
                 unit.firmware_update_status = UnitFirmwareUpdateStatus.SUCCESS
 
-            elif delta > settings.backend_state_send_interval * 2:
+            elif delta > settings.pu_state_send_interval * 2:
                 try:
-                    msg = f"Device firmware update time is twice as fast as {settings.backend_state_send_interval}s times"
+                    msg = f"Device firmware update time is twice as fast as {settings.pu_state_send_interval}s times"
                     raise UpdateError(msg)
                 except UpdateError as e:
                     unit.firmware_update_error = e.message
@@ -196,7 +194,7 @@ async def _handle_log_message(unit_uuid, payload):
                         ),
                         expiration_datetime=datetime.datetime.now(datetime.UTC)
                         + datetime.timedelta(
-                            seconds=settings.backend_unit_log_expiration
+                            seconds=settings.pu_unit_log_expiration
                         ),
                     )
                     for inc, item in enumerate(log_data)
@@ -216,7 +214,7 @@ async def _handle_log_message(unit_uuid, payload):
 @mqtt.on_disconnect()
 def disconnect(client, _packet):
     logging.info(
-        f"Disconnected from MQTT server: {settings.mqtt_host}:{settings.mqtt_port}"
+        f"Disconnected from MQTT server: {settings.pu_mqtt_host}:{settings.pu_mqtt_port}"
     )
 
     async def reconnect():

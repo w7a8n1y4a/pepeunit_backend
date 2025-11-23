@@ -184,12 +184,10 @@ class GithubPlatformClient(GitPlatformClientABC):
                 f"{self.credentials.username}:{self.credentials.pat_token}@"
             )
         elif (
-            len(settings.github_token_name) > 0
-            and len(settings.github_token_pat) > 0
+            len(settings.pu_github_token_name) > 0
+            and len(settings.pu_github_token_pat) > 0
         ):
-            credentials = (
-                f"{settings.github_token_name}:{settings.github_token_pat}@"
-            )
+            credentials = f"{settings.pu_github_token_name}:{settings.pu_github_token_pat}@"
 
         return f"https://{credentials}api.github.com/repos/"
 

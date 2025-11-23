@@ -108,7 +108,7 @@ class UserService:
         return self.user_repository.update(user.uuid, user)
 
     async def generate_verification_link(self) -> str:
-        if not settings.backend_ff_telegram_bot_enable:
+        if not settings.pu_ff_telegram_bot_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -119,7 +119,7 @@ class UserService:
             code, str(self.access_service.current_agent.uuid), ex=60
         )
 
-        return f"{settings.telegram_bot_link}?start={code}"
+        return f"{settings.pu_telegram_bot_link}?start={code}"
 
     async def verification(
         self, telegram_chat_id: str, verification_code: str
@@ -171,7 +171,7 @@ class UserService:
         return self.user_repository.list(filters)
 
     def create_org_if_not_exists(self, uuid: uuid_pkg.UUID) -> None:
-        if not settings.backend_ff_grafana_integration_enable:
+        if not settings.pu_ff_grafana_integration_enable:
             return
 
         user = self.user_repository.get(User(uuid=uuid))

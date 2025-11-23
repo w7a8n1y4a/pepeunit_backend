@@ -57,7 +57,7 @@ def is_valid_uuid(uuid: str | uuid_pkg.UUID) -> uuid_pkg.UUID:
 
 def is_valid_string_with_rules(
     value: str | None,
-    alphabet: str = settings.available_name_entity_symbols,
+    alphabet: str = settings.pu_available_name_entity_symbols,
     min_length: int = 4,
     max_length: int = 20,
 ) -> bool:

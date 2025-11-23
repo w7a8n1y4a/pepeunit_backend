@@ -21,12 +21,10 @@ class BasePaginationRestMixin:
         if self.limit < 0:
             raise HTTPException(status_code=422, detail="limit must be >= 0")
 
-        if self.limit > settings.backend_max_pagination_size:
+        if self.limit > settings.pu_max_pagination_size:
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    f"limit must be <= {settings.backend_max_pagination_size}"
-                ),
+                detail=(f"limit must be <= {settings.pu_max_pagination_size}"),
             )
 
 
@@ -35,5 +33,5 @@ class BasePaginationRest(BaseModel):
     limit: int | None = Field(
         default=None,
         ge=0,
-        le=settings.backend_max_pagination_size,
+        le=settings.pu_max_pagination_size,
     )

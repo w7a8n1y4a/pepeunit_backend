@@ -23,7 +23,7 @@ class Agent(ABC, BaseModel):
     def generate_agent_token(self, access_token_exp: int | None = None) -> str:
         if not access_token_exp:
             access_token_exp = datetime.now(UTC) + timedelta(
-                seconds=settings.backend_auth_token_expiration
+                seconds=settings.pu_auth_token_expiration
             )
 
         if self.type == AgentType.USER:
@@ -33,19 +33,19 @@ class Agent(ABC, BaseModel):
                     "type": self.type,
                     "exp": access_token_exp,
                 },
-                settings.backend_secret_key,
+                settings.pu_secret_key,
                 "HS256",
             )
         elif self.type == AgentType.UNIT:
             token = jwt.encode(
                 {"uuid": str(self.uuid), "type": self.type},
-                settings.backend_secret_key,
+                settings.pu_secret_key,
                 "HS256",
             )
         elif self.type == AgentType.BACKEND:
             token = jwt.encode(
-                {"domain": settings.backend_domain, "type": self.type},
-                settings.backend_secret_key,
+                {"domain": settings.pu_domain, "type": self.type},
+                settings.pu_secret_key,
                 "HS256",
             )
         elif self.type == AgentType.GRAFANA:
@@ -55,7 +55,7 @@ class Agent(ABC, BaseModel):
                     "type": self.type,
                     "exp": access_token_exp,
                 },
-                settings.backend_secret_key,
+                settings.pu_secret_key,
                 "HS256",
             )
         elif self.type == AgentType.GRAFANA_UNIT_NODE:
@@ -65,7 +65,7 @@ class Agent(ABC, BaseModel):
                     "panel_uuid": str(self.panel_uuid),
                     "type": self.type,
                 },
-                settings.backend_secret_key,
+                settings.pu_secret_key,
                 "HS256",
             )
         else:
@@ -98,7 +98,7 @@ class AgentBot(Agent):
 class AgentBackend(Agent):
     uuid: uuid_pkg.UUID | None = Field(
         default_factory=lambda: uuid_pkg.uuid5(
-            uuid_pkg.NAMESPACE_DNS, settings.backend_domain
+            uuid_pkg.NAMESPACE_DNS, settings.pu_domain
         )
     )
     type: AgentType = AgentType.BACKEND

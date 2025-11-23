@@ -79,8 +79,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             count, repositories_registry = repository_registry_service.list(
                 RepositoryRegistryFilter(
                     offset=(filters.page - 1)
-                    * settings.telegram_items_per_page,
-                    limit=settings.telegram_items_per_page,
+                    * settings.pu_telegram_items_per_page,
+                    limit=settings.pu_telegram_items_per_page,
                     is_public_repository=self.registry_type_to_bool(
                         filters.repository_types
                     ),
@@ -94,8 +94,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             )
 
             total_pages = (
-                count + settings.telegram_items_per_page - 1
-            ) // settings.telegram_items_per_page
+                count + settings.pu_telegram_items_per_page - 1
+            ) // settings.pu_telegram_items_per_page
 
         return repositories_registry, total_pages
 
@@ -262,7 +262,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                     ),
                     InlineKeyboardButton(
                         text="Browser",
-                        url=f"{settings.backend_link}/registry/{repository_registry.uuid}",
+                        url=f"{settings.pu_link}/registry/{repository_registry.uuid}",
                     ),
                 ],
             ]

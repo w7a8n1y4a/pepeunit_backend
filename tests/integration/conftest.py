@@ -21,7 +21,7 @@ from app.schemas.pydantic.repository_registry import Credentials
 from app.services.validators import is_valid_json
 from tests.client.mqtt import MQTTClient
 
-test_hash = hashlib.md5(settings.backend_domain.encode("utf-8")).hexdigest()[:5]
+test_hash = hashlib.md5(settings.pu_domain.encode("utf-8")).hexdigest()[:5]
 
 
 def pytest_configure():
@@ -58,8 +58,8 @@ def clear_database(database) -> None:
     shutil.rmtree("tmp/test_units", ignore_errors=True)
     shutil.rmtree("tmp/test_units_tar_tgz", ignore_errors=True)
 
-    for item in os.listdir(settings.backend_save_repo_path):
-        item_path = os.path.join(settings.backend_save_repo_path, item)
+    for item in os.listdir(settings.pu_save_repo_path):
+        item_path = os.path.join(settings.pu_save_repo_path, item)
         if os.path.isdir(item_path):
             shutil.rmtree(item_path, ignore_errors=True)
 

@@ -8,14 +8,12 @@ from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 
 
 class FeatureFlags(BaseModel):
-    backend_ff_telegram_bot_enable: bool = (
-        settings.backend_ff_telegram_bot_enable
+    pu_ff_telegram_bot_enable: bool = settings.pu_ff_telegram_bot_enable
+    pu_ff_grafana_integration_enable: bool = (
+        settings.pu_ff_grafana_integration_enable
     )
-    backend_ff_grafana_integration_enable: bool = (
-        settings.backend_ff_grafana_integration_enable
-    )
-    backend_ff_datapipe_enable: bool = settings.backend_ff_datapipe_enable
-    backend_ff_prometheus_enable: bool = settings.backend_ff_prometheus_enable
+    pu_ff_datapipe_enable: bool = settings.pu_ff_datapipe_enable
+    pu_ff_prometheus_enable: bool = settings.pu_ff_prometheus_enable
 
 
 class Root(BaseModel):
@@ -24,10 +22,10 @@ class Root(BaseModel):
     description: str = settings.description
     license: str = settings.license
     authors: list = settings.authors
-    swagger: str = f"{settings.backend_link_prefix}/docs"
-    graphql: str = f"{settings.backend_link_prefix}/graphql"
-    grafana: str = f"{settings.backend_link}/grafana/"
-    telegram_bot: str = settings.telegram_bot_link
+    swagger: str = f"{settings.pu_link_prefix}/docs"
+    graphql: str = f"{settings.pu_link_prefix}/graphql"
+    grafana: str = f"{settings.pu_link}/grafana/"
+    telegram_bot: str = settings.pu_telegram_bot_link
     feature_flags: FeatureFlags = FeatureFlags()
 
 

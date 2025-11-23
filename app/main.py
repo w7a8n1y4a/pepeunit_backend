@@ -57,18 +57,18 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.INFO)
 
 
-if settings.backend_ff_prometheus_enable:
-    recreate_directory(settings.prometheus_multiproc_dir)
+if settings.pu_ff_prometheus_enable:
+    recreate_directory(settings.pu_prometheus_multiproc_dir)
 
 
 async def init_clickhouse():
     clickhouse_cluster = ClickhouseCluster(
-        settings.clickhouse_connection.host,
-        settings.clickhouse_connection.user,
-        settings.clickhouse_connection.password,
+        settings.pu_clickhouse_connection.host,
+        settings.pu_clickhouse_connection.user,
+        settings.pu_clickhouse_connection.password,
     )
     clickhouse_cluster.migrate(
-        settings.clickhouse_connection.database,
+        settings.pu_clickhouse_connection.database,
         "./clickhouse/migrations",
         cluster_name=None,
         create_db_if_no_exists=True,
@@ -78,13 +78,11 @@ async def init_clickhouse():
 
 async def setup_backend_acl(redis):
     backend_topics = (
-        f"{settings.backend_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+        f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
     )
 
     async def hset_emqx_auth_keys(redis_client, topic):
-        token = AgentBackend(
-            name=settings.backend_domain
-        ).generate_agent_token()
+        token = AgentBackend(name=settings.pu_domain).generate_agent_token()
         await redis_client.hset(f"mqtt_acl:{token}", topic, "all")
 
     await asyncio.gather(
@@ -109,9 +107,9 @@ async def run_polling_bot(dp, bot):
 
 
 async def run_webhook_bot(dp, bot):
-    webhook_url = f"{settings.backend_link_prefix_and_v1}/bot"
+    webhook_url = f"{settings.pu_link_prefix_and_v1}/bot"
 
-    if settings.telegram_del_old_webhook:
+    if settings.pu_telegram_del_old_webhook:
         logging.info("Delete webhook before set new webhook")
         await bot.delete_webhook()
 
@@ -119,7 +117,7 @@ async def run_webhook_bot(dp, bot):
     inc = 0
     while True:
         result = httpx.post(
-            f"{settings.backend_link_prefix_and_v1}/bot",
+            f"{settings.pu_link_prefix_and_v1}/bot",
             headers={"Content-Type": "application/json"},
         )
         if result.status_code == 422:
@@ -167,15 +165,15 @@ _mqtt_task = None
 
 
 async def init_telegram_bot(dp, bot):
-    if not settings.backend_ff_telegram_bot_enable:
+    if not settings.pu_ff_telegram_bot_enable:
         return
 
-    if settings.telegram_bot_mode == "pooling":
+    if settings.pu_telegram_bot_mode == "pooling":
         task = asyncio.create_task(
             run_polling_bot(dp, bot), name="run_polling_bot"
         )
         _bot_tasks.append(task)
-    elif settings.telegram_bot_mode == "webhook":
+    elif settings.pu_telegram_bot_mode == "webhook":
         # Run webhook setup in the same event loop instead of creating a separate thread
         task = asyncio.create_task(
             run_webhook_bot(dp, bot), name="run_webhook_bot"
@@ -187,17 +185,17 @@ def sync_local_repository():
     with get_hand_session() as db:
         repository_registry_service = get_repository_registry_service(
             db,
-            AgentBackend(name=settings.backend_domain).generate_agent_token(),
+            AgentBackend(name=settings.pu_domain).generate_agent_token(),
         )
         repository_registry_service.sync_local_repository_storage()
 
 
 async def run_mqtt_client(mqtt, redis_client):
     logging.info(
-        f"Connect to mqtt server: {settings.mqtt_host}:{settings.mqtt_port}"
+        f"Connect to mqtt server: {settings.pu_mqtt_host}:{settings.pu_mqtt_port}"
     )
     await mqtt.mqtt_startup()
-    token = AgentBackend(name=settings.backend_domain).generate_agent_token()
+    token = AgentBackend(name=settings.pu_domain).generate_agent_token()
     access = await redis_client.hgetall(token)
     for k, v in access.items():
         logging.info(f"Redis set {k} access {v}")
@@ -218,7 +216,7 @@ async def _lifespan(_app: FastAPI):
         control_emqx = ControlEmqx()
         await control_emqx.init()
         await setup_backend_acl(redis)
-        if settings.backend_ff_telegram_bot_enable:
+        if settings.pu_ff_telegram_bot_enable:
             await init_telegram_bot(dp, bot)
         sync_local_repository()
 
@@ -271,9 +269,9 @@ class CustomExceptionMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title=settings.project_name,
     version=settings.version,
-    openapi_url=f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/openapi.json",
-    docs_url=f"{settings.backend_app_prefix}/docs",
-    debug=settings.backend_debug,
+    openapi_url=f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/openapi.json",
+    docs_url=f"{settings.pu_app_prefix}/docs",
+    debug=settings.pu_debug,
     lifespan=_lifespan,
 )
 
@@ -290,14 +288,12 @@ graphql = GraphQLRouter(
 
 app.include_router(
     graphql,
-    prefix=f"{settings.backend_app_prefix}/graphql",
+    prefix=f"{settings.pu_app_prefix}/graphql",
     include_in_schema=False,
 )
 
 
-@app.get(
-    f"{settings.backend_app_prefix}", response_model=Root, tags=["status"]
-)
+@app.get(f"{settings.pu_app_prefix}", response_model=Root, tags=["status"])
 async def root():
     return Root()
 
@@ -311,10 +307,10 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
-if settings.backend_ff_telegram_bot_enable:
-    bot = Bot(token=settings.telegram_token)
+if settings.pu_ff_telegram_bot_enable:
+    bot = Bot(token=settings.pu_telegram_token)
     storage = RedisStorage.from_url(
-        settings.redis_url,
+        settings.pu_redis_url,
         key_builder=DefaultKeyBuilder(with_destiny=True),
         json_dumps=custom_json_dumps,
     )
@@ -327,13 +323,11 @@ if settings.backend_ff_telegram_bot_enable:
     dp.include_router(UnitBotRouter().router)
     dp.include_router(UnitNodeBotRouter().router)
     dp.include_router(UnitLogBotRouter().router)
-    if settings.backend_ff_grafana_integration_enable:
+    if settings.pu_ff_grafana_integration_enable:
         dp.include_router(DashboardBotRouter().router)
     dp.include_router(error_router)
 
-    @app.post(
-        f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}/bot"
-    )
+    @app.post(f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/bot")
     async def bot_webhook(update: dict):
         try:
             telegram_update = types.Update(**update)
@@ -344,14 +338,14 @@ if settings.backend_ff_telegram_bot_enable:
             return {"status": "error", "message": str(e)}
 
 
-if settings.backend_ff_prometheus_enable:
+if settings.pu_ff_prometheus_enable:
     Instrumentator().instrument(app).expose(
-        app, endpoint=f"{settings.backend_app_prefix}/metrics"
+        app, endpoint=f"{settings.pu_app_prefix}/metrics"
     )
 
 app.include_router(
     api_router,
-    prefix=f"{settings.backend_app_prefix}{settings.backend_api_v1_prefix}",
+    prefix=f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}",
 )
 
 mqtt.init_app(app)

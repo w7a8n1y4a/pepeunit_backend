@@ -367,7 +367,7 @@ def test_state_storage(database, cc) -> None:
 
     # check cipher long data
     with pytest.raises(CipherError):
-        state = "t" * (settings.backend_max_cipher_length + 1)
+        state = "t" * (settings.pu_max_cipher_length + 1)
         unit_service.set_state_storage(target_unit.uuid, state)
 
 
@@ -410,7 +410,7 @@ def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
     def set_unit_new_commit(token: str, unit, target_version: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/{unit.uuid}"
+        url = f"{settings.pu_link_prefix_and_v1}/units/{unit.uuid}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(
@@ -506,7 +506,7 @@ def test_repo_update_firmware_unit(database, cc) -> None:
     def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/repos/{repo.uuid}"
+        url = f"{settings.pu_link_prefix_and_v1}/repos/{repo.uuid}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.patch(url=url, json=repo_update.dict(), headers=headers)
@@ -516,7 +516,7 @@ def test_repo_update_firmware_unit(database, cc) -> None:
     def bulk_update_repo(token: str) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/repos/bulk_update"
+        url = f"{settings.pu_link_prefix_and_v1}/repos/bulk_update"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -613,7 +613,7 @@ def test_env_update_command(database, cc) -> None:
     def set_command(token: str, unit, command: BackendTopicCommand) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
+        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -660,7 +660,7 @@ def test_log_sync_command(database) -> None:
     def set_command(token: str, unit, command: BackendTopicCommand) -> int:
         headers = {"accept": "application/json", "x-auth-token": token}
 
-        url = f"{settings.backend_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
+        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
 
         # send over http, in tests not work mqtt pub and sub
         r = httpx.post(url=url, headers=headers)
@@ -717,7 +717,7 @@ def test_get_many_unit(database, cc) -> None:
             search_string=pytest.test_hash,
             is_auto_update_from_repo_unit=True,
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(units) == 2
@@ -737,7 +737,7 @@ def test_get_unit_logs(database, cc) -> None:
         UnitLogFilter(
             uuid=target_unit.uuid,
             offset=0,
-            limit=settings.backend_max_pagination_size,
+            limit=settings.pu_max_pagination_size,
         )
     )
     assert len(units) > 0

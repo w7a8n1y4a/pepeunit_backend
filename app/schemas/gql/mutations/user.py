@@ -31,7 +31,7 @@ def update_user(info: Info, user: UserUpdateInput) -> UserType:
 
 @strawberry.mutation()
 def set_grafana_cookies(info: Info) -> NoneType:
-    if not settings.backend_ff_grafana_integration_enable:
+    if not settings.pu_ff_grafana_integration_enable:
         raise FeatureFlagError()
 
     user_service = get_user_service_gql(info)
@@ -42,7 +42,7 @@ def set_grafana_cookies(info: Info) -> NoneType:
         value=user_service.get_grafana_token(),
         httponly=True,
         samesite="lax",
-        secure=settings.backend_secure,
+        secure=settings.pu_secure,
     )
 
     return NoneType()
