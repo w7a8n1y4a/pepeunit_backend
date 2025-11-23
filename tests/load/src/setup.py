@@ -55,7 +55,7 @@ class MqttTestPreparation:
 
         link = f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/subscriptions?page=1&limit=50&qos=0&topic={self.units[0]['env']['PU_DOMAIN']}%2F%2B%2Fpepeunit"
 
-        data = httpx.get(link, headers=headers)
+        data = httpx.get(link, headers=headers, timeout=10.0)
 
         count = data.json()["meta"]["count"]
         logging.warning(f"Count mqtt client with sub topics: {count}")
