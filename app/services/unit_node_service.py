@@ -163,6 +163,41 @@ class UnitNodeService:
                     unit_uuid=unit.uuid,
                 )
 
+                if (
+                    settings.pu_ff_datapipe_default_last_value_enable
+                    and topic.endswith(
+                        GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
+                    )
+                ):
+                    unit_node.is_data_pipe_active = True
+                    unit_node.data_pipe_yml = json.dumps(
+                        {
+                            "active_period": {
+                                "type": "Permanent",
+                                "start": None,
+                                "end": None,
+                            },
+                            "filters": {
+                                "type_input_value": "Text",
+                                "type_value_filtering": None,
+                                "filtering_values": None,
+                                "type_value_threshold": None,
+                                "threshold_min": None,
+                                "threshold_max": None,
+                                "max_rate": 5,
+                                "last_unique_check": False,
+                                "max_size": 100,
+                            },
+                            "transformations": None,
+                            "processing_policy": {
+                                "policy_type": "LastValue",
+                                "n_records_count": None,
+                                "time_window_size": None,
+                                "aggregation_functions": None,
+                            },
+                        }
+                    )
+
                 unit_node.create_datetime = datetime.datetime.now(datetime.UTC)
                 unit_node.last_update_datetime = unit_node.create_datetime
                 unit_nodes_list.append(unit_node)
@@ -245,6 +280,15 @@ class UnitNodeService:
             unit_node, [OwnershipType.CREATOR]
         )
 
+        if (
+            not unit_node.topic_name.endswith(
+                GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
+            )
+            and data.is_data_pipe_active
+        ):
+            msg = "DataPipe cannot be activated if the topic does not have the suffix /pepeunit"
+            raise DataPipeError(msg)
+
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_node(unit_node)
 
@@ -273,6 +317,9 @@ class UnitNodeService:
         if (
             settings.pu_ff_datapipe_enable
             and data.is_data_pipe_active is not None
+            and unit_node.topic_name.endswith(
+                GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
+            )
         ):
             await send_to_data_pipe_stream(
                 DataPipeConfigAction.UPDATE

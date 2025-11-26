@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     pu_ff_telegram_bot_enable: bool = True
     pu_ff_grafana_integration_enable: bool = True
     pu_ff_datapipe_enable: bool = True
+    pu_ff_datapipe_default_last_value_enable: bool = True
     pu_ff_prometheus_enable: bool = True
 
     pu_debug: bool = False

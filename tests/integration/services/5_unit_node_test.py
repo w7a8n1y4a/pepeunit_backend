@@ -167,13 +167,20 @@ async def test_get_data_pipe_config(database, cc) -> None:
 
     # check not filed active data pipe
     with pytest.raises(DataPipeError):
+
         _, output_unit_node = unit_node_service.list(
             UnitNodeFilter(
                 unit_uuid=pytest.units[5].uuid, type=[UnitNodeTypeEnum.OUTPUT]
             )
         )
 
-        unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
+        target_unit_node = output_unit_node[0]
+        target_unit_node.is_data_pipe_active = True
+        target_unit_node.data_pipe_yml = None
+
+        unit_node_service.unit_node_repository.update(target_unit_node.uuid, target_unit_node)
+
+        unit_node_service.get_data_pipe_config(target_unit_node.uuid)
 
     # check not active data pipe get config
     with pytest.raises(DataPipeError):
@@ -182,6 +189,10 @@ async def test_get_data_pipe_config(database, cc) -> None:
                 unit_uuid=pytest.units[6].uuid, type=[UnitNodeTypeEnum.OUTPUT]
             )
         )
+
+        target_unit_node = output_unit_node[0]
+        target_unit_node.is_data_pipe_active = False
+        unit_node_service.unit_node_repository.update(target_unit_node.uuid, target_unit_node)
 
         unit_node_service.get_data_pipe_config(output_unit_node[0].uuid)
 
