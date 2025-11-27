@@ -13,6 +13,9 @@ class FeatureFlags(BaseModel):
         settings.pu_ff_grafana_integration_enable
     )
     pu_ff_datapipe_enable: bool = settings.pu_ff_datapipe_enable
+    pu_ff_datapipe_default_last_value_enable: bool = (
+        settings.pu_ff_datapipe_default_last_value_enable
+    )
     pu_ff_prometheus_enable: bool = settings.pu_ff_prometheus_enable
 
 

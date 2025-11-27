@@ -1,0 +1,2 @@
+[general]
+description = "Отправляет в топик current_temp/pepeunit значения датчика температуры ds18b20

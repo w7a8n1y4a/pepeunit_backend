@@ -15,6 +15,7 @@ from app.configs.errors import (
     CipherError,
     GitRepoError,
     NoAccessError,
+    ReadmeGenerationError,
     UnitError,
     ValidationError,
 )
@@ -759,17 +760,31 @@ async def test_convert_toml_file_to_md(database, cc) -> None:
             return self._content
 
     tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    toml_path = os.path.join(tests_dir, "data", "toml", "pepeunit.toml")
+    base_toml_dir = os.path.join(tests_dir, "data", "toml")
 
+    # happy-path scenario
+    toml_path = os.path.join(base_toml_dir, "pepeunit.toml")
     with open(toml_path, "rb") as f:
         content = f.read()
-
     file = DummyUploadFile(content)
-
     md = await unit_service.convert_toml_file_to_md(file)
-
     assert isinstance(md, str)
     assert md.strip() != ""
     assert md.lstrip().startswith("# WiFi Temp Sensor ds18b20")
     assert "Parameter | Implementation" in md
     assert "## Files" in md
+
+    # error scenarios with bad_*.toml
+    bad_files = [
+        "bad_size_pepeunit.toml",
+        "bad_syntax_pepeunit.toml",
+        "bad_general_items_pepeunit.toml",
+        "bad_general_text_pepeunit.toml",
+    ]
+    for bad_name in bad_files:
+        bad_path = os.path.join(base_toml_dir, bad_name)
+        with open(bad_path, "rb") as f:
+            bad_content = f.read()
+        bad_file = DummyUploadFile(bad_content)
+        with pytest.raises(ReadmeGenerationError):
+            await unit_service.convert_toml_file_to_md(bad_file)

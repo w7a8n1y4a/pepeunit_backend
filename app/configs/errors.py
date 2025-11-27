@@ -186,3 +186,13 @@ class FeatureFlagError(CustomException):
             message_template="Feature Flag Error: {}",
             error_code=15,
         )
+
+
+class ReadmeGenerationError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Readme Generation Error: {}",
+            error_code=16,
+        )

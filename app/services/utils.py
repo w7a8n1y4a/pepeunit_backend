@@ -10,6 +10,7 @@ from fastapi.security import APIKeyHeader
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app import settings
+from app.configs.errors import ReadmeGenerationError
 from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
 
@@ -91,6 +92,7 @@ class TomlToMdConverter:
         self.lines: list[str] = []
 
     def generate(self) -> str:
+        self._validate_general()
         self._append_general_section()
         self._append_images_section()
         self._append_files_section()
@@ -101,6 +103,36 @@ class TomlToMdConverter:
         self._append_installation_section()
 
         return "\n".join(self.lines).rstrip() + "\n"
+
+    def _validate_general(self) -> None:
+        # String length limits
+        str_limits = {
+            "name": 50,
+            "description": 400,
+            "language": 50,
+            "version": 30,
+            "license": 50,
+        }
+        for key, max_len in str_limits.items():
+            raw_val = self.general.get(key)
+            if isinstance(raw_val, str):
+                val = raw_val.strip()
+                if len(val) > max_len:
+                    msg = f'"general.{key}" is too long ({len(val)}) – max {max_len} characters'
+                    raise ReadmeGenerationError(msg)
+
+        # List size limits
+        list_limits = {
+            "hardware": 30,
+            "firmware": 30,
+            "stack": 30,
+            "authors": 30,
+        }
+        for key, max_items in list_limits.items():
+            raw_val = self.general.get(key)
+            if isinstance(raw_val, list) and len(raw_val) > max_items:
+                msg = f'"general.{key}" has too many items ({len(raw_val)}) – max {max_items}'
+                raise ReadmeGenerationError(msg)
 
     def _fmt_mixed_list(self, items):
         formatted = []
@@ -325,5 +357,14 @@ async def toml_file_to_md(toml_file) -> str:
     if isinstance(content, bytes):
         content = content.decode("utf-8")
 
-    data = toml.loads(content)
+    if len(content) > 10000:
+        msg = f"toml is too large ({len(content)}) limit 10000 characters"
+        raise ReadmeGenerationError(msg)
+
+    try:
+        data = toml.loads(content)
+    except Exception as e:
+        msg = f"Error toml deserialization: {e}"
+        raise ReadmeGenerationError(msg) from None
+
     return toml_to_md(data)
