@@ -750,10 +750,10 @@ class UnitService:
             ReservedEnvVariableName.PU_MQTT_PORT: settings.pu_mqtt_port,
             ReservedEnvVariableName.PU_AUTH_TOKEN: self.generate_token(uuid),
             ReservedEnvVariableName.PU_SECRET_KEY: base64.b64encode(
-                os.urandom(16)
+                os.urandom(32)
             ).decode("utf-8"),
             ReservedEnvVariableName.PU_ENCRYPT_KEY: base64.b64encode(
-                os.urandom(16)
+                os.urandom(32)
             ).decode("utf-8"),
             ReservedEnvVariableName.PU_MQTT_PING_INTERVAL: 30,
             ReservedEnvVariableName.PU_STATE_SEND_INTERVAL: settings.pu_state_send_interval,
