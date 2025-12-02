@@ -77,7 +77,6 @@ class StreamingCSVValidator:
                         seconds=self.config.processing_policy.time_window_size
                     )
                     yield TimeWindow(
-                        uuid=uuid_pkg.uuid4(),
                         unit_node_uuid=unit_node_uuid,
                         state=str(state),
                         state_type=self.config.filters.type_input_value,
@@ -90,7 +89,6 @@ class StreamingCSVValidator:
                     self.check_n_last_entry()
 
                     yield NRecords(
-                        uuid=uuid_pkg.uuid4(),
                         unit_node_uuid=unit_node_uuid,
                         state=str(state),
                         state_type=self.config.filters.type_input_value,
@@ -111,7 +109,6 @@ class StreamingCSVValidator:
                         row[AvailableCSVKeys.START_WINDOW_DATETIME.value]
                     )
                     yield Aggregation(
-                        uuid=uuid_pkg.uuid4(),
                         unit_node_uuid=unit_node_uuid,
                         state=float(state),
                         aggregation_type=self.config.processing_policy.aggregation_functions,

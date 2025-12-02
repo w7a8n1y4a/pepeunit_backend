@@ -134,6 +134,8 @@ class RepoService:
                 repository_registry.releases_data, "releases for compile repo"
             )
 
+            print(releases)
+
             if target_tag:
                 with contextlib.suppress(KeyError):
                     platforms = releases[target_tag]

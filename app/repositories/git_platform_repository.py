@@ -97,17 +97,32 @@ class GitlabPlatformClient(GitPlatformClientABC):
 
         headers = None
         if self.credentials:
-            headers = {
-                "PRIVATE-TOKEN": self.credentials.pat_token,
-            }
+            headers = {"PRIVATE-TOKEN": self.credentials.pat_token}
 
-        releases_data = httpx.get(
-            url=f"{self._get_api_url()}{repository_id}/releases",
-            headers=headers,
-        )
+        all_releases: list[dict] = []
+        page = 1
+        per_page = 100
 
-        result_dict = {}
-        for item in releases_data.json():
+        while True:
+            releases_data = httpx.get(
+                url=f"{self._get_api_url()}{repository_id}/releases",
+                headers=headers,
+                params={"page": page, "per_page": per_page},
+            )
+            page_items = releases_data.json()
+
+            if not page_items:
+                break
+
+            all_releases.extend(page_items)
+
+            if len(page_items) < per_page:
+                break
+
+            page += 1
+
+        result_dict: dict[str, list[tuple[str, str]]] = {}
+        for item in all_releases:
             assets_list = [
                 (source["format"], source["url"])
                 for source in item["assets"]["sources"]

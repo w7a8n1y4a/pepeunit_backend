@@ -8,7 +8,6 @@ from app.dto.mixin import ClickHouseBaseMixin
 
 
 class Aggregation(BaseModel, ClickHouseBaseMixin):
-    uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: float
     aggregation_type: AggregationFunctions

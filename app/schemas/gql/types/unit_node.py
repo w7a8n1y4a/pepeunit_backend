@@ -23,7 +23,6 @@ class DataPipeValidationErrorType(TypeInputMixin):
 
 @strawberry.type()
 class NRecordsType(TypeInputMixin):
-    uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: str
     state_type: TypeInputValue
@@ -34,7 +33,6 @@ class NRecordsType(TypeInputMixin):
 
 @strawberry.type()
 class TimeWindowType(TypeInputMixin):
-    uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: str
     state_type: TypeInputValue
@@ -45,7 +43,6 @@ class TimeWindowType(TypeInputMixin):
 
 @strawberry.type()
 class AggregationType(TypeInputMixin):
-    uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: float
     aggregation_type: AggregationFunctions
@@ -56,7 +53,6 @@ class AggregationType(TypeInputMixin):
 
 @strawberry.type()
 class LastValueType(TypeInputMixin):
-    uuid: uuid_pkg.UUID
     unit_node_uuid: uuid_pkg.UUID
     state: str
     last_update_datetime: datetime

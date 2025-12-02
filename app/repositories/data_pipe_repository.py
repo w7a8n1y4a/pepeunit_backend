@@ -75,7 +75,6 @@ class DataPipeRepository:
             return 0, []
         return 1, [
             LastValue(
-                uuid=unit_node.uuid,
                 unit_node_uuid=unit_node.uuid,
                 state=unit_node.state,
                 last_update_datetime=unit_node.last_update_datetime,
@@ -97,7 +96,7 @@ class DataPipeRepository:
                     (
                         SELECT
                             *,
-                            row_number() OVER (PARTITION BY unit_node_uuid ORDER BY create_datetime DESC) AS id
+                            row_number() OVER (PARTITION BY unit_node_uuid ORDER BY create_datetime ASC) AS id
                         FROM
                             n_last_entry
                         WHERE
