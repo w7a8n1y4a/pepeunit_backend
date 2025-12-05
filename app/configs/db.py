@@ -7,8 +7,8 @@ from app import settings
 
 engine = create_engine(
     settings.pu_sqlalchemy_database_url,
-    echo=settings.pu_debug,
-    echo_pool=settings.pu_debug,
+    echo=settings.pu_min_log_level == "DEBUG",
+    echo_pool=settings.pu_min_log_level == "DEBUG",
     future=True,
     json_serializer=jsonable_encoder,
     pool_pre_ping=True,

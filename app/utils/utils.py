@@ -251,7 +251,7 @@ def parse_interval(s: str) -> datetime.timedelta | relativedelta:
 
 
 def logo_to_console():
-    logging.info(
+    print(
         rf"""
 
                              ........:

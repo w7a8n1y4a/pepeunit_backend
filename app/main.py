@@ -23,6 +23,7 @@ from app.configs.db import get_hand_session
 from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context
+from app.configs.logging_config import setup_logging
 from app.configs.redis import get_redis_session
 from app.configs.rest import get_repository_registry_service
 from app.configs.utils import (
@@ -50,11 +51,7 @@ from app.schemas.mqtt.topic import mqtt
 from app.schemas.pydantic.shared import Root
 from app.utils.utils import logo_to_console
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s - %(asctime)s - %(message)s",
-)
-logging.getLogger("httpx").setLevel(logging.INFO)
+setup_logging()
 
 
 if settings.pu_ff_prometheus_enable:
@@ -271,7 +268,7 @@ app = FastAPI(
     version=settings.version,
     openapi_url=f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/openapi.json",
     docs_url=f"{settings.pu_app_prefix}/docs",
-    debug=settings.pu_debug,
+    debug=settings.pu_min_log_level == "DEBUG",
     lifespan=_lifespan,
 )
 

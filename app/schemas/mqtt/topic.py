@@ -87,7 +87,7 @@ async def message_to_topic(_client, topic, payload, _qos, _properties):
             current_time = time.time()
 
             if (current_time - last_time) < settings.pu_state_send_interval:
-                if settings.pu_debug:
+                if settings.pu_min_log_level == "DEBUG":
                     msg = f"Exceeding the message sending rate for the {topic} topic, you need to send values no more often than {settings.pu_state_send_interval}"
                     raise MqttError(msg)
                 return
