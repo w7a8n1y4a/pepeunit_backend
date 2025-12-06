@@ -54,6 +54,10 @@ class GrafanaRepository:
     @classmethod
     def configure_admin_dashboard_permissions(cls) -> None:
         folder_title = "Admin"
+        admin_only_dashboard_uids = [
+            "all-docker-logs",
+            "backend-aggregated-logs",
+        ]
         headers = copy.deepcopy(cls.headers)
         headers.setdefault("X-Grafana-Org-Id", "1")
 
@@ -78,9 +82,11 @@ class GrafanaRepository:
                     msg = "Not found admin folder for set Permissions"
                     raise GrafanaError(msg)
 
-                url = f"{cls.base_grafana_url}/api/folders/{folders[0]['uid']}/permissions"
+                folder_permissions_url = f"{cls.base_grafana_url}/api/folders/{folders[0]['uid']}/permissions"
 
-                response = httpx.get(url, headers=headers, timeout=10.0)
+                response = httpx.get(
+                    folder_permissions_url, headers=headers, timeout=10.0
+                )
                 response.raise_for_status()
 
                 admin_permissions = [
@@ -94,12 +100,38 @@ class GrafanaRepository:
                     admin_permissions = [{"role": "Admin", "permission": 4}]
 
                 response = httpx.post(
-                    url,
+                    folder_permissions_url,
                     headers=headers,
                     json={"items": admin_permissions},
                     timeout=10.0,
                 )
                 response.raise_for_status()
+
+                dashboard_admin_permissions = [
+                    {"role": "Admin", "permission": 4}
+                ]
+
+                for dashboard_uid in admin_only_dashboard_uids:
+                    dashboard_permissions_url = (
+                        f"{cls.base_grafana_url}/api/dashboards/uid/"
+                        f"{dashboard_uid}/permissions"
+                    )
+
+                    response = httpx.get(
+                        dashboard_permissions_url,
+                        headers=headers,
+                        timeout=10.0,
+                    )
+                    response.raise_for_status()
+
+                    response = httpx.post(
+                        dashboard_permissions_url,
+                        headers=headers,
+                        json={"items": dashboard_admin_permissions},
+                        timeout=10.0,
+                    )
+                    response.raise_for_status()
+
                 break
             except Exception as exc:
                 logging.error(exc)
