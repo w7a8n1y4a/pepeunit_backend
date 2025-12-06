@@ -1,7 +1,9 @@
 import base64
 import copy
 import json
+import logging
 import string
+import time
 
 import httpx
 from fastapi import Depends
@@ -48,6 +50,60 @@ class GrafanaRepository:
         "Content-Type": "application/json",
     }
     base_grafana_url: str = f"{settings.pu_link}/grafana"
+
+    @classmethod
+    def configure_admin_dashboard_permissions(cls) -> None:
+        folder_title = "Admin"
+        headers = copy.deepcopy(cls.headers)
+        headers.setdefault("X-Grafana-Org-Id", "1")
+
+        while True:
+            try:
+                response = httpx.get(
+                    f"{cls.base_grafana_url}/api/search",
+                    headers=headers,
+                    params={"query": folder_title, "type": "dash-folder"},
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+
+                folders = [
+                    item
+                    for item in response.json()
+                    if item.get("type") == "dash-folder"
+                    and item.get("title") == folder_title
+                ]
+
+                if not folders or not folders[0].get("uid"):
+                    msg = "Not found admin folder for set Permissions"
+                    raise GrafanaError(msg)
+
+                url = f"{cls.base_grafana_url}/api/folders/{folders[0]['uid']}/permissions"
+
+                response = httpx.get(url, headers=headers, timeout=10.0)
+                response.raise_for_status()
+
+                admin_permissions = [
+                    permission
+                    for permission in response.json()
+                    if permission.get("role") == "Admin"
+                    or permission.get("permission") == 4
+                ]
+
+                if not admin_permissions:
+                    admin_permissions = [{"role": "Admin", "permission": 4}]
+
+                response = httpx.post(
+                    url,
+                    headers=headers,
+                    json={"items": admin_permissions},
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                break
+            except Exception as exc:
+                logging.error(exc)
+                time.sleep(10)
 
     @staticmethod
     def enumerate_refid(iterable, start=0):

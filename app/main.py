@@ -33,6 +33,7 @@ from app.configs.utils import (
 )
 from app.dto.agent.abc import AgentBackend
 from app.dto.enum import GlobalPrefixTopic
+from app.repositories.grafana_repository import GrafanaRepository
 from app.routers.v1.endpoints import api_router
 from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
 from app.schemas.bot.error import error_router
@@ -212,6 +213,12 @@ async def _lifespan(_app: FastAPI):
         await init_clickhouse()
         control_emqx = ControlEmqx()
         await control_emqx.init()
+        if settings.pu_ff_grafana_integration_enable:
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(
+                None,
+                GrafanaRepository.configure_admin_dashboard_permissions,
+            )
         await setup_backend_acl(redis)
         if settings.pu_ff_telegram_bot_enable:
             await init_telegram_bot(dp, bot)

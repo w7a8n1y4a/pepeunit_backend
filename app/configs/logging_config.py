@@ -98,7 +98,7 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
 
 def _build_formatters() -> dict:
     if settings.pu_log_format == "plain":
-        plain_format = "%(levelname)s - %(asctime)s - %(name)s - %(funcName)s - %(message)s"
+        plain_format = "%(levelname)s - %(asctime)s - %(name)s - %(message)s"
         return {
             "plain": {
                 "format": plain_format,
