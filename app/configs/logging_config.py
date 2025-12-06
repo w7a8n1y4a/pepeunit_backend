@@ -1,4 +1,5 @@
 import logging
+import re
 from logging.config import dictConfig
 from typing import Final
 
@@ -26,23 +27,45 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict) -> None:
         super().add_fields(log_record, record, message_dict)
 
-        if record.exc_info:
-            formatter = logging.Formatter()
-            try:
-                traceback_str = formatter.formatException(record.exc_info)
-            except Exception:
-                traceback_str = None
+        self._add_traceback(log_record, record)
+        self._normalize_uvicorn_access(log_record)
+        self._remap_and_order_fields(log_record)
 
-            if traceback_str:
-                log_record["traceback"] = traceback_str
+    @staticmethod
+    def _add_traceback(log_record, record) -> None:
+        if not record.exc_info:
+            return
 
+        formatter = logging.Formatter()
+        try:
+            traceback_str = formatter.formatException(record.exc_info)
+        except Exception:
+            traceback_str = None
+
+        if traceback_str:
+            log_record["traceback"] = traceback_str
+
+        # Remove raw exc_info to avoid duplication in JSON logs.
         log_record.pop("exc_info", None)
 
+    @staticmethod
+    def _normalize_uvicorn_access(log_record) -> None:
+        if log_record.get("logger") != "uvicorn.access":
+            return
+
+        msg = log_record.get("message")
+        if not isinstance(msg, str):
+            return
+
+        normalized = re.sub(r"^([^:]+):\d+(\s+-\s+)", r"\1\2", msg)
+        log_record["message"] = normalized
+
+    def _remap_and_order_fields(self, log_record) -> None:
         for old_key, new_key in self.FIELD_MAPPING.items():
             if old_key in log_record and new_key not in log_record:
                 log_record[new_key] = log_record.pop(old_key)
 
-        ordered = {}
+        ordered: dict = {}
         for key in self.FIELD_ORDER:
             if key in log_record:
                 ordered[key] = log_record[key]
