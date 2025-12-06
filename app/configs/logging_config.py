@@ -45,7 +45,6 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
         if traceback_str:
             log_record["traceback"] = traceback_str
 
-        # Remove raw exc_info to avoid duplication in JSON logs.
         log_record.pop("exc_info", None)
 
     @staticmethod
@@ -55,6 +54,25 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
 
         msg = log_record.get("message")
         if not isinstance(msg, str):
+            return
+
+        pattern = re.compile(
+            r"^(?P<client_ip>[^:]+):\d+\s+-\s+"
+            r'"(?P<method>[A-Z]+)\s+(?P<path>[^ ]+)\s+HTTP/(?P<http_version>[^"]+)"\s+'
+            r"(?P<status_code>\d+)\s*"
+        )
+
+        m = pattern.match(msg)
+        if m:
+            log_record["client_ip"] = m.group("client_ip")
+            log_record["http_method"] = m.group("method")
+            log_record["http_path"] = m.group("path")
+            log_record["http_version"] = m.group("http_version")
+            log_record["http_status_code"] = int(m.group("status_code"))
+
+            log_record["message"] = (
+                f"{m.group('method')} {m.group('path')} {m.group('status_code')}"
+            )
             return
 
         normalized = re.sub(r"^([^:]+):\d+(\s+-\s+)", r"\1\2", msg)
