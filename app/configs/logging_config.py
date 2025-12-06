@@ -12,24 +12,31 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
         "asctime": "time",
         "levelname": "level",
         "name": "logger",
-        "funcName": "func",
         "message": "message",
-        "pathname": "file",
-        "lineno": "line",
     }
 
     FIELD_ORDER = [
         "time",
         "level",
         "logger",
-        "func",
         "message",
-        "file",
-        "line",
+        "traceback",
     ]
 
     def add_fields(self, log_record, record, message_dict) -> None:
         super().add_fields(log_record, record, message_dict)
+
+        if record.exc_info:
+            formatter = logging.Formatter()
+            try:
+                traceback_str = formatter.formatException(record.exc_info)
+            except Exception:
+                traceback_str = None
+
+            if traceback_str:
+                log_record["traceback"] = traceback_str
+
+        log_record.pop("exc_info", None)
 
         for old_key, new_key in self.FIELD_MAPPING.items():
             if old_key in log_record and new_key not in log_record:
@@ -57,10 +64,7 @@ def _build_formatters() -> dict:
             }
         }
 
-    json_format = (
-        "%(asctime)s %(levelname)s %(name)s %(message)s "
-        "%(pathname)s %(lineno)d %(funcName)s"
-    )
+    json_format = "%(asctime)s %(levelname)s %(name)s %(message)s %(funcName)s"
 
     return {
         "json": {
