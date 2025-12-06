@@ -28,7 +28,7 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
         super().add_fields(log_record, record, message_dict)
 
         self._add_traceback(log_record, record)
-        self._normalize_uvicorn_access(log_record)
+        self._normalize_uvicorn_access(log_record, record)
         self._remap_and_order_fields(log_record)
 
     @staticmethod
@@ -48,8 +48,8 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
         log_record.pop("exc_info", None)
 
     @staticmethod
-    def _normalize_uvicorn_access(log_record) -> None:
-        if log_record.get("logger") != "uvicorn.access":
+    def _normalize_uvicorn_access(log_record, record) -> None:
+        if getattr(record, "name", None) != "uvicorn.access":
             return
 
         msg = log_record.get("message")
