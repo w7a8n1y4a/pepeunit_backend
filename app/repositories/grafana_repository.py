@@ -53,7 +53,6 @@ class GrafanaRepository:
 
     @classmethod
     def configure_admin_dashboard_permissions(cls) -> None:
-        folder_title = "Admin"
         admin_only_dashboard_uids = [
             "all-docker-logs",
             "backend-aggregated-logs",
@@ -63,50 +62,6 @@ class GrafanaRepository:
 
         while True:
             try:
-                response = httpx.get(
-                    f"{cls.base_grafana_url}/api/search",
-                    headers=headers,
-                    params={"query": folder_title, "type": "dash-folder"},
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-
-                folders = [
-                    item
-                    for item in response.json()
-                    if item.get("type") == "dash-folder"
-                    and item.get("title") == folder_title
-                ]
-
-                if not folders or not folders[0].get("uid"):
-                    msg = "Not found admin folder for set Permissions"
-                    raise GrafanaError(msg)
-
-                folder_permissions_url = f"{cls.base_grafana_url}/api/folders/{folders[0]['uid']}/permissions"
-
-                response = httpx.get(
-                    folder_permissions_url, headers=headers, timeout=10.0
-                )
-                response.raise_for_status()
-
-                admin_permissions = [
-                    permission
-                    for permission in response.json()
-                    if permission.get("role") == "Admin"
-                    or permission.get("permission") == 4
-                ]
-
-                if not admin_permissions:
-                    admin_permissions = [{"role": "Admin", "permission": 4}]
-
-                response = httpx.post(
-                    folder_permissions_url,
-                    headers=headers,
-                    json={"items": admin_permissions},
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-
                 dashboard_admin_permissions = [
                     {"role": "Admin", "permission": 4}
                 ]
