@@ -59,15 +59,13 @@ migrate-rollback:
 
 uvi:
 	@echo "Run uvicorn server..."
-	uv run uvicorn app.main:app --host 0.0.0.0 --port 5291 --log-level info --workers 2
+	uv run python -m uvicorn_conf
 
 gun:
 	@echo "Run gunicorn server..."
 	uv run gunicorn app.main:app \
 		--bind 0.0.0.0:5291 \
-		--log-level info \
-		--access-logfile /dev/stdout \
-		--error-logfile /dev/stderr \
+		--config gunicorn_conf.py \
 		--timeout 300 \
 		--workers=2 \
 		--worker-class uvicorn.workers.UvicornWorker \

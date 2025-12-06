@@ -19,11 +19,9 @@ dependencies = [
     "httpx>=0.23.3",
     "uuid>=1.30",
     "python-multipart>=0.0.6",
-    "minio>=7.1.15",
     "pyjwt>=2.7.0",
     "fastapi-filter>=0.6.0",
     "filetype>=1.2.0",
-    "jinja2>=3.1.2",
     "pyaes>=1.6.1",
     "gitpython>=3.1.40",
     "fastapi-mqtt>=1.2.0",
@@ -48,6 +46,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "pepeunit-client>=0.10.23",
     "pathspec>=0.12.1",
+    "python-json-logger>=2.0.7",
 ]
 
 [project.optional-dependencies]
@@ -138,28 +137,29 @@ select = [
 ]
 
 ignore = [
-    "E501",  # line too long
-    "B008",  # Do not perform function calls in argument defaults
-    "B006",  # Do not use mutable data structures for argument defaults
-    "SIM115", # with for files (for lock work disable)
+    "E501",    # line too long
+    "B008",    # Do not perform function calls in argument defaults
+    "B006",    # Do not use mutable data structures for argument defaults
+    "SIM115",  # with for files (for lock work disable)
     "PLR0913", # too many arguments to function call
     "PLR0912", # too many branches
     "PLR2004", # magic value used in comparison
     "PLW0603", # using the global statement
-    "S105",   # hardcode password
-    "S101",   # use of assert detected
-    "S307",   # insecure eval
-    "S608",   # sql inject
-    "S311",   # standard pseudo-random generators are not suitable for cryptographic purposes
-    "S603",   # subprocess call - check for execution of untrusted input
-    "TID252", # relative imports banned
-    "COM812", # missing trailing comma
-    "ISC001", # implicitly concatenated string literals over continuation line
-    "ERA001", # commented out code
-    "G004",   # logging uses f-string
-    "INP001", # import implict
+    "S105",    # hardcode password
+    "S101",    # use of assert detected
+    "S307",    # insecure eval
+    "S608",    # sql inject
+    "S311",    # standard pseudo-random generators are not suitable for cryptographic purposes
+    "S603",    # subprocess call - check for execution of untrusted input
+    "TID252",  # relative imports banned
+    "COM812",  # missing trailing comma
+    "ISC001",  # implicitly concatenated string literals over continuation line
+    "ERA001",  # commented out code
+    "G004",    # logging uses f-string
+    "INP001",  # import implict
     "PLC0415", # top level import
-    "T201", # print deletion without except
+    "T201",    # print deletion without except
+    "S104",    # 0.0.0.0 host issue
 ]
 
 [tool.ruff.lint.per-file-ignores]

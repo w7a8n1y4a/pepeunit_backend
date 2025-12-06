@@ -35,9 +35,7 @@ rm -rf tmp/*.lock
 
 gunicorn app.main:app \
     --bind 0.0.0.0:5000 \
-    --log-level info \
-    --access-logfile /dev/stdout \
-    --error-logfile /dev/stderr \
+    --config gunicorn_conf.py \
     --timeout 300 \
     --workers=$PU_WORKER_COUNT \
     --worker-class uvicorn.workers.UvicornWorker \

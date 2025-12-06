@@ -8,8 +8,6 @@ with open("pyproject.toml") as f:
 
 
 class Settings(BaseSettings):
-    """.env variables"""
-
     project_name: str = data["project"]["name"]
     version: str = data["project"]["version"]
     description: str = data["project"]["description"]
@@ -22,7 +20,10 @@ class Settings(BaseSettings):
     pu_ff_datapipe_default_last_value_enable: bool = True
     pu_ff_prometheus_enable: bool = True
 
-    pu_debug: bool = False
+    pu_log_format: str = "json"
+    pu_min_log_level: str = "INFO"
+    pu_loki_url: str = "http://loki:3100"
+
     pu_app_prefix: str = "/pepeunit"
     pu_api_v1_prefix: str = "/api/v1"
 
