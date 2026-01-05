@@ -44,7 +44,7 @@ dependencies = [
     "clickhouse-driver>=0.2.9",
     "redis>=5.2.1",
     "pyyaml>=6.0.2",
-    "pepeunit-client>=0.10.23",
+    "pepeunit-client>=1.0.1",
     "pathspec>=0.12.1",
     "python-json-logger>=2.0.7",
 ]

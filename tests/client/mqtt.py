@@ -27,7 +27,7 @@ class MQTTClient:
             enable_mqtt=True,
             enable_rest=True,
             restart_mode=RestartMode.ENV_SCHEMA_ONLY,
-            skip_version_check=True
+            ff_version_check_enable=False
         )
 
         self.client.set_mqtt_input_handler(self.mqtt_input_handler)
