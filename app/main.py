@@ -192,6 +192,9 @@ async def run_mqtt_client(mqtt, redis_client):
     logging.info(
         f"Connect to mqtt server: {settings.pu_mqtt_host}:{settings.pu_mqtt_port}"
     )
+    from app.schemas.mqtt.manager import mqtt_manager
+
+    mqtt_manager.attach_loop(asyncio.get_running_loop())
     await mqtt.mqtt_startup()
     token = AgentBackend(name=settings.pu_domain).generate_agent_token()
     access = await redis_client.hgetall(token)

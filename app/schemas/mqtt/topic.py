@@ -1,25 +1,19 @@
-import asyncio
 import datetime
 import json
 import logging
 import time
 import uuid
 
-from fastapi_mqtt import FastMQTT, MQTTConfig
-
 from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import MqttError, UpdateError
-from app.configs.utils import acquire_file_lock
 from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
-from app.dto.agent.abc import AgentBackend
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     DestinationTopicType,
-    GlobalPrefixTopic,
     ReservedOutputBaseTopic,
     ReservedStateKey,
     UnitFirmwareUpdateStatus,
@@ -31,6 +25,7 @@ from app.repositories.repository_registry_repository import (
 )
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
+from app.schemas.mqtt.manager import mqtt_manager
 from app.schemas.mqtt.utils import get_only_reserved_keys, get_topic_split
 from app.services.validators import (
     is_valid_json,
@@ -39,35 +34,14 @@ from app.services.validators import (
 )
 from app.utils.utils import ensure_timezone_aware
 
-mqtt_config = MQTTConfig(
-    host=settings.pu_mqtt_host,
-    port=settings.pu_mqtt_port,
-    keepalive=settings.pu_mqtt_keepalive,
-    username=AgentBackend(name=settings.pu_domain).generate_agent_token(),
-    password="",
-)
-
-mqtt = FastMQTT(config=mqtt_config)
+mqtt = mqtt_manager.mqtt
 
 cache_dict = {}
 
 
 @mqtt.on_connect()
 def connect(client, _flags, _rc, _properties):
-    lock_fd = acquire_file_lock("tmp/mqtt_subscribe.lock")
-
-    time.sleep(2)
-
-    if lock_fd:
-        logging.info("MQTT subscriptions initialized in this worker")
-        client.subscribe(
-            f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
-        )
-    else:
-        logging.info("Another worker already subscribed to MQTT topics")
-
-    if lock_fd:
-        lock_fd.close()
+    mqtt_manager.on_connect(client, _flags, _rc, _properties)
 
 
 @mqtt.on_message()
@@ -219,15 +193,4 @@ async def _handle_log_message(unit_uuid, payload):
 
 @mqtt.on_disconnect()
 def disconnect(client, _packet):
-    logging.info(
-        f"Disconnected from MQTT server: {settings.pu_mqtt_host}:{settings.pu_mqtt_port}"
-    )
-
-    async def reconnect():
-        await asyncio.sleep(5)
-        try:
-            await client.reconnect()
-        except Exception as e:
-            logging.error(f"Reconnect failed: {e}")
-
-    asyncio.create_task(reconnect())
+    mqtt_manager.on_disconnect(client, _packet)

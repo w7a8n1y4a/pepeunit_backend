@@ -429,6 +429,9 @@ class UnitNodeService:
                     unit.firmware_update_status = (
                         UnitFirmwareUpdateStatus.REQUEST_SENT
                     )
+
+                    self.unit_repository.update(unit.uuid, unit)
+
             except MqttError as e:
                 if command == BackendTopicCommand.UPDATE:
                     unit.firmware_update_error = e.message
@@ -437,8 +440,9 @@ class UnitNodeService:
                         UnitFirmwareUpdateStatus.ERROR
                     )
 
-            if command == BackendTopicCommand.UPDATE:
-                self.unit_repository.update(unit.uuid, unit)
+                    self.unit_repository.update(unit.uuid, unit)
+
+                raise e
 
     def _build_message_dict(
         self,
@@ -535,11 +539,12 @@ class UnitNodeService:
 
         unit_node_edge = self.unit_node_edge_repository.create(new_edge)
 
-        self.command_to_input_base_topic(
-            uuid=input_node.unit_uuid,
-            command=BackendTopicCommand.SCHEMA_UPDATE,
-            is_auto_update=True,
-        )
+        with contextlib.suppress(MqttError):
+            self.command_to_input_base_topic(
+                uuid=input_node.unit_uuid,
+                command=BackendTopicCommand.SCHEMA_UPDATE,
+                is_auto_update=True,
+            )
 
         return unit_node_edge
 
@@ -778,11 +783,12 @@ class UnitNodeService:
 
         self.unit_node_edge_repository.delete(unit_node_edge)
 
-        self.command_to_input_base_topic(
-            uuid=input_node.unit_uuid,
-            command=BackendTopicCommand.SCHEMA_UPDATE,
-            is_auto_update=True,
-        )
+        with contextlib.suppress(MqttError):
+            self.command_to_input_base_topic(
+                uuid=input_node.unit_uuid,
+                command=BackendTopicCommand.SCHEMA_UPDATE,
+                is_auto_update=True,
+            )
 
     def list(
         self, filters: UnitNodeFilter | UnitNodeFilterInput

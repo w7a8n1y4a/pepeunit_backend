@@ -160,6 +160,7 @@ ignore = [
     "PLC0415", # top level import
     "T201",    # print deletion without except
     "S104",    # 0.0.0.0 host issue
+    "SLF001" , # _method access
 ]
 
 [tool.ruff.lint.per-file-ignores]
