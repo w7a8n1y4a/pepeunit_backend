@@ -1316,7 +1316,7 @@ requires-dist = [
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "paho-mqtt", marker = "extra == 'load'", specifier = ">=2.1.0" },
     { name = "pathspec", specifier = ">=0.12.1" },
-    { name = "pepeunit-client", specifier = ">=1.0.1", index = "https://test.pypi.org/simple/" },
+    { name = "pepeunit-client", specifier = ">=1.1.0", index = "https://test.pypi.org/simple/" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.8.0" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0.2" },
     { name = "psutil", specifier = ">=7.0.0" },
@@ -1345,15 +1345,15 @@ provides-extras = ["dev", "load"]
 
 [[package]]
 name = "pepeunit-client"
-version = "1.0.1"
+version = "1.1.0"
 source = { registry = "https://test.pypi.org/simple/" }
 dependencies = [
     { name = "cryptography" },
     { name = "psutil", marker = "platform_system != 'emscripten'" },
 ]
-sdist = { url = "https://test-files.pythonhosted.org/packages/19/5e/fca95c249abde8ac05b74c3714d7b2fd2b44680f9ff0b70820c124210132/pepeunit_client-1.0.1.tar.gz", hash = "sha256:8bd41b13801779f6a34082741cbb69d9e1c3e39d3ac5768cdbfb398419a52f22", size = 28439, upload-time = "2026-01-05T02:56:39.177Z" }
+sdist = { url = "https://test-files.pythonhosted.org/packages/8a/9c/c5b7dda81f51f211cbceee463a318b910fba81a89fa4b95856fe9162cbd0/pepeunit_client-1.1.0.tar.gz", hash = "sha256:f27a8bd6b64c569635993ddef816b4f3bb788b6a99523b296357fc92b33d13f9", size = 28500, upload-time = "2026-01-05T03:36:55.205Z" }
 wheels = [
-    { url = "https://test-files.pythonhosted.org/packages/26/be/04f0e830013e543f18c711a6fd64a5777ab6bef2b43b411a7e41f2b25b85/pepeunit_client-1.0.1-py3-none-any.whl", hash = "sha256:236ba075389a0bc9f9cda1c05f9808576ba65fea2090a3712e2e768511cd9d4c", size = 30196, upload-time = "2026-01-05T02:56:37.215Z" },
+    { url = "https://test-files.pythonhosted.org/packages/c9/20/0b9248c13b06ea3cea96c39535d36868c627b06ccb2c32769a45a9c1b82b/pepeunit_client-1.1.0-py3-none-any.whl", hash = "sha256:d8b912d10e91adbb04a81669210403606f2856ae6104f4fdecf8f566e2504cb1", size = 30260, upload-time = "2026-01-05T03:36:53.637Z" },
 ]
 
 [[package]]
