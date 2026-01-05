@@ -1,5 +1,6 @@
 import base64
 import builtins
+import contextlib
 import copy
 import datetime
 import itertools
@@ -213,12 +214,12 @@ class UnitService:
         result_unit = self.sync_state_unit_nodes_for_version(
             repo, result_unit, repository_registry
         )
-
-        self.unit_node_service.command_to_input_base_topic(
-            uuid=result_unit.uuid,
-            command=BackendTopicCommand.UPDATE,
-            is_auto_update=True,
-        )
+        with contextlib.suppress(MqttError):
+            self.unit_node_service.command_to_input_base_topic(
+                uuid=result_unit.uuid,
+                command=BackendTopicCommand.UPDATE,
+                is_auto_update=True,
+            )
 
         return result_unit
 

@@ -97,7 +97,7 @@ class MqttManager:
     async def _watchdog(self) -> None:
         interval = 5
         timeout = 20
-        resubscribe_interval = 60
+        resubscribe_interval = 120
 
         while True:
             await asyncio.sleep(interval)

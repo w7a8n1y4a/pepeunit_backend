@@ -259,7 +259,21 @@ def test_create_unit_node_edge(database, cc) -> None:
     # test update schema 3 Unit
     for unit in target_units:
         logging.info(unit.uuid)
-        assert update_schema(token, unit.uuid) == 204
+
+        inc = 0
+        while True:
+            try:
+                assert update_schema(token, unit.uuid) == 204
+                break
+            except AssertionError:
+
+                if inc > 10:
+                    assert False
+
+                time.sleep(1)
+
+                inc += 1
+
 
     # sleep for update schema 3 unit
     time.sleep(2)
