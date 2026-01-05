@@ -76,7 +76,7 @@ async def init_clickhouse():
 
 async def setup_backend_acl(redis):
     backend_topics = (
-        f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX}",
+        f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}",
     )
 
     async def hset_emqx_auth_keys(redis_client, topic):

@@ -31,6 +31,8 @@ class MqttManager:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._connected: bool = False
         self._watchdog_task: asyncio.Task | None = None
+        self._last_resubscribe_monotonic: float = 0.0
+        self._subscription_lock_fd = None
 
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
@@ -55,23 +57,29 @@ class MqttManager:
         self._connected = True
 
         async def _subscribe_after_connect() -> None:
-            lock_fd = acquire_file_lock("tmp/mqtt_subscribe.lock")
+            lock_fd = self._subscription_lock_fd or acquire_file_lock(
+                "tmp/mqtt_subscribe.lock"
+            )
+            await asyncio.sleep(2)
+            if not lock_fd:
+                logging.info(
+                    "Another worker already subscribed to MQTT topics"
+                )
+                return
+
+            self._subscription_lock_fd = lock_fd
+            logging.info("MQTT subscriptions initialized in this worker")
             try:
-                await asyncio.sleep(2)
-                if lock_fd:
-                    logging.info(
-                        "MQTT subscriptions initialized in this worker"
-                    )
-                    client.subscribe(
-                        f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
-                    )
-                else:
-                    logging.info(
-                        "Another worker already subscribed to MQTT topics"
-                    )
-            finally:
-                if lock_fd:
+                client.subscribe(
+                    f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
+                )
+                self._last_resubscribe_monotonic = time.monotonic()
+            except Exception:
+                try:
                     lock_fd.close()
+                finally:
+                    self._subscription_lock_fd = None
+                raise
 
         loop = self._loop
         loop.create_task(_subscribe_after_connect())
@@ -87,16 +95,9 @@ class MqttManager:
         )
 
     async def _watchdog(self) -> None:
-        if not getattr(settings, "pu_mqtt_watchdog_enable", True):
-            return
-
-        interval = max(
-            1, int(getattr(settings, "pu_mqtt_watchdog_interval", 5))
-        )
-        timeout = max(
-            interval * 2,
-            int(getattr(settings, "pu_mqtt_watchdog_timeout", 20)),
-        )
+        interval = 5
+        timeout = 20
+        resubscribe_interval = 60
 
         while True:
             await asyncio.sleep(interval)
@@ -109,6 +110,21 @@ class MqttManager:
                 now = time.monotonic()
                 last_in = getattr(conn, "_last_data_in", None)
                 last_out = getattr(conn, "_last_data_out", None)
+
+                if (
+                    self._subscription_lock_fd is not None
+                    and (now - self._last_resubscribe_monotonic)
+                    >= resubscribe_interval
+                ):
+                    try:
+                        gmqtt_client.subscribe(
+                            f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
+                        )
+                        self._last_resubscribe_monotonic = now
+                    except Exception as e:
+                        logging.warning(
+                            f"MQTT watchdog resubscribe failed: {e}"
+                        )
 
                 if last_out is not None and (now - last_out) >= interval:
                     try:
