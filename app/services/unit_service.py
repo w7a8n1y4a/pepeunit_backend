@@ -756,7 +756,8 @@ class UnitService:
             ReservedEnvVariableName.PU_ENCRYPT_KEY: base64.b64encode(
                 os.urandom(32)
             ).decode("utf-8"),
-            ReservedEnvVariableName.PU_MQTT_PING_INTERVAL: 30,
+            ReservedEnvVariableName.PU_MQTT_PING_INTERVAL: 20,
+            ReservedEnvVariableName.PU_MQTT_KEEPALIVE: 60,
             ReservedEnvVariableName.PU_STATE_SEND_INTERVAL: settings.pu_state_send_interval,
             ReservedEnvVariableName.PU_MIN_LOG_LEVEL: LogLevel.DEBUG.value,
             ReservedEnvVariableName.PU_MAX_LOG_LENGTH: 64,
