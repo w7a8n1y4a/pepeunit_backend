@@ -41,7 +41,7 @@ class RepoRepository(BaseRepository):
         versions = (
             self.db.query(Unit.current_commit_version, func.count(Unit.uuid))
             .filter(
-                Unit.current_commit_version is not None,
+                Unit.current_commit_version.isnot(None),
                 Unit.repo_uuid == repo.uuid,
             )
             .group_by(Unit.current_commit_version)
@@ -50,7 +50,7 @@ class RepoRepository(BaseRepository):
         count_with_version = (
             self.db.query(Unit)
             .filter(
-                Unit.current_commit_version is not None,
+                Unit.current_commit_version.isnot(None),
                 Unit.repo_uuid == repo.uuid,
             )
             .count()
@@ -71,7 +71,6 @@ class RepoRepository(BaseRepository):
         versions_list = []
         for commit, count in versions:
             tag = list(filter(lambda item: item["commit"] == commit, tags))
-
             versions_list.append(
                 RepoVersionRead(
                     commit=commit,
