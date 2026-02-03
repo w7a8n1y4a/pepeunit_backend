@@ -283,7 +283,7 @@ class ControlEmqx:
                 "exclusive_subscription": False,
                 "use_username_as_clientid": False,
                 "idle_timeout": "15s",
-                "mqueue_store_qos0": True,
+                "mqueue_store_qos0": False,
                 "upgrade_qos": False,
                 "mqueue_priorities": "disabled",
                 "strict_mode": False,
