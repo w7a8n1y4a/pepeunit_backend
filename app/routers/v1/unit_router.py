@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import uuid as uuid_pkg
@@ -49,11 +48,11 @@ def get(
     return UnitRead(**unit_service.get(uuid).to_dict())
 
 
-@router.get("/env/{uuid}", response_model=str)
+@router.get("/env/{uuid}", response_model=dict)
 def get_env(
     uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
 ):
-    return json.dumps(unit_service.get_env(uuid))
+    return unit_service.get_env(uuid)
 
 
 @router.get("/get_target_version/{uuid}", response_model=TargetVersionRead)
@@ -63,11 +62,11 @@ def get_target_version(
     return unit_service.get_target_version(uuid)
 
 
-@router.get("/get_current_schema/{uuid}", response_model=str)
+@router.get("/get_current_schema/{uuid}", response_model=dict)
 def get_current_schema(
     uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
 ):
-    return json.dumps(unit_service.get_current_schema(uuid))
+    return unit_service.get_current_schema(uuid)
 
 
 @router.get("/firmware/zip/{uuid}", response_model=bytes)
