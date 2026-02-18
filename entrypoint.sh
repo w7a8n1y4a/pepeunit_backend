@@ -33,6 +33,8 @@ alembic upgrade head
 echo "Del old lock files"
 rm -rf tmp/*.lock
 
+export PROMETHEUS_MULTIPROC_DIR="${PU_PROMETHEUS_MULTIPROC_DIR:-./prometheus_metrics}"
+
 gunicorn app.main:app \
     --bind 0.0.0.0:5000 \
     --config gunicorn_conf.py \
