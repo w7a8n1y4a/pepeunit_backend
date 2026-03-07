@@ -94,9 +94,7 @@ def test_update_repo(database, cc) -> None:
 
         new_repo_state = RepoUpdate(
             default_branch=repository_registry.branches[0],
-            is_only_tag_update=True
-            if update_repo.is_compilable_repo
-            else update_repo.is_only_tag_update,
+            is_only_tag_update=update_repo.is_compilable_repo,
         )
         repo_service.update(update_repo.uuid, new_repo_state)
 
