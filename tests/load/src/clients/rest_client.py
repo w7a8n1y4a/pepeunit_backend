@@ -229,7 +229,7 @@ class RestClient:
         unit_env_link = f"{self.config.url}/pepeunit/api/v1/units/env/{unit['uuid']}"
         response = await client.get(unit_env_link, headers=self.headers)
         if response.status_code == 200:
-            unit["env"] = json.loads(json.loads(response.text))
+            unit["env"] = json.loads(response.text)
         else:
             unit["env"] = None
         return unit
