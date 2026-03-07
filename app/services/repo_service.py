@@ -90,6 +90,9 @@ class RepoService:
         if repo.is_compilable_repo:
             repo.is_auto_update_repo = True
             repo.is_only_tag_update = True
+        else:
+            repo.is_auto_update_repo = True
+            repo.is_only_tag_update = True
 
         repo.create_datetime = datetime.datetime.now(datetime.UTC)
         repo.last_update_datetime = repo.create_datetime
