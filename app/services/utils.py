@@ -82,7 +82,9 @@ def dict_to_yml_file(yml_dict: dict) -> str:
 class TomlToMdConverter:
     def __init__(self, data: dict) -> None:
         self.general = data.get("general") or {}
+        self.video = data.get("video") or {}
         self.images = data.get("images") or {}
+        self.models = data.get("models") or {}
         self.files = data.get("files") or {}
         self.physical_io = data.get("physical_io") or {}
         self.env_description = data.get("env_description") or {}
@@ -94,7 +96,9 @@ class TomlToMdConverter:
     def generate(self) -> str:
         self._validate_general()
         self._append_general_section()
+        self._append_video_section()
         self._append_images_section()
+        self._append_models_section()
         self._append_files_section()
         self._append_physical_io_section()
         self._append_env_description_section()
@@ -239,6 +243,26 @@ class TomlToMdConverter:
                 self.lines.append(f"{label} | {val}")
             self.lines.append("")
 
+    def _append_video_section(self) -> None:
+        video = self.video.get("video")
+        if not video:
+            return
+
+        if isinstance(video, list):
+            video = video[0] if video else None
+        if not isinstance(video, dict):
+            return
+
+        preview = (video.get("preview") or "").strip()
+        link = (video.get("link") or "").strip()
+        if not preview or not link:
+            return
+
+        self.lines.append("## Video")
+        self.lines.append("")
+        self.lines.append(f"[![video]({preview})]({link})")
+        self.lines.append("")
+
     def _append_images_section(self) -> None:
         if not self.images:
             return
@@ -262,6 +286,33 @@ class TomlToMdConverter:
                     f'<div align="center"><img align="center" src="{urls}"></div>'
                 )
             self.lines.append("")
+
+    def _append_models_section(self) -> None:
+        models = self.models.get("models")
+        if not isinstance(models, list) or not models:
+            return
+
+        rows: list[tuple[str, str, str]] = []
+        for item in models:
+            if not isinstance(item, dict):
+                continue
+            version = (item.get("version") or "").strip()
+            description = (item.get("description") or "").strip()
+            link = (item.get("link") or "").strip()
+            if not link:
+                continue
+            rows.append((version, description, f"[link]({link})"))
+
+        if not rows:
+            return
+
+        self.lines.append("## Models")
+        self.lines.append("")
+        self.lines.append("Version | Description | Link")
+        self.lines.append("-- | -- | --")
+        for version, description, link_md in rows:
+            self.lines.append(f"{version} | {description} | {link_md}")
+        self.lines.append("")
 
     def _append_files_section(self) -> None:
         if not self.files:
@@ -290,8 +341,10 @@ class TomlToMdConverter:
 
         self.lines.append("## Physical IO")
         self.lines.append("")
+        self.lines.append("Key | Description")
+        self.lines.append("-- | --")
         for key, desc in self.physical_io.items():
-            self.lines.append(f"- `{key}` - {desc}")
+            self.lines.append(f"`{key}` | {desc}")
         self.lines.append("")
 
     def _append_env_description_section(self) -> None:
@@ -300,8 +353,10 @@ class TomlToMdConverter:
 
         self.lines.append("## Env variable assignment")
         self.lines.append("")
-        for i, (key, desc) in enumerate(self.env_description.items(), start=1):
-            self.lines.append(f"{i}. `{key}` - {desc}")
+        self.lines.append("Variable | Description")
+        self.lines.append("-- | --")
+        for key, desc in self.env_description.items():
+            self.lines.append(f"`{key}` | {desc}")
         self.lines.append("")
 
     def _append_topic_assignment_section(self) -> None:
@@ -310,8 +365,10 @@ class TomlToMdConverter:
 
         self.lines.append("## Assignment of Device Topics")
         self.lines.append("")
+        self.lines.append("Topic | Description")
+        self.lines.append("-- | --")
         for topic, desc in self.topic_assignment.items():
-            self.lines.append(f"- `{topic}` - {desc}")
+            self.lines.append(f"`{topic}` | {desc}")
         self.lines.append("")
 
     def _append_work_algorithm_section(self) -> None:

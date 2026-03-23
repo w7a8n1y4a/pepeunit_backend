@@ -13,9 +13,18 @@ authors = [
     {name = "Ivan Serebrennikov", email = "admin@silberworks.com"}
 ]
 
+[video]
+video = {preview = "https://minio.pepemoss.com/public-data/video/base64_streaming_prev.jpg", link = "https://www.youtube.com/watch?v=r1CpkXD_MJY"}
+
 [images]
-schema = "https://i.ibb.co/PcjGvXQ/wifi-temp-sensor.png"
-test = "https://i.ibb.co/PcjGvXQ/wifi-temp-sensor.png"
+schema = "https://minio.pepemoss.com/public-data/image/wifi_relay.png"
+test = "https://minio.pepemoss.com/public-data/image/schema_fan_4pin_unit.png"
+
+[models]
+models = [
+  {version = "v3", description = "Капсула", link = "https://minio.pepemoss.com/public-data/model/control_panel_sh1106/v3/stl/capsule_insert.stl"},
+  {version = "v3", description = "Блок для sh1106", link = "https://minio.pepemoss.com/public-data/model/control_panel_sh1106/v3/stl/capsule_panel.stl"}
+]
 
 [files]
 "Прошивка ESP8266_GENERIC-v1.26.1-PEPEUNIT-v0.10.0.bin" = "https://git.pepemoss.com/pepe/pepeunit/libs/pepeunit_micropython_client/-/package_files/43/download"
