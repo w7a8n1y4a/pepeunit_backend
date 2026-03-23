@@ -11,7 +11,7 @@ stages:
 build:image:master:
   stage: build
   tags:
-    - shell-build-runer
+    - shell-main-pc
   rules:
     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
       when: on_success
@@ -48,7 +48,7 @@ deploy:image:master:
 module_test:image:master:
   stage: test
   tags:
-    - shell-build-runer
+    - shell-main-pc
   variables:
     PROJ: pepeunit-backend-dev
   rules:
@@ -64,7 +64,7 @@ module_test:image:master:
 integration_test:image:master:
   stage: test
   tags:
-    - shell-build-runer
+    - shell-main-pc
   variables:
     PROJ: pepeunit-backend-dev
   rules:
@@ -93,7 +93,7 @@ integration_test:image:master:
 load_test_api:image:master:
   stage: test
   tags:
-    - shell-build-runer
+    - shell-main-pc
   variables:
     PROJ: pepeunit-backend-dev
   rules:
@@ -122,7 +122,7 @@ load_test_api:image:master:
 load_test_mqtt:image:master:
   stage: test
   tags:
-    - shell-build-runer
+    - shell-main-pc
   variables:
     PROJ: pepeunit-backend-dev
   rules:
