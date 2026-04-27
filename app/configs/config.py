@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     pu_telegram_items_per_page: int = 7
     pu_telegram_header_entity_length: int = 15
     pu_telegram_git_hash_length: int = 8
+    pu_telegram_proxy_url: str = ""
 
     pu_prometheus_multiproc_dir: str = "./prometheus_metrics"
 

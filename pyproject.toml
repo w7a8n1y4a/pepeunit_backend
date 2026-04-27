@@ -28,6 +28,7 @@ dependencies = [
     "strawberry-graphql>=0.220.0",
     "gunicorn>=21.2.0",
     "aiogram>=3.6.0",
+    "aiohttp-socks>=0.10.1",
     "pydantic-settings>=2.2.1",
     "toml>=0.10.2",
     "setuptools>=70.0.0",

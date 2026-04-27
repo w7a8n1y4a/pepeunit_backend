@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager, suppress
 import aiogram.exceptions
 import httpx
 from aiogram import Bot, Dispatcher, types
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
 from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
@@ -314,8 +315,22 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
+def _build_telegram_bot_session() -> AiohttpSession | None:
+    if not settings.pu_telegram_proxy_url:
+        return None
+
+    logging.info("Telegram bot will use proxy")
+
+    return AiohttpSession(proxy=settings.pu_telegram_proxy_url)
+
+
 if settings.pu_ff_telegram_bot_enable:
-    bot = Bot(token=settings.pu_telegram_token)
+    _telegram_session = _build_telegram_bot_session()
+    bot = (
+        Bot(token=settings.pu_telegram_token, session=_telegram_session)
+        if _telegram_session is not None
+        else Bot(token=settings.pu_telegram_token)
+    )
     storage = RedisStorage.from_url(
         settings.pu_redis_url,
         key_builder=DefaultKeyBuilder(with_destiny=True),
