@@ -1,6 +1,6 @@
 [project]
 name = "pepeunit-backend"
-version = "1.2.0"
+version = "1.2.1"
 description = "Pepeunit - Federated IoT Platform"
 authors = [
     {name = "Ivan Serebrennikov", email = "admin@silberworks.com"}
