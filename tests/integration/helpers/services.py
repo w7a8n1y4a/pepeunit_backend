@@ -9,6 +9,7 @@ from app.configs.rest import (
 )
 from app.schemas.pydantic.repo import RepoCreate
 from app.schemas.pydantic.repository_registry import CommitFilter
+from app.schemas.pydantic.user import UserAuth
 
 
 def user_service(database, cc, token=None):
@@ -63,3 +64,9 @@ def branch_commits(database, token, registry_uuid, *, only_tag: bool = False):
         CommitFilter(repo_branch=read.branches[0], only_tag=only_tag),
     )
     return read, commits
+
+
+def token_for(database, cc, login: str, password: str) -> str:
+    return user_service(database, cc, None).get_token(
+        UserAuth(credentials=login, password=password)
+    )

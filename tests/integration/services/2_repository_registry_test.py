@@ -1,13 +1,15 @@
 import logging
 import os
+from datetime import UTC, datetime
 
 import pytest
 
 from app import settings
-from app.configs.errors import GitRepoError, RepositoryRegistryError
+from app.configs.errors import GitRepoError, NoAccessError, RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import CredentialStatus, RepositoryRegistryStatus
 from app.schemas.pydantic.repository_registry import (
+    CommitFilter,
     Credentials,
     RepositoryRegistryCreate,
     RepositoryRegistryFilter,
@@ -58,8 +60,6 @@ def test_get_commits_repository(universal_registry, regular_user_token, database
     logging.info(universal_registry.uuid)
     target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
 
-    from app.schemas.pydantic.repository_registry import CommitFilter
-
     branch_commits = service.get_branch_commits(
         universal_registry.uuid,
         CommitFilter(repo_branch=target_branch, limit=settings.pu_max_pagination_size),
@@ -70,7 +70,6 @@ def test_get_commits_repository(universal_registry, regular_user_token, database
 def test_get_commits_bad_branch(universal_registry, regular_user_token, database) -> None:
     service = registry_service(database, regular_user_token)
     target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
-    from app.schemas.pydantic.repository_registry import CommitFilter
 
     with pytest.raises(GitRepoError):
         service.get_branch_commits(
@@ -121,6 +120,33 @@ def test_get_set_credentials_public_fails(
         )
 
 
+@pytest.mark.private_repo
+def test_invalid_credentials_private(
+    private_registry, regular_user_token, database
+) -> None:
+    service = registry_service(database, regular_user_token)
+    original = service.get_credentials(private_registry.uuid)
+    service.set_credentials(
+        private_registry.uuid,
+        Credentials(username="invalid-user", pat_token="invalid-token"),
+    )
+    assert (
+        service.get_credentials(private_registry.uuid).status
+        == CredentialStatus.ERROR.value
+    )
+    service.set_credentials(
+        private_registry.uuid,
+        Credentials(
+            username=original.credentials.username,
+            pat_token=original.credentials.pat_token,
+        ),
+    )
+    assert (
+        service.get_credentials(private_registry.uuid).status
+        == CredentialStatus.VALID.value
+    )
+
+
 def test_get_many_repository(
     public_registries, regular_user, regular_user_token, database
 ) -> None:
@@ -162,3 +188,45 @@ def test_update_local_repository(
     service.update_local_repository(github_public_registry.uuid)
     repository_registry_api = service.get(github_public_registry.uuid)
     assert repository_registry_api.sync_status == RepositoryRegistryStatus.UPDATED
+
+
+def test_get_commits_only_tag(
+    universal_registry, regular_user_token, database
+) -> None:
+    service = registry_service(database, regular_user_token)
+    target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
+    commits = service.get_branch_commits(
+        universal_registry.uuid,
+        CommitFilter(repo_branch=target_branch, only_tag=True),
+    )
+    assert commits
+    assert all(item.tag for item in commits)
+
+
+def test_sync_not_available_while_processing(
+    github_public_registry, regular_user_token, database
+) -> None:
+    service = registry_service(database, regular_user_token)
+    registry = service.get(github_public_registry.uuid)
+    original_status = registry.sync_status
+    registry.sync_status = RepositoryRegistryStatus.PROCESSING
+    registry.sync_last_datetime = datetime.now(UTC)
+    registry.last_update_datetime = datetime.now(UTC)
+    service.repository_registry_repository.update(registry.uuid, registry)
+    try:
+        with pytest.raises(RepositoryRegistryError):
+            service.update_local_repository(github_public_registry.uuid)
+    finally:
+        registry = service.get(github_public_registry.uuid)
+        registry.sync_status = original_status
+        registry.sync_error = None
+        service.repository_registry_repository.update(registry.uuid, registry)
+
+
+def test_backend_force_sync_requires_backend(
+    regular_user_token, database
+) -> None:
+    with pytest.raises(NoAccessError):
+        registry_service(
+            database, regular_user_token
+        ).backend_force_sync_local_repository_storage()

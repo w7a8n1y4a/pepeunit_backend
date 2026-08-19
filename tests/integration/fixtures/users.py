@@ -80,3 +80,8 @@ def extra_user(database, cc) -> User:
     user._test_password = password
     yield user
     UserRepository(db=database).delete(User(uuid=user.uuid))
+
+
+@pytest.fixture
+def extra_user_token(database, cc, extra_user) -> str:
+    return _token_for(database, cc, extra_user.login, extra_user._test_password)

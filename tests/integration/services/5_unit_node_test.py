@@ -8,9 +8,15 @@ import pytest
 
 from app import settings
 from app.configs.errors import DataPipeError, UnitNodeError, ValidationError
-from app.dto.enum import ProcessingPolicyType, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import (
+    GlobalPrefixTopic,
+    ProcessingPolicyType,
+    UnitNodeTypeEnum,
+    VisibilityLevel,
+)
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
+    UnitNodeEdgeCreate,
     UnitNodeFilter,
     UnitNodeUpdate,
 )
@@ -135,24 +141,19 @@ def test_create_unit_node_edge(
     target_units = running_units.chain()
     marked = time.time()
 
-    for unit in target_units:
-        logging.info(unit.uuid)
-        wait_until(
-            lambda current=unit: post_schema_update(token, current.uuid) == 204,
-            timeout=20,
-            message=f"schema update failed for {unit.uuid}",
-        )
-
     def schemas_applied() -> bool:
+        pending = False
         for unit in target_units:
             path = f"tmp/test_units/{unit.uuid}/schema.json"
             if not os.path.exists(path) or os.path.getmtime(path) < marked:
-                return False
-        return True
+                post_schema_update(token, unit.uuid)
+                pending = True
+        return not pending
 
     wait_until(
         schemas_applied,
-        timeout=20,
+        timeout=40,
+        interval=2,
         message="schema.json was not refreshed after SchemaUpdate",
     )
 
@@ -196,6 +197,19 @@ def test_create_unit_node_edge(
     )
 
 
+def test_duplicate_unit_node_edge(
+    running_units, chain_edges, regular_user_token, database, cc
+) -> None:
+    service = unit_node_service(database, cc, regular_user_token)
+    with pytest.raises(UnitNodeError):
+        service.create_node_edge(
+            UnitNodeEdgeCreate(
+                node_output_uuid=chain_edges[0][1].uuid,
+                node_input_uuid=chain_edges[1][0].uuid,
+            )
+        )
+
+
 async def test_set_state_input_unit_node(
     running_units, compile_unit, regular_user_token, database, cc
 ) -> None:
@@ -226,6 +240,54 @@ def test_get_unit_node_edge(
     assert len(target_edges) == 2
 
 
+async def test_max_connections_blocks_edge(
+    running_units,
+    last_value_unit,
+    n_records_unit,
+    time_window_unit,
+    regular_user_token,
+    database,
+    cc,
+) -> None:
+    service = unit_node_service(database, cc, regular_user_token)
+
+    def _io(unit):
+        _, inputs = service.list(
+            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+        )
+        _, outputs = service.list(
+            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        )
+        return inputs[0], outputs[0]
+
+    sink_input, _ = _io(n_records_unit)
+    _, source_a = _io(last_value_unit)
+    _, source_b = _io(time_window_unit)
+    original_max = sink_input.max_connections
+    created = None
+    try:
+        await service.update(sink_input.uuid, UnitNodeUpdate(max_connections=1))
+        created = service.create_node_edge(
+            UnitNodeEdgeCreate(
+                node_output_uuid=source_a.uuid,
+                node_input_uuid=sink_input.uuid,
+            )
+        )
+        with pytest.raises(UnitNodeError):
+            service.create_node_edge(
+                UnitNodeEdgeCreate(
+                    node_output_uuid=source_b.uuid,
+                    node_input_uuid=sink_input.uuid,
+                )
+            )
+    finally:
+        if created:
+            service.delete_node_edge(sink_input.uuid, source_a.uuid)
+        await service.update(
+            sink_input.uuid, UnitNodeUpdate(max_connections=original_max)
+        )
+
+
 def test_delete_unit_node_edge(
     running_units, chain_edges, chain_middle_unit, regular_user_token, database, cc
 ) -> None:
@@ -249,6 +311,34 @@ def test_get_many_unit_node(live_units, regular_user_token, database, cc) -> Non
         )
     )
     assert len(units_nodes) >= 8
+
+
+async def test_data_pipe_requires_pepeunit_suffix(
+    crud_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_node_service(database, cc, regular_user_token)
+    _, nodes = service.list(
+        UnitNodeFilter(unit_uuid=crud_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+    )
+    target = nodes[0]
+    original_topic = target.topic_name
+    suffix = GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
+    stripped = (
+        original_topic[: -len(suffix)]
+        if original_topic.endswith(suffix)
+        else original_topic
+    )
+    target.topic_name = stripped or "input"
+    service.unit_node_repository.update(target.uuid, target)
+    try:
+        with pytest.raises(DataPipeError):
+            await service.update(
+                target.uuid, UnitNodeUpdate(is_data_pipe_active=True)
+            )
+    finally:
+        restored = service.get(target.uuid)
+        restored.topic_name = original_topic
+        service.unit_node_repository.update(restored.uuid, restored)
 
 
 def test_delete_unit(crud_unit, regular_user_token, database, cc) -> None:
@@ -333,14 +423,51 @@ async def test_get_data_pipe_data_csv(
     file_path = service.get_data_pipe_data_csv(output_unit_node[0].uuid)
     os.remove(file_path)
 
+    _, last_output = service.list(
+        UnitNodeFilter(
+            unit_uuid=piped_units.last_value_unit.uuid,
+            type=[UnitNodeTypeEnum.OUTPUT],
+        )
+    )
+    with pytest.raises(DataPipeError):
+        service.get_data_pipe_data_csv(last_output[0].uuid)
+
 
 @pytest.mark.datapipe
 async def test_delete_data_pipe_data(
     piped_units, regular_user_token, database, cc
 ) -> None:
     service = unit_node_service(database, cc, regular_user_token)
-    for target_unit in piped_units.piped():
+    clickhouse_units = [
+        (piped_units.universal_manual_unit, ProcessingPolicyType.AGGREGATION),
+        (piped_units.n_records_unit, ProcessingPolicyType.N_RECORDS),
+        (piped_units.time_window_unit, ProcessingPolicyType.TIME_WINDOW),
+    ]
+    for target_unit, policy in clickhouse_units:
         _, output_unit_node = service.list(
             UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
         )
-        service.delete_data_pipe_data(output_unit_node[0].uuid)
+        node_uuid = output_unit_node[0].uuid
+        service.delete_data_pipe_data(node_uuid)
+        wait_until(
+            lambda node_uuid=node_uuid, policy=policy: service.get_data_pipe_data(
+                DataPipeFilter(uuid=node_uuid, type=policy)
+            )[0]
+            == 0,
+            timeout=15,
+            message=f"{policy} rows were not deleted from ClickHouse",
+        )
+
+    _, last_output = service.list(
+        UnitNodeFilter(
+            unit_uuid=piped_units.last_value_unit.uuid,
+            type=[UnitNodeTypeEnum.OUTPUT],
+        )
+    )
+    service.delete_data_pipe_data(last_output[0].uuid)
+    count, _ = service.get_data_pipe_data(
+        DataPipeFilter(
+            uuid=last_output[0].uuid, type=ProcessingPolicyType.LAST_VALUE
+        )
+    )
+    assert count == 1

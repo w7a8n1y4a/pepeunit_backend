@@ -10,7 +10,7 @@ from app.domain.user_model import User
 from app.dto.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
-from tests.integration.helpers.names import REGULAR_USER_PASSWORD
+from tests.integration.helpers.names import REGULAR_USER_PASSWORD, unique_name
 from tests.integration.helpers.services import user_service
 
 
@@ -132,11 +132,60 @@ def test_update_user_login_exists(
 
 
 def test_update_user_password(database, cc, extra_user) -> None:
+    old_password = extra_user._test_password
     token = user_service(database, cc, None).get_token(
-        UserAuth(credentials=extra_user.login, password=extra_user._test_password)
+        UserAuth(credentials=extra_user.login, password=old_password)
     )
     service = user_service(database, cc, token)
-    service.update(UserUpdate(password="password"))
+    service.update(UserUpdate(password="password1"))
+
+    new_token = user_service(database, cc, None).get_token(
+        UserAuth(credentials=extra_user.login, password="password1")
+    )
+    assert new_token
+    with pytest.raises(NoAccessError):
+        user_service(database, cc, None).get_token(
+            UserAuth(credentials=extra_user.login, password=old_password)
+        )
+
+
+def test_get_user(database, cc, regular_user, regular_user_token) -> None:
+    service = user_service(database, cc, regular_user_token)
+    fetched = service.get(regular_user.uuid)
+    assert fetched.uuid == regular_user.uuid
+    assert fetched.login == regular_user.login
+
+
+def test_create_user_invalid_password(database, cc) -> None:
+    service = user_service(database, cc, None)
+    with pytest.raises(UserError):
+        service.create(UserCreate(login=unique_name("badpw"), password="short"))
+
+
+def test_subsequent_user_is_not_admin(extra_user) -> None:
+    assert extra_user.role == UserRole.USER
+
+
+def test_blocked_user_token(
+    database, cc, extra_user, extra_user_token, admin_user_token
+) -> None:
+    fetched = user_service(database, cc, extra_user_token).get(extra_user.uuid)
+    assert fetched.uuid == extra_user.uuid
+
+    user_service(database, cc, admin_user_token).block(extra_user.uuid)
+    with pytest.raises(NoAccessError):
+        user_service(database, cc, extra_user_token).get(extra_user.uuid)
+
+
+def test_get_grafana_token(
+    database, cc, regular_user, regular_user_token
+) -> None:
+    grafana_token = user_service(
+        database, cc, regular_user_token
+    ).get_grafana_token()
+    assert grafana_token
+    fetched = user_service(database, cc, grafana_token).get(regular_user.uuid)
+    assert fetched.uuid == regular_user.uuid
 
 
 def test_get_many_user(database, cc, admin_user_token, test_hash, regular_user) -> None:

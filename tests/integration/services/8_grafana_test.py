@@ -9,10 +9,13 @@ from io import StringIO
 import pytest
 from fastapi import UploadFile
 
-from app.configs.errors import GrafanaError
+from app import settings
+from app.configs.errors import GrafanaError, NoAccessError
+from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.enum import (
     DashboardPanelTypeEnum,
     DashboardStatus,
+    DatasourceFormat,
     ProcessingPolicyType,
     UnitNodeTypeEnum,
 )
@@ -20,11 +23,17 @@ from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
     DashboardPanelCreate,
+    DatasourceFilter,
     LinkUnitNodeToPanel,
 )
-from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.schemas.pydantic.unit_node import DataPipeFilter, UnitNodeFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
-from tests.integration.helpers.services import grafana_service, unit_node_service
+from tests.integration.helpers.names import unique_name
+from tests.integration.helpers.services import (
+    grafana_service,
+    unit_node_service,
+    user_service,
+)
 
 
 @pytest.mark.grafana
@@ -225,6 +234,128 @@ def test_create_link_unit_node_to_panel(
             is_last_data=False,
         )
     )
+
+
+@pytest.mark.grafana
+@pytest.mark.datapipe
+def test_get_aggregation_pipe_data_after_import(
+    grafana_panels,
+    piped_units,
+    regular_user_token,
+    database,
+    cc,
+) -> None:
+    service = unit_node_service(database, cc, regular_user_token)
+    _, input_nodes = service.list(
+        UnitNodeFilter(
+            unit_uuid=piped_units.universal_manual_unit.uuid,
+            type=[UnitNodeTypeEnum.INPUT],
+        )
+    )
+    count, rows = service.get_data_pipe_data(
+        DataPipeFilter(
+            uuid=input_nodes[0].uuid, type=ProcessingPolicyType.AGGREGATION
+        )
+    )
+    assert count > 0
+    assert rows
+
+
+@pytest.mark.grafana
+@pytest.mark.datapipe
+def test_grafana_datasource_data(
+    grafana_panels,
+    piped_units,
+    regular_user_token,
+    database,
+    cc,
+) -> None:
+    node_svc = unit_node_service(database, cc, regular_user_token)
+    panels, _ = grafana_panels
+    _, input_nodes = node_svc.list(
+        UnitNodeFilter(
+            unit_uuid=piped_units.universal_manual_unit.uuid,
+            type=[UnitNodeTypeEnum.INPUT],
+        )
+    )
+    token = AgentGrafanaUnitNode(
+        uuid=input_nodes[0].uuid,
+        panel_uuid=panels[0].uuid,
+        name="grafana",
+    ).generate_agent_token()
+    data = grafana_service(database, cc, token).get_datasource_data(
+        DatasourceFilter(format=DatasourceFormat.TIME_SERIES)
+    )
+    assert data
+    assert data[0].time is not None
+
+    with pytest.raises(NoAccessError):
+        grafana_service(
+            database, cc, regular_user_token
+        ).get_datasource_data(
+            DatasourceFilter(format=DatasourceFormat.TIME_SERIES)
+        )
+
+
+@pytest.mark.grafana
+def test_create_org_if_not_exists(
+    regular_user, regular_user_token, database, cc
+) -> None:
+    service = user_service(database, cc, regular_user_token)
+    service.create_org_if_not_exists(regular_user.uuid)
+    assert service.get(regular_user.uuid).grafana_org_id
+
+
+@pytest.mark.grafana
+def test_panel_unit_node_limit(
+    live_units, regular_user_token, database, cc
+) -> None:
+    grafana = grafana_service(database, cc, regular_user_token)
+    node_svc = unit_node_service(database, cc, regular_user_token)
+    dashboard = grafana.create_dashboard(
+        DashboardCreate(name=unique_name("gflim"))
+    )
+    panel = grafana.create_dashboard_panel(
+        DashboardPanelCreate(
+            dashboard_uuid=dashboard.uuid,
+            title="LimitPanel",
+            type=DashboardPanelTypeEnum.TIME_SERIES,
+        )
+    )
+    nodes = []
+    for unit in live_units.all():
+        _, unit_nodes = node_svc.list(
+            UnitNodeFilter(
+                unit_uuid=unit.uuid,
+                type=[item.value for item in UnitNodeTypeEnum],
+                offset=0,
+                limit=settings.pu_max_pagination_size,
+            )
+        )
+        nodes.extend(unit_nodes)
+    limit = settings.pu_grafana_limit_unit_node_per_one_panel
+    assert len(nodes) > limit
+    try:
+        for node in nodes[:limit]:
+            grafana.link_unit_node_to_panel(
+                LinkUnitNodeToPanel(
+                    unit_node_uuid=node.uuid,
+                    dashboard_panels_uuid=panel.uuid,
+                    is_forced_to_json=False,
+                    is_last_data=False,
+                )
+            )
+        with pytest.raises(GrafanaError):
+            grafana.link_unit_node_to_panel(
+                LinkUnitNodeToPanel(
+                    unit_node_uuid=nodes[limit].uuid,
+                    dashboard_panels_uuid=panel.uuid,
+                    is_forced_to_json=False,
+                    is_last_data=False,
+                )
+            )
+    finally:
+        grafana.delete_dashboard(dashboard.uuid)
 
 
 @pytest.mark.grafana

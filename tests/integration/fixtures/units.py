@@ -252,21 +252,48 @@ def chain_edges(running_units, regular_user_token, database, cc):
     return io_units_list
 
 
-@pytest.fixture
-def crud_unit(universal_public_repo, regular_user_token, database, cc):
-    token = regular_user_token
-    read, commits = branch_commits(
-        database, token, universal_public_repo.repository_registry_uuid
-    )
-    unit = unit_service(database, cc, token).create(
+def _create_crud_unit(database, cc, token, repo, visibility_level, name: str):
+    read, commits = branch_commits(database, token, repo.repository_registry_uuid)
+    return unit_service(database, cc, token).create(
         UnitCreate(
-            repo_uuid=universal_public_repo.uuid,
-            visibility_level=VisibilityLevel.PUBLIC,
-            name=unique_name("ucrud"),
+            repo_uuid=repo.uuid,
+            visibility_level=visibility_level,
+            name=name,
             is_auto_update_from_repo_unit=False,
             repo_branch=read.branches[0],
             repo_commit=commits[0].commit,
         )
+    )
+
+
+@pytest.fixture
+def crud_unit(universal_public_repo, regular_user_token, database, cc):
+    token = regular_user_token
+    unit = _create_crud_unit(
+        database,
+        cc,
+        token,
+        universal_public_repo,
+        VisibilityLevel.PUBLIC,
+        unique_name("ucrud"),
+    )
+    yield unit
+    try:
+        unit_service(database, cc, token).delete(unit.uuid)
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def private_crud_unit(universal_public_repo, regular_user_token, database, cc):
+    token = regular_user_token
+    unit = _create_crud_unit(
+        database,
+        cc,
+        token,
+        universal_public_repo,
+        VisibilityLevel.PRIVATE,
+        unique_name("upriv"),
     )
     yield unit
     try:

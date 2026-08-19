@@ -165,6 +165,16 @@ def test_check_visibility_private_disallowed(
         authorization_service.check_visibility(entity)
 
 
+def test_check_visibility_private_bot_disallowed(
+    authorization_service, mock_agent
+):
+    mock_agent.type = AgentType.BOT
+    entity = MagicMock()
+    entity.visibility_level = VisibilityLevel.PRIVATE
+    with pytest.raises(NoAccessError):
+        authorization_service.check_visibility(entity)
+
+
 def test_access_restriction(
     authorization_service, mock_permission_repo, mock_agent
 ):

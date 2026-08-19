@@ -10,16 +10,27 @@ from app.configs.clickhouse import get_clickhouse_client
 from app.configs.errors import (
     CipherError,
     GitRepoError,
+    MqttError,
     NoAccessError,
     ReadmeGenerationError,
     UnitError,
     ValidationError,
 )
 from app.domain.repo_model import Repo
-from app.dto.enum import BackendTopicCommand, ReservedEnvVariableName, VisibilityLevel
+from app.dto.agent.abc import AgentBackend
+from app.dto.enum import (
+    BackendTopicCommand,
+    DestinationTopicType,
+    GlobalPrefixTopic,
+    ReservedEnvVariableName,
+    UnitNodeTypeEnum,
+    VisibilityLevel,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.repo import RepoUpdate
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
+from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.services.utils import get_topic_name
 from app.utils.utils import aes_gcm_encode
 from tests.integration.helpers.http import (
     patch_repo,
@@ -31,6 +42,7 @@ from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     branch_commits,
     repo_service,
+    unit_node_service,
     unit_service,
 )
 from tests.integration.helpers.wait import wait_until
@@ -469,3 +481,155 @@ async def test_convert_toml_file_to_md(regular_user_token, database, cc) -> None
             bad_content = handle.read()
         with pytest.raises(ReadmeGenerationError):
             await service.convert_toml_file_to_md(DummyUploadFile(bad_content))
+
+
+def test_get_current_schema(
+    live_units, regular_user_token, database, cc
+) -> None:
+    schema = unit_service(database, cc, regular_user_token).get_current_schema(
+        live_units.universal_auto_unit.uuid
+    )
+    assert DestinationTopicType.INPUT_TOPIC.value in schema
+    assert DestinationTopicType.OUTPUT_TOPIC.value in schema
+
+
+def test_get_firmware_archives(
+    unpacked_firmwares, compile_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    zip_path = service.get_unit_firmware_zip(compile_unit.uuid)
+    tar_path = service.get_unit_firmware_tar(compile_unit.uuid)
+    try:
+        assert os.path.exists(zip_path)
+        assert os.path.exists(tar_path)
+        assert os.path.getsize(zip_path) > 0
+        assert os.path.getsize(tar_path) > 0
+    finally:
+        os.remove(zip_path)
+        os.remove(tar_path)
+
+
+def test_list_units_with_output_nodes(
+    live_units, regular_user, regular_user_token, database, cc
+) -> None:
+    count, units = unit_service(database, cc, regular_user_token).list(
+        UnitFilter(
+            creator_uuid=regular_user.uuid,
+            unit_node_type=[item.value for item in UnitNodeTypeEnum],
+            unit_node_uuids=[],
+        ),
+        is_include_output_unit_nodes=True,
+    )
+    assert count >= 1
+    assert any(nodes for _, nodes in units)
+
+
+def test_update_units_firmware(
+    running_units, universal_private_repo, regular_user_token, database, cc
+) -> None:
+    repo_service(database, cc, regular_user_token).update_units_firmware(
+        universal_private_repo.uuid
+    )
+
+
+def _mqtt_base_topic(unit, destination: DestinationTopicType, name: str = "update") -> str:
+    return (
+        f"{settings.pu_domain}/{destination.value}/{unit.uuid}/"
+        f"{name}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}"
+    )
+
+
+def test_mqtt_auth_own_base_topic(
+    compile_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    unit_token = service.generate_token(compile_unit.uuid)
+    unit_svc = unit_service(database, cc, unit_token)
+    unit_svc.get_mqtt_auth(
+        _mqtt_base_topic(compile_unit, DestinationTopicType.INPUT_BASE_TOPIC)
+    )
+    unit_svc.get_mqtt_auth(
+        _mqtt_base_topic(compile_unit, DestinationTopicType.OUTPUT_BASE_TOPIC)
+    )
+
+
+def test_mqtt_auth_foreign_base_topic(
+    compile_unit, chain_sink_unit, regular_user_token, database, cc
+) -> None:
+    unit_token = unit_service(database, cc, regular_user_token).generate_token(
+        compile_unit.uuid
+    )
+    with pytest.raises(NoAccessError):
+        unit_service(database, cc, unit_token).get_mqtt_auth(
+            _mqtt_base_topic(chain_sink_unit, DestinationTopicType.INPUT_BASE_TOPIC)
+        )
+
+
+def test_mqtt_auth_invalid_destination(
+    compile_unit, regular_user_token, database, cc
+) -> None:
+    unit_token = unit_service(database, cc, regular_user_token).generate_token(
+        compile_unit.uuid
+    )
+    with pytest.raises(NoAccessError):
+        unit_service(database, cc, unit_token).get_mqtt_auth(
+            _mqtt_base_topic(compile_unit, DestinationTopicType.INPUT_TOPIC)
+        )
+
+
+def test_mqtt_auth_invalid_topic_struct(
+    compile_unit, regular_user_token, database, cc
+) -> None:
+    unit_token = unit_service(database, cc, regular_user_token).generate_token(
+        compile_unit.uuid
+    )
+    with pytest.raises(MqttError):
+        unit_service(database, cc, unit_token).get_mqtt_auth(
+            f"{settings.pu_domain}/a/b/c"
+        )
+
+
+def test_mqtt_auth_node_topics(
+    compile_unit,
+    chain_sink_unit,
+    universal_manual_unit,
+    regular_user_token,
+    database,
+    cc,
+) -> None:
+    unit_token = unit_service(database, cc, regular_user_token).generate_token(
+        compile_unit.uuid
+    )
+    node_svc = unit_node_service(database, cc, regular_user_token)
+    _, public_nodes = node_svc.list(
+        UnitNodeFilter(
+            unit_uuid=universal_manual_unit.uuid, type=[UnitNodeTypeEnum.INPUT]
+        )
+    )
+    unit_service(database, cc, unit_token).get_mqtt_auth(
+        get_topic_name(public_nodes[0].uuid, public_nodes[0].topic_name)
+    )
+
+    _, private_nodes = node_svc.list(
+        UnitNodeFilter(unit_uuid=chain_sink_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+    )
+    with pytest.raises(NoAccessError):
+        unit_service(database, cc, unit_token).get_mqtt_auth(
+            get_topic_name(private_nodes[0].uuid, private_nodes[0].topic_name)
+        )
+
+
+def test_mqtt_auth_backend_wildcard(regular_user_token, database, cc) -> None:
+    backend_token = AgentBackend(name=settings.pu_domain).generate_agent_token()
+    unit_service(database, cc, backend_token).get_mqtt_auth(
+        f"{settings.pu_domain}/+"
+    )
+
+
+def test_mqtt_auth_user_token_denied(
+    compile_unit, regular_user_token, database, cc
+) -> None:
+    with pytest.raises(NoAccessError):
+        unit_service(database, cc, regular_user_token).get_mqtt_auth(
+            _mqtt_base_topic(compile_unit, DestinationTopicType.INPUT_BASE_TOPIC)
+        )

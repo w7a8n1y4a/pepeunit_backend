@@ -4,6 +4,7 @@ import pytest
 
 from app import settings
 from app.configs.errors import GitRepoError, NoAccessError, RepoError, ValidationError
+from app.dto.enum import VisibilityLevel
 from app.schemas.pydantic.repo import RepoFilter, RepoUpdate
 from app.schemas.pydantic.user import UserAuth
 from tests.integration.helpers.names import unique_name
@@ -200,3 +201,19 @@ def test_get_many_repo(
         )
     )
     assert len(repos) >= 3
+
+
+def test_update_repo_visibility_blocked_by_children(
+    live_units, live_repos, regular_user_token, database, cc
+) -> None:
+    assert live_units.all()
+    service = repo_service(database, cc, regular_user_token)
+    with pytest.raises(ValidationError):
+        service.update(
+            live_repos.universal_public_repo.uuid,
+            RepoUpdate(visibility_level=VisibilityLevel.PRIVATE),
+        )
+    assert (
+        service.get(live_repos.universal_public_repo.uuid).visibility_level
+        == VisibilityLevel.PUBLIC
+    )

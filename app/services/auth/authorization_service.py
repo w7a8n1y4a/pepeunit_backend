@@ -68,30 +68,36 @@ class AuthorizationService:
             msg = "The Unit requesting the information does not have access to it"
             raise NoAccessError(msg)
 
+    def _require_user_or_unit(self, level: str) -> None:
+        if self.current_agent.type not in (AgentType.USER, AgentType.UNIT):
+            msg = f"{level} visibility level is not allowed"
+            raise NoAccessError(msg)
+
+    def _check_repository_registry_visibility(self, check_entity) -> None:
+        if (
+            not check_entity.is_public_repository
+            and self.current_agent.type == AgentType.BOT
+        ):
+            msg = "Private RepositoryRegistry is not allowed"
+            raise NoAccessError(msg)
+
     def check_visibility(self, check_entity):
         if isinstance(check_entity, RepositoryRegistry):
-            if not check_entity.is_public_repository:
-                if self.current_agent.type in [AgentType.BOT]:
-                    msg = "Private RepositoryRegistry is not allowed"
-                    raise NoAccessError(msg)
-                if self.current_agent.type == [
-                    AgentType.BACKEND,
-                    AgentType.USER,
-                    AgentType.UNIT,
-                ]:
-                    return
+            self._check_repository_registry_visibility(check_entity)
             return
 
         if (
             self.current_agent.type == AgentType.BACKEND
             or check_entity.visibility_level == VisibilityLevel.PUBLIC
         ):
-            pass
-        elif check_entity.visibility_level == VisibilityLevel.INTERNAL:
-            if self.current_agent.type not in [AgentType.USER, AgentType.UNIT]:
-                msg = "Internal visibility level is not allowed"
-                raise NoAccessError(msg)
-        elif check_entity.visibility_level == VisibilityLevel.PRIVATE:
+            return
+
+        if check_entity.visibility_level == VisibilityLevel.INTERNAL:
+            self._require_user_or_unit("Internal")
+            return
+
+        if check_entity.visibility_level == VisibilityLevel.PRIVATE:
+            self._require_user_or_unit("Private")
             permission_check = PermissionBaseType(
                 agent_type=self.current_agent.type,
                 agent_uuid=self.current_agent.uuid,
