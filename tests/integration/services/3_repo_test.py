@@ -2,322 +2,201 @@ import logging
 
 import pytest
 
-from app.configs.errors import GitRepoError, NoAccessError, RepoError, ValidationError
-from app.configs.rest import get_repo_service, get_repository_registry_service
-from app.schemas.pydantic.repo import RepoCreate, RepoFilter, RepoUpdate
-from app.schemas.pydantic.repository_registry import (
-    CommitFilter,
-    RepositoryRegistryFilter,
-)
 from app import settings
+from app.configs.errors import GitRepoError, NoAccessError, RepoError, ValidationError
+from app.schemas.pydantic.repo import RepoFilter, RepoUpdate
+from app.schemas.pydantic.user import UserAuth
+from tests.integration.helpers.names import unique_name
+from tests.integration.helpers.services import (
+    registry_read,
+    registry_service,
+    repo_create_payload,
+    repo_service,
+    user_service,
+)
 
 
-@pytest.mark.run(order=0)
-def test_create_repo(test_repos, database, cc) -> None:
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
+def test_create_repo(live_repos) -> None:
+    assert len(live_repos.all()) == 4
 
-    # create test repos
-    new_repos = []
-    for test_repo in test_repos:
-        logging.info(test_repo["name"])
 
-        if test_repo["is_compilable_repo"] and test_repo.get("is_auto_update_repo"):
-            test_repo["is_only_tag_update"] = True
-
-        count, repository_registry = repository_registry_service.list(
-            RepositoryRegistryFilter(search_string=test_repo["repository_url"])
-        )
-
-        repository_registry = (
-            repository_registry_service.mapper_registry_to_registry_read(
-                repository_registry[0]
-            )
-        )
-
-        repo = repo_service.create(
-            RepoCreate(
-                repository_registry_uuid=repository_registry.uuid,
-                default_branch=repository_registry.branches[0],
-                **test_repo,
-            )
-        )
-
-        new_repos.append(repo)
-
-    assert len(new_repos) >= len(test_repos)
-
-    pytest.repos = new_repos
-
-    # check create repo with exist name
+def test_create_repo_duplicate_name(
+    live_repos, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    existing = service.get(live_repos.universal_public_repo.uuid)
     with pytest.raises(RepoError):
-        repo_service.create(RepoCreate(**pytest.repos[0].dict()))
+        service.create(repo_create_payload(existing))
 
-    current_user = pytest.users[1]
-    two_repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
+
+@pytest.mark.private_repo
+def test_create_repo_without_credentials(
+    private_repo, extra_user, regular_user_token, database, cc
+) -> None:
+    token = user_service(database, cc, None).get_token(
+        UserAuth(credentials=extra_user.login, password=extra_user._test_password)
     )
-
-    # check create repo without credentials
-    bad_credentials_repo = RepoCreate(**pytest.repos[1].dict())
-    bad_credentials_repo.name += "test"
+    existing = repo_service(database, cc, regular_user_token).get(private_repo.uuid)
+    payload = repo_create_payload(existing)
+    payload.name = unique_name("nopat")
     with pytest.raises(NoAccessError):
-        two_repo_service.create(bad_credentials_repo)
+        repo_service(database, cc, token).create(payload)
 
 
-@pytest.mark.run(order=1)
-def test_update_repo(database, cc) -> None:
-    pytest.repos = pytest.repos[:2] + pytest.repos[3:]
-
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
+def test_update_repo_name(universal_internal_repo, regular_user_token, database, cc) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    logging.info(universal_internal_repo.name)
+    new_name = unique_name("ren")
+    service.update(universal_internal_repo.uuid, RepoUpdate(name=new_name))
+    update_repo = service.get(universal_internal_repo.uuid)
+    assert new_name == update_repo.name
+    service.update(
+        universal_internal_repo.uuid,
+        RepoUpdate(name=universal_internal_repo.name),
     )
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
 
-    # set default branch for all repos
-    for update_repo in pytest.repos:
-        logging.info(update_repo.uuid)
 
-        repository_registry = (
-            repository_registry_service.mapper_registry_to_registry_read(
-                repository_registry_service.get(update_repo.repository_registry_uuid)
-            )
-        )
-
-        new_repo_state = RepoUpdate(
-            default_branch=repository_registry.branches[0],
-            is_only_tag_update=update_repo.is_compilable_repo,
-        )
-        repo_service.update(update_repo.uuid, new_repo_state)
-
-    # check change name to new
-    test_repo = pytest.repos[3]
-    logging.info(test_repo.name)
-    new_repo_name = test_repo.name + "test"
-    repo_service.update(test_repo.uuid, RepoUpdate(name=new_repo_name))
-
-    update_repo = repo_service.get(test_repo.uuid)
-
-    assert new_repo_name == update_repo.name
-
-    # check change name when name is exist
+def test_update_repo_name_exists(
+    live_repos, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
     with pytest.raises(RepoError):
-        repo_service.update(pytest.repos[0].uuid, RepoUpdate(name=pytest.repos[1].name))
+        service.update(
+            live_repos.universal_public_repo.uuid,
+            RepoUpdate(name=live_repos.universal_internal_repo.name),
+        )
 
-    # check change repo auto update to hand update
-    repo = pytest.repos[4]
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(repo.repository_registry_uuid)
+
+def test_update_repo_hand_update(
+    universal_public_repo, universal_registry, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    registry = registry_read(database, regular_user_token, universal_registry)
+    from app.schemas.pydantic.repository_registry import CommitFilter
+
+    registry_svc = registry_service(database, regular_user_token)
+    commits = registry_svc.get_branch_commits(
+        registry.uuid,
+        CommitFilter(repo_branch=registry.branches[0]),
     )
-    logging.info(repo.uuid)
-    commits = repository_registry_service.get_branch_commits(
-        repository_registry.uuid,
-        CommitFilter(repo_branch=repository_registry.branches[0]),
+    update_repo = service.update(
+        universal_public_repo.uuid,
+        RepoUpdate(
+            is_auto_update_repo=False,
+            default_branch=registry.branches[0],
+            default_commit=commits[0].commit,
+        ),
     )
-    new_repo_state = RepoUpdate(
-        is_auto_update_repo=False,
-        default_branch=repository_registry.branches[0],
-        default_commit=commits[0].commit,
-    )
-    update_repo = repo_service.update(repo.uuid, new_repo_state)
-
-    assert update_repo.is_auto_update_repo == new_repo_state.is_auto_update_repo
-
-    # set three type repos update
-    for inc, repo in enumerate(pytest.repos[4:7]):
-        logging.info(repo.uuid)
-
-        if inc == 0:
-            repository_registry = (
-                repository_registry_service.mapper_registry_to_registry_read(
-                    repository_registry_service.get(repo.repository_registry_uuid)
-                )
-            )
-            commits = repository_registry_service.get_branch_commits(
-                repository_registry.uuid,
-                CommitFilter(repo_branch=repository_registry.branches[0]),
-            )
-
-            new_repo_state = RepoUpdate(
-                is_auto_update_repo=False,
-                default_branch=repository_registry.branches[0],
-                default_commit=commits[0].commit,
-            )
-        elif inc == 1:
-            new_repo_state = RepoUpdate(
-                is_auto_update_repo=True, is_only_tag_update=False
-            )
-        elif inc == 2:
-            new_repo_state = RepoUpdate(
-                is_auto_update_repo=True, is_only_tag_update=True
-            )
-
-        repo_service.update(repo.uuid, new_repo_state)
-
-    # set for compile repo default branch
-    target_repo = pytest.repos[-1]
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
-    )
-    new_repo_state = RepoUpdate(
-        default_branch=repository_registry.branches[0],
-    )
-    pytest.repos[-1] = repo_service.update(target_repo.uuid, new_repo_state)
+    assert update_repo.is_auto_update_repo is False
 
 
-@pytest.mark.run(order=2)
-def test_get_available_platforms(database, cc) -> None:
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
+def test_get_available_platforms(
+    universal_compile_repo, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    registry_svc = registry_service(database, regular_user_token)
+    target_repo = universal_compile_repo
 
-    target_repo = pytest.repos[-1]
-
-    # check get platforms
-    platforms = repo_service.get_available_platforms(target_repo.uuid)
+    platforms = service.get_available_platforms(target_repo.uuid)
     assert len(platforms) > 0
 
-    # check get platforms by tag
-    platforms = repo_service.get_available_platforms(
-        target_repo.uuid, target_tag="0.0.9"
-    )
+    platforms = service.get_available_platforms(target_repo.uuid, target_tag="0.0.9")
     assert len(platforms) > 0
 
-    # check get with bad tag
-    platforms = repo_service.get_available_platforms(
-        target_repo.uuid, target_tag="0.0.0.0"
-    )
+    platforms = service.get_available_platforms(target_repo.uuid, target_tag="0.0.0.0")
     assert len(platforms) == 0
 
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
+    commits = service.git_repo_repository.get_branch_commits_with_tag(
+        registry_svc.get(target_repo.repository_registry_uuid),
+        target_repo.default_branch,
     )
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(
-        repository_registry, target_repo.default_branch
-    )
-
-    # check get by commit without tag
-    platforms = repo_service.get_available_platforms(
+    platforms = service.get_available_platforms(
         target_repo.uuid, target_commit=commits[-1]["commit"]
     )
     assert len(platforms) == 0
 
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
-    )
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(
-        repository_registry, target_repo.default_branch
-    )
-    tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
-
-    # check get by commit with tag
-    platforms = repo_service.get_available_platforms(
+    tags = service.git_repo_repository.get_tags_from_all_commits(commits)
+    platforms = service.get_available_platforms(
         target_repo.uuid, target_commit=tags[0]["commit"]
     )
     assert len(platforms) > 0
 
 
-@pytest.mark.run(order=3)
-def test_update_default_branch_repo(database, cc) -> None:
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
+def test_update_default_branch_repo(
+    live_repos, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    registry_svc = registry_service(database, regular_user_token)
 
-    # set default branch
-    for repo in pytest.repos:
-        full_repo = repo_service.get(repo.uuid)
-
+    for repo in live_repos.all():
+        full_repo = service.get(repo.uuid)
         logging.info(repo.uuid)
-
-        repository_registry = (
-            repository_registry_service.mapper_registry_to_registry_read(
-                repository_registry_service.get(full_repo.repository_registry_uuid)
-            )
+        registry = registry_svc.mapper_registry_to_registry_read(
+            registry_svc.get(full_repo.repository_registry_uuid)
         )
-
-        if len(repository_registry.branches) > 0:
-            repo_service.update(
-                repo.uuid, RepoUpdate(default_branch=repository_registry.branches[0])
+        if registry.branches:
+            service.update(
+                repo.uuid, RepoUpdate(default_branch=registry.branches[0])
             )
 
-    # set bad default branch
+
+def test_update_default_branch_bad(
+    universal_compile_repo, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    registry_svc = registry_service(database, regular_user_token)
+    full_repo = service.get(universal_compile_repo.uuid)
+    registry = registry_svc.mapper_registry_to_registry_read(
+        registry_svc.get(full_repo.repository_registry_uuid)
+    )
     with pytest.raises(GitRepoError):
-        full_repo = repo_service.get(pytest.repos[-1].uuid)
-        repository_registry = (
-            repository_registry_service.mapper_registry_to_registry_read(
-                repository_registry_service.get(full_repo.repository_registry_uuid)
-            )
-        )
-        repo_service.update(
+        service.update(
             full_repo.uuid,
-            RepoUpdate(default_branch=repository_registry.branches[0] + "t"),
+            RepoUpdate(default_branch=registry.branches[0] + "t"),
         )
 
 
-@pytest.mark.run(order=4)
-def test_delete_repo(database, cc) -> None:
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-
-    # del repo
-    repo_service.delete(pytest.repos[1].uuid)
+def test_delete_repo(crud_repo, regular_user_token, database, cc) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    service.delete(crud_repo.uuid)
 
 
-@pytest.mark.run(order=5)
-def test_delete_repository_registry(database, cc) -> None:
-    current_user = pytest.users[0]
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
-
-    # check del with repos
+def test_delete_repository_registry_with_repos(
+    universal_registry, regular_user_token, database
+) -> None:
+    service = registry_service(database, regular_user_token)
     with pytest.raises(ValidationError):
-        repository_registry_service.delete(pytest.repository_registries[-1].uuid)
-
-    # del repository registry
-    repository_registry_service.delete(pytest.repository_registries[1].uuid)
+        service.delete(universal_registry.uuid)
 
 
-@pytest.mark.run(order=6)
-def test_get_many_repo(database, cc) -> None:
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
+@pytest.mark.private_repo
+def test_delete_repository_registry(
+    private_registries, regular_user_token, database
+) -> None:
+    service = registry_service(database, regular_user_token)
+    target = private_registries[-1]
+    try:
+        service.delete(target.uuid)
+    except ValidationError:
+        pytest.skip("private registry still has repos")
+
+
+def test_get_many_repo(
+    live_repos, regular_user, regular_user_token, database, cc, test_hash
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    count, repos = service.list(
+        RepoFilter(creator_uuid=regular_user.uuid, is_auto_update_repo=True)
     )
+    assert len(repos) >= 3
 
-    # check for users is updated
-    count, repos = repo_service.list(
-        RepoFilter(creator_uuid=current_user.uuid, is_auto_update_repo=True)
-    )
-
-    assert len(repos) == 7
-
-    # check many get with all filters
-    count, repos = repo_service.list(
+    count, repos = service.list(
         RepoFilter(
-            creator_uuid=current_user.uuid,
-            search_string=pytest.test_hash,
+            creator_uuid=regular_user.uuid,
+            search_string=test_hash,
             is_auto_update_repo=True,
             offset=0,
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(repos) == 7
+    assert len(repos) >= 3

@@ -107,6 +107,16 @@ class Settings(BaseSettings):
     pu_grafana_limit_unit_node_per_one_panel: int = 10
 
     pu_test_integration_clear_data: bool = True
+    pu_test_integration_github_public_repo_url: str = (
+        "https://github.com/w7a8n1y4a/github_unit_pub_test.git"
+    )
+    pu_test_integration_gitlab_public_repo_url: str = (
+        "https://git.pepemoss.com/pepe/pepeunit/units/gitlab_unit_pub_test.git"
+    )
+    pu_test_integration_universal_repo_url: str = (
+        "https://git.pepemoss.com/pepe/pepeunit/units/universal_test_unit.git"
+    )
+    pu_test_integration_private_repo_enable: bool = False
     pu_test_integration_private_repo_json: str = ""
 
     pu_test_load_mqtt_duration: int = 120

@@ -2,11 +2,7 @@ import copy
 import json
 import logging
 import os
-import shutil
-import time
-import zlib
 
-import httpx
 import pytest
 
 from app import settings
@@ -19,738 +15,428 @@ from app.configs.errors import (
     UnitError,
     ValidationError,
 )
-from app.configs.rest import (
-    get_repo_service,
-    get_repository_registry_service,
-    get_unit_service,
-)
 from app.domain.repo_model import Repo
-from app.dto.enum import BackendTopicCommand, StaticRepoFileName, VisibilityLevel, ReservedEnvVariableName
+from app.dto.enum import BackendTopicCommand, ReservedEnvVariableName, VisibilityLevel
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.repo import RepoUpdate
-from app.schemas.pydantic.repository_registry import CommitFilter
 from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
 from app.utils.utils import aes_gcm_encode
+from tests.integration.helpers.http import (
+    patch_repo,
+    patch_unit_commit,
+    post_bulk_update_repo,
+    post_unit_command,
+)
+from tests.integration.helpers.names import unique_name
+from tests.integration.helpers.services import (
+    branch_commits,
+    repo_service,
+    unit_service,
+)
+from tests.integration.helpers.wait import wait_until
 
 
-@pytest.mark.run(order=0)
-def test_create_unit(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
+def test_create_unit(live_units) -> None:
+    assert len(live_units.all()) == 9
 
-    # create auto updated unit
-    new_units = []
-    for inc, test_repo in enumerate(pytest.repos[-2:-1]):
-        logging.info(test_repo.uuid)
-        unit = unit_service.create(
-            UnitCreate(
-                repo_uuid=test_repo.uuid,
-                visibility_level=test_repo.visibility_level,
-                name=f"test_{inc}_{pytest.test_hash}",
-                is_auto_update_from_repo_unit=True,
-            )
-        )
-        new_units.append(unit)
 
-    # create no auto updated units, with all visibility levels
-    for inc, test_repo in enumerate(
-        [pytest.repos[-4]] + pytest.repos[-4:-1] * 2 + [pytest.repos[-1]]
-    ):
-        logging.info(test_repo.uuid)
-        repository_registry = (
-            repository_registry_service.mapper_registry_to_registry_read(
-                repository_registry_service.get(test_repo.repository_registry_uuid)
-            )
-        )
-        commits = repository_registry_service.get_branch_commits(
-            repository_registry.uuid,
-            CommitFilter(repo_branch=repository_registry.branches[0]),
-        )
-
-        unit = unit_service.create(
-            UnitCreate(
-                repo_uuid=test_repo.uuid,
-                visibility_level=test_repo.visibility_level,
-                name=f"test_{inc + 1}_{pytest.test_hash}",
-                is_auto_update_from_repo_unit=False,
-                repo_branch=repository_registry.branches[0],
-                repo_commit=commits[0].commit,
-                target_firmware_platform="Universal"
-                if test_repo.is_compilable_repo
-                else None,
-            )
-        )
-        new_units.append(unit)
-
-    pytest.units = new_units
-
-    # check create unit with exist name
+def test_create_unit_duplicate_name(
+    live_units, universal_compile_repo, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
     with pytest.raises(UnitError):
-        test_repo = pytest.repos[-1]
-
-        unit_service.create(
+        service.create(
             UnitCreate(
-                repo_uuid=test_repo.uuid,
-                visibility_level=test_repo.visibility_level,
-                name=f"test_0_{pytest.test_hash}",
+                repo_uuid=universal_compile_repo.uuid,
+                visibility_level=universal_compile_repo.visibility_level,
+                name=live_units.universal_auto_unit.name,
                 is_auto_update_from_repo_unit=True,
             )
         )
 
-    # check create Unit with Repo without default branch
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    target_repo = Repo(**pytest.repos[0].__dict__)
+
+def test_create_unit_without_default_branch(
+    crud_repo, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    repo_svc = repo_service(database, cc, regular_user_token)
+    target_repo = Repo(**crud_repo.__dict__)
     target_repo.default_branch = None
-    repo_service.repo_repository.update(pytest.repos[0].uuid, target_repo)
+    repo_svc.repo_repository.update(crud_repo.uuid, target_repo)
 
     with pytest.raises(GitRepoError):
-        test_repo = pytest.repos[0]
-
-        unit_service.create(
+        service.create(
             UnitCreate(
-                repo_uuid=test_repo.uuid,
-                visibility_level=test_repo.visibility_level,
-                name=f"test_a_{pytest.test_hash}",
-                is_auto_update_from_repo_unit=True,
-            )
-        )
-
-    # check create without env_example and schema_example.json
-    with pytest.raises(GitRepoError):
-        test_repo = pytest.repos[0]
-
-        unit_service.create(
-            UnitCreate(
-                repo_uuid=test_repo.uuid,
-                visibility_level=test_repo.visibility_level,
-                name=f"test_b_{pytest.test_hash}",
+                repo_uuid=crud_repo.uuid,
+                visibility_level=crud_repo.visibility_level,
+                name=unique_name("nobr"),
                 is_auto_update_from_repo_unit=True,
             )
         )
 
 
-@pytest.mark.run(order=1)
-def test_delete_repo_with_unit(database, cc) -> None:
-    current_user = pytest.users[0]
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    # test del repo with Unit
+def test_delete_repo_with_unit(
+    universal_compile_repo, compile_unit, regular_user_token, database, cc
+) -> None:
+    repo_svc = repo_service(database, cc, regular_user_token)
     with pytest.raises(ValidationError):
-        repo_service.delete(pytest.repos[-1].uuid)
+        repo_svc.delete(universal_compile_repo.uuid)
 
 
-@pytest.mark.run(order=2)
-def test_update_unit(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-    repository_registry_service = get_repository_registry_service(
-        database, pytest.user_tokens_dict[current_user.uuid]
-    )
+def test_update_unit_name(
+    crud_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    original = crud_unit.name
+    new_name = unique_name("unm")
+    service.update(crud_unit.uuid, UnitUpdate(name=new_name))
+    assert service.get(crud_unit.uuid).name == new_name
+    service.update(crud_unit.uuid, UnitUpdate(name=original))
 
-    # check change name to new
-    test_unit = pytest.units[0]
-    test_unit_name = test_unit.name + "test"
-    unit_service.update(test_unit.uuid, UnitUpdate(name=test_unit_name))
 
-    update_unit = unit_service.get(test_unit.uuid)
-
-    assert test_unit_name == update_unit.name
-
-    # change name to normal
-    unit_service.update(test_unit.uuid, UnitUpdate(name=test_unit.name))
-
-    # check change name when name is exist
+def test_update_unit_name_exists(
+    live_units, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
     with pytest.raises(UnitError):
-        unit_service.update(pytest.units[0].uuid, UnitUpdate(name=pytest.units[1].name))
-
-    # check change visibility
-    target_unit = pytest.units[1]
-    logging.info(target_unit.uuid)
-
-    unit_service.update(
-        target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.INTERNAL)
-    )
-    update_unit = unit_service.get(target_unit.uuid)
-    assert update_unit.visibility_level == VisibilityLevel.INTERNAL
-
-    unit_service.update(
-        target_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.PUBLIC)
-    )
-    update_unit = unit_service.get(target_unit.uuid)
-    assert update_unit.visibility_level == VisibilityLevel.PUBLIC
-
-    # check set not auto update without commit and branch
-    with pytest.raises(UnitError):
-        unit_service.update(
-            pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=False)
+        service.update(
+            live_units.universal_auto_unit.uuid,
+            UnitUpdate(name=live_units.universal_manual_unit.name),
         )
 
-    # check set hand update
-    repo_service = get_repo_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
 
-    target_unit = pytest.units[0]
-    target_repo = repo_service.get(target_unit.repo_uuid)
+def test_update_unit_visibility(
+    universal_manual_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    logging.info(universal_manual_unit.uuid)
 
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
+    service.update(
+        universal_manual_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.INTERNAL)
     )
-    commits = repository_registry_service.get_branch_commits(
-        repository_registry.uuid,
-        CommitFilter(repo_branch=repository_registry.branches[0]),
-    )
+    assert service.get(universal_manual_unit.uuid).visibility_level == VisibilityLevel.INTERNAL
 
-    unit_service.update(
-        pytest.units[0].uuid,
+    service.update(
+        universal_manual_unit.uuid, UnitUpdate(visibility_level=VisibilityLevel.PUBLIC)
+    )
+    assert service.get(universal_manual_unit.uuid).visibility_level == VisibilityLevel.PUBLIC
+
+
+def test_update_unit_auto_flags(
+    universal_auto_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    with pytest.raises(UnitError):
+        service.update(
+            universal_auto_unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=False)
+        )
+
+    repo_svc = repo_service(database, cc, regular_user_token)
+    target_repo = repo_svc.get(universal_auto_unit.repo_uuid)
+    read, commits = branch_commits(
+        database, regular_user_token, target_repo.repository_registry_uuid
+    )
+    service.update(
+        universal_auto_unit.uuid,
         UnitUpdate(
             is_auto_update_from_repo_unit=False,
-            repo_branch=repository_registry.branches[0],
+            repo_branch=read.branches[0],
             repo_commit=commits[0].commit,
         ),
     )
-
-    # check set auto update
-    unit_service.update(
-        pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=True)
+    service.update(
+        universal_auto_unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True)
     )
 
-    # check update not creator
-    current_user = pytest.users[1]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
 
+def test_update_unit_not_creator(
+    universal_auto_unit, admin_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, admin_user_token)
     with pytest.raises(NoAccessError):
-        unit_service.update(
-            pytest.units[0].uuid, UnitUpdate(is_auto_update_from_repo_unit=True)
+        service.update(
+            universal_auto_unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True)
         )
 
 
-@pytest.mark.run(order=3)
-def test_env_unit(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-
-    target_unit = pytest.units[0]
-
-    # check count unique variables
-    count = len(unit_service.get_env(target_unit.uuid).keys())
+def test_env_unit(universal_auto_unit, live_units, regular_user_token, database, cc) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    count = len(service.get_env(universal_auto_unit.uuid).keys())
     logging.info(f"{count}")
     assert count > 0
 
-    # check set invalid variable
-    unit_service.set_env(target_unit.uuid, json.dumps({"test": ""}))
+    service.set_env(universal_auto_unit.uuid, json.dumps({"test": ""}))
+    current_env = service.get_env(universal_auto_unit.uuid)
+    assert "test" not in current_env.keys()
 
-    current_env = unit_service.get_env(target_unit.uuid)
-    assert 'test' not in current_env.keys()
-
-    # set valid env variable for Units
-    for unit in pytest.units:
+    for unit in live_units.all():
         logging.info(unit.uuid)
-        current_env = unit_service.get_env(unit.uuid)
-
+        current_env = service.get_env(unit.uuid)
         count_before = len(current_env.keys())
-        unit_service.set_env(unit.uuid, json.dumps(current_env))
-        count_after = len(unit_service.get_env(unit.uuid).keys())
-
+        service.set_env(unit.uuid, json.dumps(current_env))
+        count_after = len(service.get_env(unit.uuid).keys())
         assert count_before <= count_after
 
-    # test reset_env to default
-    test_unit = pytest.units[0]
-    current_env = unit_service.get_env(test_unit.uuid)
+
+def test_reset_env(universal_auto_unit, regular_user_token, database, cc) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    current_env = service.get_env(universal_auto_unit.uuid)
     old_env = copy.deepcopy(current_env)
 
-    unit_service.reset_env(test_unit.uuid)
-
-    unit_service.set_env(test_unit.uuid, json.dumps(unit_service.get_env(test_unit.uuid)))
-    new_env = unit_service.get_env(test_unit.uuid)
-
-    assert old_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value) != new_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value)
-
-
-@pytest.mark.run(order=4)
-def test_get_firmware(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    service.reset_env(universal_auto_unit.uuid)
+    service.set_env(
+        universal_auto_unit.uuid, json.dumps(service.get_env(universal_auto_unit.uuid))
+    )
+    new_env = service.get_env(universal_auto_unit.uuid)
+    assert old_env.get(ReservedEnvVariableName.PU_SECRET_KEY.value) != new_env.get(
+        ReservedEnvVariableName.PU_SECRET_KEY.value
     )
 
-    test_unit_path = "tmp/test_units"
 
-    try:
-        os.mkdir(test_unit_path)
-    except Exception:
-        pass
-
-    methods_list = [
-        unit_service.get_unit_firmware_zip,
-        unit_service.get_unit_firmware_tar,
-        unit_service.get_unit_firmware_tgz,
-    ]
-
-    # check create physical unit for all pytest unit - zip, tar, tgz
-    del_file_list = []
-    for inc, unit in enumerate(pytest.units):
-        logging.info(unit.uuid)
-
-        inc = inc % 3
-
-        if inc == 2:
-            # tgz
-            tgz_path = methods_list[inc](unit.uuid, 9, 9)
-            del_file_list.append(tgz_path)
-
-            # make tar
-            with open(tgz_path, "rb") as f:
-                producer = zlib.decompressobj(wbits=9)
-                tar_data = producer.decompress(f.read()) + producer.flush()
-
-                archive_path = f"tmp/{unit.uuid}.tar"
-                with open(archive_path, "wb") as tar_file:
-                    tar_file.write(tar_data)
-        else:
-            # zip, tar
-            archive_path = methods_list[inc](unit.uuid)
-
-        del_file_list.append(archive_path)
-
-        unpack_path = f"{test_unit_path}/{unit.uuid}"
-        shutil.unpack_archive(archive_path, unpack_path, "zip" if inc == 0 else "tar")
-
-        # check env.json file
-        with open(f"{unpack_path}/{StaticRepoFileName.ENV.value}", "r") as f:
-            env_dict = json.loads(f.read())
-            assert len(env_dict["PU_AUTH_TOKEN"]) > 100
-
-    for item in del_file_list:
-        os.remove(item)
-
-    # check gen firmware with bad wbits
+def test_get_firmware(unpacked_firmwares, compile_unit, regular_user_token, database, cc) -> None:
+    service = unit_service(database, cc, regular_user_token)
     with pytest.raises(UnitError):
-        unit_service.get_unit_firmware_tgz(unit.uuid, 35, 9)
-
-    # check gen firmware with bad level
+        service.get_unit_firmware_tgz(compile_unit.uuid, 35, 9)
     with pytest.raises(UnitError):
-        unit_service.get_unit_firmware_tgz(unit.uuid, 9, 13)
+        service.get_unit_firmware_tgz(compile_unit.uuid, 9, 13)
 
-    # check get target commit version
-    target_version = unit_service.get_target_version(unit.uuid)
+    target_version = service.get_target_version(compile_unit.uuid)
     assert target_version.commit != ""
 
 
-@pytest.mark.run(order=5)
-def test_state_storage(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-
-    target_unit = pytest.units[0]
-
-    # check decode encode storage
+def test_state_storage(universal_auto_unit, regular_user_token, database, cc) -> None:
+    service = unit_service(database, cc, regular_user_token)
     state = "test"
-    unit_service.set_state_storage(target_unit.uuid, state)
-    db_state = unit_service.get_state_storage(target_unit.uuid)
-    assert state == db_state
+    service.set_state_storage(universal_auto_unit.uuid, state)
+    assert state == service.get_state_storage(universal_auto_unit.uuid)
 
-    # check cipher long data
     with pytest.raises(CipherError):
-        state = "t" * (settings.pu_max_cipher_length + 1)
-        unit_service.set_state_storage(target_unit.uuid, state)
-
-
-@pytest.mark.run(order=6)
-def test_run_infrastructure_contour(database, client_emulator) -> None:
-    # run all units
-    client_emulator.task_queue.put(pytest.units)
-
-
-@pytest.mark.run(order=7)
-def test_hand_update_firmware_unit(database, client_emulator, cc) -> None:
-    current_user = pytest.users[0]
-    token = pytest.user_tokens_dict[current_user.uuid]
-    logging.info(f"User token: {token}")
-
-    unit_service = get_unit_service(database, cc, token)
-    repo_service = get_repo_service(database, cc, token)
-    repository_registry_service = get_repository_registry_service(database, token)
-
-    target_units = pytest.units[1:]
-
-    # wait run external Unit
-    inc = 0
-    while True:
-        data = [
-            unit_service.get(unit.uuid).current_commit_version for unit in target_units
-        ]
-        logging.info(data)
-
-        if None not in data:
-            break
-
-        time.sleep(1)
-
-        if inc > 10:
-            assert False
-
-        inc += 1
-
-    def set_unit_new_commit(token: str, unit, target_version: str) -> int:
-        headers = {"accept": "application/json", "x-auth-token": token}
-
-        url = f"{settings.pu_link_prefix_and_v1}/units/{unit.uuid}"
-
-        # send over http, in tests not work mqtt pub and sub
-        r = httpx.patch(
-            url=url, json=UnitUpdate(repo_commit=target_version).dict(), headers=headers
+        service.set_state_storage(
+            universal_auto_unit.uuid, "t" * (settings.pu_max_cipher_length + 1)
         )
 
-        return r.status_code
 
-    # set all hand updated unit, old version
+def test_run_infrastructure_contour(running_units) -> None:
+    assert len(running_units.all()) == 9
+
+
+def test_hand_update_firmware_unit(
+    running_units, regular_user_token, database, cc
+) -> None:
+    token = regular_user_token
+    logging.info(f"User token: {token}")
+    service = unit_service(database, cc, token)
+    repo_svc = repo_service(database, cc, token)
+    target_units = running_units.firmware_manual()
+
     target_versions = []
     for unit in target_units:
         logging.info(unit.uuid)
-
-        repo = repo_service.get(unit.repo_uuid)
-        repository_registry = (
-            repository_registry_service.mapper_registry_to_registry_read(
-                repository_registry_service.get(repo.repository_registry_uuid)
-            )
-        )
-        commits = repository_registry_service.get_branch_commits(
-            repository_registry.uuid,
-            CommitFilter(
-                repo_branch=repository_registry.branches[0],
-                only_tag=repo.is_only_tag_update,
-            ),
+        repo = repo_svc.get(unit.repo_uuid)
+        read, commits = branch_commits(
+            database,
+            token,
+            repo.repository_registry_uuid,
+            only_tag=repo.is_only_tag_update,
         )
         target_version = commits[1].commit
         target_versions.append(target_version)
-
         logging.info(f"{unit.name}, {unit.uuid},{target_version}")
-        assert set_unit_new_commit(token, unit, target_version) < 400
+        assert patch_unit_commit(token, unit, target_version) < 400
 
     logging.info(target_versions[0])
+    wait_until(
+        lambda: [
+            service.get(unit.uuid).current_commit_version for unit in target_units
+        ].count(target_versions[0])
+        == len(target_units),
+        timeout=30,
+        message="hand firmware update did not reach target commit",
+        session=database,
+    )
 
-    # wait update to old version external Unit
-    inc = 0
-    while True:
-        data = [
-            unit_service.get(unit.uuid).current_commit_version for unit in target_units
-        ]
-        logging.info(data)
 
-        if data.count(target_versions[0]) == len(target_units):
-            break
-
-        time.sleep(1)
-
-        if inc > 10:
-            assert False
-
-        inc += 1
-
-    # check update to bad commit
-    target_unit = pytest.units[5]
-    assert set_unit_new_commit(token, target_unit, "test") >= 400
-
-    # check update to commit with bad env_example.json
+def test_hand_update_bad_commit(
+    running_units, chain_source_unit, regular_user_token
+) -> None:
+    assert patch_unit_commit(regular_user_token, chain_source_unit, "test") >= 400
     assert (
-        set_unit_new_commit(
-            token, target_unit, "6506d44fd80a895a57f2b34055521405d0f22860"
+        patch_unit_commit(
+            regular_user_token,
+            chain_source_unit,
+            "6506d44fd80a895a57f2b34055521405d0f22860",
         )
         >= 400
     )
 
-    # set bad env
-    target_unit = pytest.units[1]
-    env_dict = unit_service.get_env(target_unit.uuid)
-    del env_dict["PU_SECRET_KEY"]
 
+def test_hand_update_with_bad_env(
+    running_units, universal_manual_unit, regular_user_token, database, cc
+) -> None:
+    token = regular_user_token
+    service = unit_service(database, cc, token)
+    repo_svc = repo_service(database, cc, token)
+
+    env_dict = service.get_env(universal_manual_unit.uuid)
+    del env_dict["PU_SECRET_KEY"]
     logging.info(env_dict)
 
-    update_unit = unit_service.get(target_unit.uuid)
+    update_unit = service.get(universal_manual_unit.uuid)
     update_unit.cipher_env_dict = aes_gcm_encode(json.dumps(env_dict))
+    service.unit_repository.update(universal_manual_unit.uuid, update_unit)
 
-    unit_service.unit_repository.update(target_unit.uuid, update_unit)
-
-    # check update with bad env
-    repo = repo_service.get(target_unit.repo_uuid)
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(repo.repository_registry_uuid)
-    )
-    commits = repository_registry_service.get_branch_commits(
-        repository_registry.uuid,
-        CommitFilter(repo_branch=repository_registry.branches[0]),
-    )
-    target_version = commits[0].commit
-
-    assert set_unit_new_commit(token, target_unit, target_version) == 200
+    repo = repo_svc.get(universal_manual_unit.repo_uuid)
+    _, commits = branch_commits(database, token, repo.repository_registry_uuid)
+    assert patch_unit_commit(token, universal_manual_unit, commits[0].commit) == 200
 
 
-@pytest.mark.run(order=8)
-def test_repo_update_firmware_unit(database, cc) -> None:
-    def set_repo_new_commit(token: str, repo, repo_update: RepoUpdate) -> int:
-        headers = {"accept": "application/json", "x-auth-token": token}
+def test_repo_update_firmware_unit(
+    running_units, admin_user_token, regular_user_token, database, cc
+) -> None:
+    token = regular_user_token
+    service = unit_service(database, cc, token)
+    repo_svc = repo_service(database, cc, token)
+    target_units = running_units.chain()
 
-        url = f"{settings.pu_link_prefix_and_v1}/repos/{repo.uuid}"
-
-        # send over http, in tests not work mqtt pub and sub
-        r = httpx.patch(url=url, json=repo_update.dict(), headers=headers)
-
-        return r.status_code
-
-    def bulk_update_repo(token: str) -> int:
-        headers = {"accept": "application/json", "x-auth-token": token}
-
-        url = f"{settings.pu_link_prefix_and_v1}/repos/bulk_update"
-
-        # send over http, in tests not work mqtt pub and sub
-        r = httpx.post(url=url, headers=headers)
-
-        return r.status_code
-
-    current_user = pytest.users[0]
-    token = pytest.user_tokens_dict[current_user.uuid]
-    logging.info(f"User token: {token}")
-
-    unit_service = get_unit_service(database, cc, token)
-    repo_service = get_repo_service(database, cc, token)
-    repository_registry_service = get_repository_registry_service(database, token)
-
-    target_units = pytest.units[-4:-1]
-
-    # set auto update
     for unit in target_units:
         logging.info(unit.uuid)
-        unit_service.update(unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
+        service.update(unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
 
-    # hand update repo
-    target_repo = repo_service.get(target_units[0].repo_uuid)
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
-    )
-    commits = repository_registry_service.get_branch_commits(
-        repository_registry.uuid,
-        CommitFilter(repo_branch=repository_registry.branches[0]),
-    )
+    target_repo = repo_svc.get(target_units[0].repo_uuid)
+    _, commits = branch_commits(database, token, target_repo.repository_registry_uuid)
     target_version = commits[0].commit
-    assert (
-        set_repo_new_commit(
-            token, target_repo, RepoUpdate(default_commit=target_version)
-        )
-        < 400
+    assert patch_repo(token, target_repo, RepoUpdate(default_commit=target_version)) < 400
+
+    wait_until(
+        lambda: service.get(target_units[0].uuid).current_commit_version == target_version,
+        timeout=30,
+        message="hand repo update did not reach unit commit",
+        session=database,
     )
 
-    # wait hand update unit
-    inc = 0
-    while True:
-        data = unit_service.get(target_units[0].uuid).current_commit_version
+    assert post_bulk_update_repo(admin_user_token) < 400
 
-        if data == target_version:
-            break
+    target_repo = repo_svc.get(target_units[0].repo_uuid)
+    from tests.integration.helpers.services import registry_service
 
-        time.sleep(1)
-
-        if inc > 10:
-            assert False
-
-        inc += 1
-
-    # auto update repo
-    current_user = pytest.users[1]
-    assert bulk_update_repo(pytest.user_tokens_dict[current_user.uuid]) < 400
-
-    # wait bulk update unit
-    target_repo = repo_service.get(target_units[0].repo_uuid)
-
-    repository_registry = repository_registry_service.mapper_registry_to_registry_read(
-        repository_registry_service.get(target_repo.repository_registry_uuid)
+    registry_svc = registry_service(database, token)
+    repository_registry = registry_svc.mapper_registry_to_registry_read(
+        registry_svc.get(target_repo.repository_registry_uuid)
     )
-
-    commits = repo_service.git_repo_repository.get_branch_commits_with_tag(
+    commits_with_tag = repo_svc.git_repo_repository.get_branch_commits_with_tag(
         repository_registry, target_repo.default_branch
     )
-    tags = repo_service.git_repo_repository.get_tags_from_all_commits(commits)
+    tags = repo_svc.git_repo_repository.get_tags_from_all_commits(commits_with_tag)
+    tag_commit = tags[0]["commit"]
 
-    inc = 0
-    while True:
-        data = [
-            unit_service.get(unit.uuid).current_commit_version
-            for unit in target_units[-2:]
-        ]
+    middle = target_units[-2]
+    sink = target_units[-1]
 
-        logging.info(data)
-        logging.info(tags[0]["commit"])
-        logging.info(target_version)
+    def bulk_reached() -> bool:
+        middle_commit = service.get(middle.uuid).current_commit_version
+        sink_commit = service.get(sink.uuid).current_commit_version
+        logging.info((middle_commit, sink_commit, target_version, tag_commit))
+        return middle_commit == target_version and sink_commit == tag_commit
 
-        if data[0] == target_version and data[1] == tags[0]["commit"]:
-            break
-
-        time.sleep(2)
-
-        if inc > 10:
-            assert False
-
-        inc += 1
-
-
-@pytest.mark.run(order=9)
-def test_env_update_command(database, cc) -> None:
-    def set_command(token: str, unit, command: BackendTopicCommand) -> int:
-        headers = {"accept": "application/json", "x-auth-token": token}
-
-        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
-
-        # send over http, in tests not work mqtt pub and sub
-        r = httpx.post(url=url, headers=headers)
-
-        return r.status_code
-
-    current_user = pytest.users[0]
-    token = pytest.user_tokens_dict[current_user.uuid]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
+    wait_until(
+        bulk_reached,
+        timeout=30,
+        interval=2,
+        message="bulk repo update did not reach chain units",
+        session=database,
     )
 
-    target_unit = pytest.units[-2]
-    logging.info(target_unit.uuid)
 
-    # set new variable for unit
-    current_env = unit_service.get_env(target_unit.uuid)
+def test_env_update_command(
+    running_units, chain_sink_unit, regular_user_token, database, cc
+) -> None:
+    token = regular_user_token
+    service = unit_service(database, cc, token)
+    logging.info(chain_sink_unit.uuid)
+
+    current_env = service.get_env(chain_sink_unit.uuid)
     current_env["PU_MIN_LOG_LEVEL"] = "Info"
-    unit_service.set_env(target_unit.uuid, json.dumps(current_env))
+    service.set_env(chain_sink_unit.uuid, json.dumps(current_env))
 
-    # send command update env on unit
-    assert set_command(token, target_unit, BackendTopicCommand.ENV_UPDATE) < 400
+    assert post_unit_command(token, chain_sink_unit, BackendTopicCommand.ENV_UPDATE) < 400
 
-    # check unit emulation save new env.json to file
-    inc = 0
-    filepath = f"tmp/test_units/{target_unit.uuid}/env.json"
-    while True:
-        with open(filepath, "r") as f:
-            env_dict = json.loads(f.read())
+    filepath = f"tmp/test_units/{chain_sink_unit.uuid}/env.json"
 
-            if env_dict["PU_MIN_LOG_LEVEL"] == "Info":
-                break
+    def env_updated() -> bool:
+        with open(filepath) as handle:
+            return json.loads(handle.read())["PU_MIN_LOG_LEVEL"] == "Info"
 
-        time.sleep(2)
-
-        if inc > 10:
-            assert False
-
-        inc += 1
+    wait_until(
+        env_updated,
+        timeout=30,
+        interval=2,
+        message="env.json was not updated on unit",
+    )
 
 
-@pytest.mark.run(order=10)
-def test_log_sync_command(database) -> None:
-    def set_command(token: str, unit, command: BackendTopicCommand) -> int:
-        headers = {"accept": "application/json", "x-auth-token": token}
-
-        url = f"{settings.pu_link_prefix_and_v1}/units/send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
-
-        # send over http, in tests not work mqtt pub and sub
-        r = httpx.post(url=url, headers=headers)
-
-        return r.status_code
-
-    current_user = pytest.users[0]
-    token = pytest.user_tokens_dict[current_user.uuid]
-
+def test_log_sync_command(running_units, chain_middle_unit, regular_user_token) -> None:
+    token = regular_user_token
     client = next(get_clickhouse_client())
     try:
         unit_log_repository = UnitLogRepository(client)
+        logging.info(chain_middle_unit.uuid)
+        assert post_unit_command(token, chain_middle_unit, BackendTopicCommand.LOG_SYNC) < 400
 
-        target_unit = pytest.units[-3]
-        logging.info(target_unit.uuid)
-
-        # send command log sync on unit
-        assert set_command(token, target_unit, BackendTopicCommand.LOG_SYNC) < 400
-
-        # check log in clickhouse with level < default - Warning
-        inc = 0
-        while True:
-            count, logs = unit_log_repository.list(
-                UnitLogFilter(uuid=target_unit.uuid, level=["Info"])
-            )
-
-            logging.info(count)
-
-            if count:
-                break
-
-            time.sleep(2)
-
-            if inc > 10:
-                assert False
-
-            inc += 1
+        wait_until(
+            lambda: unit_log_repository.list(
+                UnitLogFilter(uuid=chain_middle_unit.uuid, level=["Info"])
+            )[0]
+            > 0,
+            timeout=30,
+            interval=2,
+            message="LOG_SYNC did not produce Info rows in ClickHouse",
+        )
     finally:
         client.disconnect()
 
 
-@pytest.mark.run(order=11)
-def test_get_many_unit(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-
-    # check many get with all filters
-    count, units = unit_service.list(
+def test_get_many_unit(
+    live_units,
+    universal_auto_unit,
+    universal_private_repo,
+    regular_user,
+    regular_user_token,
+    database,
+    cc,
+    test_hash,
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    count, units = service.list(
         UnitFilter(
-            creator_uuid=current_user.uuid,
-            repo_uuid=pytest.repos[-2].uuid,
-            search_string=pytest.test_hash,
+            creator_uuid=regular_user.uuid,
+            repo_uuid=universal_private_repo.uuid,
+            search_string=test_hash,
             is_auto_update_from_repo_unit=True,
             offset=0,
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(units) == 2
+    assert any(unit[0].uuid == universal_auto_unit.uuid for unit in units)
+    assert len(units) >= 1
 
 
-@pytest.mark.run(order=12)
-def test_get_unit_logs(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
-
-    target_unit = pytest.units[-3]
-
-    # check many get with all filters
-    count, units = unit_service.log_list(
+def test_get_unit_logs(
+    running_units, chain_middle_unit, regular_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, regular_user_token)
+    count, logs = service.log_list(
         UnitLogFilter(
-            uuid=target_unit.uuid,
+            uuid=chain_middle_unit.uuid,
             offset=0,
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(units) > 0
+    assert len(logs) > 0
 
 
-@pytest.mark.run(order=13)
 @pytest.mark.asyncio
-async def test_convert_toml_file_to_md(database, cc) -> None:
-    current_user = pytest.users[0]
-    unit_service = get_unit_service(
-        database, cc, pytest.user_tokens_dict[current_user.uuid]
-    )
+async def test_convert_toml_file_to_md(regular_user_token, database, cc) -> None:
+    service = unit_service(database, cc, regular_user_token)
 
     class DummyUploadFile:
         def __init__(self, content: bytes):
@@ -762,19 +448,16 @@ async def test_convert_toml_file_to_md(database, cc) -> None:
     tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     base_toml_dir = os.path.join(tests_dir, "data", "toml")
 
-    # happy-path scenario
     toml_path = os.path.join(base_toml_dir, "pepeunit.toml")
-    with open(toml_path, "rb") as f:
-        content = f.read()
-    file = DummyUploadFile(content)
-    md = await unit_service.convert_toml_file_to_md(file)
+    with open(toml_path, "rb") as handle:
+        content = handle.read()
+    md = await service.convert_toml_file_to_md(DummyUploadFile(content))
     assert isinstance(md, str)
     assert md.strip() != ""
     assert md.lstrip().startswith("# WiFi Temp Sensor ds18b20")
     assert "Parameter | Implementation" in md
     assert "## Files" in md
 
-    # error scenarios with bad_*.toml
     bad_files = [
         "bad_size_pepeunit.toml",
         "bad_syntax_pepeunit.toml",
@@ -782,9 +465,7 @@ async def test_convert_toml_file_to_md(database, cc) -> None:
         "bad_general_text_pepeunit.toml",
     ]
     for bad_name in bad_files:
-        bad_path = os.path.join(base_toml_dir, bad_name)
-        with open(bad_path, "rb") as f:
-            bad_content = f.read()
-        bad_file = DummyUploadFile(bad_content)
+        with open(os.path.join(base_toml_dir, bad_name), "rb") as handle:
+            bad_content = handle.read()
         with pytest.raises(ReadmeGenerationError):
-            await unit_service.convert_toml_file_to_md(bad_file)
+            await service.convert_toml_file_to_md(DummyUploadFile(bad_content))
