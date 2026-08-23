@@ -47,7 +47,6 @@ class Settings(BaseSettings):
     pu_max_external_repo_size: int = 50
     pu_max_cipher_length: int = 1_000_000
 
-    pu_min_topic_update_time: int = 30
     pu_unit_log_expiration: int = 86400
 
     pu_max_pagination_size: int = 500
