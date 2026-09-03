@@ -1,5 +1,5 @@
 from clickhouse_driver import Client
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlmodel import Session
 
 from app import settings
@@ -11,6 +11,12 @@ from app.repositories.dashboard_panel_repository import (
 )
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
+from app.repositories.instance_cache_repository import InstanceCacheRepository
+from app.repositories.instance_external_repository import (
+    InstanceExternalRepository,
+)
+from app.repositories.instance_repository import InstanceRepository
+from app.repositories.operation_task_repository import OperationTaskRepository
 from app.repositories.panels_unit_nodes_repository import (
     PanelsUnitNodesRepository,
 )
@@ -26,7 +32,9 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
 from app.services.grafana_service import GrafanaService
+from app.services.instance_service import InstanceService
 from app.services.metrics_service import MetricsService
+from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
 from app.services.repository_registry_service import RepositoryRegistryService
@@ -55,6 +63,9 @@ class ServiceFactory:
         self.permission_repository = PermissionRepository(db)
         self.repo_repository = RepoRepository(db)
         self.repository_registry_repository = RepositoryRegistryRepository(db)
+        self.instance_repository = InstanceRepository(db)
+        self.instance_external_repository = InstanceExternalRepository()
+        self.operation_task_repository = OperationTaskRepository(db)
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
         self.unit_log_repository = (
@@ -88,10 +99,30 @@ class ServiceFactory:
             data_pipe_repository=self.data_pipe_repository,
         )
 
+    def get_instance_service(self) -> InstanceService:
+        return InstanceService(
+            instance_repository=self.instance_repository,
+            instance_external_repository=self.instance_external_repository,
+            operation_task_repository=self.operation_task_repository,
+            repository_registry_repository=self.repository_registry_repository,
+            access_service=self.access_service,
+            repository_registry_service=self.get_repository_registry_service(),
+            metrics_service=self.get_metrics_service(),
+            operation_task_service=self.get_operation_task_service(),
+        )
+
+    def get_operation_task_service(self) -> OperationTaskService:
+        return OperationTaskService(
+            operation_task_repository=self.operation_task_repository,
+            access_service=self.access_service,
+        )
+
     def get_repository_registry_service(self) -> RepositoryRegistryService:
         return RepositoryRegistryService(
             repository_registry_repository=self.repository_registry_repository,
             repo_repository=self.repo_repository,
+            user_repository=self.user_repository,
+            operation_task_service=self.get_operation_task_service(),
             permission_service=self.permission_service,
             access_service=self.access_service,
         )
@@ -111,6 +142,7 @@ class ServiceFactory:
                 unit_node_service=self.get_unit_node_service(),
             ),
             permission_service=self.permission_service,
+            operation_task_service=self.get_operation_task_service(),
             access_service=self.access_service,
         )
 
@@ -183,6 +215,34 @@ def get_user_service(
     jwt_token: str | None = Depends(token_depends),
 ) -> UserService:
     return create_service_factory(db, client, jwt_token).get_user_service()
+
+
+def get_instance_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> InstanceService:
+    return create_service_factory(db, None, jwt_token).get_instance_service()
+
+
+def get_instance_cache(request: Request) -> InstanceCacheRepository:
+    return request.app.state.instance_cache
+
+
+def get_app_instance_cache() -> InstanceCacheRepository:
+    from app.main import app
+
+    return app.state.instance_cache
+
+
+def get_operation_task_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> OperationTaskService:
+    return create_service_factory(
+        db,
+        None,
+        jwt_token,
+    ).get_operation_task_service()
 
 
 def get_repository_registry_service(
@@ -310,3 +370,21 @@ def get_bot_metrics_service(
     return create_bot_service_factory(
         db, None, jwt_token
     ).get_metrics_service()
+
+
+def get_bot_instance_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> InstanceService:
+    return create_bot_service_factory(
+        db, None, jwt_token
+    ).get_instance_service()
+
+
+def get_bot_operation_task_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> OperationTaskService:
+    return create_bot_service_factory(
+        db, None, jwt_token
+    ).get_operation_task_service()

@@ -12,13 +12,16 @@ from app.configs.errors import (
     GitRepoError,
     RepositoryRegistryError,
 )
+from app.domain.operation_task_model import OperationTask
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import (
     AgentType,
     CredentialStatus,
     GitPlatform,
+    OperationTaskType,
     OwnershipType,
     RepositoryRegistryStatus,
+    UserRole,
 )
 from app.repositories.git_platform_repository import (
     GithubPlatformClient,
@@ -30,12 +33,14 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
+from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.repository_registry import (
     CommitFilterInput,
     CredentialsInput,
     RepositoryRegistryCreateInput,
     RepositoryRegistryFilterInput,
 )
+from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
@@ -47,6 +52,8 @@ from app.schemas.pydantic.repository_registry import (
     RepositoryRegistryRead,
 )
 from app.services.access_service import AccessService
+from app.services.background import BackgroundService
+from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.validators import is_emtpy_sequence, is_valid_object
 from app.utils.utils import ensure_timezone_aware
@@ -57,11 +64,15 @@ class RepositoryRegistryService:
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
+        user_repository: UserRepository = Depends(),
+        operation_task_service: OperationTaskService = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
+        self.user_repository = user_repository
+        self.operation_task_service = operation_task_service
         self.git_repo_repository = GitRepoRepository()
         self.permission_service = permission_service
         self.access_service = access_service
@@ -119,9 +130,17 @@ class RepositoryRegistryService:
         )
 
     def create(
-        self, data: RepositoryRegistryCreate | RepositoryRegistryCreateInput
+        self,
+        data: RepositoryRegistryCreate | RepositoryRegistryCreateInput,
+        is_api: bool = False,
     ) -> RepositoryRegistry:
-        self.access_service.authorization.check_access([AgentType.USER])
+        if is_api:
+            admin = self.user_repository.get_first_admin()
+            is_valid_object(admin)
+            creator_uuid = admin.uuid
+        else:
+            self.access_service.authorization.check_access([AgentType.USER])
+            creator_uuid = self.access_service.current_agent.uuid
 
         self.is_valid_repo_url(data)
         self.is_valid_platform(data)
@@ -129,7 +148,7 @@ class RepositoryRegistryService:
         self.repository_registry_repository.is_unique_url(data.repository_url)
 
         repository_registry = RepositoryRegistry(
-            creator_uuid=self.access_service.current_agent.uuid, **data.dict()
+            creator_uuid=creator_uuid, **data.dict()
         )
 
         if not data.is_public_repository:
@@ -164,8 +183,11 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.create(
             repository_registry
         )
+        if is_api:
+            return self.sync_external_repository(repository_registry)
 
-        return self.sync_external_repository(repository_registry)
+        self.schedule_update(repository_registry.uuid)
+        return repository_registry
 
     def get(self, uuid: uuid_pkg.UUID) -> RepositoryRegistry:
         self.access_service.authorization.check_access(
@@ -356,21 +378,71 @@ class RepositoryRegistryService:
             repository_registry.uuid, repository_registry
         )
 
-    def update_local_repository(self, uuid: uuid_pkg.UUID) -> None:
-        self.access_service.authorization.check_access([AgentType.USER])
-
+    def update_local_repository(self, uuid: uuid_pkg.UUID) -> str:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
         is_valid_object(repository_registry)
 
+        repository_registry = self.sync_external_repository(
+            repository_registry
+        )
+        if repository_registry.sync_status == RepositoryRegistryStatus.ERROR:
+            msg = (
+                repository_registry.sync_error
+                or "Repository registry sync failed"
+            )
+            raise RepositoryRegistryError(msg)
+        return "Registry updated"
+
+    def schedule_update(
+        self,
+        uuid: uuid_pkg.UUID,
+    ) -> OperationTask:
+        repository_registry = self.get(uuid)
         self.access_service.authorization.check_repository_registry_access(
             repository_registry
         )
+        jwt_token = self.access_service.current_agent.generate_agent_token()
+        task = self.operation_task_service.create(
+            OperationTaskCreate(
+                task_type=OperationTaskType.UPDATE_REGISTRY,
+            )
+        )
 
-        self.sync_external_repository(repository_registry)
+        def operation(_db):
+            with BackgroundService(jwt_token) as services:
+                return services.get_repository_registry_service().update_local_repository(
+                    uuid
+                )
 
-    def sync_local_repository_storage(self, force: bool = False) -> None:
+        self.operation_task_service.schedule(task.uuid, operation)
+        return task
+
+    def schedule_update_all(self) -> OperationTask:
+        self.access_service.authorization.check_access(
+            [AgentType.USER],
+            [UserRole.ADMIN],
+        )
+        task = self.operation_task_service.create(
+            OperationTaskCreate(
+                task_type=OperationTaskType.UPDATE_ALL_REGISTRIES,
+            )
+        )
+
+        def operation(_db):
+            with BackgroundService() as services:
+                return services.get_repository_registry_service().sync_local_repository_storage(
+                    force=True
+                )
+
+        self.operation_task_service.schedule(task.uuid, operation)
+        return task
+
+    def sync_local_repository_storage(
+        self,
+        force: bool = False,
+    ) -> str:
         logging.info("Run sync all repository in RepositoryRegistry")
 
         local_physic_repository = self.git_repo_repository.get_local_registry()
@@ -378,6 +450,7 @@ class RepositoryRegistryService:
             self.repository_registry_repository.get_all()
         )
 
+        synced = 0
         for repository_registry in local_repository_registry:
             if force or (
                 str(repository_registry.uuid) not in local_physic_repository
@@ -386,8 +459,12 @@ class RepositoryRegistryService:
                     f"Run sync RepositoryRegistry: {repository_registry.repository_url}"
                 )
                 self.sync_external_repository(repository_registry)
+                synced += 1
 
         logging.info("End sync all repository in RepositoryRegistry")
+        return (
+            f"Synced {synced} of {len(local_repository_registry)} registries"
+        )
 
     def backend_force_sync_local_repository_storage(self) -> None:
         self.access_service.authorization.check_access([AgentType.BACKEND])

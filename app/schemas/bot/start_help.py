@@ -8,7 +8,7 @@ from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_bot_user_service
-from app.dto.enum import CommandNames
+from app.dto.enum import CommandNames, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.shared import Root
@@ -59,7 +59,13 @@ async def start_help_resolver(message: types.Message):
             "Unit search, Unit base information, get env file, send mqtt command, get firmware archives, check IO nodes and check logs",
         ],
         ["/dashboard", "List of your Dashboards, links to Pepeunit"],
+        ["/instances", "List of known Pepeunit instances"],
+        ["/tasks", "History and status of your manual operations"],
     ]
+    with get_hand_session() as db:
+        user = UserRepository(db).get_user_by_telegram_id(str(message.chat.id))
+        if user and user.role == UserRole.ADMIN.value:
+            table.append(["/control", "Admin global operations"])
     text += make_monospace_table_with_title(
         table, f"Backend Version - {root_data.version}", [10, 28]
     )

@@ -9,6 +9,7 @@ from app import settings
 from app.configs.db import get_session
 from app.configs.errors import UserError
 from app.domain.user_model import User
+from app.dto.enum import UserRole
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
@@ -38,6 +39,13 @@ class UserRepository(BaseRepository):
     def get_user_by_telegram_id(self, telegram_chat_id: str):
         return self.db.exec(
             select(User).where(User.telegram_chat_id == telegram_chat_id)
+        ).first()
+
+    def get_first_admin(self) -> User | None:
+        return self.db.exec(
+            select(User)
+            .where(User.role == UserRole.ADMIN.value)
+            .order_by(User.create_datetime)
         ).first()
 
     def list(

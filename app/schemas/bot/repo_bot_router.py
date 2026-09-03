@@ -301,8 +301,8 @@ class RepoBotRouter(BaseBotRouter):
             text = ""
             match decrees_type:
                 case DecreesNames.RELATED_UNIT:
-                    text = "Success linked Unit update"
-                    repo_service.update_units_firmware(repo_uuid)
+                    repo_service.schedule_update_units_firmware(repo_uuid)
+                    text = "Started linked Unit update"
 
         await callback.answer(parse_mode="Markdown")
         await self.telegram_response(callback, text, is_editable=False)

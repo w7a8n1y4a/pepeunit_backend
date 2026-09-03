@@ -1,12 +1,14 @@
 import uuid as uuid_pkg
 
 from fastapi import Depends
-from sqlalchemy import or_
-from sqlmodel import Session
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import aliased
+from sqlmodel import Session, func, select
 
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.dto.enum import VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.services.validators import is_valid_uuid
 
@@ -71,3 +73,27 @@ class UnitNodeEdgeRepository(BaseRepository):
             )
             .count()
         )
+
+    def get_public_count(self) -> int:
+        input_node = aliased(UnitNode)
+        output_node = aliased(UnitNode)
+        return self.db.exec(
+            select(func.count())
+            .select_from(UnitNodeEdge)
+            .join(
+                input_node,
+                UnitNodeEdge.node_input_uuid == input_node.uuid,
+            )
+            .join(
+                output_node,
+                UnitNodeEdge.node_output_uuid == output_node.uuid,
+            )
+            .where(
+                and_(
+                    input_node.visibility_level
+                    == VisibilityLevel.PUBLIC.value,
+                    output_node.visibility_level
+                    == VisibilityLevel.PUBLIC.value,
+                )
+            )
+        ).one()

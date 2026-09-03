@@ -228,6 +228,9 @@ class CommandNames(str, enum.Enum):
     INFO = "info"
     VERIFICATION = "verification"
     DASHBOARD = "dashboard"
+    INSTANCES = "instances"
+    TASKS = "tasks"
+    CONTROL = "control"
 
 
 @strawberry.enum
@@ -242,6 +245,9 @@ class EntityNames(str, enum.Enum):
     UNIT_NODE = "UnitNode"
     UNIT_LOG = "UnitLog"
     DASHBOARD = "Dashboard"
+    INSTANCE = "Instance"
+    OPERATION_TASK = "OperationTask"
+    CONTROL = "Control"
 
 
 @strawberry.enum
@@ -252,6 +258,11 @@ class DecreesNames(str, enum.Enum):
 
     RELATED_UNIT = "RelatedUnit"
     LOCAL_UPDATE = "LocalUpdate"
+    SCAN = "Scan"
+    SCAN_ALL = "ScanAll"
+    INTEGRATION_TESTS = "IntegrationTests"
+    UPDATE_ALL_REGISTRIES = "UpdateAllRegistries"
+    UPDATE_ALL_UNITS_FIRMWARE = "UpdateAllUnitsFirmware"
     GET_ENV = "GetEnv"
     TAR = "Tar"
     TGZ = "Tgz"
@@ -485,3 +496,60 @@ class DashboardStatus(str, enum.Enum):
     SUCCESS = "Success"
     PROCESSING = "Processing"
     ERROR = "Error"
+
+
+@strawberry.enum
+class InstanceTrustStatus(str, enum.Enum):
+    TRUST = "Trust"
+    PENDING = "Pending"
+    BLOCKING = "Blocking"
+
+
+@strawberry.enum
+class InstanceCollectionStatus(str, enum.Enum):
+    SUCCESS = "Success"
+    TIMEOUT = "Timeout"
+    ERROR = "Error"
+    BLOCKING = "Blocking"
+
+
+@strawberry.enum
+class OperationTaskStatus(str, enum.Enum):
+    RUNNING = "Running"
+    SUCCESS = "Success"
+    ERROR = "Error"
+
+
+@strawberry.enum
+class OperationTaskType(str, enum.Enum):
+    INTEGRATION_TESTS = "IntegrationTests"
+    SCAN_ALL_INSTANCES = "ScanAllInstances"
+    SCAN_INSTANCE = "ScanInstance"
+    UPDATE_ALL_REGISTRIES = "UpdateAllRegistries"
+    UPDATE_REGISTRY = "UpdateRegistry"
+    UPDATE_UNITS_FIRMWARE = "UpdateUnitsFirmware"
+    UPDATE_ALL_UNITS_FIRMWARE = "UpdateAllUnitsFirmware"
+
+
+@strawberry.enum
+class IntegrationTestsStatus(str, enum.Enum):
+    SUCCESS = "Success"
+    RUNNING = "Running"
+    WARNING = "Warning"
+    ERROR = "Error"
+
+
+@strawberry.enum
+class CacheKey(str, enum.Enum):
+    INSTANCE_METRICS = "InstanceMetrics"
+    INSTANCE_METRICS_PUBLIC = "InstanceMetricsPublic"
+
+
+@strawberry.enum
+class FileLock(str, enum.Enum):
+    INIT = "tmp/init_lock.lock"
+    MQTT_RUN = "tmp/mqtt_run_lock.lock"
+    MQTT_SUBSCRIBE = "tmp/mqtt_subscribe.lock"
+    UPDATE_REPOS = "tmp/update_repos.lock"
+    UPDATE_REGISTRY = "tmp/update_registry.lock"
+    COLLECT_INSTANCES = "tmp/collect_instances.lock"

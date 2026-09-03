@@ -1,5 +1,6 @@
 import os
 import sys
+from importlib import import_module
 from logging.config import fileConfig
 
 from dotenv import load_dotenv
@@ -11,6 +12,24 @@ from alembic import context
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 sys.path.append(BASE_DIR)
+
+MODEL_MODULES = (
+    "dashboard_model",
+    "dashboard_panel_model",
+    "instance_model",
+    "operation_task_model",
+    "panels_unit_nodes_model",
+    "permission_model",
+    "repo_model",
+    "repository_registry_model",
+    "unit_model",
+    "unit_node_edge_model",
+    "unit_node_model",
+    "user_model",
+)
+
+for model_module in MODEL_MODULES:
+    import_module(f"app.domain.{model_module}")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

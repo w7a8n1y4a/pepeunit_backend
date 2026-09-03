@@ -1,3 +1,4 @@
+import json
 from contextlib import contextmanager
 
 from fastapi.encoders import jsonable_encoder
@@ -10,7 +11,7 @@ engine = create_engine(
     echo=settings.pu_min_log_level == "DEBUG",
     echo_pool=settings.pu_min_log_level == "DEBUG",
     future=True,
-    json_serializer=jsonable_encoder,
+    json_serializer=lambda data: json.dumps(jsonable_encoder(data)),
     pool_pre_ping=True,
     pool_size=max(5, settings.pu_worker_count * 2),
     max_overflow=max(5, settings.pu_worker_count),

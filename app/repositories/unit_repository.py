@@ -11,6 +11,7 @@ from app.configs.errors import UnitError
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.dto.enum import VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
@@ -184,3 +185,10 @@ class UnitRepository(BaseRepository):
         ):
             msg = "Name is not unique"
             raise UnitError(msg)
+
+    def get_public_count(self) -> int:
+        return self.db.exec(
+            select(func.count())
+            .select_from(Unit)
+            .where(Unit.visibility_level == VisibilityLevel.PUBLIC.value)
+        ).one()

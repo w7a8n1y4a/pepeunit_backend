@@ -10,7 +10,7 @@ from app import settings
 from app.configs.errors import MqttError
 from app.configs.utils import acquire_file_lock
 from app.dto.agent.abc import AgentBackend
-from app.dto.enum import GlobalPrefixTopic
+from app.dto.enum import FileLock, GlobalPrefixTopic
 
 
 class MqttManager:
@@ -58,7 +58,7 @@ class MqttManager:
 
         async def _subscribe_after_connect() -> None:
             lock_fd = self._subscription_lock_fd or acquire_file_lock(
-                "tmp/mqtt_subscribe.lock"
+                FileLock.MQTT_SUBSCRIBE
             )
             await asyncio.sleep(2)
             if not lock_fd:

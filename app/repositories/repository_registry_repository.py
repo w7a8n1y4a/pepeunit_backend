@@ -67,6 +67,7 @@ class RepositoryRegistryRepository(BaseRepository):
         fields = {
             "order_by_create_date": RepositoryRegistry.create_datetime,
             "order_by_last_update": RepositoryRegistry.last_update_datetime,
+            "order_by_repository_url": RepositoryRegistry.repository_url,
         }
         query = apply_orders_by(query, filters, fields)
 

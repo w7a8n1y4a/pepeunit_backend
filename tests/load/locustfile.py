@@ -3,16 +3,16 @@ from locust import HttpUser, between, task
 from app import settings
 
 
-class MetricsUser(HttpUser):
+class CurrentInstanceUser(HttpUser):
     host = f"{settings.pu_http_type}://{settings.pu_domain}"
     wait_time = between(1, 1)
 
     @task
-    def test_endpoint(self):
-        self.client.get("/pepeunit/api/v1/metrics/")
+    def test_current_instance(self):
+        self.client.get("/pepeunit/api/v1/instances/current")
 
 
-class MetricsGQLUser(HttpUser):
+class CurrentInstanceGQLUser(HttpUser):
     host = f"{settings.pu_http_type}://{settings.pu_domain}"
     wait_time = between(1, 1)
 
@@ -22,12 +22,14 @@ class MetricsGQLUser(HttpUser):
         graphql_query = {
             "query": """
             {
-              getBaseMetrics {
-                userCount
-                repoCount
-                unitCount
-                unitNodeCount
-                unitNodeEdgeCount
+              getCurrentInstance {
+                metrics {
+                  userCount
+                  repoCount
+                  unitCount
+                  unitNodeCount
+                  unitNodeEdgeCount
+                }
               }
             }
             """
@@ -35,12 +37,3 @@ class MetricsGQLUser(HttpUser):
         self.client.post(
             f"{self.host}/pepeunit/graphql", json=graphql_query, headers=headers
         )
-
-
-class RootUser(HttpUser):
-    host = f"{settings.pu_http_type}://{settings.pu_domain}"
-    wait_time = between(1, 1)
-
-    @task
-    def test_pepeunit(self):
-        self.client.get("/pepeunit")

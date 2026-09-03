@@ -23,6 +23,7 @@ class AccessService:
         self.user_repository = user_repository
         self.unit_repository = unit_repository
         self.permission_repository = permission_repository
+        self.is_bot_auth = is_bot_auth
         self.auth = AuthServiceFactory(
             self.unit_repository, self.user_repository, jwt_token, is_bot_auth
         ).create()

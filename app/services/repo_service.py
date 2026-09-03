@@ -2,17 +2,19 @@ import contextlib
 import copy
 import datetime
 import logging
-import threading
 import uuid as uuid_pkg
 
 from fastapi import Depends
 
+from app.configs.errors import RepoError
+from app.domain.operation_task_model import OperationTask
 from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
     BackendTopicCommand,
+    OperationTaskType,
     OwnershipType,
     PermissionEntities,
     UserRole,
@@ -25,6 +27,7 @@ from app.schemas.gql.inputs.repo import (
     RepoFilterInput,
     RepoUpdateInput,
 )
+from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.repo import (
     RepoCreate,
     RepoFilter,
@@ -33,9 +36,10 @@ from app.schemas.pydantic.repo import (
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
+from app.services.background import BackgroundService
+from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.repository_registry_service import RepositoryRegistryService
-from app.services.thread import _process_bulk_update_units_firmware
 from app.services.unit_service import UnitService
 from app.services.utils import (
     merge_two_dict_first_priority,
@@ -57,6 +61,7 @@ class RepoService:
         repository_registry_service: RepositoryRegistryService = Depends(),
         unit_service: UnitService = Depends(),
         permission_service: PermissionService = Depends(),
+        operation_task_service: OperationTaskService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.repo_repository = repo_repository
@@ -65,6 +70,7 @@ class RepoService:
         self.repository_registry_service = repository_registry_service
         self.unit_service = unit_service
         self.permission_service = permission_service
+        self.operation_task_service = operation_task_service
         self.access_service = access_service
 
     def create(self, data: RepoCreate | RepoCreateInput) -> Repo:
@@ -231,16 +237,11 @@ class RepoService:
             and repo.default_commit is not None
             and repo.default_branch is not None
         ):
-            self.update_units_firmware(repo.uuid, is_auto_update=True)
+            self.update_units_firmware(repo.uuid)
 
         return repo
 
-    def update_units_firmware(
-        self, uuid: uuid_pkg.UUID, is_auto_update: bool = False
-    ) -> None:
-        if not is_auto_update:
-            self.access_service.authorization.check_access([AgentType.USER])
-
+    def update_units_firmware(self, uuid: uuid_pkg.UUID) -> str:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
@@ -248,11 +249,6 @@ class RepoService:
             RepositoryRegistry(uuid=repo.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
-
-        if not is_auto_update:
-            self.access_service.authorization.check_ownership(
-                repo, [OwnershipType.CREATOR]
-            )
 
         count, units = self.unit_repository.list(
             UnitFilter(repo_uuid=repo.uuid, is_auto_update_from_repo_unit=True)
@@ -287,16 +283,76 @@ class RepoService:
         }
 
         logging.info(result)
+        summary = (
+            f"Updated {count_success_update}, failed {count_error_update}"
+        )
 
-    def bulk_update_units_firmware(self, is_auto_update: bool = False) -> None:
-        if not is_auto_update:
-            self.access_service.authorization.check_access(
-                [AgentType.USER], [UserRole.ADMIN]
+        if count_error_update:
+            raise RepoError(summary)
+        return summary
+
+    def schedule_update_units_firmware(
+        self,
+        uuid: uuid_pkg.UUID,
+    ) -> OperationTask:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repo = self.repo_repository.get(Repo(uuid=uuid))
+        is_valid_object(repo)
+
+        self.access_service.authorization.check_ownership(
+            repo, [OwnershipType.CREATOR]
+        )
+        jwt_token = self.access_service.current_agent.generate_agent_token()
+
+        task = self.operation_task_service.create(
+            OperationTaskCreate(
+                task_type=OperationTaskType.UPDATE_UNITS_FIRMWARE,
             )
+        )
 
-        threading.Thread(
-            target=_process_bulk_update_units_firmware, daemon=True
-        ).start()
+        def operation(_db):
+            with BackgroundService(jwt_token) as services:
+                return services.get_repo_service().update_units_firmware(uuid)
+
+        self.operation_task_service.schedule(task.uuid, operation)
+        return task
+
+    def bulk_update_units_firmware(self) -> str:
+        count, auto_update_repositories = self.repo_repository.list(
+            RepoFilter(is_auto_update_repo=True)
+        )
+        logging.info(f"{len(auto_update_repositories)} repos update launched")
+
+        failed = 0
+        for repo in auto_update_repositories:
+            logging.info(f"run update repo {repo.uuid}")
+            try:
+                self.update_units_firmware(repo.uuid)
+            except Exception as e:
+                failed += 1
+                logging.error(f"failed to update repo {repo.uuid}: {e}")
+
+        logging.info("task auto update repo successfully completed")
+        return f"Repos {len(auto_update_repositories)}, failed {failed}"
+
+    def schedule_bulk_update_units_firmware(self) -> OperationTask:
+        self.access_service.authorization.check_access(
+            [AgentType.USER],
+            [UserRole.ADMIN],
+        )
+        task = self.operation_task_service.create(
+            OperationTaskCreate(
+                task_type=OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE,
+            )
+        )
+
+        def operation(_db):
+            with BackgroundService() as services:
+                return services.get_repo_service().bulk_update_units_firmware()
+
+        self.operation_task_service.schedule(task.uuid, operation)
+        return task
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

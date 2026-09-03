@@ -196,3 +196,23 @@ class ReadmeGenerationError(CustomException):
             message_template="Readme Generation Error: {}",
             error_code=16,
         )
+
+
+class InstanceError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Instance Validation Error: {}",
+            error_code=17,
+        )
+
+
+class OperationTaskError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            message_template="Operation Task Validation Error: {}",
+            error_code=18,
+        )

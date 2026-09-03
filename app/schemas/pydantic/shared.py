@@ -17,6 +17,7 @@ class FeatureFlags(BaseModel):
         settings.pu_ff_datapipe_default_last_value_enable
     )
     pu_ff_prometheus_enable: bool = settings.pu_ff_prometheus_enable
+    pu_ff_federation_enable: bool = settings.pu_ff_federation_enable
 
 
 class Root(BaseModel):

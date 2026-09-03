@@ -4,11 +4,12 @@ from fastapi import Depends
 from fastapi.params import Query
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.configs.db import get_session
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
+from app.dto.enum import VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
@@ -130,3 +131,10 @@ class UnitNodeRepository(BaseRepository):
 
         count, query = apply_offset_and_limit(query, filters)
         return count, query.all()
+
+    def get_public_count(self) -> int:
+        return self.db.exec(
+            select(func.count())
+            .select_from(UnitNode)
+            .where(UnitNode.visibility_level == VisibilityLevel.PUBLIC.value)
+        ).one()

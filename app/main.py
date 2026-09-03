@@ -1,15 +1,11 @@
-import asyncio
 import json
 import logging
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
-import aiogram.exceptions
-import httpx
 from aiogram import Bot, Dispatcher, types
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
-from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
@@ -20,25 +16,18 @@ from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
 from app import settings
-from app.configs.db import get_hand_session
-from app.configs.emqx import ControlEmqx
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context
 from app.configs.logging_config import setup_logging
-from app.configs.redis import get_redis_session
-from app.configs.rest import get_repository_registry_service
-from app.configs.utils import (
-    acquire_file_lock,
-    recreate_directory,
-    wait_for_file_unlock,
-)
-from app.dto.agent.abc import AgentBackend
-from app.dto.enum import GlobalPrefixTopic
-from app.repositories.grafana_repository import GrafanaRepository
+from app.configs.utils import recreate_directory
+from app.repositories.instance_cache_repository import InstanceCacheRepository
 from app.routers.v1.endpoints import api_router
+from app.schemas.bot.control_bot_router import ControlBotRouter
 from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
+from app.schemas.bot.instance_bot_router import InstanceBotRouter
+from app.schemas.bot.operation_task_bot_router import OperationTaskBotRouter
 from app.schemas.bot.repo_bot_router import RepoBotRouter
 from app.schemas.bot.repository_registry_bot_router import (
     RepositoryRegistryBotRouter,
@@ -50,8 +39,7 @@ from app.schemas.bot.unit_node_bot_router import UnitNodeBotRouter
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
-from app.schemas.pydantic.shared import Root
-from app.utils.utils import logo_to_console
+from app.services.startup_service import StartupService
 
 setup_logging()
 
@@ -60,206 +48,17 @@ if settings.pu_ff_prometheus_enable:
     recreate_directory(settings.pu_prometheus_multiproc_dir)
 
 
-async def init_clickhouse():
-    clickhouse_cluster = ClickhouseCluster(
-        settings.pu_clickhouse_connection.host,
-        settings.pu_clickhouse_connection.user,
-        settings.pu_clickhouse_connection.password,
-    )
-    clickhouse_cluster.migrate(
-        settings.pu_clickhouse_connection.database,
-        "./clickhouse/migrations",
-        cluster_name=None,
-        create_db_if_no_exists=True,
-        multi_statement=True,
-    )
-
-
-async def setup_backend_acl(redis):
-    backend_topics = (
-        f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}",
-    )
-
-    async def hset_emqx_auth_keys(redis_client, topic):
-        token = AgentBackend(name=settings.pu_domain).generate_agent_token()
-        await redis_client.hset(f"mqtt_acl:{token}", topic, "all")
-
-    await asyncio.gather(
-        *[hset_emqx_auth_keys(redis, topic) for topic in backend_topics]
-    )
-
-
-async def run_polling_bot(dp, bot):
-    logging.info("Delete webhook before run polling")
-    await bot.delete_webhook()
-    logging.info("Run polling")
-    try:
-        await dp.start_polling(
-            bot, allowed_updates=dp.resolve_used_update_types()
-        )
-    except asyncio.CancelledError:
-        logging.info("Polling bot task cancelled")
-        raise
-    except Exception as e:
-        logging.error(f"Error in polling bot: {e}")
-        raise
-
-
-async def run_webhook_bot(dp, bot):
-    webhook_url = f"{settings.pu_link_prefix_and_v1}/bot"
-
-    if settings.pu_telegram_del_old_webhook:
-        logging.info("Delete webhook before set new webhook")
-        await bot.delete_webhook()
-
-    # Wait for webhook endpoint to be ready
-    inc = 0
-    while True:
-        result = httpx.post(
-            f"{settings.pu_link_prefix_and_v1}/bot",
-            headers={"Content-Type": "application/json"},
-        )
-        if result.status_code == 422:
-            break
-        await asyncio.sleep(2)
-        if inc > 10:
-            msg = "Webhook route not valid"
-            raise Exception(msg)
-        inc += 1
-
-    try:
-        await bot.set_webhook(
-            url=webhook_url,
-            drop_pending_updates=True,
-            allowed_updates=dp.resolve_used_update_types(),
-        )
-        logging.info("Success set TG bot webhook url")
-    except aiogram.exceptions.TelegramBadRequest:
-        logging.info("Error set TG bot webhook url")
-
-    # Keep the task alive to maintain the webhook connection
-    try:
-        while True:
-            await asyncio.sleep(60)  # Keep alive with periodic checks
-            # Optionally verify webhook is still active
-            try:
-                webhook_info = await bot.get_webhook_info()
-                if not webhook_info.url:
-                    logging.warning("Webhook was removed, re-setting...")
-                    await bot.set_webhook(
-                        url=webhook_url,
-                        drop_pending_updates=False,
-                        allowed_updates=dp.resolve_used_update_types(),
-                    )
-            except Exception as e:
-                logging.warning(f"Webhook check failed: {e}")
-    except asyncio.CancelledError:
-        logging.info("Webhook bot task cancelled")
-        raise
-
-
-# Global variables to store tasks for proper cleanup
-_bot_tasks = []
-_mqtt_task = None
-
-
-async def init_telegram_bot(dp, bot):
-    if not settings.pu_ff_telegram_bot_enable:
-        return
-
-    if settings.pu_telegram_bot_mode == "pooling":
-        task = asyncio.create_task(
-            run_polling_bot(dp, bot), name="run_polling_bot"
-        )
-        _bot_tasks.append(task)
-    elif settings.pu_telegram_bot_mode == "webhook":
-        # Run webhook setup in the same event loop instead of creating a separate thread
-        task = asyncio.create_task(
-            run_webhook_bot(dp, bot), name="run_webhook_bot"
-        )
-        _bot_tasks.append(task)
-
-
-def sync_local_repository():
-    with get_hand_session() as db:
-        repository_registry_service = get_repository_registry_service(
-            db,
-            AgentBackend(name=settings.pu_domain).generate_agent_token(),
-        )
-        repository_registry_service.sync_local_repository_storage()
-
-
-async def run_mqtt_client(mqtt, redis_client):
-    logging.info(
-        f"Connect to mqtt server: {settings.pu_mqtt_host}:{settings.pu_mqtt_port}"
-    )
-    from app.schemas.mqtt.manager import mqtt_manager
-
-    mqtt_manager.attach_loop(asyncio.get_running_loop())
-    await mqtt.mqtt_startup()
-    token = AgentBackend(name=settings.pu_domain).generate_agent_token()
-    access = await redis_client.hgetall(token)
-    for k, v in access.items():
-        logging.info(f"Redis set {k} access {v}")
-
-
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    FILE_INIT_LOCK = "tmp/init_lock.lock"
-    FILE_MQTT_RUN_LOCK = "tmp/mqtt_run_lock.lock"
-
-    init_lock = acquire_file_lock(FILE_INIT_LOCK)
-    redis = await anext(get_redis_session())
-
-    if init_lock:
-        mqtt_run_lock = acquire_file_lock(FILE_MQTT_RUN_LOCK)
-
-        await init_clickhouse()
-        control_emqx = ControlEmqx()
-        await control_emqx.init()
-        if settings.pu_ff_grafana_integration_enable:
-            loop = asyncio.get_running_loop()
-            loop.run_in_executor(
-                None,
-                GrafanaRepository.configure_admin_dashboard_permissions,
-            )
-        await setup_backend_acl(redis)
-        if settings.pu_ff_telegram_bot_enable:
-            await init_telegram_bot(dp, bot)
-        sync_local_repository()
-
-        mqtt_run_lock.close()
-
-        logo_to_console()
-
-    wait_for_file_unlock(FILE_MQTT_RUN_LOCK)
-
-    global _mqtt_task
-    _mqtt_task = asyncio.create_task(
-        run_mqtt_client(mqtt, redis), name="run_mqtt_client"
+    runtime = StartupService(
+        _app,
+        mqtt,
+        bot if settings.pu_ff_telegram_bot_enable else None,
+        dp if settings.pu_ff_telegram_bot_enable else None,
     )
-
+    await runtime.start()
     yield
-
-    if _bot_tasks:
-        logging.info("Stopping Telegram bot tasks...")
-        for task in _bot_tasks:
-            if not task.done():
-                task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await task
-        _bot_tasks.clear()
-
-    if _mqtt_task and not _mqtt_task.done():
-        logging.info("Stopping MQTT task...")
-        _mqtt_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await _mqtt_task
-
-    if init_lock:
-        init_lock.close()
-
-    await mqtt.mqtt_shutdown()
+    await runtime.stop()
 
 
 class CustomExceptionMiddleware(BaseHTTPMiddleware):
@@ -282,6 +81,7 @@ app = FastAPI(
     debug=settings.pu_min_log_level == "DEBUG",
     lifespan=_lifespan,
 )
+app.state.instance_cache = InstanceCacheRepository()
 
 app.add_middleware(CustomExceptionMiddleware)
 
@@ -299,11 +99,6 @@ app.include_router(
     prefix=f"{settings.pu_app_prefix}/graphql",
     include_in_schema=False,
 )
-
-
-@app.get(f"{settings.pu_app_prefix}", response_model=Root, tags=["status"])
-async def root():
-    return Root()
 
 
 def custom_json_dumps(obj: dict, **kwargs):
@@ -339,6 +134,9 @@ if settings.pu_ff_telegram_bot_enable:
     dp = Dispatcher(bot=bot, storage=storage)
 
     dp.include_router(info_router)
+    dp.include_router(ControlBotRouter().router)
+    dp.include_router(InstanceBotRouter().router)
+    dp.include_router(OperationTaskBotRouter().router)
     dp.include_router(base_router)
     dp.include_router(RepositoryRegistryBotRouter().router)
     dp.include_router(RepoBotRouter().router)

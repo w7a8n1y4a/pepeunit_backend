@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     pu_ff_datapipe_enable: bool = True
     pu_ff_datapipe_default_last_value_enable: bool = True
     pu_ff_prometheus_enable: bool = True
+    pu_ff_federation_enable: bool = True
 
     pu_log_format: str = "json"
     pu_min_log_level: str = "INFO"
@@ -46,6 +47,12 @@ class Settings(BaseSettings):
     pu_state_send_interval: int = 60
     pu_max_external_repo_size: int = 50
     pu_max_cipher_length: int = 1_000_000
+    pu_instance_max_state_size: int = 4096
+    pu_instance_request_timeout: int = 30
+    pu_instance_retention_days: int = 60
+
+    pu_admin_email: str = ""
+    pu_admin_tg: str = ""
 
     pu_unit_log_expiration: int = 86400
 
@@ -105,6 +112,7 @@ class Settings(BaseSettings):
     pu_grafana_admin_password: str = ""
     pu_grafana_limit_unit_node_per_one_panel: int = 10
 
+    pu_test_integration_command: str = "uv run pytest tests -v"
     pu_test_integration_clear_data: bool = True
     pu_test_integration_github_public_repo_url: str = (
         "https://github.com/w7a8n1y4a/github_unit_pub_test.git"
