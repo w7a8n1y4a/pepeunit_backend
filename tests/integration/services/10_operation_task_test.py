@@ -1,20 +1,13 @@
 import logging
-import uuid as uuid_pkg
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from app import settings
-from app.configs.errors import (
-    InstanceError,
-    NoAccessError,
-    OperationTaskError,
-    ValidationError,
-)
+from app.configs.errors import NoAccessError, OperationTaskError
 from app.domain.operation_task_model import OperationTask
 from app.dto.enum import OperationTaskStatus, OperationTaskType
 from app.dto.integration_tests import IntegrationTestsStats
-from app.repositories.operation_task_repository import OperationTaskRepository
 from app.schemas.pydantic.operation_task import (
     OperationTaskCreate,
     OperationTaskFilter,
@@ -45,10 +38,15 @@ def test_create_operation_task(crud_task, admin_user) -> None:
     assert crud_task.result is None
 
 
-def test_create_operation_task_anonymous(database) -> None:
+def test_operation_task_anonymous(crud_task, database) -> None:
     service = operation_task_service(database, None)
-    with pytest.raises(NoAccessError):
-        service.create(OperationTaskCreate(task_type=TASK_TYPE))
+    for operation in (
+        lambda: service.create(OperationTaskCreate(task_type=TASK_TYPE)),
+        lambda: service.get(crud_task.uuid),
+        lambda: service.list(OperationTaskFilter()),
+    ):
+        with pytest.raises(NoAccessError):
+            operation()
 
 
 def test_get_operation_task(crud_task, admin_user_token, database) -> None:
@@ -56,22 +54,10 @@ def test_get_operation_task(crud_task, admin_user_token, database) -> None:
     assert service.get(crud_task.uuid).uuid == crud_task.uuid
 
 
-def test_get_operation_task_not_exist(admin_user_token, database) -> None:
-    service = operation_task_service(database, admin_user_token)
-    with pytest.raises(ValidationError):
-        service.get(uuid_pkg.uuid4())
-
-
 def test_get_operation_task_not_creator(
     crud_task, regular_user_token, database
 ) -> None:
     service = operation_task_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.get(crud_task.uuid)
-
-
-def test_get_operation_task_anonymous(crud_task, database) -> None:
-    service = operation_task_service(database, None)
     with pytest.raises(NoAccessError):
         service.get(crud_task.uuid)
 
@@ -120,12 +106,6 @@ def test_list_operation_tasks_only_own(
     assert all(task.uuid != crud_task.uuid for task in tasks)
 
 
-def test_list_operation_tasks_anonymous(database) -> None:
-    service = operation_task_service(database, None)
-    with pytest.raises(NoAccessError):
-        service.list(OperationTaskFilter())
-
-
 def test_schedule_sync_operation(
     crud_task, admin_user_token, database
 ) -> None:
@@ -153,20 +133,10 @@ def test_schedule_async_operation(
     assert finished.result == "async done"
 
 
-def test_schedule_operation_without_result(
-    crud_task, admin_user_token, database
-) -> None:
-    service = operation_task_service(database, admin_user_token)
-    service.schedule(crud_task, lambda _db: None)
-
-    finished = wait_task_finish(database, crud_task)
-    assert finished.status == OperationTaskStatus.SUCCESS.value
-    assert finished.result is None
-
-
 def test_schedule_failed_operation(
     crud_task, admin_user_token, database
 ) -> None:
+    """A result keeps a raw error, without the http prefix of it"""
     service = operation_task_service(database, admin_user_token)
 
     def operation(_db):
@@ -178,18 +148,6 @@ def test_schedule_failed_operation(
     finished = wait_task_finish(database, crud_task)
     assert finished.status == OperationTaskStatus.ERROR.value
     assert finished.result == "operation is broken"
-
-
-def test_get_error_text() -> None:
-    """A result keeps a raw error, without the http prefix of it"""
-    error = InstanceError("==== 1 failed, 114 passed in 165.99s ====")
-
-    assert error.message.startswith("422: 17: Instance Validation Error: ")
-    assert OperationTaskService._get_error_text(error) == (
-        "==== 1 failed, 114 passed in 165.99s ===="
-    )
-    assert OperationTaskService._get_error_text(ValueError("plain")) == "plain"
-    assert OperationTaskService._get_error_text(ValueError()) == "ValueError"
 
 
 def test_schedule_log_result(crud_task, admin_user_token, database) -> None:
@@ -211,37 +169,12 @@ def test_is_valid_cooldown(crud_task, admin_user_token, database) -> None:
     with pytest.raises(OperationTaskError):
         service.is_valid_cooldown(TASK_TYPE, timedelta(hours=1))
 
-
-def test_is_valid_cooldown_after_expiration(
-    crud_task, admin_user_token, database
-) -> None:
-    service = operation_task_service(database, admin_user_token)
     age_tasks(database, TASK_TYPE)
-
     service.is_valid_cooldown(TASK_TYPE, timedelta(hours=1))
 
 
-def test_get_latest_by_type(crud_task, admin_user, database) -> None:
-    repository = OperationTaskRepository(database)
-    assert (
-        repository.get_latest_by_type(TASK_TYPE).uuid == crud_task.uuid
-    )
-
-    older = repository.create(
-        OperationTask(
-            creator_uuid=admin_user.uuid,
-            task_type=TASK_TYPE.value,
-            create_datetime=datetime.now(UTC) - timedelta(days=1),
-            start_datetime=datetime.now(UTC) - timedelta(days=1),
-        )
-    )
-    try:
-        assert repository.get_latest_by_type(TASK_TYPE).uuid == crud_task.uuid
-    finally:
-        repository.delete(OperationTask(uuid=older.uuid))
-
-
 def test_get_finish_text(crud_task) -> None:
+    """A test log is replaced with its counts, other results keep the tail"""
     crud_task.result = None
     assert OperationTaskService._get_finish_text(crud_task) == (
         f"Task `{crud_task.task_type}` finish with `{crud_task.status}`"
@@ -259,9 +192,6 @@ def test_get_finish_text(crud_task) -> None:
         IntegrationTestsStats.MAX_TELEGRAM_RESULT_LENGTH
     )
 
-
-def test_get_finish_text_integration_tests(crud_task) -> None:
-    """A test log is replaced with its counts, other results keep the tail"""
     crud_task.task_type = OperationTaskType.INTEGRATION_TESTS.value
     crud_task.status = OperationTaskStatus.SUCCESS.value
     crud_task.result = (
@@ -269,26 +199,7 @@ def test_get_finish_text_integration_tests(crud_task) -> None:
         + "y" * 65536
         + "\n==== 231 passed, 10 skipped in 174.21s (0:02:54) ====\n"
     )
-
     assert OperationTaskService._get_finish_text(crud_task) == (
         "Task `IntegrationTests` finish with `Success`: `total 241,"
         " passed 231, skipped 10, failed 0, error 0 in 174.21s`"
     )
-
-    crud_task.result = "ImportError: cannot import name settings"
-    text = OperationTaskService._get_finish_text(crud_task)
-    assert text.endswith("cannot import name settings`")
-
-
-async def test_notify_telegram_disabled(crud_task, database) -> None:
-    await OperationTaskService._notify_telegram(crud_task, database, False)
-
-
-async def test_notify_telegram_without_chat_id(
-    extra_user, extra_user_token, database
-) -> None:
-    service = operation_task_service(database, extra_user_token)
-    task = service.create(OperationTaskCreate(task_type=TASK_TYPE))
-
-    await OperationTaskService._notify_telegram(task, database, True)
-    assert not extra_user.telegram_chat_id

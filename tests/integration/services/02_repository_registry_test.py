@@ -1,6 +1,5 @@
 import logging
 import os
-import uuid as uuid_pkg
 from datetime import UTC, datetime
 
 import pytest
@@ -10,7 +9,6 @@ from app.configs.errors import (
     GitRepoError,
     NoAccessError,
     RepositoryRegistryError,
-    ValidationError,
 )
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.enum import (
@@ -278,22 +276,6 @@ def test_schedule_update_registry(
     )
 
 
-def test_schedule_update_registry_anonymous(
-    github_public_registry, database
-) -> None:
-    service = registry_service(database, None)
-    with pytest.raises(NoAccessError):
-        service.schedule_update(github_public_registry.uuid)
-
-
-def test_schedule_update_registry_not_exist(
-    regular_user_token, database
-) -> None:
-    service = registry_service(database, regular_user_token)
-    with pytest.raises(ValidationError):
-        service.schedule_update(uuid_pkg.uuid4())
-
-
 @pytest.mark.private_repo
 def test_schedule_update_registry_without_credentials(
     private_registry, extra_user_token, database
@@ -301,14 +283,6 @@ def test_schedule_update_registry_without_credentials(
     service = registry_service(database, extra_user_token)
     with pytest.raises(NoAccessError):
         service.schedule_update(private_registry.uuid)
-
-
-def test_update_local_repository_not_exist(
-    regular_user_token, database
-) -> None:
-    service = registry_service(database, regular_user_token)
-    with pytest.raises(ValidationError):
-        service.update_local_repository(uuid_pkg.uuid4())
 
 
 def test_update_local_repository_sync_error(

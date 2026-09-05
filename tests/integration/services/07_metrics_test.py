@@ -21,8 +21,12 @@ def test_get_metrics(live_units, chain_edges, regular_user_token, database) -> N
 
 
 def test_get_metrics_anonymous(live_units, database) -> None:
-    metrics = metrics_service(database, None).get_instance_metrics()
-    assert metrics.user_count >= 2
+    service = metrics_service(database, None)
+    assert service.get_instance_metrics().user_count >= 2
+    assert (
+        service.get_instance_metrics(is_api=False, public_only=True).user_count
+        >= 2
+    )
 
 
 def test_get_metrics_backend_agent(database) -> None:
@@ -54,14 +58,6 @@ def test_get_public_metrics(
         public_metrics.unit_node_edge_count
         <= all_metrics.unit_node_edge_count
     )
-
-
-def test_get_public_metrics_without_token(live_units, database) -> None:
-    metrics = metrics_service(database, None).get_instance_metrics(
-        is_api=False,
-        public_only=True,
-    )
-    assert metrics.user_count >= 2
 
 
 def test_get_metrics_cache(live_units, regular_user_token, database) -> None:

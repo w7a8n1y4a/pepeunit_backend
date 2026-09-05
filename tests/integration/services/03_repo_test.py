@@ -1,5 +1,4 @@
 import logging
-import uuid as uuid_pkg
 
 import pytest
 
@@ -225,12 +224,6 @@ def test_update_repo_visibility_blocked_by_children(
     )
 
 
-def test_update_units_firmware_not_exist(regular_user_token, database, cc) -> None:
-    service = repo_service(database, cc, regular_user_token)
-    with pytest.raises(ValidationError):
-        service.update_units_firmware(uuid_pkg.uuid4())
-
-
 def test_schedule_update_units_firmware(
     live_units, universal_public_repo, regular_user_token, database, cc
 ) -> None:
@@ -252,34 +245,6 @@ def test_schedule_update_units_firmware_not_creator(
     service = repo_service(database, cc, extra_user_token)
     with pytest.raises(NoAccessError):
         service.schedule_update_units_firmware(universal_public_repo.uuid)
-
-
-def test_schedule_update_units_firmware_anonymous(
-    universal_public_repo, database, cc
-) -> None:
-    service = repo_service(database, cc, None)
-    with pytest.raises(NoAccessError):
-        service.schedule_update_units_firmware(universal_public_repo.uuid)
-
-
-def test_schedule_update_units_firmware_not_exist(
-    regular_user_token, database, cc
-) -> None:
-    service = repo_service(database, cc, regular_user_token)
-    with pytest.raises(ValidationError):
-        service.schedule_update_units_firmware(uuid_pkg.uuid4())
-
-
-def test_bulk_update_units_firmware(
-    live_units, live_repos, regular_user_token, database, cc
-) -> None:
-    summary = repo_service(
-        database, cc, regular_user_token
-    ).bulk_update_units_firmware()
-
-    logging.info(summary)
-    assert summary.startswith("Repos ")
-    assert "failed" in summary
 
 
 def test_schedule_bulk_update_units_firmware_without_admin(

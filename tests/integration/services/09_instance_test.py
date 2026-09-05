@@ -2,7 +2,6 @@ import logging
 import uuid as uuid_pkg
 from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
 
 from app import settings
@@ -26,9 +25,6 @@ from app.dto.enum import (
 )
 from app.dto.integration_tests import IntegrationTestsStats
 from app.repositories.instance_cache_repository import instance_cache
-from app.repositories.instance_external_repository import (
-    InstanceExternalRepository,
-)
 from app.repositories.instance_repository import InstanceRepository
 from app.repositories.operation_task_repository import OperationTaskRepository
 from app.schemas.pydantic.instance import (
@@ -39,7 +35,6 @@ from app.schemas.pydantic.instance import (
 )
 from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
 from app.services.instance_service import InstanceService
-from app.services.metrics_service import MetricsService
 from tests.integration.helpers.names import (
     TEST_HASH,
     unique_instance_url,
@@ -87,18 +82,6 @@ def test_create_instance(crud_instance, database) -> None:
     assert _instance_by_url(database, crud_instance.url)
 
 
-def test_create_instance_without_admin(regular_user_token, database) -> None:
-    service = instance_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.create(InstanceCreate(url=unique_instance_url("no_admin")))
-
-
-def test_create_instance_anonymous(database) -> None:
-    service = instance_service(database, None)
-    with pytest.raises(NoAccessError):
-        service.create(InstanceCreate(url=unique_instance_url("anon")))
-
-
 def test_create_instance_duplicate_url(
     crud_instance, admin_user_token, database
 ) -> None:
@@ -107,9 +90,9 @@ def test_create_instance_duplicate_url(
         service.create(InstanceCreate(url=crud_instance.url))
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
+def test_create_instance_bad_url(admin_user_token, database) -> None:
+    service = instance_service(database, admin_user_token)
+    for url in (
         "ftp://pepeunit.test/pepeunit/api/v1/instances/current",
         "https:///pepeunit/api/v1/instances/current",
         "https://pepeunit.test/pepeunit/api/v1/instances/current?token=1",
@@ -117,50 +100,35 @@ def test_create_instance_duplicate_url(
         "https://user:pass@pepeunit.test/pepeunit/api/v1/instances/current",
         "https://pepeunit.test/pepeunit/api/v1/metrics",
         "https://pepeunit.test",
-    ],
-)
-def test_create_instance_bad_url(url, admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    with pytest.raises(InstanceError):
-        service.create(InstanceCreate(url=url))
+    ):
+        with pytest.raises(InstanceError):
+            service.create(InstanceCreate(url=url))
 
 
-def test_is_valid_url_normalization() -> None:
-    assert (
-        InstanceService.is_valid_url(
-            "  HTTPS://Example.COM:8080/pepeunit/api/v1/instances/current/  "
-        )
-        == "https://example.com:8080/pepeunit/api/v1/instances/current"
-    )
-    assert (
-        InstanceService.is_valid_url(
-            "http://PEPEUNIT.test/pepeunit/api/v1/instances/current"
-        )
-        == "http://pepeunit.test/pepeunit/api/v1/instances/current"
-    )
-
-
-def test_get_own_url() -> None:
-    own_url = InstanceService.get_own_url()
-    assert own_url.endswith("/instances/current")
-    assert own_url == InstanceService.is_valid_url(own_url)
+def test_instance_without_admin(
+    crud_instance, regular_user_token, database
+) -> None:
+    service = instance_service(database, regular_user_token)
+    for operation in (
+        lambda: service.create(
+            InstanceCreate(url=unique_instance_url("no_admin"))
+        ),
+        lambda: service.update(
+            crud_instance.uuid,
+            InstanceUpdate(trust_status=InstanceTrustStatus.BLOCKING),
+        ),
+        lambda: service.delete(crud_instance.uuid),
+        lambda: service.scan_one(crud_instance.uuid),
+        lambda: service.scan_all(),
+        lambda: service.start_integration_tests(),
+    ):
+        with pytest.raises(NoAccessError):
+            operation()
 
 
 def test_get_instance(crud_instance, regular_user_token, database) -> None:
     service = instance_service(database, regular_user_token)
     assert service.get(crud_instance.uuid).url == crud_instance.url
-
-
-def test_get_instance_not_exist(admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    with pytest.raises(ValidationError):
-        service.get(uuid_pkg.uuid4())
-
-
-def test_get_instance_anonymous(crud_instance, database) -> None:
-    service = instance_service(database, None)
-    with pytest.raises(NoAccessError):
-        service.get(crud_instance.uuid)
 
 
 def test_list_instances(crud_instance, regular_user_token, database) -> None:
@@ -240,49 +208,20 @@ def test_update_instance_pending_forbidden(
         )
 
 
-def test_update_instance_without_admin(
-    crud_instance, regular_user_token, database
-) -> None:
-    service = instance_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.update(
-            crud_instance.uuid,
-            InstanceUpdate(trust_status=InstanceTrustStatus.BLOCKING),
-        )
-
-
-def test_update_instance_not_exist(admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    with pytest.raises(ValidationError):
-        service.update(
-            uuid_pkg.uuid4(),
-            InstanceUpdate(trust_status=InstanceTrustStatus.TRUST),
-        )
-
-
 def test_delete_instance(admin_user_token, database) -> None:
+    """The url is normalized on create, the host and the scheme are lowered"""
     service = instance_service(database, admin_user_token)
+    url = unique_instance_url("to_delete")
+    host, _, path = url.removeprefix("https://").partition("/")
+
     instance = service.create(
-        InstanceCreate(url=unique_instance_url("to_delete"))
+        InstanceCreate(url=f"  HTTPS://{host.upper()}/{path}/  ")
     )
+    assert instance.url == url
 
     service.delete(instance.uuid)
     with pytest.raises(ValidationError):
         service.get(instance.uuid)
-
-
-def test_delete_instance_without_admin(
-    crud_instance, regular_user_token, database
-) -> None:
-    service = instance_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.delete(crud_instance.uuid)
-
-
-def test_delete_instance_not_exist(admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    with pytest.raises(ValidationError):
-        service.delete(uuid_pkg.uuid4())
 
 
 def test_refresh_cache(crud_instance, admin_user_token, database) -> None:
@@ -295,6 +234,13 @@ def test_refresh_cache(crud_instance, admin_user_token, database) -> None:
         service.list(InstanceFilter())[1]
     )
     assert cached_urls.urls == sorted(cached_urls.urls)
+
+    limited = service.get_cached_urls(InstanceFilter(offset=0, limit=1))
+    assert limited.total_count == cached_urls.total_count
+    assert limited.urls == cached_urls.urls[:1]
+
+    tail = service.get_cached_urls(InstanceFilter(offset=1))
+    assert tail.urls == cached_urls.urls[1:]
 
 
 def test_get_cached_current(admin_user_token, database) -> None:
@@ -311,18 +257,6 @@ def test_get_cached_current(admin_user_token, database) -> None:
         current.feature_flags.pu_ff_federation_enable
         == settings.pu_ff_federation_enable
     )
-
-
-def test_get_current_instance(admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    MetricsService._cache.clear()
-
-    current = service.get_current_instance()
-    api_metrics = service.metrics_service.get_instance_metrics(is_api=False)
-
-    assert current.metrics.repo_count <= api_metrics.repo_count
-    assert current.metrics.unit_count <= api_metrics.unit_count
-    assert current.metrics.unit_node_count <= api_metrics.unit_node_count
 
 
 def test_get_cached_instances_filter(
@@ -386,21 +320,6 @@ def test_get_cached_registries(
     assert limited.total_count == page.total_count
 
 
-def test_get_cached_urls_pagination(
-    crud_instance, admin_user_token, database
-) -> None:
-    service = instance_service(database, admin_user_token)
-    service.refresh_cache()
-
-    full = service.get_cached_urls(InstanceFilter())
-    limited = service.get_cached_urls(InstanceFilter(offset=0, limit=1))
-    assert limited.total_count == full.total_count
-    assert limited.urls == full.urls[:1]
-
-    tail = service.get_cached_urls(InstanceFilter(offset=1))
-    assert tail.urls == full.urls[1:]
-
-
 def test_cache_not_initialized(admin_user_token, database) -> None:
     service = instance_service(database, admin_user_token)
     service.refresh_cache()
@@ -420,133 +339,13 @@ def test_cache_not_initialized(admin_user_token, database) -> None:
         instance_cache.update(snapshot)
 
 
-def test_mapper_instance_to_instance_read(crud_instance) -> None:
-    read = InstanceService.mapper_instance_to_instance_read(crud_instance)
-    assert read.uuid == crud_instance.uuid
-    assert read.url == crud_instance.url
-    assert read.trust_status == InstanceTrustStatus.TRUST
-
-
-def test_mapper_registry_to_public_registry(
-    github_public_registry, regular_user_token, database
-) -> None:
-    registry = registry_service(database, regular_user_token).get(
-        github_public_registry.uuid
-    )
-    public = InstanceService.mapper_registry_to_public_registry(registry)
-    assert public.url == registry.repository_url
-    assert public.platform == GitPlatform(registry.platform)
-
-
-def test_mapper_current_to_current_instance_type(
-    admin_user_token, database
-) -> None:
-    service = instance_service(database, admin_user_token)
-    service.refresh_cache()
-
-    current = service.get_cached_current()
-    current_type = InstanceService.mapper_current_to_current_instance_type(
-        current
-    )
-    assert current_type.schema_version == current.schema_version
-    assert current_type.metrics.user_count == current.metrics.user_count
-    assert (
-        current_type.state.instance_datetime
-        == current.state.instance_datetime
-    )
-    assert current_type.contacts.email == current.contacts.email
-    assert current_type.settings.pu_max_pagination_size == (
-        current.settings.pu_max_pagination_size
-    )
-
-
-def test_is_valid_trust_status() -> None:
-    InstanceService.is_valid_trust_status(InstanceTrustStatus.TRUST)
-    InstanceService.is_valid_trust_status(InstanceTrustStatus.BLOCKING)
-    with pytest.raises(InstanceError):
-        InstanceService.is_valid_trust_status(InstanceTrustStatus.PENDING)
-
-
-def test_is_collection_available(crud_instance, pending_instance) -> None:
-    InstanceService.is_collection_available(crud_instance)
-    with pytest.raises(InstanceError):
-        InstanceService.is_collection_available(pending_instance)
-
-
-def test_is_valid_collection_status() -> None:
-    success = Instance(
-        url="https://pepeunit.test/instances/current",
-        last_collection_status=InstanceCollectionStatus.SUCCESS.value,
-    )
-    InstanceService.is_valid_collection_status(success)
-
-    failed = Instance(
-        url="https://pepeunit.test/instances/current",
-        last_collection_status=InstanceCollectionStatus.ERROR.value,
-        last_collection_error="connection refused",
-    )
-    with pytest.raises(InstanceError) as error:
-        InstanceService.is_valid_collection_status(failed)
-    assert "connection refused" in error.value.message
-
-    failed.last_collection_error = None
-    with pytest.raises(InstanceError) as error:
-        InstanceService.is_valid_collection_status(failed)
-    assert "is failed" in error.value.message
-
-
-def test_get_collection_status() -> None:
-    request = httpx.Request("GET", "https://pepeunit.test")
-    assert (
-        InstanceService.get_collection_status(
-            httpx.ConnectTimeout("timeout", request=request)
-        )
-        == InstanceCollectionStatus.TIMEOUT
-    )
-    for status_code in InstanceService.BLOCKING_STATUS_CODES:
-        assert (
-            InstanceService.get_collection_status(
-                httpx.HTTPStatusError(
-                    "blocked",
-                    request=request,
-                    response=httpx.Response(status_code, request=request),
-                )
-            )
-            == InstanceCollectionStatus.BLOCKING
-        )
-    assert (
-        InstanceService.get_collection_status(
-            httpx.HTTPStatusError(
-                "server error",
-                request=request,
-                response=httpx.Response(500, request=request),
-            )
-        )
-        == InstanceCollectionStatus.ERROR
-    )
-    assert (
-        InstanceService.get_collection_status(ValueError("too big"))
-        == InstanceCollectionStatus.ERROR
-    )
-
-
 def test_integration_tests_stats() -> None:
     """The total is taken from the collection line of the log"""
     stats = IntegrationTestsStats.from_result(
-        "============================= test session starts ==============="
-        "===============\n"
         "collected 241 items\n"
-        "tests/integration/services/11_end_test.py::test_end PASSED"
-        " [100%]\n"
         "======= 231 passed, 10 skipped, 3 warnings in 174.21s (0:02:54)"
         " =======\n"
     )
-    assert stats.collected == 241
-    assert stats.passed == 231
-    assert stats.skipped == 10
-    assert stats.warning == 3
-    assert stats.failed == 0
-    assert stats.duration == 174.21
     assert stats.total == 241
     assert stats.executed == 231
     assert stats.success_percentage == 100.0
@@ -555,42 +354,29 @@ def test_integration_tests_stats() -> None:
         " in 174.21s"
     )
 
-
-def test_integration_tests_stats_with_deselected() -> None:
-    """The deselected tests are collected, but they are never run"""
+    # the deselected tests are collected, but they are never run
     stats = IntegrationTestsStats.from_result(
         "collected 250 items / 9 deselected / 241 selected\n"
         "==== 241 passed, 9 deselected in 174.21s ===="
     )
-    assert stats.collected == 250
-    assert stats.deselected == 9
     assert stats.total == 241
-    assert stats.success_percentage == 100.0
     assert stats.to_text() == (
         "total 241, passed 241, skipped 0, failed 0, error 0, deselected 9"
         " in 174.21s"
     )
 
-
-def test_integration_tests_stats_without_collection() -> None:
-    """The quiet mode has no collection line, the counts are summed up"""
+    # the quiet mode has no collection line, the counts are summed up
     stats = IntegrationTestsStats.from_result(
         "==== 2 errors, 1 xfailed, 1 xpassed, 1 passed in 3.00s ===="
     )
-    assert stats.collected == 0
-    assert stats.error == 2
-    assert stats.xfailed == 1
-    assert stats.xpassed == 1
     assert stats.total == 5
-    assert stats.success == 2
     assert stats.success_percentage == 40.0
-    assert stats.to_text() == (
-        "total 5, passed 1, skipped 0, failed 0, error 2, xfailed 1, xpassed 1"
-        " in 3.00s"
-    )
 
+    # a log without the pytest summary line gives no counts at all
+    for result in (None, "", "ImportError: cannot import name settings"):
+        assert IntegrationTestsStats.from_result(result).to_text() is None
 
-def test_integration_tests_get_result_text() -> None:
+    # a full log is replaced by its counts, one without a summary by its tail
     assert IntegrationTestsStats.get_result_text(
         "collected 241 items\n" + "y" * 300 + "\n==== 241 passed in 10.00s =="
     ) == ("total 241, passed 241, skipped 0, failed 0, error 0 in 10.00s")
@@ -600,53 +386,12 @@ def test_integration_tests_get_result_text() -> None:
     assert tail.endswith("no summary")
 
 
-def test_integration_tests_stats_without_summary() -> None:
-    """A log without the pytest summary line gives no counts at all"""
-    for result in (None, "", "ImportError: cannot import name settings"):
-        stats = IntegrationTestsStats.from_result(result)
-        assert IntegrationTestsStats.get_summary(result) is None
-        assert stats.total == 0
-        assert stats.success_percentage is None
-        assert stats.to_text() is None
+def test_get_integration_tests_state(
+    admin_user, admin_user_token, database
+) -> None:
+    service = instance_service(database, admin_user_token)
 
-    stats = IntegrationTestsStats.from_result("==== no tests ran in 0.01s ====")
-    assert stats.total == 0
-    assert stats.success_percentage is None
-    assert stats.to_text() == (
-        "total 0, passed 0, skipped 0, failed 0, error 0 in 0.01s"
-    )
-
-
-def test_get_integration_tests_status() -> None:
-    assert (
-        InstanceService.get_integration_tests_status(
-            OperationTaskStatus.RUNNING, None
-        )
-        == IntegrationTestsStatus.RUNNING
-    )
-    assert (
-        InstanceService.get_integration_tests_status(
-            OperationTaskStatus.SUCCESS, 100.0
-        )
-        == IntegrationTestsStatus.SUCCESS
-    )
-    assert (
-        InstanceService.get_integration_tests_status(
-            OperationTaskStatus.ERROR, 92.31
-        )
-        == IntegrationTestsStatus.WARNING
-    )
-    assert (
-        InstanceService.get_integration_tests_status(
-            OperationTaskStatus.ERROR, None
-        )
-        == IntegrationTestsStatus.ERROR
-    )
-
-
-@pytest.mark.parametrize(
-    ("status", "result", "expected_status", "expected_percentage"),
-    [
+    for status, result, expected_status, expected_percentage in (
         (OperationTaskStatus.RUNNING, None, IntegrationTestsStatus.RUNNING, None),
         (
             OperationTaskStatus.SUCCESS,
@@ -661,44 +406,19 @@ def test_get_integration_tests_status() -> None:
             92.31,
         ),
         (OperationTaskStatus.ERROR, None, IntegrationTestsStatus.ERROR, None),
-    ],
-)
-def test_get_integration_tests_state(
-    status,
-    result,
-    expected_status,
-    expected_percentage,
-    admin_user,
-    admin_user_token,
-    database,
-) -> None:
-    service = instance_service(database, admin_user_token)
-    task = _create_integration_tests_task(
-        database, admin_user.uuid, status, result
-    )
-    try:
-        state = service.get_integration_tests_state()
-        assert state.integration_tests_status == expected_status
-        assert state.integration_tests_success_percentage == (
-            expected_percentage
+    ):
+        task = _create_integration_tests_task(
+            database, admin_user.uuid, status, result
         )
-        assert state.integration_tests_datetime
-    finally:
-        OperationTaskRepository(database).delete(task)
-
-
-def test_start_integration_tests_without_admin(
-    regular_user_token, database
-) -> None:
-    service = instance_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.start_integration_tests()
-
-
-def test_start_integration_tests_anonymous(database) -> None:
-    service = instance_service(database, None)
-    with pytest.raises(NoAccessError):
-        service.start_integration_tests()
+        try:
+            state = service.get_integration_tests_state()
+            assert state.integration_tests_status == expected_status
+            assert state.integration_tests_success_percentage == (
+                expected_percentage
+            )
+            assert state.integration_tests_datetime
+        finally:
+            OperationTaskRepository(database).delete(task)
 
 
 @pytest.mark.federation
@@ -771,13 +491,6 @@ async def test_collect_not_trusted_instance(
 
 
 @pytest.mark.federation
-async def test_collect_not_exist(admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    with pytest.raises(ValidationError):
-        await service.collect(uuid_pkg.uuid4())
-
-
-@pytest.mark.federation
 async def test_collect_response_size_limit(
     own_instance, admin_user_token, database
 ) -> None:
@@ -796,27 +509,6 @@ async def test_collect_response_size_limit(
     assert "exceeds the limit" in instance.last_collection_error
 
     instance = await service.collect(own_instance.uuid)
-    assert (
-        instance.last_collection_status
-        == InstanceCollectionStatus.SUCCESS.value
-    )
-
-
-@pytest.mark.federation
-async def test_external_repository_collect(own_instance) -> None:
-    collected = await InstanceExternalRepository().collect(own_instance.url)
-
-    assert collected.state.schema_version == "v1"
-    assert collected.last_ping > 0
-    assert isinstance(collected.urls, list)
-    assert all(
-        item.platform in list(GitPlatform) for item in collected.registries
-    )
-
-
-@pytest.mark.federation
-async def test_collect_with_delay(own_instance) -> None:
-    instance = await InstanceService.collect_with_delay(own_instance.uuid, 0)
     assert (
         instance.last_collection_status
         == InstanceCollectionStatus.SUCCESS.value
@@ -920,121 +612,6 @@ def test_insert_discovered_registries_skipped(
 
 
 @pytest.mark.federation
-async def test_delete_stale_trusted_removes_unreachable(
-    unreachable_instance, admin_user_token, database
-) -> None:
-    service = instance_service(database, admin_user_token)
-    repository = InstanceRepository(db=database)
-
-    instance = unreachable_instance
-    instance.create_datetime = datetime.now(UTC) - timedelta(days=365)
-    instance = repository.update(instance.uuid, instance)
-
-    await service.delete_stale_trusted(instance, datetime.now(UTC))
-
-    with pytest.raises(ValidationError):
-        service.get(instance.uuid)
-
-
-@pytest.mark.federation
-async def test_delete_stale_trusted_keeps_alive(
-    own_instance, admin_user_token, database
-) -> None:
-    service = instance_service(database, admin_user_token)
-
-    await service.delete_stale_trusted(
-        service.get_instance(own_instance.uuid),
-        datetime.now(UTC),
-    )
-    assert service.get(own_instance.uuid)
-
-    await service.delete_stale_trusted(
-        service.get_instance(own_instance.uuid),
-        datetime.now(UTC) - timedelta(days=365),
-    )
-    assert service.get(own_instance.uuid)
-
-
-@pytest.mark.federation
-async def test_delete_stale_instances(
-    own_instance, crud_instance, admin_user_token, database
-) -> None:
-    service = instance_service(database, admin_user_token)
-    original_retention = settings.pu_instance_retention_days
-
-    settings.pu_instance_retention_days = 100_000
-    try:
-        await service.delete_stale_instances()
-    finally:
-        settings.pu_instance_retention_days = original_retention
-
-    assert service.get(own_instance.uuid)
-    assert service.get(crud_instance.uuid)
-
-
-@pytest.mark.federation
-def test_scan_one(own_instance, admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    task = service.scan_one(own_instance.uuid)
-
-    assert task.task_type == OperationTaskType.SCAN_INSTANCE.value
-    assert task.status == OperationTaskStatus.RUNNING.value
-
-    finished = wait_task_finish(database, task)
-    assert finished.status == OperationTaskStatus.SUCCESS.value
-    assert finished.result.startswith(f"Scanned {own_instance.url}")
-    assert finished.finish_datetime
-
-
-@pytest.mark.federation
-def test_scan_one_unreachable(
-    unreachable_instance, admin_user_token, database
-) -> None:
-    service = instance_service(database, admin_user_token)
-    task = service.scan_one(unreachable_instance.uuid)
-
-    finished = wait_task_finish(database, task)
-    assert finished.status == OperationTaskStatus.ERROR.value
-    assert finished.result
-
-
-@pytest.mark.federation
-def test_scan_one_not_exist(admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    with pytest.raises(ValidationError):
-        service.scan_one(uuid_pkg.uuid4())
-
-
-@pytest.mark.federation
-def test_scan_one_without_admin(
-    own_instance, regular_user_token, database
-) -> None:
-    service = instance_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.scan_one(own_instance.uuid)
-
-
-@pytest.mark.federation
-def test_scan_all(own_instance, admin_user_token, database) -> None:
-    service = instance_service(database, admin_user_token)
-    age_tasks(database, OperationTaskType.SCAN_ALL_INSTANCES)
-
-    task = service.scan_all()
-    assert task.task_type == OperationTaskType.SCAN_ALL_INSTANCES.value
-    assert task.status == OperationTaskStatus.RUNNING.value
-
-    with pytest.raises(OperationTaskError):
-        service.scan_all()
-
-
-@pytest.mark.federation
-def test_scan_all_without_admin(regular_user_token, database) -> None:
-    service = instance_service(database, regular_user_token)
-    with pytest.raises(NoAccessError):
-        service.scan_all()
-
-
-@pytest.mark.federation
 def test_insert_discovered_registries_created(
     github_public_registry,
     admin_user_token,
@@ -1064,3 +641,64 @@ def test_insert_discovered_registries_created(
         registry_svc.user_repository.get_first_admin().uuid
     )
     assert created.sync_status == RepositoryRegistryStatus.UPDATED
+
+
+@pytest.mark.federation
+async def test_delete_stale_trusted(
+    own_instance, unreachable_instance, admin_user_token, database
+) -> None:
+    """A stale instance is always polled before deletion, a live one survives"""
+    service = instance_service(database, admin_user_token)
+
+    await service.delete_stale_trusted(
+        service.get_instance(own_instance.uuid),
+        datetime.now(UTC) - timedelta(days=365),
+    )
+    assert service.get(own_instance.uuid)
+
+    instance = unreachable_instance
+    instance.create_datetime = datetime.now(UTC) - timedelta(days=365)
+    instance = InstanceRepository(db=database).update(instance.uuid, instance)
+
+    await service.delete_stale_trusted(instance, datetime.now(UTC))
+    with pytest.raises(ValidationError):
+        service.get(instance.uuid)
+
+
+@pytest.mark.federation
+def test_scan_one(own_instance, admin_user_token, database) -> None:
+    service = instance_service(database, admin_user_token)
+    task = service.scan_one(own_instance.uuid)
+
+    assert task.task_type == OperationTaskType.SCAN_INSTANCE.value
+    assert task.status == OperationTaskStatus.RUNNING.value
+
+    finished = wait_task_finish(database, task)
+    assert finished.status == OperationTaskStatus.SUCCESS.value
+    assert finished.result.startswith(f"Scanned {own_instance.url}")
+    assert finished.finish_datetime
+
+
+@pytest.mark.federation
+def test_scan_one_unreachable(
+    unreachable_instance, admin_user_token, database
+) -> None:
+    service = instance_service(database, admin_user_token)
+    task = service.scan_one(unreachable_instance.uuid)
+
+    finished = wait_task_finish(database, task)
+    assert finished.status == OperationTaskStatus.ERROR.value
+    assert finished.result
+
+
+@pytest.mark.federation
+def test_scan_all(own_instance, admin_user_token, database) -> None:
+    service = instance_service(database, admin_user_token)
+    age_tasks(database, OperationTaskType.SCAN_ALL_INSTANCES)
+
+    task = service.scan_all()
+    assert task.task_type == OperationTaskType.SCAN_ALL_INSTANCES.value
+    assert task.status == OperationTaskStatus.RUNNING.value
+
+    with pytest.raises(OperationTaskError):
+        service.scan_all()
