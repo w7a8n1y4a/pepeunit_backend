@@ -96,7 +96,6 @@ class MqttManager:
 
     async def _watchdog(self) -> None:
         interval = 5
-        timeout = 20
         resubscribe_interval = 120
 
         while True:
@@ -107,9 +106,9 @@ class MqttManager:
                 if conn is None or conn.is_closing():
                     continue
 
+                # keepalive pings and reconnects on a dead link are handled by
+                # MQTTConnection._keep_connection with pu_mqtt_keepalive
                 now = time.monotonic()
-                last_in = getattr(conn, "_last_data_in", None)
-                last_out = getattr(conn, "_last_data_out", None)
 
                 if (
                     self._subscription_lock_fd is not None
@@ -125,19 +124,6 @@ class MqttManager:
                         logging.warning(
                             f"MQTT watchdog resubscribe failed: {e}"
                         )
-
-                if last_out is not None and (now - last_out) >= interval:
-                    try:
-                        conn._send_ping_request()
-                    except Exception as e:
-                        logging.warning(f"MQTT watchdog ping failed: {e}")
-
-                if last_in is not None and (now - last_in) >= timeout:
-                    logging.warning(
-                        "MQTT watchdog: no inbound data for %ss, closing connection to trigger reconnect",
-                        timeout,
-                    )
-                    await conn.close()
             except asyncio.CancelledError:
                 raise
             except Exception as e:

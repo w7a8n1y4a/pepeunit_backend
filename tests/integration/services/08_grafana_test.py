@@ -1,13 +1,7 @@
-import csv
-import datetime
 import json
 import logging
-import os
-import random
-from io import StringIO
 
 import pytest
-from fastapi import UploadFile
 
 from app import settings
 from app.configs.errors import GrafanaError, NoAccessError
@@ -28,6 +22,7 @@ from app.schemas.pydantic.grafana import (
 )
 from app.schemas.pydantic.unit_node import DataPipeFilter, UnitNodeFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
+from tests.integration.helpers.data_pipe import upload_pipe_csv
 from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     grafana_service,
@@ -75,71 +70,6 @@ async def test_import_data_to_data_pipe(
     cc,
 ) -> None:
     service = unit_node_service(database, cc, regular_user_token)
-    os.makedirs("tmp/csv", exist_ok=True)
-
-    def save_csv_to_file(filepath: str, data: list[dict]) -> None:
-        if not data:
-            raise Exception("No data found")
-        csv_data = StringIO()
-        writer = csv.writer(csv_data)
-        writer.writerow(data[0].keys())
-        for item in data:
-            writer.writerow(item.values())
-        with open(filepath, "w") as handle:
-            handle.write(csv_data.getvalue())
-
-    csv_save_paths = {
-        ProcessingPolicyType.AGGREGATION: "tmp/csv/aggregation.csv",
-        ProcessingPolicyType.N_RECORDS: "tmp/csv/n_records.csv",
-        ProcessingPolicyType.TIME_WINDOW: "tmp/csv/time_window.csv",
-    }
-
-    def generation_csv_for_policy(policy: ProcessingPolicyType) -> None:
-        data = []
-        now = datetime.datetime.now(datetime.UTC).replace(
-            tzinfo=None, second=0, microsecond=0
-        )
-        match policy:
-            case ProcessingPolicyType.AGGREGATION:
-                step = datetime.timedelta(minutes=1)
-                for i in range(2000):
-                    end_window = now - i * step
-                    start_window = end_window - datetime.timedelta(seconds=60)
-                    data.append(
-                        {
-                            "state": round(random.uniform(-20.0, 10.0), 2),
-                            "create_datetime": end_window,
-                            "start_window_datetime": start_window,
-                            "end_window_datetime": end_window,
-                        }
-                    )
-            case ProcessingPolicyType.N_RECORDS:
-                step = datetime.timedelta(minutes=60)
-                for i in range(100):
-                    data.append(
-                        {
-                            "state": round(random.uniform(1, 10.0), 2),
-                            "create_datetime": now - i * step,
-                        }
-                    )
-            case ProcessingPolicyType.TIME_WINDOW:
-                step = datetime.timedelta(seconds=2)
-                for i in range(100):
-                    data.append(
-                        {
-                            "state": json.dumps(
-                                {
-                                    "level": random.choice(["error", "info", "warning"]),
-                                    "TitleMessage": random.choice(
-                                        ["Test Info One", "Test Info Two"]
-                                    ),
-                                }
-                            ),
-                            "create_datetime": now - i * step,
-                        }
-                    )
-        data.sort(key=lambda item: item["create_datetime"])
-        save_csv_to_file(csv_save_paths[policy], data)
 
     for unit in piped_units.piped():
         count, input_unit_node = service.list(
@@ -148,19 +78,10 @@ async def test_import_data_to_data_pipe(
         data_pipe_entity = is_valid_data_pipe_config(
             json.loads(input_unit_node[0].data_pipe_yml), is_business_validator=True
         )
-        logging.info(data_pipe_entity.processing_policy.policy_type)
-        if data_pipe_entity.processing_policy.policy_type != ProcessingPolicyType.LAST_VALUE:
-            generation_csv_for_policy(data_pipe_entity.processing_policy.policy_type)
-            await service.set_data_pipe_data_csv(
-                uuid=input_unit_node[0].uuid,
-                data_csv=UploadFile(
-                    filename="",
-                    file=open(
-                        csv_save_paths[data_pipe_entity.processing_policy.policy_type],
-                        "rb",
-                    ),
-                ),
-            )
+        policy = data_pipe_entity.processing_policy.policy_type
+        logging.info(policy)
+        if policy != ProcessingPolicyType.LAST_VALUE:
+            await upload_pipe_csv(service, input_unit_node[0].uuid, policy)
         else:
             service.set_state(
                 unit_node_uuid=input_unit_node[0].uuid,

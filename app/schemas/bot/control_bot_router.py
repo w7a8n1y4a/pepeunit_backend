@@ -118,7 +118,7 @@ class ControlBotRouter(BaseBotRouter):
                         get_bot_instance_service(
                             db, chat_id
                         ).start_integration_tests()
-                        text = "Started Integration Tests"
+                        text = "Started Integration Tests, it takes 3 minutes or more"
                     case DecreesNames.SCAN_ALL:
                         get_bot_instance_service(db, chat_id).scan_all()
                         text = "Started Scan All Instances"
