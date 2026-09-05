@@ -1,5 +1,8 @@
 from app.configs.rest import (
     get_grafana_service,
+    get_instance_service,
+    get_metrics_service,
+    get_operation_task_service,
     get_permission_service,
     get_repo_service,
     get_repository_registry_service,
@@ -38,6 +41,18 @@ def grafana_service(database, cc, token=None):
 
 def permission_service(database, token=None):
     return get_permission_service(database, token)
+
+
+def instance_service(database, token=None):
+    return get_instance_service(database, token)
+
+
+def operation_task_service(database, token=None):
+    return get_operation_task_service(database, token)
+
+
+def metrics_service(database, token=None):
+    return get_metrics_service(database, token)
 
 
 def registry_read(database, token, registry_or_uuid):

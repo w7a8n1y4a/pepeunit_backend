@@ -6,4 +6,5 @@ pytest_plugins = [
     "tests.integration.fixtures.units",
     "tests.integration.fixtures.datapipe",
     "tests.integration.fixtures.grafana",
+    "tests.integration.fixtures.instances",
 ]

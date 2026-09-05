@@ -41,6 +41,14 @@ def post_bulk_update_repo(token: str) -> int:
     return response.status_code
 
 
+def patch_update_units_firmware(token: str, repo) -> int:
+    url = (
+        f"{settings.pu_link_prefix_and_v1}/repos/update_units_firmware/{repo.uuid}"
+    )
+    response = httpx.patch(url=url, headers=_headers(token), timeout=60)
+    return response.status_code
+
+
 def post_unit_command(token: str, unit, command: BackendTopicCommand) -> int:
     url = (
         f"{settings.pu_link_prefix_and_v1}/units/"

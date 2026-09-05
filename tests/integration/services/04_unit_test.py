@@ -22,6 +22,8 @@ from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    OperationTaskStatus,
+    OperationTaskType,
     ReservedEnvVariableName,
     UnitNodeTypeEnum,
     VisibilityLevel,
@@ -35,6 +37,7 @@ from app.utils.utils import aes_gcm_encode
 from tests.integration.helpers.http import (
     patch_repo,
     patch_unit_commit,
+    patch_update_units_firmware,
     post_bulk_update_repo,
     post_unit_command,
 )
@@ -45,6 +48,7 @@ from tests.integration.helpers.services import (
     unit_node_service,
     unit_service,
 )
+from tests.integration.helpers.tasks import latest_task
 from tests.integration.helpers.wait import wait_until
 
 
@@ -525,11 +529,35 @@ def test_list_units_with_output_nodes(
 
 
 def test_update_units_firmware(
-    running_units, universal_private_repo, regular_user_token, database, cc
+    running_units, universal_private_repo, regular_user_token, database
 ) -> None:
-    repo_service(database, cc, regular_user_token).update_units_firmware(
-        universal_private_repo.uuid
+    task_type = OperationTaskType.UPDATE_UNITS_FIRMWARE
+    previous_task = latest_task(database, task_type)
+
+    assert (
+        patch_update_units_firmware(regular_user_token, universal_private_repo)
+        < 400
     )
+
+    def is_finish() -> bool:
+        task = latest_task(database, task_type)
+        return (
+            task is not None
+            and (previous_task is None or task.uuid != previous_task.uuid)
+            and task.status != OperationTaskStatus.RUNNING.value
+        )
+
+    wait_until(
+        is_finish,
+        timeout=300,
+        message="units firmware update task not finished",
+        session=database,
+    )
+
+    finished = latest_task(database, task_type)
+    logging.info(finished.result)
+    assert finished.status == OperationTaskStatus.SUCCESS.value
+    assert finished.result.startswith("Updated ")
 
 
 def _mqtt_base_topic(unit, destination: DestinationTopicType, name: str = "update") -> str:

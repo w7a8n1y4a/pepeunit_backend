@@ -563,7 +563,7 @@ class RepositoryRegistryService:
             if delete_path:
                 shutil.rmtree(delete_path, ignore_errors=True)
 
-            msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {settings.physic_repo_size} MB"
+            msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {settings.pu_max_external_repo_size} MB"
             raise GitRepoError(msg)
 
     def mapper_registry_to_registry_read(

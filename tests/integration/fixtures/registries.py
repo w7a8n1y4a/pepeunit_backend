@@ -4,18 +4,29 @@ import os
 import pytest
 
 from app import settings
+from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.agent.abc import AgentBackend
-from app.dto.enum import GitPlatform
+from app.dto.enum import GitPlatform, RepositoryRegistryStatus
 from app.schemas.pydantic.repository_registry import (
     Credentials,
     RepositoryRegistryCreate,
 )
 from tests.integration.helpers.http import patch_backend_sync_registry
 from tests.integration.helpers.services import registry_service
+from tests.integration.helpers.wait import wait_until
+
+
+def _drop_known_registry(database, url: str) -> None:
+    """Реестр мог вернуться в базу через поиск инстансов, он пересоздаётся"""
+    database.query(RepositoryRegistry).where(
+        RepositoryRegistry.repository_url == url
+    ).delete()
+    database.commit()
 
 
 def _create_registry(database, token, spec: dict, *, require_clone: bool = True):
     service = registry_service(database, token)
+    _drop_known_registry(database, spec["link"])
     credentials = None
     if not spec["is_public"]:
         credentials = Credentials(
@@ -31,11 +42,28 @@ def _create_registry(database, token, spec: dict, *, require_clone: bool = True)
             credentials=credentials,
         )
     )
+    wait_registry_sync(database, token, registry)
+
     clone_path = service.git_repo_repository.get_path_physic_repository(registry)
     cloned = os.path.exists(clone_path)
     if require_clone:
         assert cloned
     return registry, cloned
+
+
+def wait_registry_sync(database, token, registry, *, timeout: float = 180) -> None:
+    """create ставит синхронизацию в фон, клон появляется не сразу"""
+    service = registry_service(database, token)
+    wait_until(
+        lambda: service.get(registry.uuid).sync_status
+        in (
+            RepositoryRegistryStatus.UPDATED,
+            RepositoryRegistryStatus.ERROR,
+        ),
+        timeout=timeout,
+        message=f"registry {registry.repository_url} not synced",
+        session=database,
+    )
 
 
 @pytest.fixture(scope="session")

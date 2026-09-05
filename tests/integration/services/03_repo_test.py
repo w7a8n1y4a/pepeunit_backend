@@ -1,10 +1,15 @@
 import logging
+import uuid as uuid_pkg
 
 import pytest
 
 from app import settings
 from app.configs.errors import GitRepoError, NoAccessError, RepoError, ValidationError
-from app.dto.enum import VisibilityLevel
+from app.dto.enum import (
+    OperationTaskStatus,
+    OperationTaskType,
+    VisibilityLevel,
+)
 from app.schemas.pydantic.repo import RepoFilter, RepoUpdate
 from app.schemas.pydantic.user import UserAuth
 from tests.integration.helpers.names import unique_name
@@ -15,6 +20,7 @@ from tests.integration.helpers.services import (
     repo_service,
     user_service,
 )
+from tests.integration.helpers.wait import wait_task_finish
 
 
 def test_create_repo(live_repos) -> None:
@@ -217,3 +223,82 @@ def test_update_repo_visibility_blocked_by_children(
         service.get(live_repos.universal_public_repo.uuid).visibility_level
         == VisibilityLevel.PUBLIC
     )
+
+
+def test_update_units_firmware_not_exist(regular_user_token, database, cc) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    with pytest.raises(ValidationError):
+        service.update_units_firmware(uuid_pkg.uuid4())
+
+
+def test_schedule_update_units_firmware(
+    live_units, universal_public_repo, regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    task = service.schedule_update_units_firmware(universal_public_repo.uuid)
+
+    assert task.task_type == OperationTaskType.UPDATE_UNITS_FIRMWARE.value
+    assert task.status == OperationTaskStatus.RUNNING.value
+
+    finished = wait_task_finish(database, task, timeout=300)
+    logging.info(finished.result)
+    assert finished.status == OperationTaskStatus.SUCCESS.value
+    assert finished.result.startswith("Updated ")
+
+
+def test_schedule_update_units_firmware_not_creator(
+    universal_public_repo, extra_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, extra_user_token)
+    with pytest.raises(NoAccessError):
+        service.schedule_update_units_firmware(universal_public_repo.uuid)
+
+
+def test_schedule_update_units_firmware_anonymous(
+    universal_public_repo, database, cc
+) -> None:
+    service = repo_service(database, cc, None)
+    with pytest.raises(NoAccessError):
+        service.schedule_update_units_firmware(universal_public_repo.uuid)
+
+
+def test_schedule_update_units_firmware_not_exist(
+    regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    with pytest.raises(ValidationError):
+        service.schedule_update_units_firmware(uuid_pkg.uuid4())
+
+
+def test_bulk_update_units_firmware(
+    live_units, live_repos, regular_user_token, database, cc
+) -> None:
+    summary = repo_service(
+        database, cc, regular_user_token
+    ).bulk_update_units_firmware()
+
+    logging.info(summary)
+    assert summary.startswith("Repos ")
+    assert "failed" in summary
+
+
+def test_schedule_bulk_update_units_firmware_without_admin(
+    regular_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, regular_user_token)
+    with pytest.raises(NoAccessError):
+        service.schedule_bulk_update_units_firmware()
+
+
+def test_schedule_bulk_update_units_firmware(
+    live_units, live_repos, admin_user_token, database, cc
+) -> None:
+    service = repo_service(database, cc, admin_user_token)
+    task = service.schedule_bulk_update_units_firmware()
+
+    assert task.task_type == OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE.value
+
+    finished = wait_task_finish(database, task, timeout=600)
+    logging.info(finished.result)
+    assert finished.status == OperationTaskStatus.SUCCESS.value
+    assert finished.result.startswith("Repos ")
