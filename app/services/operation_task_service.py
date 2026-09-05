@@ -202,14 +202,9 @@ class OperationTaskService:
 
     @staticmethod
     def _get_finish_text(task: OperationTask) -> str:
-        result_line = ""
+        result = ""
         if task.result:
             escaped_result = task.result.replace("`", "'")
-            result_line = f"\nResult: `{escaped_result}`"
+            result = f": `{escaped_result}`"
 
-        return (
-            f"*Task finished*\n"
-            f"Type: `{task.task_type}`\n"
-            f"Status: `{task.status}`"
-            f"{result_line}"
-        )
+        return f"Task `{task.task_type}` finish with `{task.status}`{result}"

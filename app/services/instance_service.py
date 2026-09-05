@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import re
 import shlex
 import subprocess
 import uuid as uuid_pkg
@@ -95,6 +96,12 @@ class InstanceService:
 
     BLOCKING_STATUS_CODES = (403, 451)
 
+    # выжимка pytest вида "1 failed, 12 passed, 3 warnings"
+    PYTEST_OUTCOME_PATTERN = re.compile(
+        r"(\d+)\s+(passed|xpassed|failed|errors?)"
+    )
+    PYTEST_SUCCESS_OUTCOMES = ("passed", "xpassed")
+
     def __init__(
         self,
         instance_repository: InstanceRepository = Depends(),
@@ -137,9 +144,7 @@ class InstanceService:
         return instance
 
     def get(self, uuid: uuid_pkg.UUID) -> Instance:
-        self.access_service.authorization.check_access(
-            [AgentType.BOT, AgentType.USER]
-        )
+        self.access_service.authorization.check_access([AgentType.USER])
         return self.get_instance(uuid)
 
     def list(
@@ -162,7 +167,15 @@ class InstanceService:
 
         instance = self.get_instance(uuid)
         self.is_valid_trust_status(data.trust_status)
-        self.set_trust_status(instance, data.trust_status)
+
+        instance.trust_status = data.trust_status.value
+
+        if data.trust_status == InstanceTrustStatus.BLOCKING:
+            instance.last_collection_status = (
+                InstanceCollectionStatus.BLOCKING.value
+            )
+            instance.last_ping = None
+            instance.last_collection_error = None
 
         instance = self.instance_repository.update(instance.uuid, instance)
 
@@ -200,7 +213,12 @@ class InstanceService:
     def refresh_cache(self) -> None:
         count, instances = self.instance_repository.list(InstanceFilter())
         count, registries = self.repository_registry_repository.list(
-            self.get_public_registry_filter()
+            RepositoryRegistryFilter(
+                is_public_repository=True,
+                order_by_create_date=None,
+                order_by_last_update=None,
+                order_by_repository_url=OrderByText.asc,
+            )
         )
 
         self.instance_cache_repository.update(
@@ -238,26 +256,17 @@ class InstanceService:
         if not latest_task:
             return state
 
-        # процент успешности пока бинарный, до разбора отчёта pytest
-        statuses_dict = {
-            OperationTaskStatus.RUNNING: (
-                IntegrationTestsStatus.RUNNING,
-                None,
-            ),
-            OperationTaskStatus.SUCCESS: (
-                IntegrationTestsStatus.SUCCESS,
-                100.0,
-            ),
-            OperationTaskStatus.ERROR: (IntegrationTestsStatus.ERROR, 0.0),
-        }
-        status, success_percentage = statuses_dict[
-            OperationTaskStatus(latest_task.status)
-        ]
+        success_percentage = self.get_integration_tests_percentage(
+            latest_task.result
+        )
 
         state.integration_tests_datetime = (
             latest_task.start_datetime or latest_task.create_datetime
         )
-        state.integration_tests_status = status
+        state.integration_tests_status = self.get_integration_tests_status(
+            OperationTaskStatus(latest_task.status),
+            success_percentage,
+        )
         state.integration_tests_success_percentage = success_percentage
         return state
 
@@ -448,22 +457,13 @@ class InstanceService:
         threshold = datetime.now(UTC) - timedelta(
             days=settings.pu_instance_retention_days
         )
-        count, instances = self.instance_repository.list(InstanceFilter())
+        # pending это карантин для найденных инстансов, автоматически не удаляется
+        count, instances = self.instance_repository.list(
+            InstanceFilter(trust_status=[InstanceTrustStatus.TRUST.value])
+        )
 
         for instance in instances:
-            match instance.trust_status:
-                case InstanceTrustStatus.PENDING:
-                    self.delete_stale_pending(instance, threshold)
-                case InstanceTrustStatus.TRUST:
-                    await self.delete_stale_trusted(instance, threshold)
-
-    def delete_stale_pending(
-        self,
-        instance: Instance,
-        threshold: datetime,
-    ) -> None:
-        if ensure_timezone_aware(instance.create_datetime) < threshold:
-            self.instance_repository.delete(instance)
+            await self.delete_stale_trusted(instance, threshold)
 
     async def delete_stale_trusted(
         self,
@@ -548,15 +548,6 @@ class InstanceService:
         )
 
     @staticmethod
-    def get_public_registry_filter() -> RepositoryRegistryFilter:
-        return RepositoryRegistryFilter(
-            is_public_repository=True,
-            order_by_create_date=None,
-            order_by_last_update=None,
-            order_by_repository_url=OrderByText.asc,
-        )
-
-    @staticmethod
     def get_collection_status(error: Exception) -> InstanceCollectionStatus:
         if isinstance(error, httpx.TimeoutException):
             return InstanceCollectionStatus.TIMEOUT
@@ -579,18 +570,37 @@ class InstanceService:
         return None
 
     @staticmethod
-    def set_trust_status(
-        instance: Instance,
-        trust_status: InstanceTrustStatus,
-    ) -> None:
-        instance.trust_status = trust_status.value
+    def get_integration_tests_percentage(result: str | None) -> float | None:
+        if not result:
+            return None
 
-        if trust_status == InstanceTrustStatus.BLOCKING:
-            instance.last_collection_status = (
-                InstanceCollectionStatus.BLOCKING.value
-            )
-            instance.last_ping = None
-            instance.last_collection_error = None
+        success_count = 0
+        total_count = 0
+        for count, outcome in InstanceService.PYTEST_OUTCOME_PATTERN.findall(
+            result
+        ):
+            total_count += int(count)
+            if outcome in InstanceService.PYTEST_SUCCESS_OUTCOMES:
+                success_count += int(count)
+
+        if not total_count:
+            return None
+
+        return round(success_count / total_count * 100, 2)
+
+    @staticmethod
+    def get_integration_tests_status(
+        task_status: OperationTaskStatus,
+        success_percentage: float | None,
+    ) -> IntegrationTestsStatus:
+        if task_status == OperationTaskStatus.RUNNING:
+            return IntegrationTestsStatus.RUNNING
+        if task_status == OperationTaskStatus.SUCCESS:
+            return IntegrationTestsStatus.SUCCESS
+        if not success_percentage:
+            return IntegrationTestsStatus.ERROR
+
+        return IntegrationTestsStatus.WARNING
 
     @staticmethod
     def is_federation_enable() -> None:
