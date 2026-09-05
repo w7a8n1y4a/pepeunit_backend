@@ -36,8 +36,8 @@ class OperationTask(SQLModel, table=True):
         default=OperationTaskStatus.RUNNING,
     )
 
-    # OperationTask execution result
-    result: str = Field(nullable=True, max_length=256)
+    # OperationTask execution result, can keep a full test log
+    result: str = Field(nullable=True)
 
     # OperationTask type
     task_type: str = Field(nullable=False)

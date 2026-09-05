@@ -6,12 +6,14 @@ import pytest
 
 from app import settings
 from app.configs.errors import (
+    InstanceError,
     NoAccessError,
     OperationTaskError,
     ValidationError,
 )
 from app.domain.operation_task_model import OperationTask
 from app.dto.enum import OperationTaskStatus, OperationTaskType
+from app.dto.integration_tests import IntegrationTestsStats
 from app.repositories.operation_task_repository import OperationTaskRepository
 from app.schemas.pydantic.operation_task import (
     OperationTaskCreate,
@@ -175,21 +177,31 @@ def test_schedule_failed_operation(
 
     finished = wait_task_finish(database, crud_task)
     assert finished.status == OperationTaskStatus.ERROR.value
-    assert "operation is broken" in finished.result
+    assert finished.result == "operation is broken"
 
 
-def test_schedule_result_truncated(
-    crud_task, admin_user_token, database
-) -> None:
-    service = operation_task_service(database, admin_user_token)
-    service.schedule(
-        crud_task,
-        lambda _db: "x" * (OperationTaskService.MAX_RESULT_LENGTH * 2),
+def test_get_error_text() -> None:
+    """A result keeps a raw error, without the http prefix of it"""
+    error = InstanceError("==== 1 failed, 114 passed in 165.99s ====")
+
+    assert error.message.startswith("422: 17: Instance Validation Error: ")
+    assert OperationTaskService._get_error_text(error) == (
+        "==== 1 failed, 114 passed in 165.99s ===="
     )
+    assert OperationTaskService._get_error_text(ValueError("plain")) == "plain"
+    assert OperationTaskService._get_error_text(ValueError()) == "ValueError"
+
+
+def test_schedule_log_result(crud_task, admin_user_token, database) -> None:
+    """A full test log is stored without any truncation"""
+    log = "1 failed, 12 passed\n" + "x" * 65536 + "\nlast log line"
+
+    service = operation_task_service(database, admin_user_token)
+    service.schedule(crud_task, lambda _db: log)
 
     finished = wait_task_finish(database, crud_task)
     assert finished.status == OperationTaskStatus.SUCCESS.value
-    assert len(finished.result) == OperationTaskService.MAX_RESULT_LENGTH
+    assert finished.result == log
 
 
 def test_is_valid_cooldown(crud_task, admin_user_token, database) -> None:
@@ -239,6 +251,33 @@ def test_get_finish_text(crud_task) -> None:
     text = OperationTaskService._get_finish_text(crud_task)
     assert "Synced '2' of '3' registries" in text
     assert text.count("`") == 6
+
+    crud_task.result = "y" * 65536 + "last log line"
+    text = OperationTaskService._get_finish_text(crud_task)
+    assert "last log line`" in text
+    assert len(text.split("`")[-2]) == (
+        IntegrationTestsStats.MAX_TELEGRAM_RESULT_LENGTH
+    )
+
+
+def test_get_finish_text_integration_tests(crud_task) -> None:
+    """A test log is replaced with its counts, other results keep the tail"""
+    crud_task.task_type = OperationTaskType.INTEGRATION_TESTS.value
+    crud_task.status = OperationTaskStatus.SUCCESS.value
+    crud_task.result = (
+        "collected 241 items\n"
+        + "y" * 65536
+        + "\n==== 231 passed, 10 skipped in 174.21s (0:02:54) ====\n"
+    )
+
+    assert OperationTaskService._get_finish_text(crud_task) == (
+        "Task `IntegrationTests` finish with `Success`: `total 241,"
+        " passed 231, skipped 10, failed 0, error 0 in 174.21s`"
+    )
+
+    crud_task.result = "ImportError: cannot import name settings"
+    text = OperationTaskService._get_finish_text(crud_task)
+    assert text.endswith("cannot import name settings`")
 
 
 async def test_notify_telegram_disabled(crud_task, database) -> None:

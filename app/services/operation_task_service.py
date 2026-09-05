@@ -11,7 +11,7 @@ from sqlmodel import Session
 
 from app import settings
 from app.configs.db import get_hand_session
-from app.configs.errors import OperationTaskError
+from app.configs.errors import CustomException, OperationTaskError
 from app.domain.operation_task_model import OperationTask
 from app.domain.user_model import User
 from app.dto.enum import (
@@ -20,6 +20,7 @@ from app.dto.enum import (
     OperationTaskType,
     OwnershipType,
 )
+from app.dto.integration_tests import IntegrationTestsStats
 from app.repositories.operation_task_repository import (
     OperationTaskRepository,
 )
@@ -38,8 +39,6 @@ OperationTaskCallable = Callable[[Session], Awaitable[str | None] | str | None]
 
 
 class OperationTaskService:
-    MAX_RESULT_LENGTH = 256
-
     def __init__(
         self,
         operation_task_repository: OperationTaskRepository = Depends(),
@@ -141,7 +140,7 @@ class OperationTaskService:
                     repository,
                     task_uuid,
                     OperationTaskStatus.ERROR,
-                    str(e) or type(e).__name__,
+                    OperationTaskService._get_error_text(e),
                 )
             else:
                 task = OperationTaskService._finish(
@@ -156,6 +155,17 @@ class OperationTaskService:
             )
 
     @staticmethod
+    def _get_error_text(error: Exception) -> str:
+        """A result keeps a raw error, http codes of it are useless here"""
+        message = (
+            error.raw_message
+            if isinstance(error, CustomException)
+            else str(error)
+        )
+
+        return message or type(error).__name__
+
+    @staticmethod
     def _finish(
         repository: OperationTaskRepository,
         task_uuid: uuid_pkg.UUID,
@@ -167,11 +177,7 @@ class OperationTaskService:
 
         task.status = status.value
         task.finish_datetime = datetime.now(UTC)
-        task.result = (
-            result[: OperationTaskService.MAX_RESULT_LENGTH]
-            if result
-            else None
-        )
+        task.result = result or None
 
         return repository.update(task.uuid, task)
 
@@ -204,7 +210,9 @@ class OperationTaskService:
     def _get_finish_text(task: OperationTask) -> str:
         result = ""
         if task.result:
-            escaped_result = task.result.replace("`", "'")
+            escaped_result = IntegrationTestsStats.get_result_text(
+                task.result
+            ).replace("`", "'")
             result = f": `{escaped_result}`"
 
         return f"Task `{task.task_type}` finish with `{task.status}`{result}"

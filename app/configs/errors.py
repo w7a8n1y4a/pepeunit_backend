@@ -9,6 +9,7 @@ class CustomException(Exception):
         message_template: str,
         error_code: int,
     ):
+        self.raw_message = message
         self.message = (
             f"{status_code}: {error_code}: {message_template.format(message)}"
         )

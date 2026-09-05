@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import random
-import re
 import shlex
 import subprocess
 import uuid as uuid_pkg
@@ -33,6 +32,7 @@ from app.dto.enum import (
     OrderByText,
     UserRole,
 )
+from app.dto.integration_tests import IntegrationTestsStats
 from app.repositories.instance_cache_repository import (
     InstanceCacheSnapshot,
     instance_cache,
@@ -95,12 +95,6 @@ class InstanceService:
     SCAN_ALL_COOLDOWN = timedelta(minutes=10)
 
     BLOCKING_STATUS_CODES = (403, 451)
-
-    # pytest summary of the form "1 failed, 12 passed, 3 warnings"
-    PYTEST_OUTCOME_PATTERN = re.compile(
-        r"(\d+)\s+(passed|xpassed|failed|errors?)"
-    )
-    PYTEST_SUCCESS_OUTCOMES = ("passed", "xpassed")
 
     def __init__(
         self,
@@ -256,9 +250,9 @@ class InstanceService:
         if not latest_task:
             return state
 
-        success_percentage = self.get_integration_tests_percentage(
+        success_percentage = IntegrationTestsStats.from_result(
             latest_task.result
-        )
+        ).success_percentage
 
         state.integration_tests_datetime = (
             latest_task.start_datetime or latest_task.create_datetime
@@ -339,29 +333,28 @@ class InstanceService:
         def operation(_db):
             with BackgroundService() as services:
                 service = services.get_instance_service()
-                summary = service.run_integration_tests()
+                log = service.run_integration_tests()
                 service.refresh_cache()
-                return summary
+                return log
 
         self.operation_task_service.schedule(task, operation)
         return task
 
     def run_integration_tests(self) -> str:
-        result = subprocess.run(
+        process = subprocess.run(
             shlex.split(settings.pu_test_integration_command),
             check=False,
             capture_output=True,
             text=True,
         )
 
-        summary = self.get_integration_tests_summary(
-            result.stdout, result.stderr
-        )
-        if result.returncode:
-            msg = summary or (result.stderr.strip() or result.stdout.strip())
-            raise InstanceError(msg)
+        # a raw test log is stored as is, IntegrationTestsStats parses it
+        log = f"{process.stdout}{process.stderr}".strip()
 
-        return summary or "Integration tests completed"
+        if process.returncode:
+            raise InstanceError(log or "Integration tests failed")
+
+        return log
 
     async def collect_all(self, max_delay: int) -> str:
         self.is_federation_enable()
@@ -560,33 +553,6 @@ class InstanceService:
             return InstanceCollectionStatus.BLOCKING
 
         return InstanceCollectionStatus.ERROR
-
-    @staticmethod
-    def get_integration_tests_summary(stdout: str, stderr: str) -> str | None:
-        for line in reversed(f"{stdout}\n{stderr}".splitlines()):
-            stripped = line.strip()
-            if stripped.startswith("=") and " in " in stripped:
-                return stripped.strip("=").strip().rsplit(" in ", 1)[0]
-        return None
-
-    @staticmethod
-    def get_integration_tests_percentage(result: str | None) -> float | None:
-        if not result:
-            return None
-
-        success_count = 0
-        total_count = 0
-        for count, outcome in InstanceService.PYTEST_OUTCOME_PATTERN.findall(
-            result
-        ):
-            total_count += int(count)
-            if outcome in InstanceService.PYTEST_SUCCESS_OUTCOMES:
-                success_count += int(count)
-
-        if not total_count:
-            return None
-
-        return round(success_count / total_count * 100, 2)
 
     @staticmethod
     def get_integration_tests_status(

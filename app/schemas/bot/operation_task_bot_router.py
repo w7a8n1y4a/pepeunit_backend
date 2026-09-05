@@ -19,6 +19,7 @@ from app.dto.enum import (
     OperationTaskStatus,
     OperationTaskType,
 )
+from app.dto.integration_tests import IntegrationTestsStats
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter
 from app.schemas.bot.utils import (
     format_datetime,
@@ -223,6 +224,7 @@ class OperationTaskBotRouter(BaseBotRouter):
         ]
 
         if task.result:
-            table.append(["Result", " ".join(task.result.split())])
+            result = IntegrationTestsStats.get_result_text(task.result)
+            table.append(["Result", " ".join(result.split())])
 
         return table

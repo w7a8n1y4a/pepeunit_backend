@@ -24,6 +24,7 @@ from app.dto.enum import (
     OperationTaskType,
     RepositoryRegistryStatus,
 )
+from app.dto.integration_tests import IntegrationTestsStats
 from app.repositories.instance_cache_repository import instance_cache
 from app.repositories.instance_external_repository import (
     InstanceExternalRepository,
@@ -529,51 +530,90 @@ def test_get_collection_status() -> None:
     )
 
 
-def test_get_integration_tests_summary() -> None:
-    assert (
-        InstanceService.get_integration_tests_summary(
-            "collecting ...\n"
-            "===== 1 failed, 12 passed, 3 warnings in 51.20s =====\n",
-            "",
-        )
-        == "1 failed, 12 passed, 3 warnings"
+def test_integration_tests_stats() -> None:
+    """The total is taken from the collection line of the log"""
+    stats = IntegrationTestsStats.from_result(
+        "============================= test session starts ==============="
+        "===============\n"
+        "collected 241 items\n"
+        "tests/integration/services/11_end_test.py::test_end PASSED"
+        " [100%]\n"
+        "======= 231 passed, 10 skipped, 3 warnings in 174.21s (0:02:54)"
+        " =======\n"
     )
-    assert (
-        InstanceService.get_integration_tests_summary(
-            "", "==== 13 passed in 10.00s ===="
-        )
-        == "13 passed"
+    assert stats.collected == 241
+    assert stats.passed == 231
+    assert stats.skipped == 10
+    assert stats.warning == 3
+    assert stats.failed == 0
+    assert stats.duration == 174.21
+    assert stats.total == 241
+    assert stats.executed == 231
+    assert stats.success_percentage == 100.0
+    assert stats.to_text() == (
+        "total 241, passed 231, skipped 10, failed 0, error 0, warning 3"
+        " in 174.21s"
     )
-    assert InstanceService.get_integration_tests_summary("no summary", "") is None
 
 
-def test_get_integration_tests_percentage() -> None:
-    assert InstanceService.get_integration_tests_percentage(None) is None
-    assert InstanceService.get_integration_tests_percentage("") is None
-    assert (
-        InstanceService.get_integration_tests_percentage("no counts here")
-        is None
+def test_integration_tests_stats_with_deselected() -> None:
+    """The deselected tests are collected, but they are never run"""
+    stats = IntegrationTestsStats.from_result(
+        "collected 250 items / 9 deselected / 241 selected\n"
+        "==== 241 passed, 9 deselected in 174.21s ===="
     )
-    assert (
-        InstanceService.get_integration_tests_percentage("13 passed") == 100.0
+    assert stats.collected == 250
+    assert stats.deselected == 9
+    assert stats.total == 241
+    assert stats.success_percentage == 100.0
+    assert stats.to_text() == (
+        "total 241, passed 241, skipped 0, failed 0, error 0, deselected 9"
+        " in 174.21s"
     )
-    assert (
-        InstanceService.get_integration_tests_percentage(
-            "1 failed, 3 passed, 2 warnings"
-        )
-        == 75.0
+
+
+def test_integration_tests_stats_without_collection() -> None:
+    """The quiet mode has no collection line, the counts are summed up"""
+    stats = IntegrationTestsStats.from_result(
+        "==== 2 errors, 1 xfailed, 1 xpassed, 1 passed in 3.00s ===="
     )
-    assert (
-        InstanceService.get_integration_tests_percentage(
-            "1 failed, 12 passed, 3 warnings"
-        )
-        == 92.31
+    assert stats.collected == 0
+    assert stats.error == 2
+    assert stats.xfailed == 1
+    assert stats.xpassed == 1
+    assert stats.total == 5
+    assert stats.success == 2
+    assert stats.success_percentage == 40.0
+    assert stats.to_text() == (
+        "total 5, passed 1, skipped 0, failed 0, error 2, xfailed 1, xpassed 1"
+        " in 3.00s"
     )
-    assert (
-        InstanceService.get_integration_tests_percentage(
-            "2 errors, 1 xpassed, 1 passed"
-        )
-        == 50.0
+
+
+def test_integration_tests_get_result_text() -> None:
+    assert IntegrationTestsStats.get_result_text(
+        "collected 241 items\n" + "y" * 300 + "\n==== 241 passed in 10.00s =="
+    ) == ("total 241, passed 241, skipped 0, failed 0, error 0 in 10.00s")
+
+    tail = IntegrationTestsStats.get_result_text("y" * 300 + "no summary")
+    assert len(tail) == IntegrationTestsStats.MAX_TELEGRAM_RESULT_LENGTH
+    assert tail.endswith("no summary")
+
+
+def test_integration_tests_stats_without_summary() -> None:
+    """A log without the pytest summary line gives no counts at all"""
+    for result in (None, "", "ImportError: cannot import name settings"):
+        stats = IntegrationTestsStats.from_result(result)
+        assert IntegrationTestsStats.get_summary(result) is None
+        assert stats.total == 0
+        assert stats.success_percentage is None
+        assert stats.to_text() is None
+
+    stats = IntegrationTestsStats.from_result("==== no tests ran in 0.01s ====")
+    assert stats.total == 0
+    assert stats.success_percentage is None
+    assert stats.to_text() == (
+        "total 0, passed 0, skipped 0, failed 0, error 0 in 0.01s"
     )
 
 
@@ -610,13 +650,13 @@ def test_get_integration_tests_status() -> None:
         (OperationTaskStatus.RUNNING, None, IntegrationTestsStatus.RUNNING, None),
         (
             OperationTaskStatus.SUCCESS,
-            "13 passed",
+            "==== 13 passed in 10.00s ====",
             IntegrationTestsStatus.SUCCESS,
             100.0,
         ),
         (
             OperationTaskStatus.ERROR,
-            "1 failed, 12 passed",
+            "==== 1 failed, 12 passed in 10.00s ====",
             IntegrationTestsStatus.WARNING,
             92.31,
         ),
