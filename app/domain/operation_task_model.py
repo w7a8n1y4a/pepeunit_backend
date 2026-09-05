@@ -9,7 +9,7 @@ from app.dto.enum import OperationTaskStatus
 
 
 class OperationTask(SQLModel, table=True):
-    """Задача ручной операции пользователя"""
+    """Manual user operation task"""
 
     __tablename__ = "operation_tasks"
 

@@ -17,7 +17,7 @@ from tests.integration.helpers.wait import wait_until
 
 
 def _drop_known_registry(database, url: str) -> None:
-    """Реестр мог вернуться в базу через поиск инстансов, он пересоздаётся"""
+    """The registry could return to the database through instance discovery, so it is recreated"""
     database.query(RepositoryRegistry).where(
         RepositoryRegistry.repository_url == url
     ).delete()
@@ -52,7 +52,7 @@ def _create_registry(database, token, spec: dict, *, require_clone: bool = True)
 
 
 def wait_registry_sync(database, token, registry, *, timeout: float = 180) -> None:
-    """create ставит синхронизацию в фон, клон появляется не сразу"""
+    """create schedules the sync in the background, the clone does not appear immediately"""
     service = registry_service(database, token)
     wait_until(
         lambda: service.get(registry.uuid).sync_status

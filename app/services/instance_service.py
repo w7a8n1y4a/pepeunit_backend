@@ -89,14 +89,14 @@ from app.utils.utils import ensure_timezone_aware
 class InstanceService:
     MAX_COLLECTION_ERROR_LENGTH = 256
 
-    # разброс опроса внешних инстансов внутри окна сбора данных
+    # spread of external instance polling inside the data collection window
     COLLECT_ALL_MAX_DELAY = 60 * 60 - 1
     SCAN_ALL_MAX_DELAY = 10 * 60 - 1
     SCAN_ALL_COOLDOWN = timedelta(minutes=10)
 
     BLOCKING_STATUS_CODES = (403, 451)
 
-    # выжимка pytest вида "1 failed, 12 passed, 3 warnings"
+    # pytest summary of the form "1 failed, 12 passed, 3 warnings"
     PYTEST_OUTCOME_PATTERN = re.compile(
         r"(\d+)\s+(passed|xpassed|failed|errors?)"
     )
@@ -457,7 +457,7 @@ class InstanceService:
         threshold = datetime.now(UTC) - timedelta(
             days=settings.pu_instance_retention_days
         )
-        # pending это карантин для найденных инстансов, автоматически не удаляется
+        # pending is a quarantine for discovered instances, it is not deleted automatically
         count, instances = self.instance_repository.list(
             InstanceFilter(trust_status=[InstanceTrustStatus.TRUST.value])
         )
@@ -476,7 +476,7 @@ class InstanceService:
         if last_datetime >= threshold:
             return
 
-        # перед удалением инстанс опрашивается обязательно
+        # the instance is always polled before deletion
         instance = await self.collect(instance.uuid)
         if (
             instance.last_collection_status

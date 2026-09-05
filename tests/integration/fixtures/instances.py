@@ -30,7 +30,7 @@ def _drop_by_url(database, url: str) -> None:
 
 @pytest.fixture(scope="session")
 def own_instance(admin_user_token, database) -> Instance:
-    """Инстанс, указывающий на текущий backend, всегда доступен для сбора"""
+    """Instance pointing at the current backend, always available for collection"""
     own_url = InstanceService.get_own_url()
     _drop_by_url(database, own_url)
 
@@ -56,7 +56,7 @@ def crud_instance(admin_user_token, database) -> Instance:
 
 @pytest.fixture
 def unreachable_instance(admin_user_token, database) -> Instance:
-    """Инстанс с гарантированно недоступным адресом"""
+    """Instance with a guaranteed unreachable address"""
     url = unreachable_instance_url()
     _drop_by_url(database, url)
 

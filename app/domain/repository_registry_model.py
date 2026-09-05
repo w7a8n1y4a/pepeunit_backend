@@ -16,7 +16,7 @@ from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
 
 class RepositoryRegistry(SQLModel, table=True):
-    """Реестр Репозиториев"""
+    """Repository Registry"""
 
     __tablename__ = "repository_registry"
 

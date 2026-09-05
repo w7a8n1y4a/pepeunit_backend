@@ -247,7 +247,7 @@ def test_backend_force_sync_requires_backend(
 def test_create_repository_registry_by_api_duplicate(
     github_public_registry, admin_user, database
 ) -> None:
-    """Реестр, найденный на другом инстансе, заводится без токена агента"""
+    """A registry discovered on another instance is created without an agent token"""
     service = registry_service(database, None)
     with pytest.raises(RepositoryRegistryError):
         service.create(

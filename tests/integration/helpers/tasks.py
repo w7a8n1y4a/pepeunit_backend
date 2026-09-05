@@ -10,7 +10,7 @@ def age_tasks(
     task_type: OperationTaskType,
     age: timedelta = timedelta(days=1),
 ) -> None:
-    """Сдвигает историю задач в прошлое, чтобы cooldown не мешал прогону"""
+    """Shifts task history into the past so cooldown does not interfere with the run"""
     repository = OperationTaskRepository(database)
     moment = datetime.now(UTC) - age
 

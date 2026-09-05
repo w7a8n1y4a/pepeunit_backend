@@ -236,7 +236,7 @@ class GrafanaRepository:
             "order_by_create_date": "asc",
         }
 
-        # BUG: limit можно прописывать только руками. При генерации, он ломает и пишет ошибку Unknown Query Type у панелей
+        # BUG: limit can only be set manually. When generated, it breaks panels with an Unknown Query Type error
 
         """
         if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:

@@ -28,7 +28,7 @@ def clear_integration_data(database: Session) -> None:
             RepositoryRegistry.repository_url.in_(urls)
         ).delete()
 
-    # OperationTask удаляется каскадом вместе с тестовыми User
+    # OperationTask is deleted by cascade together with test Users
     database.query(Instance).where(
         Instance.url.in_([InstanceService.get_own_url()])
     ).delete()

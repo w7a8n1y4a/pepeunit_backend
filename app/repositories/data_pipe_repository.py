@@ -218,24 +218,26 @@ class DataPipeRepository:
         self, query: str, filters: DataPipeFilter
     ) -> str:
         """
-        Расширяет базовый запрос условиями, относящимися к AGGREGATION.
+        Extends the base query with conditions related to AGGREGATION.
         """
-        # 🟢 обработка aggregation_type
+        # aggregation_type handling
         aggregation_type = filters.aggregation_type or []
         if isinstance(aggregation_type, Query):
             aggregation_type = aggregation_type.default
 
-        if aggregation_type:  # если список не пустой
+        if aggregation_type:  # if the list is not empty
             data = ", ".join([f"'{item}'" for item in aggregation_type])
             query += f" AND aggregation_type IN ({data})"
-        elif isinstance(aggregation_type, list):  # если пустой список
-            query += " AND aggregation_type IN (0)"  # гарантируем, что вернётся пустой результат
+        elif isinstance(aggregation_type, list):  # if the list is empty
+            query += (
+                " AND aggregation_type IN (0)"  # guarantees an empty result
+            )
 
-        # 🟢 фильтрация по размеру окна
+        # filtering by window size
         if filters.time_window_size is not None:
             query += f" AND time_window_size = {filters.time_window_size}"
 
-        # 🟢 фильтрация по времени начала/конца окна агрегации
+        # filtering by aggregation window start/end time
         if filters.start_agg_window_datetime:
             query += f" AND end_window_datetime >= '{filters.start_agg_window_datetime}'"
 

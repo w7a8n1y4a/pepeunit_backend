@@ -9,7 +9,7 @@ from app.dto.enum import VisibilityLevel
 
 
 class Repo(SQLModel, table=True):
-    """Репозиторий"""
+    """Repository"""
 
     __tablename__ = "repos"
 

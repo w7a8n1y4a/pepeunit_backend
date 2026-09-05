@@ -21,7 +21,7 @@ class ClickHouseConnectionParams:
     def from_connection_string(
         cls, conn_str: str
     ) -> "ClickHouseConnectionParams":
-        # Удаляем префикс "clickhouse+" если он есть
+        # Strip the "clickhouse+" prefix if present
         if conn_str.startswith("clickhouse+"):
             conn_str = conn_str.split("+", 1)[1]
 

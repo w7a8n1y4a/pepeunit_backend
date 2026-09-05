@@ -7,7 +7,7 @@ from sqlmodel import Field, SQLModel
 
 class UnitNodeEdge(SQLModel, table=True):
     """
-    Связь разных UnitNode
+    Link between different UnitNode
 
     output -> input
     """

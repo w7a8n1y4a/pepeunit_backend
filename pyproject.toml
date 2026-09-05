@@ -166,10 +166,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "S101",    # assert в тестах это нормально
-    "S311",    # random в тестах это нормально
-    "PLR2004", # magic values в тестах это нормально
-    "TID252",  # relative imports в тестах
+    "S101",    # assert is fine in tests
+    "S311",    # random is fine in tests
+    "PLR2004", # magic values are fine in tests
+    "TID252",  # relative imports in tests
 ]
 
 [tool.ruff.lint.isort]

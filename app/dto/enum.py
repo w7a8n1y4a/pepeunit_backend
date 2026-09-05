@@ -433,57 +433,57 @@ class DashboardPanelTypeEnum(str, enum.Enum):
     All dashboard panel types
     """
 
-    # Обычный график
+    # Regular graph
     TIME_SERIES = "timeseries"
-    # Колончатый график
+    # Bar graph
     BAR_CHART = "barchart"
-    # График без лимбов и значение
+    # Single value without a graph
     STAT = "stat"
-    # Спидометр, есть минимум и максимум, вычисляется автоматом из выборки
+    # Speedometer, has a minimum and a maximum, calculated automatically from the selection
     GAUGE = "gauge"
-    # Как gauge, но полоской
+    # Like gauge, but as a bar
     BAR_GAUGE = "bargauge"
-    # Таблица
+    # Table
     TABLE = "table"
-    # Сегментный Бублик
+    # Segmented donut
     PIE_CHART = "piechart"
-    # Категоризирующий, как heatmap, но позволяет установить пороговое значение
+    # Categorizing, like heatmap, but allows setting a threshold value
     STATE_TIMELINE = "state-timeline"
-    # Обычный heatmap, источник данных на все данные
+    # Regular heatmap, data source covers all data
     HEATMAP = "heatmap"
-    # Похож на state-timeline, но отличается как минимум объединением дат
+    # Similar to state-timeline, but differs at least in merging dates
     STATUS_HISTORY = "status-history"
-    # Смотреть распределения в выборках
+    # View distributions in selections
     HISTOGRAM = "histogram"
-    # Текст в формате md
+    # Text in md format
     TEXT = "text"
-    # Список алертов
+    # List of alerts
     ALERT_LIST = "alertlist"
-    # Позволяет делать набор ссылок на существующие борды
+    # Allows making a set of links to existing dashboards
     DASHBOARD_LIST = "dashlist"
-    # Новости в формате rss
+    # News in rss format
     NEWS = "news"
-    # Список с возможностью фильтрации
+    # List with filtering support
     ANNOTATION_LIST = "annolist"
-    # Биржевой график
+    # Stock market chart
     CANDLESTICK = "candlestick"
-    # Полотно для рисования
+    # Canvas for drawing
     CANVAS = "canvas"
-    # Хорошо отображает структуры на подобии папок
+    # Displays folder-like structures well
     FLAME_GRAPH = "flamegraph"
-    # Мировая карта
+    # World map
     GEOMAP = "geomap"
-    # Логи
+    # Logs
     LOGS = "logs"
-    # Нормальный heatmap, 24 часа на дни
+    # Proper heatmap, 24 hours by days
     HOURLY_HEATMAP = "marcusolsson-hourly-heatmap-panel"
-    # Графы
+    # Graphs
     NODE_GRAPH = "nodeGraph"
-    # Как время выполнение запросов в консоли браузера
+    # Like request execution time in the browser console
     TRACES = "traces"
-    # Как timeseries, но вместо времени - числа
+    # Like timeseries, but numbers instead of time
     TREND = "trend"
-    # Точечный график
+    # Scatter plot
     XY_CHART = "xychart"
 
 

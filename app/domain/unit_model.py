@@ -11,7 +11,7 @@ from app.dto.enum import VisibilityLevel
 
 class Unit(SQLModel, table=True):
     """
-    Представление физического устройства
+    Representation of a physical device
     """
 
     __tablename__ = "units"

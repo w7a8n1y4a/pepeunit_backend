@@ -8,7 +8,7 @@ from sqlmodel import Field, SQLModel
 
 class DashboardPanel(SQLModel, table=True):
     """
-    Сущность панелей внутри dashboard
+    Panel entity inside a dashboard
     """
 
     __tablename__ = "dashboard_panels"

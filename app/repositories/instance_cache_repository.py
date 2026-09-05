@@ -25,7 +25,7 @@ class InstanceCacheSnapshot:
 
 
 class InstanceCacheRepository:
-    """Публичное состояние инстанса, подготовленное к отдаче"""
+    """Public instance state prepared for serving"""
 
     def __init__(self) -> None:
         self._lock = threading.RLock()

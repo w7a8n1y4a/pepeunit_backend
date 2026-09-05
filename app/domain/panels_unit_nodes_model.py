@@ -8,7 +8,7 @@ from sqlmodel import Field, SQLModel
 
 class PanelsUnitNodes(SQLModel, table=True):
     """
-    MtM панелей и UnitNode
+    MtM between panels and UnitNode
     """
 
     __tablename__ = "mtm_panels_unit_nodes"

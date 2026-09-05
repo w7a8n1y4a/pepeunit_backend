@@ -193,7 +193,7 @@ def test_list_instances(crud_instance, regular_user_token, database) -> None:
 
 
 def test_list_instances_without_token(crud_instance, database) -> None:
-    """list доступен агенту Bot, поэтому работает и без токена"""
+    """list is available to the Bot agent, so it works without a token too"""
     service = instance_service(database, None)
     count, instances = service.list(InstanceFilter())
     assert any(item.uuid == crud_instance.uuid for item in instances)
@@ -792,7 +792,7 @@ async def test_collect_all(
 
     logging.info(summary)
     assert summary.startswith("Scanned ")
-    # unreachable_instance входит в выборку Trust и обязан попасть в failed
+    # unreachable_instance belongs to the Trust selection and must end up in failed
     assert "failed 0" not in summary
     assert (
         service.get(own_instance.uuid).last_collection_status
@@ -1001,7 +1001,7 @@ def test_insert_discovered_registries_created(
     regular_user_token,
     database,
 ) -> None:
-    """Найденный реестр заводится от имени первого администратора"""
+    """A discovered registry is created on behalf of the first administrator"""
     service = instance_service(database, admin_user_token)
     registry_svc = registry_service(database, regular_user_token)
     known = registry_svc.get(github_public_registry.uuid)

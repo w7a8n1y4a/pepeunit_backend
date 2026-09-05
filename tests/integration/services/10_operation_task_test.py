@@ -110,7 +110,7 @@ def test_list_operation_tasks(
 def test_list_operation_tasks_only_own(
     crud_task, regular_user_token, database
 ) -> None:
-    """Фильтр creator_uuid всегда переписывается на текущего агента"""
+    """The creator_uuid filter is always rewritten to the current agent"""
     service = operation_task_service(database, regular_user_token)
     count, tasks = service.list(
         OperationTaskFilter(creator_uuid=crud_task.creator_uuid)

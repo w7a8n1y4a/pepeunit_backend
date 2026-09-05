@@ -5,7 +5,7 @@ from sqlmodel import Field, SQLModel
 
 
 class User(SQLModel, table=True):
-    """Пользователь узла"""
+    """Instance user"""
 
     __tablename__ = "users"
 

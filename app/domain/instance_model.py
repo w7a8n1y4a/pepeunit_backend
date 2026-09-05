@@ -10,7 +10,7 @@ from app.dto.enum import InstanceTrustStatus
 
 
 class Instance(SQLModel, table=True):
-    """Внешний инстанс Pepeunit"""
+    """External Pepeunit instance"""
 
     __tablename__ = "instances"
 
