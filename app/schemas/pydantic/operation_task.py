@@ -29,6 +29,8 @@ class OperationTaskRead(BaseModel):
 
 @dataclass
 class OperationTaskFilter(BasePaginationRestMixin):
+    creator_uuid: uuid_pkg.UUID | None = None
+
     status: list[str] | None = Query(
         [item.value for item in OperationTaskStatus]
     )

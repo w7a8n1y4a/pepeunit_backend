@@ -1,5 +1,5 @@
 from clickhouse_driver import Client
-from fastapi import Depends, Request
+from fastapi import Depends
 from sqlmodel import Session
 
 from app import settings
@@ -11,7 +11,6 @@ from app.repositories.dashboard_panel_repository import (
 )
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
-from app.repositories.instance_cache_repository import InstanceCacheRepository
 from app.repositories.instance_external_repository import (
     InstanceExternalRepository,
 )
@@ -222,16 +221,6 @@ def get_instance_service(
     jwt_token: str | None = Depends(token_depends),
 ) -> InstanceService:
     return create_service_factory(db, None, jwt_token).get_instance_service()
-
-
-def get_instance_cache(request: Request) -> InstanceCacheRepository:
-    return request.app.state.instance_cache
-
-
-def get_app_instance_cache() -> InstanceCacheRepository:
-    from app.main import app
-
-    return app.state.instance_cache
 
 
 def get_operation_task_service(

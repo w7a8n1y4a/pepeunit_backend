@@ -16,4 +16,4 @@ class InstanceUpdateInput(TypeInputMixin):
 
 @strawberry.input()
 class InstanceFilterInput(BasePaginationGql):
-    pass
+    trust_status: list[InstanceTrustStatus] | None = tuple(InstanceTrustStatus)

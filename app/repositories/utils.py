@@ -20,15 +20,16 @@ def apply_ilike_search_string(query, filters, fields: list):
     return query
 
 
+def resolve_query_default(value: Any) -> Any:
+    return value.default if isinstance(value, params.Query) else value
+
+
 def apply_enums(query, filters, fields: dict):
     for filter_name, field in fields.items():
         if filter_name in filters.dict():
-            value = filters.dict()[filter_name]
+            value = resolve_query_default(filters.dict()[filter_name])
 
             value = [] if value is None else value
-
-            if isinstance(value, params.Query):
-                value = value.default
 
             query = query.where(field.in_(value))
     return query

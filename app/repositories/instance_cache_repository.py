@@ -1,6 +1,9 @@
 import threading
 from dataclasses import dataclass
+from typing import Any
 
+from app.configs.errors import InstanceError
+from app.repositories.utils import resolve_query_default
 from app.schemas.gql.inputs.instance import InstanceFilterInput
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
@@ -22,6 +25,8 @@ class InstanceCacheSnapshot:
 
 
 class InstanceCacheRepository:
+    """Публичное состояние инстанса, подготовленное к отдаче"""
+
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._snapshot: InstanceCacheSnapshot | None = None
@@ -30,55 +35,55 @@ class InstanceCacheRepository:
         with self._lock:
             self._snapshot = snapshot
 
-    def get_current(self) -> CurrentInstanceSchemaV1:
+    def get(self) -> InstanceCacheSnapshot:
         with self._lock:
-            return self._get_snapshot().current
+            if self._snapshot is None:
+                msg = "Instance cache is not initialized"
+                raise InstanceError(msg)
+            return self._snapshot
+
+    def get_current(self) -> CurrentInstanceSchemaV1:
+        return self.get().current
 
     def get_instances(
-        self,
-        filters: InstanceFilter | InstanceFilterInput,
+        self, filters: InstanceFilter | InstanceFilterInput
     ) -> InstancesPage:
-        with self._lock:
-            instances = self._get_snapshot().instances
-            return InstancesPage(
-                total_count=len(instances),
-                instances=self._slice(instances, filters),
-            )
+        trust_status = resolve_query_default(filters.trust_status) or []
+        instances = tuple(
+            instance
+            for instance in self.get().instances
+            if instance.trust_status in trust_status
+        )
+
+        count, page = self.apply_offset_and_limit(instances, filters)
+        return InstancesPage(total_count=count, instances=page)
 
     def get_urls(
-        self,
-        filters: InstanceFilter | InstanceFilterInput,
+        self, filters: InstanceFilter | InstanceFilterInput
     ) -> InstanceUrlsPage:
-        with self._lock:
-            urls = self._get_snapshot().urls
-            return InstanceUrlsPage(
-                total_count=len(urls),
-                urls=self._slice(urls, filters),
-            )
+        count, page = self.apply_offset_and_limit(self.get().urls, filters)
+        return InstanceUrlsPage(total_count=count, urls=page)
 
     def get_registries(
-        self,
-        filters: InstanceFilter | InstanceFilterInput,
+        self, filters: InstanceFilter | InstanceFilterInput
     ) -> InstanceRegistriesPage:
-        with self._lock:
-            registries = self._get_snapshot().registries
-            return InstanceRegistriesPage(
-                total_count=len(registries),
-                registries=self._slice(registries, filters),
-            )
-
-    def _get_snapshot(self) -> InstanceCacheSnapshot:
-        if self._snapshot is None:
-            msg = "Instance cache is not initialized"
-            raise RuntimeError(msg)
-        return self._snapshot
+        count, page = self.apply_offset_and_limit(
+            self.get().registries, filters
+        )
+        return InstanceRegistriesPage(total_count=count, registries=page)
 
     @staticmethod
-    def _slice(
-        items: tuple,
+    def apply_offset_and_limit(
+        items: tuple[Any, ...],
         filters: InstanceFilter | InstanceFilterInput,
-    ) -> list:
-        offset = filters.offset or 0
-        if filters.limit:
-            return list(items[offset : offset + filters.limit])
-        return list(items[offset:])
+    ) -> tuple[int, list]:
+        offset = filters.offset if filters.offset else 0
+        page = (
+            items[offset : offset + filters.limit]
+            if filters.limit
+            else items[offset:]
+        )
+        return len(items), list(page)
+
+
+instance_cache = InstanceCacheRepository()

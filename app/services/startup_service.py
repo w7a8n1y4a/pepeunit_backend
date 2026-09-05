@@ -18,7 +18,6 @@ from app.configs.utils import acquire_file_lock, wait_for_file_unlock
 from app.dto.agent.abc import AgentBackend
 from app.dto.enum import FileLock, GlobalPrefixTopic
 from app.repositories.grafana_repository import GrafanaRepository
-from app.repositories.instance_cache_repository import InstanceCacheRepository
 from app.schemas.mqtt.manager import mqtt_manager
 from app.services.background import BackgroundService
 from app.services.instance_service import InstanceService
@@ -82,15 +81,14 @@ class StartupService:
         logo_to_console()
 
     async def _start_every_worker(self) -> None:
-        cache = self.app.state.instance_cache
         self._mqtt_task = asyncio.create_task(
             self._run_mqtt_client(), name="run_mqtt_client"
         )
         with BackgroundService() as services:
-            services.get_instance_service().refresh_cache(cache)
+            services.get_instance_service().refresh_cache()
         self._instance_tasks.append(
             asyncio.create_task(
-                self._run_instance_cache_loop(cache),
+                self._run_instance_cache_loop(),
                 name="run_instance_cache",
             )
         )
@@ -99,9 +97,7 @@ class StartupService:
         if settings.pu_ff_federation_enable:
             self._singleton_tasks.append(
                 asyncio.create_task(
-                    self._run_instance_collection_loop(
-                        self.app.state.instance_cache
-                    ),
+                    self._run_instance_collection_loop(),
                     name="run_instance_collection",
                 )
             )
@@ -256,17 +252,13 @@ class StartupService:
         for k, v in access.items():
             logging.info(f"Redis set {k} access {v}")
 
-    async def _run_instance_cache_loop(
-        self, cache: InstanceCacheRepository
-    ) -> None:
+    async def _run_instance_cache_loop(self) -> None:
         while True:
             await asyncio.sleep(60)
             with BackgroundService() as services:
-                services.get_instance_service().refresh_cache(cache)
+                services.get_instance_service().refresh_cache()
 
-    async def _run_instance_collection_loop(
-        self, cache: InstanceCacheRepository
-    ) -> None:
+    async def _run_instance_collection_loop(self) -> None:
         while True:
             await asyncio.sleep(self._seconds_until(minute=0))
             lock = acquire_file_lock(FileLock.COLLECT_INSTANCES)
@@ -274,14 +266,13 @@ class StartupService:
                 continue
             try:
                 with BackgroundService() as services:
-                    instance_uuids = (
-                        services.get_instance_service().get_pollable_uuids()
+                    await services.get_instance_service().collect_all(
+                        InstanceService.COLLECT_ALL_MAX_DELAY
                     )
-                await InstanceService.collect_instances(instance_uuids, 3599)
                 with BackgroundService() as services:
                     service = services.get_instance_service()
                     await service.delete_stale_instances()
-                    service.refresh_cache(cache)
+                    service.refresh_cache()
             finally:
                 lock.close()
 

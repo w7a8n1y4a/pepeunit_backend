@@ -1,7 +1,7 @@
 import strawberry
 from strawberry.types import Info
 
-from app.configs.gql import get_instance_cache_gql, get_instance_service_gql
+from app.configs.gql import get_instance_service_gql
 from app.schemas.gql.inputs.instance import InstanceFilterInput
 from app.schemas.gql.types.instance import (
     CurrentInstanceType,
@@ -16,8 +16,8 @@ from app.schemas.gql.types.instance import (
 @strawberry.field()
 def get_current_instance(info: Info) -> CurrentInstanceType:
     instance_service = get_instance_service_gql(info)
-    return instance_service.mapper_current_to_current_type(
-        instance_service.get_cached_current(get_instance_cache_gql(info))
+    return instance_service.mapper_current_to_current_instance_type(
+        instance_service.get_cached_current()
     )
 
 
@@ -25,10 +25,7 @@ def get_current_instance(info: Info) -> CurrentInstanceType:
 def get_instances(
     filters: InstanceFilterInput, info: Info
 ) -> InstancesPageType:
-    page = get_instance_service_gql(info).get_cached_instances(
-        get_instance_cache_gql(info),
-        filters,
-    )
+    page = get_instance_service_gql(info).get_cached_instances(filters)
     return InstancesPageType(
         total_count=page.total_count,
         instances=[
@@ -41,10 +38,7 @@ def get_instances(
 def get_instances_urls(
     filters: InstanceFilterInput, info: Info
 ) -> InstanceUrlsPageType:
-    page = get_instance_service_gql(info).get_cached_urls(
-        get_instance_cache_gql(info),
-        filters,
-    )
+    page = get_instance_service_gql(info).get_cached_urls(filters)
     return InstanceUrlsPageType(
         total_count=page.total_count,
         urls=page.urls,
@@ -55,10 +49,7 @@ def get_instances_urls(
 def get_instances_registries(
     filters: InstanceFilterInput, info: Info
 ) -> InstanceRegistriesPageType:
-    page = get_instance_service_gql(info).get_cached_registries(
-        get_instance_cache_gql(info),
-        filters,
-    )
+    page = get_instance_service_gql(info).get_cached_registries(filters)
     return InstanceRegistriesPageType(
         total_count=page.total_count,
         registries=[

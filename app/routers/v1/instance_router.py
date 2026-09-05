@@ -2,11 +2,7 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, status
 
-from app.configs.rest import (
-    get_instance_cache,
-    get_instance_service,
-)
-from app.repositories.instance_cache_repository import InstanceCacheRepository
+from app.configs.rest import get_instance_service
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
     InstanceCreate,
@@ -24,37 +20,33 @@ router = APIRouter()
 
 @router.get("/current", response_model=CurrentInstanceSchemaV1)
 def get_current_instance(
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    return service.get_cached_current(cache)
+    return instance_service.get_cached_current()
 
 
 @router.get("", response_model=InstancesPage)
 def get_instances(
     filters: InstanceFilter = Depends(InstanceFilter),
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    return service.get_cached_instances(cache, filters)
+    return instance_service.get_cached_instances(filters)
 
 
 @router.get("/urls", response_model=InstanceUrlsPage)
 def get_instance_urls(
     filters: InstanceFilter = Depends(InstanceFilter),
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    return service.get_cached_urls(cache, filters)
+    return instance_service.get_cached_urls(filters)
 
 
 @router.get("/registries", response_model=InstanceRegistriesPage)
 def get_instance_registries(
     filters: InstanceFilter = Depends(InstanceFilter),
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    return service.get_cached_registries(cache, filters)
+    return instance_service.get_cached_registries(filters)
 
 
 @router.post(
@@ -62,67 +54,51 @@ def get_instance_registries(
     response_model=InstanceRead,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_instance(
+def create_instance(
     data: InstanceCreate,
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    instance = await service.create(data)
-    service.refresh_cache(cache)
-    return service.mapper_instance_to_instance_read(instance)
+    return instance_service.mapper_instance_to_instance_read(
+        instance_service.create(data)
+    )
 
 
-@router.patch("/{instance_uuid}", response_model=InstanceRead)
-async def update_instance(
-    instance_uuid: uuid_pkg.UUID,
+@router.patch("/{uuid}", response_model=InstanceRead)
+def update_instance(
+    uuid: uuid_pkg.UUID,
     data: InstanceUpdate,
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    instance = await service.update(instance_uuid, data)
-    service.refresh_cache(cache)
-    return service.mapper_instance_to_instance_read(instance)
+    return instance_service.mapper_instance_to_instance_read(
+        instance_service.update(uuid, data)
+    )
 
 
-@router.delete(
-    "/{instance_uuid}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_instance(
-    instance_uuid: uuid_pkg.UUID,
-    service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
+    uuid: uuid_pkg.UUID,
+    instance_service: InstanceService = Depends(get_instance_service),
 ):
-    service.delete(instance_uuid)
-    service.refresh_cache(cache)
+    instance_service.delete(uuid)
 
 
-@router.post("/scan", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/scan_all", status_code=status.HTTP_204_NO_CONTENT)
 def scan_instances(
     instance_service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
 ):
-    instance_service.scan_all(cache)
+    instance_service.scan_all()
 
 
-@router.post(
-    "/{instance_uuid}/scan",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.post("/scan/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def scan_instance(
-    instance_uuid: uuid_pkg.UUID,
+    uuid: uuid_pkg.UUID,
     instance_service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
 ):
-    instance_service.scan_one(instance_uuid, cache)
+    instance_service.scan_one(uuid)
 
 
-@router.post(
-    "/integration-tests",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.post("/integration_tests", status_code=status.HTTP_204_NO_CONTENT)
 def run_integration_tests(
     instance_service: InstanceService = Depends(get_instance_service),
-    cache: InstanceCacheRepository = Depends(get_instance_cache),
 ):
-    instance_service.start_integration_tests(cache)
+    instance_service.start_integration_tests()

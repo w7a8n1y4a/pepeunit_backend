@@ -12,7 +12,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import settings
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
-from app.configs.rest import get_app_instance_cache, get_bot_instance_service
+from app.configs.rest import get_bot_instance_service
 from app.domain.instance_model import Instance
 from app.dto.enum import CommandNames, DecreesNames, EntityNames
 from app.schemas.bot.base_bot_router import (
@@ -20,7 +20,10 @@ from app.schemas.bot.base_bot_router import (
     BaseBotRouter,
     InstanceStates,
 )
-from app.schemas.bot.utils import make_monospace_table_with_title
+from app.schemas.bot.utils import (
+    format_datetime,
+    make_monospace_table_with_title,
+)
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
     InstanceFilter,
@@ -153,7 +156,7 @@ class InstanceBotRouter(BaseBotRouter):
         text = f"*Instance* - `{self._instance_domain(instance.url)}`"
         text += "\n```text\n"
         text += make_monospace_table_with_title(
-            self._instance_card_rows(instance),
+            self._get_base_info_table(instance),
             "Base Info",
             lengths=[15, 30],
         )
@@ -201,9 +204,7 @@ class InstanceBotRouter(BaseBotRouter):
                 text = ""
                 match decrees_type:
                     case DecreesNames.SCAN:
-                        instance_service.scan_one(
-                            instance_uuid, get_app_instance_cache()
-                        )
+                        instance_service.scan_one(instance_uuid)
                         text = "Started Instance scan"
         except CustomException as e:
             await callback.answer()
@@ -219,35 +220,29 @@ class InstanceBotRouter(BaseBotRouter):
     def _instance_domain(url: str) -> str:
         return urlparse(url).netloc
 
-    def _instance_card_rows(self, instance: Instance) -> list[list]:
-        rows = [
+    def _get_base_info_table(self, instance: Instance) -> list[list]:
+        table = [
             ["Domain", self._instance_domain(instance.url)],
             ["Trust", instance.trust_status],
             ["Collection", instance.last_collection_status],
             ["Last ping", instance.last_ping],
-            [
-                "Last success",
-                (
-                    instance.last_success_datetime.strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                    if instance.last_success_datetime
-                    else None
-                ),
-            ],
+            ["Last success", format_datetime(instance.last_success_datetime)],
         ]
+
         if instance.last_collection_error:
-            rows.append(["Error", instance.last_collection_error])
-            return rows
+            table.append(["Error", instance.last_collection_error])
+            return table
 
         if not instance.state:
-            return rows
+            return table
 
         current = CurrentInstanceSchemaV1.model_validate(instance.state)
-        rows.append(["Version", current.version])
-        rows.append(["Units", current.metrics.unit_count])
+        table.append(["Version", current.version])
+        table.append(["Units", current.metrics.unit_count])
+
         if current.contacts.email:
-            rows.append(["Email", current.contacts.email])
+            table.append(["Email", current.contacts.email])
         if current.contacts.telegram:
-            rows.append(["Telegram", current.contacts.telegram])
-        return rows
+            table.append(["Telegram", current.contacts.telegram])
+
+        return table

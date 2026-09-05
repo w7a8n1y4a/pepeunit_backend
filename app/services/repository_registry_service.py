@@ -416,7 +416,7 @@ class RepositoryRegistryService:
                     uuid
                 )
 
-        self.operation_task_service.schedule(task.uuid, operation)
+        self.operation_task_service.schedule(task, operation)
         return task
 
     def schedule_update_all(self) -> OperationTask:
@@ -436,7 +436,7 @@ class RepositoryRegistryService:
                     force=True
                 )
 
-        self.operation_task_service.schedule(task.uuid, operation)
+        self.operation_task_service.schedule(task, operation)
         return task
 
     def sync_local_repository_storage(

@@ -2,8 +2,7 @@ import json
 import logging
 from contextlib import asynccontextmanager
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram import Dispatcher, types
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
 from fastapi import FastAPI, Request
@@ -20,7 +19,6 @@ from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context
 from app.configs.logging_config import setup_logging
 from app.configs.utils import recreate_directory
-from app.repositories.instance_cache_repository import InstanceCacheRepository
 from app.routers.v1.endpoints import api_router
 from app.schemas.bot.control_bot_router import ControlBotRouter
 from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
@@ -36,6 +34,7 @@ from app.schemas.bot.start_help import base_router
 from app.schemas.bot.unit_bot_router import UnitBotRouter
 from app.schemas.bot.unit_log_bot_router import UnitLogBotRouter
 from app.schemas.bot.unit_node_bot_router import UnitNodeBotRouter
+from app.schemas.bot.utils import build_telegram_bot
 from app.schemas.gql.mutation import Mutation
 from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
@@ -81,7 +80,6 @@ app = FastAPI(
     debug=settings.pu_min_log_level == "DEBUG",
     lifespan=_lifespan,
 )
-app.state.instance_cache = InstanceCacheRepository()
 
 app.add_middleware(CustomExceptionMiddleware)
 
@@ -110,22 +108,8 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
-def _build_telegram_bot_session() -> AiohttpSession | None:
-    if not settings.pu_telegram_proxy_url:
-        return None
-
-    logging.info("Telegram bot will use proxy")
-
-    return AiohttpSession(proxy=settings.pu_telegram_proxy_url)
-
-
 if settings.pu_ff_telegram_bot_enable:
-    _telegram_session = _build_telegram_bot_session()
-    bot = (
-        Bot(token=settings.pu_telegram_token, session=_telegram_session)
-        if _telegram_session is not None
-        else Bot(token=settings.pu_telegram_token)
-    )
+    bot = build_telegram_bot()
     storage = RedisStorage.from_url(
         settings.pu_redis_url,
         key_builder=DefaultKeyBuilder(with_destiny=True),

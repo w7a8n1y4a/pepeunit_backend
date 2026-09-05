@@ -9,7 +9,6 @@ from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
 from app.configs.rest import (
-    get_app_instance_cache,
     get_bot_instance_service,
     get_bot_repo_service,
     get_bot_repository_registry_service,
@@ -110,7 +109,6 @@ class ControlBotRouter(BaseBotRouter):
     ) -> None:
         *_, decrees_type, _target = callback.data.split("_")
         chat_id = str(callback.from_user.id)
-        cache = get_app_instance_cache()
         text = ""
 
         try:
@@ -119,10 +117,10 @@ class ControlBotRouter(BaseBotRouter):
                     case DecreesNames.INTEGRATION_TESTS:
                         get_bot_instance_service(
                             db, chat_id
-                        ).start_integration_tests(cache)
+                        ).start_integration_tests()
                         text = "Started Integration Tests"
                     case DecreesNames.SCAN_ALL:
-                        get_bot_instance_service(db, chat_id).scan_all(cache)
+                        get_bot_instance_service(db, chat_id).scan_all()
                         text = "Started Scan All Instances"
                     case DecreesNames.UPDATE_ALL_REGISTRIES:
                         get_bot_repository_registry_service(

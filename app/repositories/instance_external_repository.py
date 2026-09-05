@@ -16,8 +16,8 @@ from app.schemas.pydantic.instance import (
 @dataclass
 class CollectedInstance:
     state: CurrentInstanceSchemaV1
-    urls: InstanceUrlsPage
-    registries: InstanceRegistriesPage
+    urls: list[str]
+    registries: list[InstancePublicRegistry]
     last_ping: float
 
 
@@ -26,8 +26,13 @@ class InstanceExternalRepository:
         started_at = time.perf_counter()
         state, urls, registries = await asyncio.gather(
             self._get_current(current_url),
-            self._get_urls(current_url),
-            self._get_registries(current_url),
+            self._get_all_items(current_url, "urls", InstanceUrlsPage, "urls"),
+            self._get_all_items(
+                current_url,
+                "registries",
+                InstanceRegistriesPage,
+                "registries",
+            ),
         )
         return CollectedInstance(
             state=state,
@@ -40,46 +45,30 @@ class InstanceExternalRepository:
         response = await self._request(current_url)
         return CurrentInstanceSchemaV1.model_validate_json(response.content)
 
-    async def _get_urls(self, current_url: str) -> InstanceUrlsPage:
-        urls: list[str] = []
-        endpoint = f"{current_url.rsplit('/', 1)[0]}/urls"
-        while True:
-            response = await self._request(
-                endpoint,
-                httpx.QueryParams(
-                    offset=len(urls),
-                    limit=settings.pu_max_pagination_size,
-                ),
-            )
-            page = InstanceUrlsPage.model_validate_json(response.content)
-            urls.extend(page.urls)
-            if not page.urls or len(urls) >= page.total_count:
-                return InstanceUrlsPage(
-                    total_count=page.total_count,
-                    urls=urls,
-                )
-
-    async def _get_registries(
+    async def _get_all_items(
         self,
         current_url: str,
-    ) -> InstanceRegistriesPage:
-        registries: list[InstancePublicRegistry] = []
-        endpoint = f"{current_url.rsplit('/', 1)[0]}/registries"
+        endpoint: str,
+        page_model: type[InstanceUrlsPage] | type[InstanceRegistriesPage],
+        items_field: str,
+    ) -> list:
+        url = f"{current_url.rsplit('/', 1)[0]}/{endpoint}"
+
+        items = []
         while True:
             response = await self._request(
-                endpoint,
+                url,
                 httpx.QueryParams(
-                    offset=len(registries),
+                    offset=len(items),
                     limit=settings.pu_max_pagination_size,
                 ),
             )
-            page = InstanceRegistriesPage.model_validate_json(response.content)
-            registries.extend(page.registries)
-            if not page.registries or len(registries) >= page.total_count:
-                return InstanceRegistriesPage(
-                    total_count=page.total_count,
-                    registries=registries,
-                )
+            page = page_model.model_validate_json(response.content)
+
+            page_items = getattr(page, items_field)
+            items.extend(page_items)
+            if not page_items or len(items) >= page.total_count:
+                return items
 
     async def _request(
         self,
@@ -91,8 +80,13 @@ class InstanceExternalRepository:
             timeout=settings.pu_instance_request_timeout,
         ) as client:
             response = await client.get(url, params=params)
+
         response.raise_for_status()
-        if len(response.content) > settings.pu_instance_max_state_size:
-            msg = "Collected instance response exceeds the size limit"
-            raise ValueError(msg)
+        self.is_valid_response_size(response)
         return response
+
+    @staticmethod
+    def is_valid_response_size(response: httpx.Response) -> None:
+        if len(response.content) > settings.pu_instance_max_state_size:
+            msg = f"Instance response {len(response.content)} B exceeds the limit {settings.pu_instance_max_state_size} B"
+            raise ValueError(msg)

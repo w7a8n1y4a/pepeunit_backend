@@ -539,13 +539,11 @@ class IntegrationTestsStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-@strawberry.enum
 class CacheKey(str, enum.Enum):
     INSTANCE_METRICS = "InstanceMetrics"
     INSTANCE_METRICS_PUBLIC = "InstanceMetricsPublic"
 
 
-@strawberry.enum
 class FileLock(str, enum.Enum):
     INIT = "tmp/init_lock.lock"
     MQTT_RUN = "tmp/mqtt_run_lock.lock"

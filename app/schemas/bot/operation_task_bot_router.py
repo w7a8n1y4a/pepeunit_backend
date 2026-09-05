@@ -1,5 +1,4 @@
 import contextlib
-from datetime import datetime
 from uuid import UUID
 
 from aiogram import types
@@ -21,7 +20,10 @@ from app.dto.enum import (
     OperationTaskType,
 )
 from app.schemas.bot.base_bot_router import BaseBotFilters, BaseBotRouter
-from app.schemas.bot.utils import make_monospace_table_with_title
+from app.schemas.bot.utils import (
+    format_datetime,
+    make_monospace_table_with_title,
+)
 from app.schemas.pydantic.operation_task import OperationTaskFilter
 
 
@@ -182,7 +184,7 @@ class OperationTaskBotRouter(BaseBotRouter):
         text = f"*Task* - `{task.task_type}`"
         text += "\n```text\n"
         text += make_monospace_table_with_title(
-            self._task_card_rows(task),
+            self._get_base_info_table(task),
             "Base Info",
             lengths=[15, 30],
         )
@@ -212,25 +214,15 @@ class OperationTaskBotRouter(BaseBotRouter):
         await callback.answer()
 
     @staticmethod
-    def _task_card_rows(task: OperationTask) -> list[list]:
-        rows = [
+    def _get_base_info_table(task: OperationTask) -> list[list]:
+        table = [
             ["Type", task.task_type],
             ["Status", task.status],
-            [
-                "Started",
-                OperationTaskBotRouter._format_datetime(task.start_datetime),
-            ],
-            [
-                "Finished",
-                OperationTaskBotRouter._format_datetime(task.finish_datetime),
-            ],
+            ["Started", format_datetime(task.start_datetime)],
+            ["Finished", format_datetime(task.finish_datetime)],
         ]
-        if task.result:
-            rows.append(["Result", " ".join(task.result.split())])
-        return rows
 
-    @staticmethod
-    def _format_datetime(value: datetime | None) -> str | None:
-        if value is None:
-            return None
-        return value.strftime("%Y-%m-%d %H:%M:%S")
+        if task.result:
+            table.append(["Result", " ".join(task.result.split())])
+
+        return table

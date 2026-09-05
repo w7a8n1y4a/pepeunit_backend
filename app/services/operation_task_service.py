@@ -6,8 +6,6 @@ import uuid as uuid_pkg
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
-from aiogram import Bot
-from aiogram.client.session.aiohttp import AiohttpSession
 from fastapi import Depends
 from sqlmodel import Session
 
@@ -20,11 +18,13 @@ from app.dto.enum import (
     AgentType,
     OperationTaskStatus,
     OperationTaskType,
+    OwnershipType,
 )
 from app.repositories.operation_task_repository import (
     OperationTaskRepository,
 )
 from app.repositories.user_repository import UserRepository
+from app.schemas.bot.utils import build_telegram_bot
 from app.schemas.gql.inputs.operation_task import OperationTaskFilterInput
 from app.schemas.pydantic.operation_task import (
     OperationTaskCreate,
@@ -38,7 +38,7 @@ OperationTaskCallable = Callable[[Session], Awaitable[str | None] | str | None]
 
 
 class OperationTaskService:
-    _MAX_OPERATION_TASK_RESULT_LENGTH = 256
+    MAX_RESULT_LENGTH = 256
 
     def __init__(
         self,
@@ -50,52 +50,44 @@ class OperationTaskService:
 
     def create(self, data: OperationTaskCreate) -> OperationTask:
         self.access_service.authorization.check_access([AgentType.USER])
-        now = datetime.now(UTC)
-        task = OperationTask(
-            creator_uuid=self.access_service.current_agent.uuid,
-            task_type=data.task_type.value,
-            create_datetime=now,
-            start_datetime=now,
-        )
-        return self.operation_task_repository.create(task)
 
-    def ensure_cooldown(
-        self,
-        task_type: OperationTaskType,
-        cooldown: timedelta,
-    ) -> str | None:
-        latest = self.operation_task_repository.get_latest_by_type(task_type)
-        if (
-            latest is not None
-            and ensure_timezone_aware(latest.create_datetime)
-            > datetime.now(UTC) - cooldown
-        ):
-            return (
-                f"Operation {task_type.value} may only run once per "
-                f"{int(cooldown.total_seconds())} seconds"
+        create_datetime = datetime.now(UTC)
+
+        return self.operation_task_repository.create(
+            OperationTask(
+                creator_uuid=self.access_service.current_agent.uuid,
+                task_type=data.task_type.value,
+                create_datetime=create_datetime,
+                start_datetime=create_datetime,
             )
-        return None
+        )
 
-    def get(self, task_uuid: uuid_pkg.UUID) -> OperationTask:
-        return self._get_current_user_task(task_uuid)
+    def get(self, uuid: uuid_pkg.UUID) -> OperationTask:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        task = self.operation_task_repository.get(OperationTask(uuid=uuid))
+        is_valid_object(task)
+
+        self.access_service.authorization.check_ownership(
+            task, [OwnershipType.CREATOR]
+        )
+        return task
 
     def list(
-        self,
-        filters: OperationTaskFilter | OperationTaskFilterInput,
+        self, filters: OperationTaskFilter | OperationTaskFilterInput
     ) -> tuple[int, list[OperationTask]]:
         self.access_service.authorization.check_access([AgentType.USER])
-        return self.operation_task_repository.list_for_user(
-            self.access_service.current_agent.uuid,
-            filters,
-        )
+
+        filters.creator_uuid = self.access_service.current_agent.uuid
+
+        return self.operation_task_repository.list(filters)
 
     def schedule(
         self,
-        task_uuid: uuid_pkg.UUID,
+        task: OperationTask,
         operation: OperationTaskCallable,
     ) -> None:
-        task = self._get_current_user_task(task_uuid)
-        self._ensure_status(task, OperationTaskStatus.RUNNING)
+        task_uuid = task.uuid
         is_telegram_notify = self.access_service.is_bot_auth
 
         def runner() -> None:
@@ -109,6 +101,26 @@ class OperationTaskService:
 
         threading.Thread(target=runner, daemon=True).start()
 
+    def is_valid_cooldown(
+        self,
+        task_type: OperationTaskType,
+        cooldown: timedelta,
+    ) -> None:
+        latest_task = self.operation_task_repository.get_latest_by_type(
+            task_type
+        )
+        if not latest_task:
+            return
+
+        delta = (
+            datetime.now(UTC)
+            - ensure_timezone_aware(latest_task.create_datetime)
+        ).total_seconds()
+
+        if delta <= cooldown.total_seconds():
+            msg = f"Operation {task_type.value} is not available, last run was {round(delta)} s ago, but it should have taken at least {round(cooldown.total_seconds())} s"
+            raise OperationTaskError(msg)
+
     @staticmethod
     async def _execute_background(
         task_uuid: uuid_pkg.UUID,
@@ -117,114 +129,51 @@ class OperationTaskService:
     ) -> None:
         with get_hand_session() as db:
             repository = OperationTaskRepository(db)
-            task = repository.get(OperationTask(uuid=task_uuid))
-            is_valid_object(task)
-            OperationTaskService._ensure_status(
-                task,
-                OperationTaskStatus.RUNNING,
-            )
 
             try:
                 operation_result = operation(db)
                 if inspect.isawaitable(operation_result):
                     operation_result = await operation_result
-            except Exception as operation_error:
-                logging.exception(
-                    "Operation task %s failed",
-                    task_uuid,
-                )
+            except Exception as e:
+                logging.exception(f"Failed OperationTask {task_uuid}")
                 db.rollback()
-                task = repository.get(OperationTask(uuid=task_uuid))
-                is_valid_object(task)
-                result_text = (
-                    str(operation_error) or type(operation_error).__name__
-                )
-                task = OperationTaskService._error_with_repository(
-                    task,
-                    result_text,
+                task = OperationTaskService._finish(
                     repository,
+                    task_uuid,
+                    OperationTaskStatus.ERROR,
+                    str(e) or type(e).__name__,
                 )
-                await OperationTaskService._notify_telegram(
-                    task,
-                    db,
-                    is_telegram_notify,
+            else:
+                task = OperationTaskService._finish(
+                    repository,
+                    task_uuid,
+                    OperationTaskStatus.SUCCESS,
+                    operation_result,
                 )
-                return
 
-            task = repository.get(OperationTask(uuid=task_uuid))
-            is_valid_object(task)
-            task = OperationTaskService._success_with_repository(
-                task,
-                repository,
-                operation_result,
-            )
             await OperationTaskService._notify_telegram(
-                task,
-                db,
-                is_telegram_notify,
+                task, db, is_telegram_notify
             )
 
-    def _get_current_user_task(
-        self,
+    @staticmethod
+    def _finish(
+        repository: OperationTaskRepository,
         task_uuid: uuid_pkg.UUID,
+        status: OperationTaskStatus,
+        result: str | None,
     ) -> OperationTask:
-        self.access_service.authorization.check_access([AgentType.USER])
-        task = self.operation_task_repository.get_for_user(
-            task_uuid,
-            self.access_service.current_agent.uuid,
-        )
+        task = repository.get(OperationTask(uuid=task_uuid))
         is_valid_object(task)
-        return task
 
-    @staticmethod
-    def _ensure_status(
-        task: OperationTask,
-        expected_status: OperationTaskStatus,
-    ) -> None:
-        if task.status != expected_status.value:
-            message = (
-                f"Operation task must have status {expected_status.value}; "
-                f"current status is {task.status}"
-            )
-            raise OperationTaskError(message)
-
-    @staticmethod
-    def _success_with_repository(
-        task: OperationTask,
-        repository: OperationTaskRepository,
-        result_text: str | None,
-    ) -> OperationTask:
-        OperationTaskService._ensure_status(
-            task,
-            OperationTaskStatus.RUNNING,
-        )
-        task.status = OperationTaskStatus.SUCCESS.value
+        task.status = status.value
         task.finish_datetime = datetime.now(UTC)
-        task.result = OperationTaskService._clip_result(result_text)
-        return repository.update(task.uuid, task)
-
-    @staticmethod
-    def _error_with_repository(
-        task: OperationTask,
-        result_text: str,
-        repository: OperationTaskRepository,
-    ) -> OperationTask:
-        OperationTaskService._ensure_status(
-            task,
-            OperationTaskStatus.RUNNING,
+        task.result = (
+            result[: OperationTaskService.MAX_RESULT_LENGTH]
+            if result
+            else None
         )
-        task.status = OperationTaskStatus.ERROR.value
-        task.finish_datetime = datetime.now(UTC)
-        task.result = OperationTaskService._clip_result(result_text)
-        return repository.update(task.uuid, task)
 
-    @staticmethod
-    def _clip_result(result_text: str | None) -> str | None:
-        if result_text is None:
-            return None
-        return result_text[
-            : OperationTaskService._MAX_OPERATION_TASK_RESULT_LENGTH
-        ]
+        return repository.update(task.uuid, task)
 
     @staticmethod
     async def _notify_telegram(
@@ -232,44 +181,32 @@ class OperationTaskService:
         db: Session,
         is_telegram_notify: bool,
     ) -> None:
-        if not is_telegram_notify:
-            return
-        if not settings.pu_ff_telegram_bot_enable:
+        if not is_telegram_notify or not settings.pu_ff_telegram_bot_enable:
             return
 
         user = UserRepository(db).get(User(uuid=task.creator_uuid))
-        if user is None or user.telegram_chat_id is None:
+        if not user or not user.telegram_chat_id:
             return
 
-        session = (
-            AiohttpSession(proxy=settings.pu_telegram_proxy_url)
-            if settings.pu_telegram_proxy_url
-            else None
-        )
-        bot = (
-            Bot(token=settings.pu_telegram_token, session=session)
-            if session is not None
-            else Bot(token=settings.pu_telegram_token)
-        )
+        bot = build_telegram_bot()
         try:
             await bot.send_message(
                 chat_id=user.telegram_chat_id,
-                text=OperationTaskService._telegram_finish_text(task),
+                text=OperationTaskService._get_finish_text(task),
                 parse_mode="Markdown",
             )
-        except Exception as notify_error:
-            logging.error(
-                f"Failed to send telegram task notification: {notify_error}"
-            )
+        except Exception as e:
+            logging.error(f"Failed send OperationTask notification: {e}")
         finally:
             await bot.session.close()
 
     @staticmethod
-    def _telegram_finish_text(task: OperationTask) -> str:
+    def _get_finish_text(task: OperationTask) -> str:
         result_line = ""
         if task.result:
             escaped_result = task.result.replace("`", "'")
             result_line = f"\nResult: `{escaped_result}`"
+
         return (
             f"*Task finished*\n"
             f"Type: `{task.task_type}`\n"

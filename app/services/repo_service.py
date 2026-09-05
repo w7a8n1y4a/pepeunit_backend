@@ -315,7 +315,7 @@ class RepoService:
             with BackgroundService(jwt_token) as services:
                 return services.get_repo_service().update_units_firmware(uuid)
 
-        self.operation_task_service.schedule(task.uuid, operation)
+        self.operation_task_service.schedule(task, operation)
         return task
 
     def bulk_update_units_firmware(self) -> str:
@@ -351,7 +351,7 @@ class RepoService:
             with BackgroundService() as services:
                 return services.get_repo_service().bulk_update_units_firmware()
 
-        self.operation_task_service.schedule(task.uuid, operation)
+        self.operation_task_service.schedule(task, operation)
         return task
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:

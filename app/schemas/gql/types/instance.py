@@ -53,7 +53,7 @@ class InstanceRegistriesPageType:
 
 
 @strawberry.type()
-class CurrentInstanceFeatureFlagsType:
+class FeatureFlagsType:
     pu_ff_telegram_bot_enable: bool
     pu_ff_grafana_integration_enable: bool
     pu_ff_datapipe_enable: bool
@@ -116,7 +116,7 @@ class CurrentInstanceType:
     graphql: str
     grafana: str
     telegram_bot: str
-    feature_flags: CurrentInstanceFeatureFlagsType
+    feature_flags: FeatureFlagsType
     settings: CurrentInstanceSettingsType
     state: CurrentInstanceStateType
     metrics: CurrentInstanceMetricsType

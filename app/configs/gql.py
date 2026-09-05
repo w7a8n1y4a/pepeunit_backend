@@ -15,7 +15,6 @@ from app.configs.rest import (
     get_unit_service,
     get_user_service,
 )
-from app.repositories.instance_cache_repository import InstanceCacheRepository
 from app.services.grafana_service import GrafanaService
 from app.services.instance_service import InstanceService
 from app.services.operation_task_service import OperationTaskService
@@ -39,7 +38,6 @@ async def get_graphql_context(
         "db": db,
         "clickhouse_client": clickhouse_client,
         "jwt_token": jwt_token,
-        "instance_cache": request.app.state.instance_cache,
     }
 
 
@@ -54,10 +52,6 @@ def get_instance_service_gql(info: Info) -> InstanceService:
     db = info.context.get("db")
     jwt_token = info.context["jwt_token"]
     return get_instance_service(db, jwt_token)
-
-
-def get_instance_cache_gql(info: Info) -> InstanceCacheRepository:
-    return info.context["instance_cache"]
 
 
 def get_repository_registry_service_gql(
