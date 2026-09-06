@@ -62,9 +62,7 @@ def apply_restriction(query, filters, entity_type: any, restriction: list):
 
 
 def apply_offset_and_limit(query, filters) -> tuple[int, Any]:
-    return query.count(), query.offset(
-        filters.offset if filters.offset else None
-    ).limit(filters.limit if filters.limit else None)
+    return query.count(), query.offset(filters.offset).limit(filters.limit)
 
 
 def apply_orders_by(query, filters, fields: dict):

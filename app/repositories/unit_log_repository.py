@@ -75,11 +75,7 @@ class UnitLogRepository:
         if filters.order_by_create_date:
             query += f" order by create_datetime {filters.order_by_create_date.value}"
 
-        if filters.limit:
-            query += " limit %(limit)s"
-
-        if filters.offset:
-            query += " offset %(offset)s"
+        query += " limit %(limit)s offset %(offset)s"
 
         unit_logs = self.orm.get_many(
             query,

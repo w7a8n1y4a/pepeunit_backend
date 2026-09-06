@@ -90,8 +90,8 @@ class CommitFilter(Filter):
     repo_branch: str
     only_tag: bool = False
 
-    offset: int | None = Field(default=0, ge=0)
-    limit: int | None = Field(
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
         default=10,
         ge=0,
         le=settings.pu_max_pagination_size,

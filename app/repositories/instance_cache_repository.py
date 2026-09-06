@@ -77,13 +77,9 @@ class InstanceCacheRepository:
         items: tuple[Any, ...],
         filters: InstanceFilter | InstanceFilterInput,
     ) -> tuple[int, list]:
-        offset = filters.offset if filters.offset else 0
-        page = (
-            items[offset : offset + filters.limit]
-            if filters.limit
-            else items[offset:]
+        return len(items), list(
+            items[filters.offset : filters.offset + filters.limit]
         )
-        return len(items), list(page)
 
 
 instance_cache = InstanceCacheRepository()
