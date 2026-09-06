@@ -400,6 +400,7 @@ class UnitNodeService:
             BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE.value,
             BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE.value,
             BackendTopicCommand.LOG_SYNC: ReservedInputBaseTopic.LOG_SYNC.value,
+            BackendTopicCommand.RESET: ReservedInputBaseTopic.RESET.value,
         }
 
         target_topic = (

@@ -442,6 +442,7 @@ class UnitBotRouter(BaseBotRouter):
                     f"{ReservedInputBaseTopic.SCHEMA_UPDATE.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.SCHEMA_UPDATE.value,
                     f"{ReservedInputBaseTopic.ENV_UPDATE.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.ENV_UPDATE.value,
                     f"{ReservedInputBaseTopic.LOG_SYNC.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.LOG_SYNC.value,
+                    f"{ReservedInputBaseTopic.RESET.value}{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}": BackendTopicCommand.RESET.value,
                 }
 
                 keyboard.append(
@@ -559,6 +560,7 @@ class UnitBotRouter(BaseBotRouter):
                     BackendTopicCommand.SCHEMA_UPDATE,
                     BackendTopicCommand.ENV_UPDATE,
                     BackendTopicCommand.LOG_SYNC,
+                    BackendTopicCommand.RESET,
                 ):
                     unit_node_service.command_to_input_base_topic(
                         unit_uuid, BackendTopicCommand(decrees_type)

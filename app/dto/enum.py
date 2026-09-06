@@ -127,6 +127,7 @@ class BackendTopicCommand(str, enum.Enum):
     ENV_UPDATE = "EnvUpdate"
     SCHEMA_UPDATE = "SchemaUpdate"
     LOG_SYNC = "LogSync"
+    RESET = "Reset"
 
 
 @strawberry.enum
@@ -139,6 +140,7 @@ class ReservedInputBaseTopic(str, enum.Enum):
     ENV_UPDATE = "env_update"
     SCHEMA_UPDATE = "schema_update"
     LOG_SYNC = "log_sync"
+    RESET = "reset"
 
 
 @strawberry.enum

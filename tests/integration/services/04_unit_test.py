@@ -411,6 +411,30 @@ def test_log_sync_command(running_units, chain_middle_unit, regular_user_token) 
         client.disconnect()
 
 
+def test_reset_command(running_units, chain_sink_unit, regular_user_token) -> None:
+    token = regular_user_token
+    client = next(get_clickhouse_client())
+    try:
+        unit_log_repository = UnitLogRepository(client)
+        logging.info(chain_sink_unit.uuid)
+        assert post_unit_command(token, chain_sink_unit, BackendTopicCommand.RESET) < 400
+
+        def reset_logged() -> bool:
+            _, logs = unit_log_repository.list(
+                UnitLogFilter(uuid=chain_sink_unit.uuid, level=["Info"])
+            )
+            return any("Reset command received" in log.text for log in logs)
+
+        wait_until(
+            reset_logged,
+            timeout=30,
+            interval=2,
+            message="RESET did not produce Reset log in ClickHouse",
+        )
+    finally:
+        client.disconnect()
+
+
 def test_get_many_unit(
     live_units,
     universal_auto_unit,
