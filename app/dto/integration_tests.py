@@ -72,7 +72,7 @@ class IntegrationTestsStats(BaseModel):
         return None
 
     @classmethod
-    def from_result(cls, result: str | None) -> "IntegrationTestsStats":
+    def from_result(cls, result: str | None) -> IntegrationTestsStats:
         summary = cls.get_summary(result)
         if not summary:
             return cls()

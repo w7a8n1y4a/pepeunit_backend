@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "AGPL v3 License"}
 readme = "README.md"
-requires-python = ">=3.13.7"
+requires-python = ">=3.14.7"
 dependencies = [
     "fastapi>=0.95.0",
     "sqlmodel>=0.0.8",
@@ -53,7 +53,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pre-commit>=3.8.0",
-    "ruff>=0.13.2",
+    "ruff>=0.16.6",
 ]
 load = [
     "paho-mqtt>=2.1.0",
@@ -81,7 +81,7 @@ pepeunit-client = { index = "testpypi" }
 [tool.ruff]
 line-length = 79
 
-target-version = "py313"
+target-version = "py314"
 
 exclude = [
     ".git",
@@ -105,7 +105,7 @@ select = [
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
-    "TCH", # flake8-type-checking
+    "TC",  # flake8-type-checking
     "Q",   # flake8-quotes
     "C90", # mccabe
     "B008", # flake8-bugbear
@@ -143,6 +143,7 @@ ignore = [
     "B006",    # Do not use mutable data structures for argument defaults
     "SIM115",  # with for files (for lock work disable)
     "PLR0913", # too many arguments to function call
+    "PLR0917", # too many positional arguments
     "PLR0912", # too many branches
     "PLR2004", # magic value used in comparison
     "PLW0603", # using the global statement
@@ -161,7 +162,11 @@ ignore = [
     "PLC0415", # top level import
     "T201",    # print deletion without except
     "S104",    # 0.0.0.0 host issue
-    "SLF001" , # _method access
+    "SLF001",  # _method access
+    "UP042",   # replace str enum (invasive for strawberry enums)
+    "TC001",   # typing-only first-party import
+    "TC002",   # typing-only third-party import
+    "TC003",   # typing-only stdlib import
 ]
 
 [tool.ruff.lint.per-file-ignores]

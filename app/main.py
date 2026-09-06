@@ -86,7 +86,7 @@ app.add_middleware(CustomExceptionMiddleware)
 schema = Schema(query=Query, mutation=Mutation)
 graphql = GraphQLRouter(
     schema,
-    graphiql=True,
+    graphql_ide="graphiql",
     context_getter=get_graphql_context,
     multipart_uploads_enabled=True,
 )

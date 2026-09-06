@@ -53,7 +53,7 @@ def aes_decode(data: str, key: str = settings.pu_encrypt_key) -> str:
     return: decode python str
     """
     key = base64.b64decode(key.encode())
-    iv = base64.b64decode(data.split(".")[0].encode())
+    iv = base64.b64decode(data.split(".", maxsplit=1)[0].encode())
 
     # set decrypter
     decrypter = pyaes.Decrypter(pyaes.AESModeOfOperationCBC(key, iv))
@@ -194,7 +194,7 @@ def obj_serializer(obj):
 
 async def create_upload_file_from_path(file_path: str) -> UploadFile:
     return UploadFile(
-        filename=file_path.split("/")[-1],
+        filename=file_path.rsplit("/", maxsplit=1)[-1],
         file=open(file_path, "rb"),
         size=os.path.getsize(file_path),
     )

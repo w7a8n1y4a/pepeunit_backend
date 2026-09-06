@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
@@ -66,7 +65,7 @@ class BaseBotFilters(BaseModel):
     )
     is_only_my_entity: bool = False
     search_string: str | None = None
-    previous_filters: Optional["BaseBotFilters"] = None
+    previous_filters: BaseBotFilters | None = None
     repo_uuid: str | None = None
     unit_uuid: str | None = None
 

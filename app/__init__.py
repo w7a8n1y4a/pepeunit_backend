@@ -20,7 +20,7 @@ class ClickHouseConnectionParams:
     @classmethod
     def from_connection_string(
         cls, conn_str: str
-    ) -> "ClickHouseConnectionParams":
+    ) -> ClickHouseConnectionParams:
         # Strip the "clickhouse+" prefix if present
         if conn_str.startswith("clickhouse+"):
             conn_str = conn_str.split("+", 1)[1]
