@@ -26,6 +26,7 @@ from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     LogLevel,
+    OrderByDate,
     OwnershipType,
     PermissionEntities,
     ReservedEnvVariableName,
@@ -684,6 +685,32 @@ class UnitService:
         )
 
         return self.unit_log_repository.list(filters)
+
+    def get_unit_logs_file(self, uuid: uuid_pkg.UUID) -> tuple[str, str]:
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
+
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        is_valid_object(unit)
+
+        self.access_service.authorization.check_ownership(
+            unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
+        )
+
+        _, logs = self.unit_log_repository.list(
+            UnitLogFilter(
+                uuid=uuid,
+                level=[item.value for item in LogLevel],
+                order_by_create_date=OrderByDate.asc,
+            )
+        )
+
+        log_filepath = f"tmp/{uuid}_{uuid_pkg.uuid4()}.log"
+        with open(log_filepath, "w", encoding="utf-8") as handle:
+            handle.writelines(f"{log.to_log_line()}\n" for log in logs)
+
+        return log_filepath, f"{unit.name}.log"
 
     def generate_current_schema(
         self,

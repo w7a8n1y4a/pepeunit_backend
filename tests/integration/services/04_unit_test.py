@@ -2,6 +2,9 @@ import copy
 import json
 import logging
 import os
+import re
+import uuid as uuid_pkg
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,12 +21,15 @@ from app.configs.errors import (
 )
 from app.domain.repo_model import Repo
 from app.dto.agent.abc import AgentBackend
+from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    LogLevel,
     OperationTaskStatus,
     OperationTaskType,
+    OrderByDate,
     ReservedEnvVariableName,
     UnitNodeTypeEnum,
     VisibilityLevel,
@@ -35,6 +41,7 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.utils import get_topic_name
 from app.utils.utils import aes_gcm_encode
 from tests.integration.helpers.http import (
+    get_unit_logs_file,
     patch_repo,
     patch_unit_commit,
     patch_update_units_firmware,
@@ -472,6 +479,94 @@ def test_get_unit_logs(
         )
     )
     assert len(logs) > 0
+
+
+def test_download_unit_logs(
+    live_units, regular_user_token, database, cc
+) -> None:
+    unit = live_units.universal_auto_unit
+    service = unit_service(database, cc, regular_user_token)
+    unit_log_repository = UnitLogRepository(cc)
+
+    first_datetime = datetime(2026, 9, 6, 3, 15, 58, 214000)
+    second_datetime = first_datetime + timedelta(seconds=1)
+    expiration = datetime.now(UTC) + timedelta(
+        seconds=settings.pu_unit_log_expiration
+    )
+    first_text = (
+        "uvicorn.access - 192.168.0.10:48422 - "
+        '"GET /pepeunit/api/v1/instances/current HTTP/1.0" 200'
+    )
+    second_text = "gmqtt.client - [SUBACK] N (0,)"
+
+    unit_log_repository.bulk_create(
+        [
+            UnitLog(
+                uuid=uuid_pkg.uuid4(),
+                level=LogLevel.INFO,
+                unit_uuid=unit.uuid,
+                text=first_text,
+                create_datetime=first_datetime,
+                expiration_datetime=expiration,
+            ),
+            UnitLog(
+                uuid=uuid_pkg.uuid4(),
+                level=LogLevel.ERROR,
+                unit_uuid=unit.uuid,
+                text=second_text,
+                create_datetime=second_datetime,
+                expiration_datetime=expiration,
+            ),
+        ]
+    )
+
+    assert (
+        UnitLog(
+            uuid=uuid_pkg.uuid4(),
+            level=LogLevel.INFO,
+            unit_uuid=unit.uuid,
+            text=first_text,
+            create_datetime=first_datetime,
+            expiration_datetime=expiration,
+        ).to_log_line()
+        == f"INFO - 2026-09-06 03:15:58,214 - {first_text}"
+    )
+
+    log_path, filename = service.get_unit_logs_file(unit.uuid)
+    try:
+        assert filename == f"{unit.name}.log"
+        assert log_path.endswith(".log")
+        with open(log_path, encoding="utf-8") as handle:
+            content = handle.read()
+    finally:
+        os.remove(log_path)
+
+    lines = content.splitlines()
+    first_line = next(line for line in lines if line.endswith(f" - {first_text}"))
+    second_line = next(line for line in lines if line.endswith(f" - {second_text}"))
+    assert first_line.startswith("INFO - ")
+    assert second_line.startswith("ERROR - ")
+    assert lines.index(first_line) < lines.index(second_line)
+
+    _, stored_logs = service.log_list(
+        UnitLogFilter(
+            uuid=unit.uuid,
+            level=[item.value for item in LogLevel],
+            order_by_create_date=OrderByDate.asc,
+        )
+    )
+    assert lines == [log.to_log_line() for log in stored_logs]
+
+    log_line_pattern = re.compile(
+        r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL) - "
+        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - .+$"
+    )
+    assert all(log_line_pattern.match(line) for line in lines)
+
+    response = get_unit_logs_file(regular_user_token, unit)
+    assert response.status_code == 200
+    assert f'filename="{unit.name}.log"' in response.headers["content-disposition"]
+    assert response.text == content
 
 
 @pytest.mark.asyncio

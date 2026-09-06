@@ -60,6 +60,11 @@ def patch_update_units_firmware(token: str, repo) -> int:
     return _status(response)
 
 
+def get_unit_logs_file(token: str, unit) -> httpx.Response:
+    url = f"{settings.pu_link_prefix_and_v1}/units/logs/{unit.uuid}"
+    return httpx.get(url=url, headers=_headers(token), timeout=60)
+
+
 def post_unit_command(token: str, unit, command: BackendTopicCommand) -> int:
     url = (
         f"{settings.pu_link_prefix_and_v1}/units/"

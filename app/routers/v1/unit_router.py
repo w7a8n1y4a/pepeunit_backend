@@ -211,6 +211,23 @@ def get_unit_logs(
     )
 
 
+@router.get("/logs/{uuid}")
+def download_unit_logs(
+    uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
+):
+    log_filepath, filename = unit_service.get_unit_logs_file(uuid)
+
+    def cleanup():
+        os.remove(log_filepath)
+
+    return FileResponse(
+        log_filepath,
+        filename=filename,
+        media_type="text/plain; charset=utf-8",
+        background=BackgroundTask(cleanup),
+    )
+
+
 @router.post(
     "/convert_toml_to_md",
     response_class=PlainTextResponse,
