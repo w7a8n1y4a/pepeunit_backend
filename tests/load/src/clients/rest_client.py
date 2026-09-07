@@ -4,6 +4,7 @@ import logging
 
 import httpx
 
+from app import settings
 from app.dto.enum import GitPlatform, ProcessingPolicyType
 from tests.load.src.dto.config import LoadTestConfig
 
@@ -91,12 +92,11 @@ class RestClient:
 
     async def del_units(self):
         logging.warning("Run del old Units")
-        get_units = f"{self.config.url}/pepeunit/api/v1/units?search_string={self.config.test_hash}"
-        units = httpx.get(get_units, headers=self.headers).json()
+        units = self.get_units()
 
-        if units["count"] > 0:
+        if units:
             async with httpx.AsyncClient() as client:
-                unit_uuids = [unit["uuid"] for unit in units["units"]]
+                unit_uuids = [unit["uuid"] for unit in units]
                 await self.run_tasks_with_semaphore(
                     client, unit_uuids, self.delete_unit
                 )
@@ -130,7 +130,19 @@ class RestClient:
     def get_units(self):
         logging.warning("Fetch all Units")
         get_units = f"{self.config.url}/pepeunit/api/v1/units?is_include_output_unit_nodes=true&search_string={self.config.test_hash}"
-        return httpx.get(get_units, headers=self.headers).json()["units"]
+
+        limit = settings.pu_max_pagination_size
+
+        units = []
+        while True:
+            page = httpx.get(
+                f"{get_units}&offset={len(units)}&limit={limit}",
+                headers=self.headers,
+            ).json()
+            units.extend(page["units"])
+
+            if len(units) >= page["count"] or not page["units"]:
+                return units
 
     async def create_units_env(self, target_units: list[dict]):
         logging.warning("Run create env Units")

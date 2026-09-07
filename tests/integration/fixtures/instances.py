@@ -3,7 +3,7 @@ import pytest
 from app.domain.instance_model import Instance
 from app.dto.enum import InstanceTrustStatus
 from app.repositories.instance_repository import InstanceRepository
-from app.schemas.pydantic.instance import InstanceCreate, InstanceFilter
+from app.schemas.pydantic.instance import InstanceCreate
 from app.services.instance_service import InstanceService
 from tests.integration.helpers.names import (
     unique_instance_url,
@@ -22,10 +22,8 @@ def _delete_instance(database, uuid) -> None:
 
 def _drop_by_url(database, url: str) -> None:
     repository = InstanceRepository(db=database)
-    count, instances = repository.list(InstanceFilter())
-    for instance in instances:
-        if instance.url == url:
-            repository.delete(Instance(uuid=instance.uuid))
+    for instance in database.query(Instance).filter(Instance.url == url).all():
+        repository.delete(Instance(uuid=instance.uuid))
 
 
 @pytest.fixture(scope="session")

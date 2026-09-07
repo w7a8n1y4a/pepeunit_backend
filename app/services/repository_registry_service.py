@@ -314,7 +314,7 @@ class RepositoryRegistryService:
         )
 
         count, repo_list = self.repo_repository.list(
-            RepoFilter(repository_registry_uuid=uuid)
+            RepoFilter(repository_registry_uuid=uuid, limit=1)
         )
         is_emtpy_sequence(repo_list)
 

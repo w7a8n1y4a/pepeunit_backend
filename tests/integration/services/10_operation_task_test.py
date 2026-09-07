@@ -3,7 +3,6 @@ from datetime import timedelta
 
 import pytest
 
-from app import settings
 from app.configs.errors import NoAccessError, OperationTaskError
 from app.domain.operation_task_model import OperationTask
 from app.dto.enum import OperationTaskStatus, OperationTaskType
@@ -67,17 +66,15 @@ def test_list_operation_tasks(
 ) -> None:
     service = operation_task_service(database, admin_user_token)
 
-    count, tasks = service.list(OperationTaskFilter())
+    count, tasks = service.list(OperationTaskFilter.unlimited())
     assert count >= 1
     assert any(task.uuid == crud_task.uuid for task in tasks)
     assert all(task.creator_uuid == admin_user.uuid for task in tasks)
 
     count, tasks = service.list(
-        OperationTaskFilter(
+        OperationTaskFilter.unlimited(
             task_type=[TASK_TYPE.value],
             status=[OperationTaskStatus.RUNNING.value],
-            offset=0,
-            limit=settings.pu_max_pagination_size,
         )
     )
     assert all(task.task_type == TASK_TYPE.value for task in tasks)
@@ -87,7 +84,7 @@ def test_list_operation_tasks(
     assert any(task.uuid == crud_task.uuid for task in tasks)
 
     count, tasks = service.list(
-        OperationTaskFilter(
+        OperationTaskFilter.unlimited(
             task_type=[OperationTaskType.SCAN_INSTANCE.value],
             status=[OperationTaskStatus.SUCCESS.value],
         )
@@ -101,7 +98,7 @@ def test_list_operation_tasks_only_own(
     """The creator_uuid filter is always rewritten to the current agent"""
     service = operation_task_service(database, regular_user_token)
     count, tasks = service.list(
-        OperationTaskFilter(creator_uuid=crud_task.creator_uuid)
+        OperationTaskFilter.unlimited(creator_uuid=crud_task.creator_uuid)
     )
     assert all(task.uuid != crud_task.uuid for task in tasks)
 

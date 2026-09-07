@@ -246,11 +246,9 @@ def test_panel_unit_node_limit(
     nodes = []
     for unit in live_units.all():
         _, unit_nodes = node_svc.list(
-            UnitNodeFilter(
+            UnitNodeFilter.unlimited(
                 unit_uuid=unit.uuid,
                 type=[item.value for item in UnitNodeTypeEnum],
-                offset=0,
-                limit=settings.pu_max_pagination_size,
             )
         )
         nodes.extend(unit_nodes)
@@ -299,7 +297,13 @@ def test_get_dashboard(grafana_dashboards, regular_user_token, database, cc) -> 
 def test_list_dashboards(grafana_dashboards, regular_user_token, database, cc) -> None:
     count, dashboards = grafana_service(
         database, cc, regular_user_token
-    ).list_dashboards(DashboardFilter(search_string="test", offset=0, limit=10))
+    ).list_dashboards(
+        DashboardFilter(
+            search_string="test",
+            offset=0,
+            limit=settings.pu_max_pagination_size,
+        )
+    )
     assert count >= 2
 
 

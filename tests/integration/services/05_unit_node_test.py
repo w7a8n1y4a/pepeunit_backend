@@ -311,7 +311,8 @@ def test_get_many_unit_node(live_units, regular_user_token, database, cc) -> Non
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(units_nodes) >= 8
+    assert count >= 8
+    assert len(units_nodes) == min(count, settings.pu_max_pagination_size)
 
 
 async def test_data_pipe_requires_pepeunit_suffix(

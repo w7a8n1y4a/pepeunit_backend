@@ -194,7 +194,7 @@ def test_get_many_repo(
     count, repos = service.list(
         RepoFilter(creator_uuid=regular_user.uuid, is_auto_update_repo=True)
     )
-    assert len(repos) >= 3
+    assert count >= 3
 
     count, repos = service.list(
         RepoFilter(
@@ -205,7 +205,7 @@ def test_get_many_repo(
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(repos) >= 3
+    assert count >= 3
 
 
 def test_update_repo_visibility_blocked_by_children(

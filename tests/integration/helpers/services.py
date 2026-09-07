@@ -1,3 +1,4 @@
+from app import settings
 from app.configs.rest import (
     get_grafana_service,
     get_instance_service,
@@ -71,14 +72,46 @@ def repo_create_payload(repo) -> RepoCreate:
     )
 
 
-def branch_commits(database, token, registry_uuid, *, only_tag: bool = False):
+def _collect_commits(service, registry_uuid, branch, only_tag, count):
+    """Commit pages, gathered the way an api client has to gather them.
+
+    count is None for the whole branch history.
+    """
+    commits = []
+    while count is None or len(commits) < count:
+        page = service.get_branch_commits(
+            registry_uuid,
+            CommitFilter(
+                repo_branch=branch,
+                only_tag=only_tag,
+                offset=len(commits),
+                limit=settings.pu_max_pagination_size,
+            ),
+        )
+        commits.extend(page)
+
+        if len(page) < settings.pu_max_pagination_size:
+            break
+
+    return commits
+
+
+def branch_commits(
+    database, token, registry_uuid, *, only_tag: bool = False, count: int = 1
+):
+    """First count commits of the default branch, count is what the caller indexes"""
     service = registry_service(database, token)
     read = service.mapper_registry_to_registry_read(service.get(registry_uuid))
-    commits = service.get_branch_commits(
-        registry_uuid,
-        CommitFilter(repo_branch=read.branches[0], only_tag=only_tag),
+
+    return read, _collect_commits(
+        service, registry_uuid, read.branches[0], only_tag, count
     )
-    return read, commits
+
+
+def all_branch_commits(database, token, registry_uuid, branch, *, only_tag: bool = False):
+    return _collect_commits(
+        registry_service(database, token), registry_uuid, branch, only_tag, None
+    )
 
 
 def token_for(database, cc, login: str, password: str) -> str:

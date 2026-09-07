@@ -92,7 +92,7 @@ class CommitFilter(Filter):
 
     offset: int = Field(default=0, ge=0)
     limit: int = Field(
-        default=10,
+        default=settings.pu_max_pagination_size,
         ge=0,
         le=settings.pu_max_pagination_size,
     )

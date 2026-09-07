@@ -64,7 +64,7 @@ def test_create_permission_invalid_resource(
 def test_get_permission(crud_unit, regular_user_token, database) -> None:
     service = permission_service(database, regular_user_token)
     count, target_agents = service.get_resource_agents(
-        PermissionFilter(
+        PermissionFilter.unlimited(
             resource_uuid=crud_unit.uuid, resource_type=PermissionEntities.UNIT
         )
     )
@@ -132,7 +132,7 @@ def test_bot_sees_only_public(
     with pytest.raises(NoAccessError):
         bot_repos.get(live_repos.universal_private_repo.uuid)
 
-    _, repos = bot_repos.list(RepoFilter())
+    _, repos = bot_repos.list(RepoFilter.unlimited())
     assert all(
         repo.visibility_level == VisibilityLevel.PUBLIC for repo in repos
     )

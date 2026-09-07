@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     pu_unit_log_expiration: int = 86400
 
-    pu_max_pagination_size: int = 500
+    pu_max_pagination_size: int = 100
 
     pu_available_topic_symbols: str = (
         string.ascii_letters + string.digits + "/_-"

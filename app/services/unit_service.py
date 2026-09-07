@@ -263,7 +263,7 @@ class UnitService:
             unit = self.unit_repository.update(unit.uuid, unit)
 
         count, all_exist_unit_nodes = self.unit_node_repository.list(
-            UnitNodeFilter(unit_uuid=unit.uuid)
+            UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         input_node_dict = {
@@ -632,7 +632,7 @@ class UnitService:
         )
 
         count, unit_nodes = self.unit_node_repository.list(
-            UnitNodeFilter(unit_uuid=unit.uuid)
+            UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         # orm feature =_=
@@ -699,7 +699,7 @@ class UnitService:
         )
 
         _, logs = self.unit_log_repository.list(
-            UnitLogFilter(
+            UnitLogFilter.unlimited(
                 uuid=uuid,
                 level=[item.value for item in LogLevel],
                 order_by_create_date=OrderByDate.asc,

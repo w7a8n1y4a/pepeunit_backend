@@ -261,6 +261,7 @@ def test_hand_update_firmware_unit(
             token,
             repo.repository_registry_uuid,
             only_tag=repo.is_only_tag_update,
+            count=2,
         )
         target_version = commits[1].commit
         target_versions.append(target_version)
@@ -428,7 +429,7 @@ def test_reset_command(running_units, chain_sink_unit, regular_user_token) -> No
 
         def reset_logged() -> bool:
             _, logs = unit_log_repository.list(
-                UnitLogFilter(uuid=chain_sink_unit.uuid, level=["Info"])
+                UnitLogFilter.unlimited(uuid=chain_sink_unit.uuid, level=["Info"])
             )
             return any("Reset command received" in log.text for log in logs)
 
@@ -454,17 +455,15 @@ def test_get_many_unit(
 ) -> None:
     service = unit_service(database, cc, regular_user_token)
     count, units = service.list(
-        UnitFilter(
+        UnitFilter.unlimited(
             creator_uuid=regular_user.uuid,
             repo_uuid=universal_private_repo.uuid,
             search_string=test_hash,
             is_auto_update_from_repo_unit=True,
-            offset=0,
-            limit=settings.pu_max_pagination_size,
         )
     )
+    assert count >= 1
     assert any(unit[0].uuid == universal_auto_unit.uuid for unit in units)
-    assert len(units) >= 1
 
 
 def test_get_unit_logs(
@@ -548,14 +547,16 @@ def test_download_unit_logs(
     assert second_line.startswith("ERROR - ")
     assert lines.index(first_line) < lines.index(second_line)
 
-    _, stored_logs = service.log_list(
+    # the file holds the whole history, log_list gives only the first page of it
+    stored_count, first_page = service.log_list(
         UnitLogFilter(
             uuid=unit.uuid,
             level=[item.value for item in LogLevel],
             order_by_create_date=OrderByDate.asc,
         )
     )
-    assert lines == [log.to_log_line() for log in stored_logs]
+    assert len(lines) == stored_count
+    assert lines[: len(first_page)] == [log.to_log_line() for log in first_page]
 
     log_line_pattern = re.compile(
         r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL) - "
@@ -636,7 +637,7 @@ def test_list_units_with_output_nodes(
     live_units, regular_user, regular_user_token, database, cc
 ) -> None:
     count, units = unit_service(database, cc, regular_user_token).list(
-        UnitFilter(
+        UnitFilter.unlimited(
             creator_uuid=regular_user.uuid,
             unit_node_type=[item.value for item in UnitNodeTypeEnum],
             unit_node_uuids=[],

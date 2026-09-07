@@ -14,6 +14,7 @@ from app.schemas.pydantic.instance import (
     InstancesPage,
     InstanceUrlsPage,
 )
+from app.schemas.pydantic.pagination import NO_PAGINATION
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,9 @@ class InstanceCacheRepository:
         items: tuple[Any, ...],
         filters: InstanceFilter | InstanceFilterInput,
     ) -> tuple[int, list]:
+        if filters.limit == NO_PAGINATION:
+            return len(items), list(items)
+
         return len(items), list(
             items[filters.offset : filters.offset + filters.limit]
         )

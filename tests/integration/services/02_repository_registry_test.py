@@ -24,7 +24,7 @@ from app.schemas.pydantic.repository_registry import (
     RepositoryRegistryFilter,
 )
 from tests.integration.helpers.names import UNIVERSAL_FIRST_COMMIT
-from tests.integration.helpers.services import registry_service
+from tests.integration.helpers.services import all_branch_commits, registry_service
 from tests.integration.helpers.wait import wait_task_finish
 
 
@@ -70,9 +70,8 @@ def test_get_commits_repository(universal_registry, regular_user_token, database
     logging.info(universal_registry.uuid)
     target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
 
-    branch_commits = service.get_branch_commits(
-        universal_registry.uuid,
-        CommitFilter(repo_branch=target_branch, limit=settings.pu_max_pagination_size),
+    branch_commits = all_branch_commits(
+        database, regular_user_token, universal_registry.uuid, target_branch
     )
     assert UNIVERSAL_FIRST_COMMIT == branch_commits[-1].commit
 
@@ -164,7 +163,7 @@ def test_get_many_repository(
     count, repositories = service.list(
         RepositoryRegistryFilter(creator_uuid=regular_user.uuid)
     )
-    assert len(repositories) >= 3
+    assert count >= 3
 
     count, repositories = service.list(
         RepositoryRegistryFilter(
@@ -175,7 +174,7 @@ def test_get_many_repository(
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(repositories) >= 3
+    assert count >= 3
 
     public_only = registry_service(database, None)
     count, repositories = public_only.list(

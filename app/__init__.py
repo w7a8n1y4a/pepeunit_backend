@@ -43,6 +43,10 @@ settings = Settings()
 settings.pu_http_type = "https" if settings.pu_secure else "http"
 settings.pu_mqtt_http_type = "https" if settings.pu_mqtt_secure else "http"
 
+settings.pu_telegram_items_per_page = min(
+    settings.pu_telegram_items_per_page, settings.pu_max_pagination_size
+)
+
 settings.pu_link = f"{settings.pu_http_type}://{settings.pu_domain}"
 settings.pu_link_prefix = settings.pu_link + settings.pu_app_prefix
 settings.pu_link_prefix_and_v1 = (

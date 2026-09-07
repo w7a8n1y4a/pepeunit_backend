@@ -191,11 +191,9 @@ def test_get_grafana_token(
 def test_get_many_user(database, cc, admin_user_token, test_hash, regular_user) -> None:
     service = user_service(database, cc, admin_user_token)
     count, users = service.list(
-        UserFilter(
+        UserFilter.unlimited(
             search_string=test_hash,
             role=[UserRole.USER],
-            offset=0,
-            limit=settings.pu_max_pagination_size,
         )
     )
     assert any(user.uuid == regular_user.uuid for user in users)

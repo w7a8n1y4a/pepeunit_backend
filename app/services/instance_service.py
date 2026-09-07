@@ -205,9 +205,11 @@ class InstanceService:
         return self.instance_cache_repository.get_registries(filters)
 
     def refresh_cache(self) -> None:
-        count, instances = self.instance_repository.list(InstanceFilter())
+        count, instances = self.instance_repository.list(
+            InstanceFilter.unlimited()
+        )
         count, registries = self.repository_registry_repository.list(
-            RepositoryRegistryFilter(
+            RepositoryRegistryFilter.unlimited(
                 is_public_repository=True,
                 order_by_create_date=None,
                 order_by_last_update=None,
@@ -360,7 +362,9 @@ class InstanceService:
         self.is_federation_enable()
 
         count, instances = self.instance_repository.list(
-            InstanceFilter(trust_status=[InstanceTrustStatus.TRUST.value])
+            InstanceFilter.unlimited(
+                trust_status=[InstanceTrustStatus.TRUST.value]
+            )
         )
 
         collected = await asyncio.gather(
@@ -452,7 +456,9 @@ class InstanceService:
         )
         # pending is a quarantine for discovered instances, it is not deleted automatically
         count, instances = self.instance_repository.list(
-            InstanceFilter(trust_status=[InstanceTrustStatus.TRUST.value])
+            InstanceFilter.unlimited(
+                trust_status=[InstanceTrustStatus.TRUST.value]
+            )
         )
 
         for instance in instances:
@@ -478,7 +484,9 @@ class InstanceService:
             self.instance_repository.delete(instance)
 
     def insert_discovered_urls(self, urls: Sequence[str]) -> None:
-        count, instances = self.instance_repository.list(InstanceFilter())
+        count, instances = self.instance_repository.list(
+            InstanceFilter.unlimited()
+        )
 
         known_urls = {instance.url for instance in instances}
         known_urls.add(self.get_own_url())
@@ -506,7 +514,7 @@ class InstanceService:
         self, registries: Sequence[InstancePublicRegistry]
     ) -> None:
         count, known_registries = self.repository_registry_repository.list(
-            RepositoryRegistryFilter()
+            RepositoryRegistryFilter.unlimited()
         )
         known_urls = {item.repository_url for item in known_registries}
 

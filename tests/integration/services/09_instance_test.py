@@ -48,11 +48,7 @@ from tests.integration.helpers.wait import wait_task_finish
 
 
 def _instance_by_url(database, url: str) -> Instance | None:
-    count, instances = InstanceRepository(db=database).list(InstanceFilter())
-    for instance in instances:
-        if instance.url == url:
-            return instance
-    return None
+    return database.query(Instance).filter(Instance.url == url).first()
 
 
 def _create_integration_tests_task(
@@ -134,7 +130,7 @@ def test_get_instance(crud_instance, regular_user_token, database) -> None:
 def test_list_instances(crud_instance, regular_user_token, database) -> None:
     service = instance_service(database, regular_user_token)
 
-    count, instances = service.list(InstanceFilter())
+    count, instances = service.list(InstanceFilter.unlimited())
     assert count >= 1
     assert any(item.uuid == crud_instance.uuid for item in instances)
 
@@ -164,7 +160,7 @@ def test_list_instances(crud_instance, regular_user_token, database) -> None:
 def test_list_instances_without_token(crud_instance, database) -> None:
     """list is available to the Bot agent, so it works without a token too"""
     service = instance_service(database, None)
-    count, instances = service.list(InstanceFilter())
+    count, instances = service.list(InstanceFilter.unlimited())
     assert any(item.uuid == crud_instance.uuid for item in instances)
 
 
@@ -228,11 +224,9 @@ def test_refresh_cache(crud_instance, admin_user_token, database) -> None:
     service = instance_service(database, admin_user_token)
     service.refresh_cache()
 
-    cached_urls = service.get_cached_urls(InstanceFilter())
+    cached_urls = service.get_cached_urls(InstanceFilter.unlimited())
     assert crud_instance.url in cached_urls.urls
-    assert cached_urls.total_count == len(
-        service.list(InstanceFilter())[1]
-    )
+    assert cached_urls.total_count == service.list(InstanceFilter())[0]
     assert cached_urls.urls == sorted(cached_urls.urls)
 
     limited = service.get_cached_urls(InstanceFilter(offset=0, limit=1))
@@ -240,7 +234,7 @@ def test_refresh_cache(crud_instance, admin_user_token, database) -> None:
     assert limited.urls == cached_urls.urls[:1]
 
     tail = service.get_cached_urls(InstanceFilter(offset=1))
-    assert tail.urls == cached_urls.urls[1:]
+    assert tail.urls == cached_urls.urls[1 : 1 + settings.pu_max_pagination_size]
 
 
 def test_get_cached_current(admin_user_token, database) -> None:
@@ -266,7 +260,9 @@ def test_get_cached_instances_filter(
     service.refresh_cache()
 
     page = service.get_cached_instances(
-        InstanceFilter(trust_status=[InstanceTrustStatus.TRUST.value])
+        InstanceFilter.unlimited(
+            trust_status=[InstanceTrustStatus.TRUST.value]
+        )
     )
     assert all(
         item.trust_status == InstanceTrustStatus.TRUST
@@ -276,7 +272,9 @@ def test_get_cached_instances_filter(
     assert all(item.uuid != pending_instance.uuid for item in page.instances)
 
     pending_page = service.get_cached_instances(
-        InstanceFilter(trust_status=[InstanceTrustStatus.PENDING.value])
+        InstanceFilter.unlimited(
+            trust_status=[InstanceTrustStatus.PENDING.value]
+        )
     )
     assert any(
         item.uuid == pending_instance.uuid for item in pending_page.instances
@@ -300,13 +298,9 @@ def test_get_cached_registries(
     service = instance_service(database, admin_user_token)
     service.refresh_cache()
 
-    page = service.get_cached_registries(InstanceFilter())
+    page = service.get_cached_registries(InstanceFilter.unlimited())
     count, public = registry_service(database, regular_user_token).list(
-        RepositoryRegistryFilter(
-            is_public_repository=True,
-            offset=0,
-            limit=settings.pu_max_pagination_size,
-        )
+        RepositoryRegistryFilter.unlimited(is_public_repository=True)
     )
     assert page.total_count == count
     assert {item.url for item in page.registries} >= {
@@ -574,7 +568,7 @@ def test_insert_discovered_urls(
     assert discovered
     assert discovered.trust_status == InstanceTrustStatus.PENDING.value
 
-    count, instances = service.list(InstanceFilter())
+    count, instances = service.list(InstanceFilter.unlimited())
     own_urls = [
         item for item in instances if item.url == InstanceService.get_own_url()
     ]

@@ -209,7 +209,7 @@ class RepoService:
         update_repo.last_update_datetime = datetime.datetime.now(datetime.UTC)
 
         count, child_units = self.unit_repository.list(
-            filters=UnitFilter(repo_uuid=update_repo.uuid)
+            filters=UnitFilter.unlimited(repo_uuid=update_repo.uuid)
         )
         is_valid_visibility_level(
             update_repo, [unit[0] for unit in child_units]
@@ -251,7 +251,9 @@ class RepoService:
         is_valid_object(repository_registry)
 
         count, units = self.unit_repository.list(
-            UnitFilter(repo_uuid=repo.uuid, is_auto_update_from_repo_unit=True)
+            UnitFilter.unlimited(
+                repo_uuid=repo.uuid, is_auto_update_from_repo_unit=True
+            )
         )
 
         logging.info(f"{len(units)} units candidates update launched")
@@ -320,7 +322,7 @@ class RepoService:
 
     def bulk_update_units_firmware(self) -> str:
         count, auto_update_repositories = self.repo_repository.list(
-            RepoFilter(is_auto_update_repo=True)
+            RepoFilter.unlimited(is_auto_update_repo=True)
         )
         logging.info(f"{len(auto_update_repositories)} repos update launched")
 
@@ -365,7 +367,7 @@ class RepoService:
         )
 
         count, unit_list = self.unit_repository.list(
-            UnitFilter(repo_uuid=uuid)
+            UnitFilter(repo_uuid=uuid, limit=1)
         )
         is_emtpy_sequence(unit_list)
 
