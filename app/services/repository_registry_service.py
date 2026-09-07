@@ -211,23 +211,23 @@ class RepositoryRegistryService:
         is_valid_object(repository_registry)
         self.access_service.authorization.check_visibility(repository_registry)
 
-        self.git_repo_repository.is_valid_branch(
-            repository_registry, filters.repo_branch
-        )
-
-        commits = self.git_repo_repository.get_branch_commits_with_tag(
-            repository_registry, filters.repo_branch
-        )
-
-        commits_with_tag = (
-            self.git_repo_repository.get_tags_from_all_commits(commits)
+        page = (
+            self.git_repo_repository.get_branch_tagged_commits_page(
+                repository_registry,
+                filters.repo_branch,
+                filters.offset,
+                filters.limit,
+            )
             if filters.only_tag
-            else commits
+            else self.git_repo_repository.get_branch_commits_page(
+                repository_registry,
+                filters.repo_branch,
+                filters.offset,
+                filters.limit,
+            )
         )
 
-        return [CommitRead(**item) for item in commits_with_tag][
-            filters.offset : filters.offset + filters.limit
-        ]
+        return [CommitRead(**item) for item in page]
 
     def get_credentials(
         self, uuid: uuid_pkg.UUID

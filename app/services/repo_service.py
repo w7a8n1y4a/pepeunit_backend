@@ -147,11 +147,8 @@ class RepoService:
                 with contextlib.suppress(KeyError):
                     platforms = releases[target_tag]
             elif target_commit:
-                commits = self.git_repo_repository.get_branch_commits_with_tag(
-                    repository_registry, repo.default_branch
-                )
-                commit = self.git_repo_repository.find_by_commit(
-                    commits, target_commit
+                commit = self.git_repo_repository.get_commit_with_tag(
+                    repository_registry, repo.default_branch, target_commit
                 )
                 if commit and commit.get("tag"):
                     platforms = releases[commit["tag"]]
@@ -258,6 +255,10 @@ class RepoService:
 
         logging.info(f"{len(units)} units candidates update launched")
 
+        target_version = self.git_repo_repository.get_target_repo_version(
+            repository_registry, repo
+        )
+
         count_error_update = 0
         count_success_update = 0
         for unit in [unit[0] for unit in units]:
@@ -265,7 +266,7 @@ class RepoService:
 
             try:
                 self.unit_service.sync_state_unit_nodes_for_version(
-                    repo, unit, repository_registry
+                    repo, unit, repository_registry, target_version
                 )
                 self.unit_service.unit_node_service.command_to_input_base_topic(
                     uuid=unit.uuid,

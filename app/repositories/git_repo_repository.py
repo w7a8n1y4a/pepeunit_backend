@@ -1,3 +1,4 @@
+import contextlib
 import io
 import os
 import shutil
@@ -23,16 +24,38 @@ from app.utils.utils import clean_files_with_pepeignore
 
 
 class GitRepoRepository:
+    COMMIT_FORMAT = "%H%x00%s"
+
     @staticmethod
     def get_path_physic_repository(repository_registry: RepositoryRegistry):
         return f"{settings.pu_save_repo_path}/{repository_registry.uuid}"
+
+    @staticmethod
+    def _origin(branch: str) -> str:
+        return f"remotes/origin/{branch}"
+
+    @staticmethod
+    def _parse_commits(rev_list: str) -> list[dict]:
+        commits = []
+        for line in rev_list.strip().split("\n"):
+            commit, separator, summary = line.partition("\0")
+            if separator:
+                commits.append({"commit": commit, "summary": summary})
+        return commits
+
+    @staticmethod
+    def _open(path: str) -> GitRepo:
+        try:
+            return GitRepo(path)
+        except Exception as err:
+            msg = "Physic repository not exist"
+            raise GitRepoError(msg) from err
 
     @staticmethod
     def clone(url: str, repo_save_path: str):
         shutil.rmtree(repo_save_path, ignore_errors=True)
 
         try:
-            # cloning repo by url
             git_repo = GitRepo.clone_from(
                 url,
                 repo_save_path,
@@ -42,7 +65,6 @@ class GitRepoRepository:
             msg = "No valid repo_url or credentials"
             raise GitRepoError(msg) from err
 
-        # get all remotes branches to local repo
         for remote in git_repo.remotes:
             remote.fetch()
 
@@ -79,14 +101,7 @@ class GitRepoRepository:
         return tmp_git_repo_path
 
     def get_repo(self, repository_registry: RepositoryRegistry) -> GitRepo:
-        repo_save_path = self.get_path_physic_repository(repository_registry)
-        try:
-            repo = GitRepo(repo_save_path)
-        except Exception as err:
-            msg = "Physic repository not exist"
-            raise GitRepoError(msg) from err
-
-        return repo
+        return self._open(self.get_path_physic_repository(repository_registry))
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
@@ -96,171 +111,237 @@ class GitRepoRepository:
         self, repository_registry: RepositoryRegistry, gen_uuid: uuid_pkg.UUID
     ) -> GitRepo:
         tmp_path = self.get_tmp_path(gen_uuid)
-        current_path = self.get_path_physic_repository(repository_registry)
-
-        shutil.copytree(current_path, tmp_path)
-
-        try:
-            repo = GitRepo(tmp_path)
-        except Exception as err:
-            msg = "Physic repository not exist"
-            raise GitRepoError(msg) from err
-
-        return repo
+        shutil.copytree(
+            self.get_path_physic_repository(repository_registry), tmp_path
+        )
+        return self._open(tmp_path)
 
     def get_branches(
         self, repository_registry: RepositoryRegistry
     ) -> list[str]:
-        repo = self.get_repo(repository_registry)
+        return [
+            r.remote_head
+            for r in self.get_repo(repository_registry).remote().refs
+        ][1:]
 
-        return [r.remote_head for r in repo.remote().refs][1:]
+    def _rev_list(
+        self, repository_registry: RepositoryRegistry, *revs, **kwargs
+    ) -> list[dict]:
+        kwargs.setdefault("pretty", self.COMMIT_FORMAT)
+        return self._parse_commits(
+            self.get_repo(repository_registry).git.rev_list(*revs, **kwargs)
+        )
+
+    def _tag_map(
+        self,
+        repository_registry: RepositoryRegistry,
+        commits: set | None = None,
+    ) -> dict[str, str]:
+        if commits is not None and not commits:
+            return {}
+
+        raw = self.get_repo(repository_registry).git.for_each_ref(
+            "refs/tags",
+            format="%(objectname)\t%(*objectname)\t%(refname:short)",
+            sort="refname",
+        )
+
+        tag_by_commit = {}
+        for line in raw.split("\n"):
+            if not line:
+                continue
+            objectname, peeled, name = line.split("\t", 2)
+            commit_hash = peeled or objectname
+            if commits is None or commit_hash in commits:
+                tag_by_commit.setdefault(commit_hash, name)
+
+        return tag_by_commit
+
+    def _with_tags(
+        self, repository_registry: RepositoryRegistry, commits: list[dict]
+    ) -> list[dict]:
+        tag_by_commit = self._tag_map(
+            repository_registry, {item["commit"] for item in commits}
+        )
+        for item in commits:
+            item["tag"] = tag_by_commit.get(item["commit"])
+        return commits
+
+    def _commit(
+        self, repository_registry: RepositoryRegistry, sha: str
+    ) -> dict | None:
+        commits = self._rev_list(repository_registry, sha, max_count=1)
+        if commits:
+            commits[0]["tag"] = self._tag_map(repository_registry, {sha}).get(
+                sha
+            )
+        return commits[0] if commits else None
+
+    def _tagged_shas(
+        self,
+        repository_registry: RepositoryRegistry,
+        branch: str,
+        limit: int,
+    ) -> list[tuple[str, str]]:
+        tag_by_commit = self._tag_map(repository_registry)
+        if not tag_by_commit or limit <= 0:
+            return []
+
+        tagged = []
+        proc = self.get_repo(repository_registry).git.rev_list(
+            self._origin(branch), as_process=True
+        )
+        try:
+            for raw in proc.stdout:
+                sha = (raw.decode() if isinstance(raw, bytes) else raw).strip()
+                tag = tag_by_commit.get(sha)
+                if tag:
+                    tagged.append((sha, tag))
+                    if len(tagged) >= limit:
+                        break
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+            with contextlib.suppress(GitCommandError):
+                proc.wait()
+
+        return tagged
 
     def get_branch_commits(
         self,
         repository_registry: RepositoryRegistry,
         branch: str,
         depth: int = None,
+        skip: int = None,
     ) -> list[dict]:
-        """
-        Get all commits for branch with depth
-        """
-
         self.is_valid_branch(repository_registry, branch)
-
-        repo = self.get_repo(repository_registry)
-        rev_list = repo.git.rev_list(
-            f"remotes/origin/{branch}", max_count=depth, pretty="%H|%s"
+        return self._rev_list(
+            repository_registry,
+            self._origin(branch),
+            max_count=depth,
+            skip=skip,
         )
-        commits = rev_list.strip().split("\n")
-        return [
-            {"commit": line.split("|")[0], "summary": line.split("|")[1]}
-            for line in commits
-            if "|" in line
-        ]
-
-    def get_branch_tags(
-        self, repository_registry: RepositoryRegistry, commits: set
-    ) -> list[dict]:
-        """
-        Get all commits with tags for branch
-        """
-
-        repo = self.get_repo(repository_registry)
-        tags = []
-        for tag in repo.tags:
-            commit_hash = tag.commit.hexsha
-            if commit_hash in commits:
-                tags.append(
-                    {
-                        "commit": commit_hash,
-                        "summary": tag.commit.summary,
-                        "tag": tag.name,
-                    }
-                )
-        return tags[::-1]
 
     def get_branch_commits_with_tag(
         self, repository_registry: RepositoryRegistry, branch: str
     ) -> list[dict]:
-        """
-        Get all commits for branch, with tags
-        """
-
-        commits = self.get_branch_commits(repository_registry, branch)
-        tags = self.get_branch_tags(
-            repository_registry, {item["commit"] for item in commits}
+        return self._with_tags(
+            repository_registry,
+            self.get_branch_commits(repository_registry, branch),
         )
 
-        commits_with_tag = []
-        for commit in commits:
-            commit_dict = commit
-            commit_dict["tag"] = None
+    def get_branch_commits_page(
+        self,
+        repository_registry: RepositoryRegistry,
+        branch: str,
+        offset: int,
+        limit: int,
+    ) -> list[dict]:
+        return self._with_tags(
+            repository_registry,
+            self.get_branch_commits(
+                repository_registry, branch, depth=limit, skip=offset
+            ),
+        )
 
-            for tag in tags:
-                if commit["commit"] == tag["commit"]:
-                    commit_dict["tag"] = tag["tag"]
+    def get_branch_tagged_commits_page(
+        self,
+        repository_registry: RepositoryRegistry,
+        branch: str,
+        offset: int,
+        limit: int,
+    ) -> list[dict]:
+        self.is_valid_branch(repository_registry, branch)
 
-            commits_with_tag.append(commit_dict)
+        page = self._tagged_shas(repository_registry, branch, offset + limit)[
+            offset : offset + limit
+        ]
+        summaries = (
+            {
+                item["commit"]: item["summary"]
+                for item in self._rev_list(
+                    repository_registry,
+                    *[sha for sha, _ in page],
+                    no_walk="unsorted",
+                )
+            }
+            if page
+            else {}
+        )
 
-        return commits_with_tag
+        return [
+            {"commit": sha, "summary": summaries[sha], "tag": tag}
+            for sha, tag in page
+        ]
 
     @staticmethod
     def get_tags_from_all_commits(commits: list[dict]) -> list[dict]:
         return [commit for commit in commits if commit["tag"]]
 
-    @staticmethod
-    def find_by_commit(data: list[dict], commit: str) -> dict | None:
-        for item in data:
-            if item["commit"] == commit:
-                return item
-        return None
+    def get_commit_with_tag(
+        self, repository_registry: RepositoryRegistry, branch: str, commit: str
+    ) -> dict | None:
+        return (
+            self._commit(repository_registry, commit)
+            if self.is_commit_in_branch(repository_registry, branch, commit)
+            else None
+        )
 
     def get_target_repo_version(
         self, repository_registry: RepositoryRegistry, repo: Repo
     ) -> tuple[str, str | None]:
-        self.is_valid_branch(repository_registry, repo.default_branch)
+        branch = repo.default_branch
+        self.is_valid_branch(repository_registry, branch)
 
-        all_commits = self.get_branch_commits_with_tag(
-            repository_registry, repo.default_branch
-        )
-        tags = self.get_tags_from_all_commits(all_commits)
-
-        target_commit = None
         if repo.is_auto_update_repo:
             if repo.is_compilable_repo or repo.is_only_tag_update:
-                if len(tags) != 0:
-                    target_commit = tags[0]
+                page = self.get_branch_tagged_commits_page(
+                    repository_registry, branch, 0, 1
+                )
+                target = page[0] if page else None
             else:
-                target_commit = all_commits[0]
-
+                sha = self.get_repo(repository_registry).git.rev_parse(
+                    self._origin(branch)
+                )
+                target = self._commit(repository_registry, sha)
         else:
             self.is_valid_commit(
-                repository_registry, repo.default_branch, repo.default_commit
+                repository_registry, branch, repo.default_commit
             )
-
-            target_commit = self.find_by_commit(
-                all_commits, repo.default_commit
+            target = self.get_commit_with_tag(
+                repository_registry, branch, repo.default_commit
             )
+            self._raise_if_compilable_untagged(repo, target)
 
-            if repo.is_compilable_repo and target_commit["tag"] is None:
-                msg = "Commit {} without Tag".format(target_commit["commit"])
-                raise GitRepoError(msg)
-
-        if not target_commit:
+        if not target:
             msg = "Version is missing: The tags are not in the repository"
             raise GitRepoError(msg)
 
-        return target_commit["commit"], target_commit["tag"]
+        return target["commit"], target["tag"]
 
     def get_target_unit_version(
         self, repo: Repo, repository_registry: RepositoryRegistry, unit: Unit
     ) -> tuple[str, str | None]:
-        target_commit = None
         if unit.is_auto_update_from_repo_unit:
-            repo_target = self.get_target_repo_version(
-                repository_registry, repo
-            )
-            target_commit = {"commit": repo_target[0], "tag": repo_target[1]}
-        else:
-            self.is_valid_branch(repository_registry, unit.repo_branch)
-            all_commits = self.get_branch_commits_with_tag(
-                repository_registry, unit.repo_branch
-            )
-            target_commit = self.find_by_commit(all_commits, unit.repo_commit)
+            return self.get_target_repo_version(repository_registry, repo)
 
-            if (
-                target_commit
-                and repo.is_compilable_repo
-                and target_commit["tag"] is None
-            ):
-                msg = "Commit {} without Tag".format(target_commit["commit"])
-                raise GitRepoError(msg)
+        self.is_valid_branch(repository_registry, unit.repo_branch)
+        target = self.get_commit_with_tag(
+            repository_registry, unit.repo_branch, unit.repo_commit
+        )
+        self._raise_if_compilable_untagged(repo, target)
 
-        if not target_commit:
+        if not target:
             msg = "Version is missing"
             raise GitRepoError(msg)
 
-        return target_commit["commit"], target_commit["tag"]
+        return target["commit"], target["tag"]
+
+    @staticmethod
+    def _raise_if_compilable_untagged(repo: Repo, target: dict | None) -> None:
+        if target and repo.is_compilable_repo and target["tag"] is None:
+            msg = "Commit {} without Tag".format(target["commit"])
+            raise GitRepoError(msg)
 
     def get_file(
         self, repository_registry: RepositoryRegistry, commit: str, path: str
@@ -278,9 +359,7 @@ class GitRepoRepository:
             raise GitRepoError(msg) from err
 
         buffer = io.BytesIO()
-
         target_file.stream_data(buffer)
-
         return buffer
 
     def get_schema_dict(
@@ -303,7 +382,6 @@ class GitRepoRepository:
         is_valid_object(commit)
 
         env_dict = self.get_env_dict(repository_registry, commit)
-
         reserved_env_names = [i.value for i in ReservedEnvVariableName]
 
         return {
@@ -323,7 +401,6 @@ class GitRepoRepository:
 
         binding_schema_keys = [i.value for i in DestinationTopicType]
 
-        # check - all 4 topic destination, is in schema
         if len(binding_schema_keys) != len(
             set(schema_dict.keys()) & set(binding_schema_keys)
         ):
@@ -334,7 +411,6 @@ class GitRepoRepository:
             type(value) for value in schema_dict.values()
         ]
 
-        # check - all values first layer schema is list
         if Counter(schema_dict_values_type)[list] != len(schema_dict):
             msg = "This schema file has not available value types, only list is available"
             raise GitRepoError(msg)
@@ -343,7 +419,6 @@ class GitRepoRepository:
             "".join([item for value in schema_dict.values() for item in value])
         ).keys()
 
-        # check - all chars in topics is valid
         if (
             set(all_unique_chars_topic)
             - set(settings.pu_available_topic_symbols)
@@ -351,7 +426,6 @@ class GitRepoRepository:
             msg = f"Topics in the schema use characters that are not allowed, allowed: {settings.pu_available_topic_symbols}"
             raise GitRepoError(msg)
 
-        # check - length topics. 100 chars is stock for system track parts
         current_len = max(
             [len(item) for value in schema_dict.values() for item in value]
         )
@@ -378,15 +452,28 @@ class GitRepoRepository:
             msg = f"Branch {branch} not found, available: {available_branches}"
             raise GitRepoError(msg)
 
+    def is_commit_in_branch(
+        self, repository_registry: RepositoryRegistry, branch: str, commit: str
+    ) -> bool:
+        in_branch = False
+        if commit:
+            try:
+                repo = self.get_repo(repository_registry)
+                if repo.git.rev_parse(f"{commit}^{{commit}}") == commit:
+                    repo.git.merge_base(
+                        commit, self._origin(branch), is_ancestor=True
+                    )
+                    in_branch = True
+            except GitCommandError:
+                pass
+        return in_branch
+
     def is_valid_commit(
         self, repository_registry: RepositoryRegistry, branch: str, commit: str
     ):
-        if commit not in [
-            commit_dict["commit"]
-            for commit_dict in self.get_branch_commits(
-                repository_registry, branch
-            )
-        ]:
+        self.is_valid_branch(repository_registry, branch)
+
+        if not self.is_commit_in_branch(repository_registry, branch, commit):
             msg = f"Commit {commit} not in branch {branch}"
             raise GitRepoError(msg)
 
@@ -394,10 +481,7 @@ class GitRepoRepository:
     def find_by_platform(
         data: list[tuple[str, str]], platform: str
     ) -> tuple[str, str] | None:
-        for item in data:
-            if item[0] == platform:
-                return item
-        return None
+        return next((item for item in data if item[0] == platform), None)
 
     def is_valid_firmware_platform(
         self,
@@ -405,27 +489,25 @@ class GitRepoRepository:
         repository_registry: RepositoryRegistry,
         unit: Unit,
         firmware_platform: str,
+        target_version_with_tag: tuple[str, str | None] | None = None,
     ):
-        if repo.is_compilable_repo:
-            is_valid_object(repository_registry.releases_data)
+        if not repo.is_compilable_repo:
+            return
 
-            releases = is_valid_json(
-                repository_registry.releases_data, "Releases for compile repo"
-            )
-            target_commit, target_tag = self.get_target_unit_version(
-                repo, repository_registry, unit
-            )
+        is_valid_object(repository_registry.releases_data)
+        releases = is_valid_json(
+            repository_registry.releases_data, "Releases for compile repo"
+        )
+        _, target_tag = (
+            target_version_with_tag
+            or self.get_target_unit_version(repo, repository_registry, unit)
+        )
+        target_platforms = releases.get(target_tag)
 
-            target_platforms = releases.get(target_tag)
+        if not target_platforms:
+            msg = "Target Tag has no platforms"
+            raise GitRepoError(msg)
 
-            if target_platforms:
-                if (
-                    self.find_by_platform(target_platforms, firmware_platform)
-                    is None
-                ):
-                    msg = f"Not find platform {firmware_platform}, available: {[item[0] for item in target_platforms]}"
-                    raise GitRepoError(msg)
-
-            else:
-                msg = "Target Tag has no platforms"
-                raise GitRepoError(msg)
+        if self.find_by_platform(target_platforms, firmware_platform) is None:
+            msg = f"Not find platform {firmware_platform}, available: {[item[0] for item in target_platforms]}"
+            raise GitRepoError(msg)

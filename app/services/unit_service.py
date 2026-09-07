@@ -225,16 +225,24 @@ class UnitService:
         return result_unit
 
     def sync_state_unit_nodes_for_version(
-        self, repo: Repo, unit: Unit, repository_registry: RepositoryRegistry
+        self,
+        repo: Repo,
+        unit: Unit,
+        repository_registry: RepositoryRegistry,
+        target_version_with_tag: tuple[str, str | None] = None,
     ) -> Unit:
-        self.git_repo_repository.is_valid_firmware_platform(
-            repo, repository_registry, unit, unit.target_firmware_platform
-        )
-
         target_version, target_tag = (
-            self.git_repo_repository.get_target_unit_version(
+            target_version_with_tag
+            or self.git_repo_repository.get_target_unit_version(
                 repo, repository_registry, unit
             )
+        )
+        self.git_repo_repository.is_valid_firmware_platform(
+            repo,
+            repository_registry,
+            unit,
+            unit.target_firmware_platform,
+            target_version_with_tag=(target_version, target_tag),
         )
 
         if target_version == unit.current_commit_version:
