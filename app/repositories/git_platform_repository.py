@@ -54,6 +54,26 @@ class GitPlatformClientABC(ABC):
     def is_valid_token(self) -> bool:
         """Check valid pat token"""
 
+    def _http_get(
+        self,
+        url: str,
+        headers: dict | None = None,
+        params: dict | None = None,
+    ) -> httpx.Response:
+        try:
+            return httpx.get(
+                url=url,
+                headers=headers,
+                params=params,
+                timeout=settings.http_timeout(),
+            )
+        except httpx.TimeoutException as err:
+            msg = "External git platform request timed out"
+            raise GitPlatformClientError(msg) from err
+        except httpx.HTTPError as err:
+            msg = "External git platform request failed"
+            raise GitPlatformClientError(msg) from err
+
 
 class GitlabPlatformClient(GitPlatformClientABC):
     """For Gitlab"""
@@ -78,7 +98,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
                 "PRIVATE-TOKEN": self.credentials.pat_token,
             }
 
-        result_data = httpx.get(
+        result_data = self._http_get(
             url=self._get_api_url()
             + self._get_repository_name().replace("/", "%2F"),
             headers=headers,
@@ -104,7 +124,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
         per_page = 100
 
         while True:
-            releases_data = httpx.get(
+            releases_data = self._http_get(
                 url=f"{self._get_api_url()}{repository_id}/releases",
                 headers=headers,
                 params={"page": page, "per_page": per_page},
@@ -149,7 +169,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
             # BUG: gitlab (< 17.9) has no repository_size for user without role < REPORTER.
             return 0
 
-        repo_data = httpx.get(
+        repo_data = self._http_get(
             url=f"{self._get_api_url()}{repository_id}?statistics=true",
             headers=headers,
         )
@@ -169,15 +189,14 @@ class GitlabPlatformClient(GitPlatformClientABC):
                 "PRIVATE-TOKEN": self.credentials.pat_token,
             }
 
-        result_data = httpx.get(
-            url=self._get_api_url()
-            + self._get_repository_name().replace("/", "%2F"),
-            headers=headers,
-        )
-
         try:
+            result_data = self._http_get(
+                url=self._get_api_url()
+                + self._get_repository_name().replace("/", "%2F"),
+                headers=headers,
+            )
             result_data.json()["id"]
-        except KeyError:
+        except (KeyError, GitPlatformClientError):
             return False
 
         return True
@@ -212,7 +231,7 @@ class GithubPlatformClient(GitPlatformClientABC):
     def get_releases(self) -> dict[str, list[tuple[str, str]]]:
         headers = {"Accept": "application/vnd.github.v3+json"}
 
-        releases_data = httpx.get(
+        releases_data = self._http_get(
             url=f"{self._get_api_url()}{self._get_repository_name()}/releases",
             headers=headers,
         )
@@ -229,7 +248,7 @@ class GithubPlatformClient(GitPlatformClientABC):
     def get_repo_size(self) -> int:
         headers = {"Accept": "application/vnd.github.v3+json"}
 
-        repo_data = httpx.get(
+        repo_data = self._http_get(
             url=f"{self._get_api_url()}{self._get_repository_name()}",
             headers=headers,
         )
@@ -248,14 +267,13 @@ class GithubPlatformClient(GitPlatformClientABC):
     def is_valid_token(self) -> bool:
         headers = {"Accept": "application/vnd.github.v3+json"}
 
-        repo_data = httpx.get(
-            url=f"{self._get_api_url()}{self._get_repository_name()}",
-            headers=headers,
-        )
-
         try:
+            repo_data = self._http_get(
+                url=f"{self._get_api_url()}{self._get_repository_name()}",
+                headers=headers,
+            )
             repo_data.json()["id"]
-        except KeyError:
+        except (KeyError, GitPlatformClientError):
             return False
 
         return True

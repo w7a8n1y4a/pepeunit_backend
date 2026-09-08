@@ -204,6 +204,7 @@ class StartupService:
             result = httpx.post(
                 f"{settings.pu_link_prefix_and_v1}/bot",
                 headers={"Content-Type": "application/json"},
+                timeout=settings.http_timeout(),
             )
             if result.status_code == 422:
                 break

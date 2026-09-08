@@ -14,7 +14,7 @@ from starlette.responses import JSONResponse
 from strawberry import Schema
 from strawberry.fastapi import GraphQLRouter
 
-from app import settings
+from app import BackendLogLevel, settings
 from app.configs.errors import CustomException
 from app.configs.gql import get_graphql_context
 from app.configs.logging_config import setup_logging
@@ -77,7 +77,7 @@ app = FastAPI(
     version=settings.version,
     openapi_url=f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/openapi.json",
     docs_url=f"{settings.pu_app_prefix}/docs",
-    debug=settings.pu_min_log_level == "DEBUG",
+    debug=settings.pu_min_log_level == BackendLogLevel.DEBUG,
     lifespan=_lifespan,
 )
 

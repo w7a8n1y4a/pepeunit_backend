@@ -2,6 +2,7 @@ import logging
 
 import httpx
 
+from app import settings
 from tests.load.src.clients.rest_client import RestClient
 from tests.load.src.dto.config import LoadTestConfig
 
@@ -38,7 +39,10 @@ class MqttTestPreparation:
         pu_mqtt_http_type = self.units[0]["env"]["PU_HTTP_TYPE"]
 
         response = httpx.post(
-            f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/login", json=data, headers=headers, timeout=10.0
+            f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/login",
+            json=data,
+            headers=headers,
+            timeout=settings.http_timeout(),
         )
 
         return response.json()["token"]
@@ -55,7 +59,7 @@ class MqttTestPreparation:
 
         link = f"{pu_mqtt_http_type}://{pu_mqtt_host}/api/v5/subscriptions?page=1&limit=50&qos=0&topic={self.units[0]['env']['PU_DOMAIN']}%2F%2B%2Fpepeunit"
 
-        data = httpx.get(link, headers=headers, timeout=10.0)
+        data = httpx.get(link, headers=headers, timeout=settings.http_timeout())
 
         count = data.json()["meta"]["count"]
         logging.warning(f"Count mqtt client with sub topics: {count}")

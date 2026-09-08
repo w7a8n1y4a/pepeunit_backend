@@ -30,7 +30,7 @@ def patch_unit_commit(token: str, unit, target_version: str) -> int:
         url=url,
         json=UnitUpdate(repo_commit=target_version).dict(),
         headers=_headers(token),
-        timeout=60,
+        timeout=settings.http_timeout(),
     )
     return _status(response)
 
@@ -41,14 +41,14 @@ def patch_repo(token: str, repo, repo_update: RepoUpdate) -> int:
         url=url,
         json=repo_update.dict(),
         headers=_headers(token),
-        timeout=60,
+        timeout=settings.http_timeout(),
     )
     return _status(response)
 
 
 def post_bulk_update_repo(token: str) -> int:
     url = f"{settings.pu_link_prefix_and_v1}/repos/bulk_update"
-    response = httpx.post(url=url, headers=_headers(token), timeout=60)
+    response = httpx.post(url=url, headers=_headers(token), timeout=settings.http_timeout())
     return _status(response)
 
 
@@ -56,13 +56,13 @@ def patch_update_units_firmware(token: str, repo) -> int:
     url = (
         f"{settings.pu_link_prefix_and_v1}/repos/update_units_firmware/{repo.uuid}"
     )
-    response = httpx.patch(url=url, headers=_headers(token), timeout=60)
+    response = httpx.patch(url=url, headers=_headers(token), timeout=settings.http_timeout())
     return _status(response)
 
 
 def get_unit_logs_file(token: str, unit) -> httpx.Response:
     url = f"{settings.pu_link_prefix_and_v1}/units/logs/{unit.uuid}"
-    return httpx.get(url=url, headers=_headers(token), timeout=60)
+    return httpx.get(url=url, headers=_headers(token), timeout=settings.http_timeout())
 
 
 def post_unit_command(token: str, unit, command: BackendTopicCommand) -> int:
@@ -70,7 +70,7 @@ def post_unit_command(token: str, unit, command: BackendTopicCommand) -> int:
         f"{settings.pu_link_prefix_and_v1}/units/"
         f"send_command_to_input_base_topic/{unit.uuid}?command={command.value}"
     )
-    response = httpx.post(url=url, headers=_headers(token), timeout=60)
+    response = httpx.post(url=url, headers=_headers(token), timeout=settings.http_timeout())
     return _status(response)
 
 
@@ -79,7 +79,7 @@ def post_schema_update(token: str, unit_uuid: uuid_pkg.UUID) -> int:
         f"{settings.pu_link_prefix_and_v1}/units/"
         f"send_command_to_input_base_topic/{unit_uuid}?command=SchemaUpdate"
     )
-    response = httpx.post(url=url, headers=_headers(token), timeout=60)
+    response = httpx.post(url=url, headers=_headers(token), timeout=settings.http_timeout())
     return _status(response)
 
 
@@ -89,12 +89,12 @@ def patch_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> 
         url=url,
         json=UnitNodeSetState(state=state).dict(),
         headers=_headers(token),
-        timeout=60,
+        timeout=settings.http_timeout(),
     )
     return _status(response)
 
 
 def patch_backend_sync_registry(token: str) -> int:
     url = f"{settings.pu_link_prefix_and_v1}/repository_registry/backend_sync_registry"
-    response = httpx.patch(url=url, headers=_headers(token), timeout=60)
+    response = httpx.patch(url=url, headers=_headers(token), timeout=settings.http_timeout())
     return _status(response)

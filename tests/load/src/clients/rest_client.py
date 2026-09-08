@@ -23,14 +23,22 @@ class RestClient:
         }
 
         create_user_link = f"{self.config.url}/pepeunit/api/v1/users"
-        httpx.post(create_user_link, json=user, headers=self.headers)
+        httpx.post(
+            create_user_link,
+            json=user,
+            headers=self.headers,
+            timeout=settings.http_timeout(),
+        )
 
         user["credentials"] = user.pop("login")
 
         auth_link = f"{self.config.url}/pepeunit/api/v1/users/auth"
-        self.token = httpx.post(auth_link, json=user, headers=self.headers).json()[
-            "token"
-        ]
+        self.token = httpx.post(
+            auth_link,
+            json=user,
+            headers=self.headers,
+            timeout=settings.http_timeout(),
+        ).json()["token"]
         self.headers["x-auth-token"] = self.token
 
     def get_repo(self):
@@ -39,7 +47,11 @@ class RestClient:
         )
 
         registry_link = f"{self.config.url}/pepeunit/api/v1/repository_registry?search_string={target_registry_link}"
-        target_registry = httpx.get(registry_link, headers=self.headers)
+        target_registry = httpx.get(
+            registry_link,
+            headers=self.headers,
+            timeout=settings.http_timeout(),
+        )
 
         target_registry = target_registry.json()
 
@@ -55,7 +67,10 @@ class RestClient:
             }
 
             target_registry = httpx.post(
-                registry_create_link, json=registry, headers=self.headers
+                registry_create_link,
+                json=registry,
+                headers=self.headers,
+                timeout=settings.http_timeout(),
             ).json()
         else:
             target_registry = target_registry["repositories_registry"][0]
@@ -70,11 +85,20 @@ class RestClient:
 
         repo_link = f"{self.config.url}/pepeunit/api/v1/repos"
 
-        response = httpx.post(repo_link, json=repo, headers=self.headers)
+        response = httpx.post(
+            repo_link,
+            json=repo,
+            headers=self.headers,
+            timeout=settings.http_timeout(),
+        )
 
         if response.status_code == 422:
             repo_link += f"?search_string={repo['name']}"
-            response = httpx.get(repo_link, headers=self.headers)
+            response = httpx.get(
+                repo_link,
+                headers=self.headers,
+                timeout=settings.http_timeout(),
+            )
 
         response = response.json()
         target_repo = response["repos"][0] if "repos" in response else response
@@ -86,6 +110,7 @@ class RestClient:
             update_repo_link,
             json={"default_branch": target_registry["branches"][0]},
             headers=self.headers,
+            timeout=settings.http_timeout(),
         )
 
         return target_repo
@@ -95,7 +120,9 @@ class RestClient:
         units = self.get_units()
 
         if units:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(
+                timeout=settings.http_timeout()
+            ) as client:
                 unit_uuids = [unit["uuid"] for unit in units]
                 await self.run_tasks_with_semaphore(
                     client, unit_uuids, self.delete_unit
@@ -108,7 +135,9 @@ class RestClient:
         unit_create_link = f"{self.config.url}/pepeunit/api/v1/units"
         responses = []
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             units = [
                 {
                     "repo_uuid": target_repo["uuid"],
@@ -138,6 +167,7 @@ class RestClient:
             page = httpx.get(
                 f"{get_units}&offset={len(units)}&limit={limit}",
                 headers=self.headers,
+                timeout=settings.http_timeout(),
             ).json()
             units.extend(page["units"])
 
@@ -147,7 +177,9 @@ class RestClient:
     async def create_units_env(self, target_units: list[dict]):
         logging.warning("Run create env Units")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             await self.run_tasks_with_semaphore(
                 client, target_units, self.patch_unit_env
             )
@@ -163,7 +195,9 @@ class RestClient:
                 if node["type"] == "Output" and node["topic_name"] == "output/pepeunit":
                     target_unit_nodes.append(node)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             await self.run_tasks_with_semaphore(
                 client, target_unit_nodes, self.patch_unit_data_pipe
             )
@@ -173,7 +207,9 @@ class RestClient:
     async def get_units_env(self, target_units: list[dict]):
         logging.warning("Fetch env Units")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             updated_units = await self.run_tasks_with_semaphore(
                 client, target_units, self.get_unit_env
             )

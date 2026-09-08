@@ -95,6 +95,7 @@ class InstanceService:
     SCAN_ALL_COOLDOWN = timedelta(minutes=10)
 
     BLOCKING_STATUS_CODES = (403, 451)
+    INTEGRATION_TEST_COMMAND = "uv run pytest tests -v"
 
     def __init__(
         self,
@@ -344,7 +345,7 @@ class InstanceService:
 
     def run_integration_tests(self) -> str:
         process = subprocess.run(
-            shlex.split(settings.pu_test_integration_command),
+            shlex.split(self.INTEGRATION_TEST_COMMAND),
             check=False,
             capture_output=True,
             text=True,

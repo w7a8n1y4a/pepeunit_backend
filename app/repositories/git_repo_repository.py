@@ -55,16 +55,19 @@ class GitRepoRepository:
     def clone(url: str, repo_save_path: str):
         shutil.rmtree(repo_save_path, ignore_errors=True)
 
+        git_env = settings.git_http_env()
+
         try:
             git_repo = GitRepo.clone_from(
                 url,
                 repo_save_path,
-                env={"GIT_TERMINAL_PROMPT": "0"},
+                env=git_env,
             )
         except GitCommandError as err:
             msg = "No valid repo_url or credentials"
             raise GitRepoError(msg) from err
 
+        git_repo.git.update_environment(**git_env)
         for remote in git_repo.remotes:
             remote.fetch()
 

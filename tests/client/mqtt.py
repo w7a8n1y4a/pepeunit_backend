@@ -31,6 +31,13 @@ class MQTTClient:
         )
         # Reset always does os.execv; keep the pytest process alive.
         self.client._restart_program = lambda: None
+        original_update = self.client._update_env_schema_only
+
+        def update_env_schema_and_report_state() -> None:
+            original_update()
+            self.client._last_state_send = 0
+
+        self.client._update_env_schema_only = update_env_schema_and_report_state
         self.client.set_mqtt_input_handler(self.mqtt_input_handler)
 
     @staticmethod

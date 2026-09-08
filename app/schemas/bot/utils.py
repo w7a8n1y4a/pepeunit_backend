@@ -8,14 +8,14 @@ from app import settings
 
 
 def build_telegram_bot() -> Bot:
-    if not settings.pu_telegram_proxy_url:
-        return Bot(token=settings.pu_telegram_token)
-
-    logging.info("Telegram bot will use proxy")
+    session_kwargs: dict = {"timeout": settings.pu_http_timeout}
+    if settings.pu_telegram_proxy_url:
+        logging.info("Telegram bot will use proxy")
+        session_kwargs["proxy"] = settings.pu_telegram_proxy_url
 
     return Bot(
         token=settings.pu_telegram_token,
-        session=AiohttpSession(proxy=settings.pu_telegram_proxy_url),
+        session=AiohttpSession(**session_kwargs),
     )
 
 

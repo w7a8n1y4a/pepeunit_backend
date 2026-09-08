@@ -50,6 +50,31 @@ class GrafanaRepository:
         "Content-Type": "application/json",
     }
     base_grafana_url: str = f"{settings.pu_link}/grafana"
+    _CONNECT_RETRIES: int = 3
+    _CONNECT_RETRY_DELAY: float = 1.0
+
+    @classmethod
+    def _http_client(cls) -> httpx.Client:
+        return httpx.Client(timeout=settings.http_timeout())
+
+    @classmethod
+    def _request(
+        cls,
+        client: httpx.Client,
+        method: str,
+        url: str,
+        **kwargs,
+    ) -> httpx.Response:
+        for attempt in range(cls._CONNECT_RETRIES):
+            try:
+                return client.request(method, url, **kwargs)
+            except httpx.ConnectTimeout, httpx.ConnectError:
+                if attempt + 1 >= cls._CONNECT_RETRIES:
+                    raise
+                time.sleep(cls._CONNECT_RETRY_DELAY)
+
+        msg = "Grafana request retries exhausted"
+        raise GrafanaError(msg)
 
     @classmethod
     def configure_admin_dashboard_permissions(cls) -> None:
@@ -66,26 +91,29 @@ class GrafanaRepository:
                     {"role": "Admin", "permission": 4}
                 ]
 
-                for dashboard_uid in admin_only_dashboard_uids:
-                    dashboard_permissions_url = (
-                        f"{cls.base_grafana_url}/api/dashboards/uid/"
-                        f"{dashboard_uid}/permissions"
-                    )
+                with cls._http_client() as client:
+                    for dashboard_uid in admin_only_dashboard_uids:
+                        dashboard_permissions_url = (
+                            f"{cls.base_grafana_url}/api/dashboards/uid/"
+                            f"{dashboard_uid}/permissions"
+                        )
 
-                    response = httpx.get(
-                        dashboard_permissions_url,
-                        headers=headers,
-                        timeout=10.0,
-                    )
-                    response.raise_for_status()
+                        response = cls._request(
+                            client,
+                            "GET",
+                            dashboard_permissions_url,
+                            headers=headers,
+                        )
+                        response.raise_for_status()
 
-                    response = httpx.post(
-                        dashboard_permissions_url,
-                        headers=headers,
-                        json={"items": dashboard_admin_permissions},
-                        timeout=10.0,
-                    )
-                    response.raise_for_status()
+                        response = cls._request(
+                            client,
+                            "POST",
+                            dashboard_permissions_url,
+                            headers=headers,
+                            json={"items": dashboard_admin_permissions},
+                        )
+                        response.raise_for_status()
 
                 break
             except Exception as exc:
@@ -219,11 +247,14 @@ class GrafanaRepository:
         headers_deepcopy = copy.deepcopy(self.headers)
         headers_deepcopy["X-Grafana-Org-Id"] = current_org
 
-        response = httpx.post(
-            f"{self.base_grafana_url}/api/dashboards/db",
-            headers=headers_deepcopy,
-            data=json.dumps(dashboard_dict),
-        )
+        with self._http_client() as client:
+            response = self._request(
+                client,
+                "POST",
+                f"{self.base_grafana_url}/api/dashboards/db",
+                headers=headers_deepcopy,
+                data=json.dumps(dashboard_dict),
+            )
 
         response.raise_for_status()
 
@@ -353,77 +384,89 @@ class GrafanaRepository:
         raise GrafanaError(msg)
 
     def create_org_if_not_exists(self, user: User):
-        resp = httpx.get(
-            f"{settings.pu_link}/grafana/api/orgs", headers=self.headers
-        )
-        resp.raise_for_status()
-
-        orgs = [
-            org
-            for org in resp.json()
-            if org["name"] == str(user.grafana_org_name)
-        ]
-        target_org = orgs[0] if orgs else None
-
-        if not target_org:
-            resp = httpx.post(
+        with self._http_client() as client:
+            resp = self._request(
+                client,
+                "GET",
                 f"{settings.pu_link}/grafana/api/orgs",
                 headers=self.headers,
-                json={"name": str(user.grafana_org_name)},
             )
             resp.raise_for_status()
-            org_id = resp.json().get("orgId")
-        else:
-            org_id = target_org["id"]
 
-        resp = httpx.post(
-            f"{settings.pu_link}/grafana/api/admin/users",
-            headers=self.headers,
-            json={
-                "name": user.login,
-                "email": user.login,
-                "login": user.login,
-                "password": generate_random_string(16),
-            },
-        )
+            orgs = [
+                org
+                for org in resp.json()
+                if org["name"] == str(user.grafana_org_name)
+            ]
+            target_org = orgs[0] if orgs else None
 
-        if resp.status_code not in (200, 412):
-            resp.raise_for_status()
+            if not target_org:
+                resp = self._request(
+                    client,
+                    "POST",
+                    f"{settings.pu_link}/grafana/api/orgs",
+                    headers=self.headers,
+                    json={"name": str(user.grafana_org_name)},
+                )
+                resp.raise_for_status()
+                org_id = resp.json().get("orgId")
+            else:
+                org_id = target_org["id"]
 
-        resp = httpx.post(
-            f"{settings.pu_link}/grafana/api/orgs/{org_id}/users",
-            headers=self.headers,
-            json={
-                "loginOrEmail": user.login,
-                "role": GrafanaUserRole.EDITOR.value,
-            },
-        )
+            resp = self._request(
+                client,
+                "POST",
+                f"{settings.pu_link}/grafana/api/admin/users",
+                headers=self.headers,
+                json={
+                    "name": user.login,
+                    "email": user.login,
+                    "login": user.login,
+                    "password": generate_random_string(16),
+                },
+            )
 
-        if resp.status_code not in (200, 409):
-            resp.raise_for_status()
+            if resp.status_code not in (200, 412):
+                resp.raise_for_status()
 
-        datasource_payload = {
-            "name": "InfinityAPI",
-            "type": "yesoreyeram-infinity-datasource",
-            "access": "proxy",
-            "url": f"{settings.pu_link_prefix_and_v1}/grafana/datasource/",
-            "jsonData": {
-                "auth_method": None,
-                "customHealthCheckEnabled": True,
-                "customHealthCheckUrl": settings.pu_link_prefix,
-            },
-        }
+            resp = self._request(
+                client,
+                "POST",
+                f"{settings.pu_link}/grafana/api/orgs/{org_id}/users",
+                headers=self.headers,
+                json={
+                    "loginOrEmail": user.login,
+                    "role": GrafanaUserRole.EDITOR.value,
+                },
+            )
 
-        headers_deepcopy = copy.deepcopy(self.headers)
-        headers_deepcopy["X-Grafana-Org-Id"] = str(org_id)
+            if resp.status_code not in (200, 409):
+                resp.raise_for_status()
 
-        resp = httpx.post(
-            f"{settings.pu_link}/grafana/api/datasources",
-            headers=headers_deepcopy,
-            json=datasource_payload,
-        )
+            datasource_payload = {
+                "name": "InfinityAPI",
+                "type": "yesoreyeram-infinity-datasource",
+                "access": "proxy",
+                "url": f"{settings.pu_link_prefix_and_v1}/grafana/datasource/",
+                "jsonData": {
+                    "auth_method": None,
+                    "customHealthCheckEnabled": True,
+                    "customHealthCheckUrl": settings.pu_link_prefix,
+                },
+            }
 
-        if resp.status_code not in (200, 409):
-            resp.raise_for_status()
+            headers_deepcopy = copy.deepcopy(self.headers)
+            headers_deepcopy["X-Grafana-Org-Id"] = str(org_id)
+
+            resp = self._request(
+                client,
+                "POST",
+                f"{settings.pu_link}/grafana/api/datasources",
+                headers=headers_deepcopy,
+                json=datasource_payload,
+            )
+
+            if resp.status_code not in (200, 409):
+                resp.raise_for_status()
 
         return org_id

@@ -77,7 +77,7 @@ class InstanceExternalRepository:
     ) -> httpx.Response:
         async with httpx.AsyncClient(
             follow_redirects=False,
-            timeout=settings.pu_instance_request_timeout,
+            timeout=settings.http_timeout(),
         ) as client:
             response = await client.get(url, params=params)
 

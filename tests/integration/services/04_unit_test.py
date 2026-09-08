@@ -268,13 +268,20 @@ def test_hand_update_firmware_unit(
         logging.info(f"{unit.name}, {unit.uuid},{target_version}")
         assert patch_unit_commit(token, unit, target_version) < 400
 
-    logging.info(target_versions[0])
+    expected = {
+        unit.uuid: version
+        for unit, version in zip(target_units, target_versions, strict=True)
+    }
+
+    def all_updated() -> bool:
+        return all(
+            service.get(unit.uuid).current_commit_version == expected[unit.uuid]
+            for unit in target_units
+        )
+
     wait_until(
-        lambda: [
-            service.get(unit.uuid).current_commit_version for unit in target_units
-        ].count(target_versions[0])
-        == len(target_units),
-        timeout=30,
+        all_updated,
+        timeout=settings.pu_state_send_interval * 2 + 10,
         message="hand firmware update did not reach target commit",
         session=database,
     )
@@ -333,7 +340,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         lambda: service.get(target_units[0].uuid).current_commit_version == target_version,
-        timeout=30,
+        timeout=settings.pu_state_send_interval * 2 + 10,
         message="hand repo update did not reach unit commit",
         session=database,
     )
@@ -364,7 +371,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         bulk_reached,
-        timeout=30,
+        timeout=settings.pu_state_send_interval * 2 + 10,
         interval=2,
         message="bulk repo update did not reach chain units",
         session=database,
