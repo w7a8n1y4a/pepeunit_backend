@@ -146,8 +146,8 @@ class BackendLogLevel(str, enum.Enum):
 
 
 class LoggingSettings(BaseModel):
-    pu_log_format: LogFormat = LogFormat.JSON
-    pu_min_log_level: BackendLogLevel = BackendLogLevel.INFO
+    pu_log_format: LogFormat = LogFormat.JSON.value
+    pu_min_log_level: BackendLogLevel = BackendLogLevel.INFO.value
 
     @field_validator("pu_log_format", mode="before")
     @classmethod
