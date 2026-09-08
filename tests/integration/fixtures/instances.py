@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import pytest
 
 from app.domain.instance_model import Instance
@@ -26,18 +28,44 @@ def _drop_by_url(database, url: str) -> None:
         repository.delete(Instance(uuid=instance.uuid))
 
 
-@pytest.fixture(scope="session")
-def own_instance(admin_user_token, database) -> Instance:
-    """Instance pointing at the current backend, always available for collection"""
-    own_url = InstanceService.get_own_url()
-    _drop_by_url(database, own_url)
+@dataclass
+class LiveInstances:
+    own_instance: object
+    unreachable_instance: object
 
-    instance = _create_instance(database, admin_user_token, own_url)
-    yield instance
-    try:
-        _delete_instance(database, instance.uuid)
-    except Exception:
-        pass
+    def all(self) -> list:
+        return [self.own_instance, self.unreachable_instance]
+
+
+@pytest.fixture(scope="session")
+def trusted_instances(admin_user_token, database) -> LiveInstances:
+    own_url = InstanceService.get_own_url()
+    unreachable_url = unreachable_instance_url()
+    _drop_by_url(database, own_url)
+    _drop_by_url(database, unreachable_url)
+
+    instances = LiveInstances(
+        own_instance=_create_instance(database, admin_user_token, own_url),
+        unreachable_instance=_create_instance(
+            database, admin_user_token, unreachable_url
+        ),
+    )
+    yield instances
+    for instance in instances.all():
+        try:
+            _delete_instance(database, instance.uuid)
+        except Exception:
+            pass
+
+
+@pytest.fixture(scope="session")
+def own_instance(trusted_instances) -> Instance:
+    return trusted_instances.own_instance
+
+
+@pytest.fixture(scope="session")
+def unreachable_instance(trusted_instances) -> Instance:
+    return trusted_instances.unreachable_instance
 
 
 @pytest.fixture
@@ -45,20 +73,6 @@ def crud_instance(admin_user_token, database) -> Instance:
     instance = _create_instance(
         database, admin_user_token, unique_instance_url("crud")
     )
-    yield instance
-    try:
-        _delete_instance(database, instance.uuid)
-    except Exception:
-        pass
-
-
-@pytest.fixture
-def unreachable_instance(admin_user_token, database) -> Instance:
-    """Instance with a guaranteed unreachable address"""
-    url = unreachable_instance_url()
-    _drop_by_url(database, url)
-
-    instance = _create_instance(database, admin_user_token, url)
     yield instance
     try:
         _delete_instance(database, instance.uuid)
