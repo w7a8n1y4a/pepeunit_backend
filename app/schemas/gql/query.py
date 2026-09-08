@@ -5,7 +5,16 @@ from app.schemas.gql.queries.grafana import (
     get_dashboard_panels,
     get_dashboards,
 )
-from app.schemas.gql.queries.metrics import get_base_metrics
+from app.schemas.gql.queries.instance import (
+    get_current_instance,
+    get_instances,
+    get_instances_registries,
+    get_instances_urls,
+)
+from app.schemas.gql.queries.operation_task import (
+    get_operation_task,
+    get_operation_tasks,
+)
 from app.schemas.gql.queries.permission import get_resource_agents
 from app.schemas.gql.queries.repo import (
     get_available_platforms,
@@ -71,10 +80,15 @@ Query = create_type(
         get_unit_nodes,
         check_data_pipe_config,
         get_data_pipe_config,
-        get_base_metrics,
         get_resource_agents,
         get_dashboard,
         get_dashboards,
         get_dashboard_panels,
+        get_current_instance,
+        get_instances,
+        get_instances_urls,
+        get_instances_registries,
+        get_operation_task,
+        get_operation_tasks,
     ],
 )

@@ -10,7 +10,7 @@ from app.dto.enum import DataPipeStatus, VisibilityLevel
 
 class UnitNode(SQLModel, table=True):
     """
-    Представление состояния input или output топика Unit
+    Representation of the state of an input or output Unit topic
     """
 
     __tablename__ = "units_nodes"

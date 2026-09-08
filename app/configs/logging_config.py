@@ -5,7 +5,7 @@ from typing import Final
 
 from pythonjsonlogger import jsonlogger
 
-from app import settings
+from app import LogFormat, settings
 
 
 class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
@@ -121,10 +121,10 @@ class GmqttPacketIdMaskFilter(logging.Filter):
 
 
 def _build_formatters() -> dict:
-    if settings.pu_log_format == "plain":
+    if settings.pu_log_format == LogFormat.PLAIN:
         plain_format = "%(levelname)s - %(asctime)s - %(name)s - %(message)s"
         return {
-            "plain": {
+            LogFormat.PLAIN.value: {
                 "format": plain_format,
             }
         }
@@ -132,7 +132,7 @@ def _build_formatters() -> dict:
     json_format = "%(asctime)s %(levelname)s %(name)s %(message)s %(funcName)s"
 
     return {
-        "json": {
+        LogFormat.JSON.value: {
             "class": "app.configs.logging_config.PepeunitJsonFormatter",
             "format": json_format,
         },
@@ -140,20 +140,11 @@ def _build_formatters() -> dict:
 
 
 def _get_default_formatter_name() -> str:
-    return "plain" if settings.pu_log_format == "plain" else "json"
+    return settings.pu_log_format.value
 
 
 def _build_logging_config() -> dict:
-    raw_level = settings.pu_min_log_level.upper()
-    if raw_level not in {
-        "CRITICAL",
-        "ERROR",
-        "WARNING",
-        "INFO",
-        "DEBUG",
-        "NOTSET",
-    }:
-        raw_level = "INFO"
+    raw_level = settings.pu_min_log_level.value
 
     formatter_name = _get_default_formatter_name()
 

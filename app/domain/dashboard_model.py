@@ -8,7 +8,7 @@ from sqlmodel import Field, SQLModel
 
 class Dashboard(SQLModel, table=True):
     """
-    Отвечающая за взаимодействие с grafana, содержит в себе панели
+    Responsible for interaction with grafana, contains panels
     """
 
     __tablename__ = "dashboards"

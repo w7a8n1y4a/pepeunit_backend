@@ -8,6 +8,7 @@ from fastapi.params import Query
 from app.configs.clickhouse import get_clickhouse_client
 from app.dto.clickhouse.log import UnitLog
 from app.dto.clickhouse.orm import ClickhouseOrm
+from app.repositories.utils import get_offset_and_limit_clause
 from app.schemas.gql.inputs.unit import UnitLogFilterInput
 from app.schemas.pydantic.unit import UnitLogFilter
 
@@ -75,11 +76,7 @@ class UnitLogRepository:
         if filters.order_by_create_date:
             query += f" order by create_datetime {filters.order_by_create_date.value}"
 
-        if filters.limit:
-            query += " limit %(limit)s"
-
-        if filters.offset:
-            query += " offset %(offset)s"
+        query += get_offset_and_limit_clause(filters)
 
         unit_logs = self.orm.get_many(
             query,

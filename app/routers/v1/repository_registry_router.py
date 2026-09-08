@@ -1,14 +1,8 @@
-import logging
-import time
 import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, status
-from fastapi_utilities import repeat_at
 
-from app.configs.clickhouse import get_hand_clickhouse_client
-from app.configs.db import get_hand_session
-from app.configs.rest import get_repo_service, get_repository_registry_service
-from app.configs.utils import acquire_file_lock
+from app.configs.rest import get_repository_registry_service
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
     CommitRead,
@@ -22,48 +16,6 @@ from app.schemas.pydantic.repository_registry import (
 from app.services.repository_registry_service import RepositoryRegistryService
 
 router = APIRouter()
-
-
-@router.on_event("startup")
-@repeat_at(cron="0 * * * *")
-def automatic_update_repositories():
-    lock_fd = acquire_file_lock("tmp/update_repos.lock")
-
-    time.sleep(10)
-
-    if lock_fd:
-        logging.info("Run update with lock")
-        with get_hand_session() as db, get_hand_clickhouse_client() as cc:
-            repo_service = get_repo_service(db, cc, None)
-            repo_service.bulk_update_units_firmware(is_auto_update=True)
-
-    else:
-        logging.info("Skip update without lock")
-
-    if lock_fd:
-        lock_fd.close()
-
-
-@router.on_event("startup")
-@repeat_at(cron="30 * * * *")
-def automatic_update_registry():
-    lock_fd = acquire_file_lock("tmp/update_registry.lock")
-
-    time.sleep(10)
-
-    if lock_fd:
-        logging.info("Run update with lock")
-        with get_hand_session() as db:
-            repository_registry_service = get_repository_registry_service(
-                db, None
-            )
-            repository_registry_service.sync_local_repository_storage(True)
-
-    else:
-        logging.info("Skip update without lock")
-
-    if lock_fd:
-        lock_fd.close()
 
 
 @router.post(
@@ -140,7 +92,16 @@ def update_local_repository(
         get_repository_registry_service
     ),
 ):
-    return repository_registry_service.update_local_repository(uuid)
+    repository_registry_service.schedule_update(uuid)
+
+
+@router.patch("/update_all", status_code=status.HTTP_204_NO_CONTENT)
+def update_all_registries(
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
+):
+    repository_registry_service.schedule_update_all()
 
 
 @router.patch("/backend_sync_registry", status_code=status.HTTP_204_NO_CONTENT)

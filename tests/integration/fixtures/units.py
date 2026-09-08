@@ -232,7 +232,7 @@ def chain_edges(running_units, regular_user_token, database, cc):
     service = unit_node_service(database, cc, regular_user_token)
     io_units_list = []
     for unit in running_units.chain():
-        _, unit_nodes = service.list(UnitNodeFilter(unit_uuid=unit.uuid))
+        _, unit_nodes = service.list(UnitNodeFilter.unlimited(unit_uuid=unit.uuid))
         if unit_nodes[0].type == UnitNodeTypeEnum.OUTPUT:
             unit_nodes = unit_nodes[::-1]
         io_units_list.append(unit_nodes)

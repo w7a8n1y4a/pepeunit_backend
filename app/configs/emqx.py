@@ -53,7 +53,10 @@ class ControlEmqx:
         await self.set_global_mqtt_settings()
 
     def check_state(self) -> int:
-        response = httpx.get(f"{self.current_link}/api-docs/swagger.json")
+        response = httpx.get(
+            f"{self.current_link}/api-docs/swagger.json",
+            timeout=settings.http_timeout(),
+        )
         return response.status_code
 
     def _log_response(self, response):
@@ -71,7 +74,10 @@ class ControlEmqx:
             "password": settings.pu_mqtt_password,
         }
         response = httpx.post(
-            f"{self.current_link}/api/v5/login", json=data, headers=headers
+            f"{self.current_link}/api/v5/login",
+            json=data,
+            headers=headers,
+            timeout=settings.http_timeout(),
         )
         self._log_response(response)
 
@@ -80,7 +86,9 @@ class ControlEmqx:
     async def delete_auth_hooks(self) -> None:
         for source in ["file", "http", "redis"]:
             logging.info(f"Del {source} auth hook MQTT Broker")
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(
+                timeout=settings.http_timeout()
+            ) as client:
                 response = await client.delete(
                     f"{self.current_link}/api/v5/authorization/sources/{source}",
                     headers=self.headers,
@@ -95,7 +103,9 @@ class ControlEmqx:
         }
 
         logging.info("Set ACL file auth hook MQTT Broker")
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             response = await client.post(
                 f"{self.current_link}/api/v5/authorization/sources",
                 json=data,
@@ -130,7 +140,9 @@ class ControlEmqx:
         }
 
         logging.info("Set redis auth hook MQTT Broker")
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             response = await client.post(
                 f"{self.current_link}/api/v5/authorization/sources",
                 json=data,
@@ -163,7 +175,9 @@ class ControlEmqx:
         }
 
         logging.info("Set http auth hook MQTT Broker")
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             response = await client.post(
                 f"{self.current_link}/api/v5/authorization/sources",
                 json=data,
@@ -185,7 +199,9 @@ class ControlEmqx:
 
         logging.info("Set cache settings auth hook MQTT Broker")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             response = await client.put(
                 f"{self.current_link}/api/v5/authorization/settings",
                 json=data,
@@ -194,7 +210,9 @@ class ControlEmqx:
         self._log_response(response)
 
     async def disable_default_listeners(self) -> None:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             for source in ["ssl", "ws", "wss"]:
                 logging.info(f"Disable {source} listener MQTT Broker")
                 response = await client.post(
@@ -236,7 +254,9 @@ class ControlEmqx:
         }
 
         logging.info("Set settings for tcp listener")
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             response = await client.put(
                 f"{self.current_link}/api/v5/listeners/tcp:default",
                 json=data,
@@ -311,7 +331,9 @@ class ControlEmqx:
         }
 
         logging.info("Set global mqtt settings")
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout()
+        ) as client:
             response = await client.put(
                 f"{self.current_link}/api/v5/configs/global_zone",
                 json=data,

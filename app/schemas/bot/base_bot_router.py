@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
@@ -12,10 +11,20 @@ from app import settings
 from app.dto.enum import (
     EntityNames,
     LogLevel,
+    OperationTaskStatus,
+    OperationTaskType,
     RepositoryRegistryType,
     UnitNodeTypeEnum,
     VisibilityLevel,
 )
+
+
+class InstanceStates(StatesGroup):
+    pass
+
+
+class ControlStates(StatesGroup):
+    pass
 
 
 class DashboardStates(StatesGroup):
@@ -48,9 +57,15 @@ class BaseBotFilters(BaseModel):
     repository_types: list[str] = Query(
         [item.value for item in RepositoryRegistryType]
     )
+    operation_task_statuses: list[str] = Query(
+        [item.value for item in OperationTaskStatus]
+    )
+    operation_task_types: list[str] = Query(
+        [item.value for item in OperationTaskType]
+    )
     is_only_my_entity: bool = False
     search_string: str | None = None
-    previous_filters: Optional["BaseBotFilters"] = None
+    previous_filters: BaseBotFilters | None = None
     repo_uuid: str | None = None
     unit_uuid: str | None = None
 
@@ -219,31 +234,27 @@ class BaseBotRouter(ABC):
         elif entity != EntityNames.REGISTRY.value and target in [
             item.value for item in VisibilityLevel
         ]:
-            if target in filters.visibility_levels:
-                filters.visibility_levels.remove(target)
-            else:
-                filters.visibility_levels.append(target)
-
+            self._toggle_filter_value(filters.visibility_levels, target)
         elif target in [item.value for item in UnitNodeTypeEnum]:
-            if target in filters.unit_types:
-                filters.unit_types.remove(target)
-            else:
-                filters.unit_types.append(target)
-
+            self._toggle_filter_value(filters.unit_types, target)
         elif target in [item.value for item in LogLevel]:
-            if target in filters.log_levels:
-                filters.log_levels.remove(target)
-            else:
-                filters.log_levels.append(target)
-
+            self._toggle_filter_value(filters.log_levels, target)
         elif target in [item.value for item in RepositoryRegistryType]:
-            if target in filters.repository_types:
-                filters.repository_types.remove(target)
-            else:
-                filters.repository_types.append(target)
+            self._toggle_filter_value(filters.repository_types, target)
+        elif target in [item.value for item in OperationTaskStatus]:
+            self._toggle_filter_value(filters.operation_task_statuses, target)
+        elif target in [item.value for item in OperationTaskType]:
+            self._toggle_filter_value(filters.operation_task_types, target)
 
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)
+
+    @staticmethod
+    def _toggle_filter_value(values: list[str], target: str) -> None:
+        if target in values:
+            values.remove(target)
+        else:
+            values.append(target)
 
     async def process_search(self, message: types.Message, state: FSMContext):
         data = await state.get_data()

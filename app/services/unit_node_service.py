@@ -252,7 +252,7 @@ class UnitNodeService:
 
     def bulk_set_visibility_level(self, unit: Unit):
         count, unit_nodes = self.unit_node_repository.list(
-            filters=UnitNodeFilter(unit_uuid=unit.uuid)
+            filters=UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         update_list = []
@@ -400,6 +400,7 @@ class UnitNodeService:
             BackendTopicCommand.ENV_UPDATE: ReservedInputBaseTopic.ENV_UPDATE.value,
             BackendTopicCommand.SCHEMA_UPDATE: ReservedInputBaseTopic.SCHEMA_UPDATE.value,
             BackendTopicCommand.LOG_SYNC: ReservedInputBaseTopic.LOG_SYNC.value,
+            BackendTopicCommand.RESET: ReservedInputBaseTopic.RESET.value,
         }
 
         target_topic = (
@@ -559,7 +560,7 @@ class UnitNodeService:
             resource_type=PermissionEntities.UNIT_NODE
         )
 
-        filters = UnitNodeFilter(unit_uuid=unit_uuid)
+        filters = UnitNodeFilter.unlimited(unit_uuid=unit_uuid)
 
         filters.visibility_level = (
             self.access_service.authorization.get_available_visibility_levels(
@@ -696,7 +697,7 @@ class UnitNodeService:
         self.is_valid_policy(data_pipe_entity)
 
         count, data = self.data_pipe_repository.list(
-            filters=DataPipeFilter(
+            filters=DataPipeFilter.unlimited(
                 uuid=uuid,
                 type=data_pipe_entity.processing_policy.policy_type,
                 order_by_create_date=OrderByDate.asc,

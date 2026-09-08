@@ -38,7 +38,13 @@ def set_credentials(
 @strawberry.mutation()
 def update_local_repository(info: Info, uuid: uuid_pkg.UUID) -> NoneType:
     repository_registry_service = get_repository_registry_service_gql(info)
-    repository_registry_service.update_local_repository(uuid)
+    repository_registry_service.schedule_update(uuid)
+    return NoneType()
+
+
+@strawberry.mutation()
+def update_all_registries(info: Info) -> NoneType:
+    get_repository_registry_service_gql(info).schedule_update_all()
     return NoneType()
 
 

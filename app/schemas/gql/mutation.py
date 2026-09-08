@@ -9,6 +9,14 @@ from app.schemas.gql.mutations.grafana import (
     link_unit_node_to_panel,
     sync_dashboard,
 )
+from app.schemas.gql.mutations.instance import (
+    create_instance,
+    delete_instance,
+    run_integration_tests,
+    scan_instance,
+    scan_instances,
+    update_instance,
+)
 from app.schemas.gql.mutations.permission import (
     create_permission,
     delete_permission,
@@ -24,6 +32,7 @@ from app.schemas.gql.mutations.repository_registry import (
     create_repository_registry,
     delete_repository_registry,
     set_credentials,
+    update_all_registries,
     update_local_repository,
 )
 from app.schemas.gql.mutations.unit import (
@@ -68,6 +77,7 @@ Mutation = create_type(
         create_repository_registry,
         set_credentials,
         update_local_repository,
+        update_all_registries,
         delete_repository_registry,
         update_units_firmware,
         bulk_update,
@@ -94,5 +104,11 @@ Mutation = create_type(
         delete_dashboard,
         delete_panel,
         delete_link,
+        create_instance,
+        update_instance,
+        delete_instance,
+        scan_instances,
+        scan_instance,
+        run_integration_tests,
     ],
 )

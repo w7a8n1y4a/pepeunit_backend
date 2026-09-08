@@ -1,4 +1,26 @@
+import logging
 from datetime import UTC, datetime
+
+from aiogram import Bot
+from aiogram.client.session.aiohttp import AiohttpSession
+
+from app import settings
+
+
+def build_telegram_bot() -> Bot:
+    session_kwargs: dict = {"timeout": settings.pu_http_timeout}
+    if settings.pu_telegram_proxy_url:
+        logging.info("Telegram bot will use proxy")
+        session_kwargs["proxy"] = settings.pu_telegram_proxy_url
+
+    return Bot(
+        token=settings.pu_telegram_token,
+        session=AiohttpSession(**session_kwargs),
+    )
+
+
+def format_datetime(value: datetime | None) -> str | None:
+    return value.strftime("%Y-%m-%d %H:%M:%S") if value else None
 
 
 def wrap_text(text: str, max_len: int | None) -> list[str]:

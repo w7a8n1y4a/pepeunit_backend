@@ -21,6 +21,7 @@ from app.schemas.pydantic.unit_node import (
     UnitNodeUpdate,
 )
 from app.utils.utils import create_upload_file_from_path
+from tests.integration.helpers.data_pipe import upload_pipe_csv
 from tests.integration.helpers.http import patch_input_state, post_schema_update
 from tests.integration.helpers.services import (
     repo_service,
@@ -310,7 +311,8 @@ def test_get_many_unit_node(live_units, regular_user_token, database, cc) -> Non
             limit=settings.pu_max_pagination_size,
         )
     )
-    assert len(units_nodes) >= 8
+    assert count >= 8
+    assert len(units_nodes) == min(count, settings.pu_max_pagination_size)
 
 
 async def test_data_pipe_requires_pepeunit_suffix(
@@ -444,10 +446,19 @@ async def test_delete_data_pipe_data(
         (piped_units.time_window_unit, ProcessingPolicyType.TIME_WINDOW),
     ]
     for target_unit, policy in clickhouse_units:
-        _, output_unit_node = service.list(
-            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.OUTPUT])
+        # emulators publish to output/pepeunit only, so an input node gets no
+        # rows while ClickHouse applies the delete mutation
+        _, input_unit_node = service.list(
+            UnitNodeFilter(unit_uuid=target_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
         )
-        node_uuid = output_unit_node[0].uuid
+        node_uuid = input_unit_node[0].uuid
+
+        await upload_pipe_csv(service, node_uuid, policy)
+        filled_count, _ = service.get_data_pipe_data(
+            DataPipeFilter(uuid=node_uuid, type=policy)
+        )
+        assert filled_count > 0
+
         service.delete_data_pipe_data(node_uuid)
         wait_until(
             lambda node_uuid=node_uuid, policy=policy: service.get_data_pipe_data(
@@ -455,6 +466,7 @@ async def test_delete_data_pipe_data(
             )[0]
             == 0,
             timeout=15,
+            interval=0.5,
             message=f"{policy} rows were not deleted from ClickHouse",
         )
 

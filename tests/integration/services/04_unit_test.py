@@ -2,6 +2,9 @@ import copy
 import json
 import logging
 import os
+import re
+import uuid as uuid_pkg
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,10 +21,15 @@ from app.configs.errors import (
 )
 from app.domain.repo_model import Repo
 from app.dto.agent.abc import AgentBackend
+from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    LogLevel,
+    OperationTaskStatus,
+    OperationTaskType,
+    OrderByDate,
     ReservedEnvVariableName,
     UnitNodeTypeEnum,
     VisibilityLevel,
@@ -33,8 +41,10 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.utils import get_topic_name
 from app.utils.utils import aes_gcm_encode
 from tests.integration.helpers.http import (
+    get_unit_logs_file,
     patch_repo,
     patch_unit_commit,
+    patch_update_units_firmware,
     post_bulk_update_repo,
     post_unit_command,
 )
@@ -45,6 +55,7 @@ from tests.integration.helpers.services import (
     unit_node_service,
     unit_service,
 )
+from tests.integration.helpers.tasks import latest_task
 from tests.integration.helpers.wait import wait_until
 
 
@@ -250,19 +261,27 @@ def test_hand_update_firmware_unit(
             token,
             repo.repository_registry_uuid,
             only_tag=repo.is_only_tag_update,
+            count=2,
         )
         target_version = commits[1].commit
         target_versions.append(target_version)
         logging.info(f"{unit.name}, {unit.uuid},{target_version}")
         assert patch_unit_commit(token, unit, target_version) < 400
 
-    logging.info(target_versions[0])
+    expected = {
+        unit.uuid: version
+        for unit, version in zip(target_units, target_versions, strict=True)
+    }
+
+    def all_updated() -> bool:
+        return all(
+            service.get(unit.uuid).current_commit_version == expected[unit.uuid]
+            for unit in target_units
+        )
+
     wait_until(
-        lambda: [
-            service.get(unit.uuid).current_commit_version for unit in target_units
-        ].count(target_versions[0])
-        == len(target_units),
-        timeout=30,
+        all_updated,
+        timeout=settings.pu_state_send_interval * 2 + 10,
         message="hand firmware update did not reach target commit",
         session=database,
     )
@@ -321,7 +340,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         lambda: service.get(target_units[0].uuid).current_commit_version == target_version,
-        timeout=30,
+        timeout=settings.pu_state_send_interval * 2 + 10,
         message="hand repo update did not reach unit commit",
         session=database,
     )
@@ -352,7 +371,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         bulk_reached,
-        timeout=30,
+        timeout=settings.pu_state_send_interval * 2 + 10,
         interval=2,
         message="bulk repo update did not reach chain units",
         session=database,
@@ -407,6 +426,30 @@ def test_log_sync_command(running_units, chain_middle_unit, regular_user_token) 
         client.disconnect()
 
 
+def test_reset_command(running_units, chain_sink_unit, regular_user_token) -> None:
+    token = regular_user_token
+    client = next(get_clickhouse_client())
+    try:
+        unit_log_repository = UnitLogRepository(client)
+        logging.info(chain_sink_unit.uuid)
+        assert post_unit_command(token, chain_sink_unit, BackendTopicCommand.RESET) < 400
+
+        def reset_logged() -> bool:
+            _, logs = unit_log_repository.list(
+                UnitLogFilter.unlimited(uuid=chain_sink_unit.uuid, level=["Info"])
+            )
+            return any("Reset command received" in log.text for log in logs)
+
+        wait_until(
+            reset_logged,
+            timeout=30,
+            interval=2,
+            message="RESET did not produce Reset log in ClickHouse",
+        )
+    finally:
+        client.disconnect()
+
+
 def test_get_many_unit(
     live_units,
     universal_auto_unit,
@@ -419,17 +462,15 @@ def test_get_many_unit(
 ) -> None:
     service = unit_service(database, cc, regular_user_token)
     count, units = service.list(
-        UnitFilter(
+        UnitFilter.unlimited(
             creator_uuid=regular_user.uuid,
             repo_uuid=universal_private_repo.uuid,
             search_string=test_hash,
             is_auto_update_from_repo_unit=True,
-            offset=0,
-            limit=settings.pu_max_pagination_size,
         )
     )
+    assert count >= 1
     assert any(unit[0].uuid == universal_auto_unit.uuid for unit in units)
-    assert len(units) >= 1
 
 
 def test_get_unit_logs(
@@ -444,6 +485,96 @@ def test_get_unit_logs(
         )
     )
     assert len(logs) > 0
+
+
+def test_download_unit_logs(
+    live_units, regular_user_token, database, cc
+) -> None:
+    unit = live_units.universal_auto_unit
+    service = unit_service(database, cc, regular_user_token)
+    unit_log_repository = UnitLogRepository(cc)
+
+    first_datetime = datetime(2026, 9, 6, 3, 15, 58, 214000)
+    second_datetime = first_datetime + timedelta(seconds=1)
+    expiration = datetime.now(UTC) + timedelta(
+        seconds=settings.pu_unit_log_expiration
+    )
+    first_text = (
+        "uvicorn.access - 192.168.0.10:48422 - "
+        '"GET /pepeunit/api/v1/instances/current HTTP/1.0" 200'
+    )
+    second_text = "gmqtt.client - [SUBACK] N (0,)"
+
+    unit_log_repository.bulk_create(
+        [
+            UnitLog(
+                uuid=uuid_pkg.uuid4(),
+                level=LogLevel.INFO,
+                unit_uuid=unit.uuid,
+                text=first_text,
+                create_datetime=first_datetime,
+                expiration_datetime=expiration,
+            ),
+            UnitLog(
+                uuid=uuid_pkg.uuid4(),
+                level=LogLevel.ERROR,
+                unit_uuid=unit.uuid,
+                text=second_text,
+                create_datetime=second_datetime,
+                expiration_datetime=expiration,
+            ),
+        ]
+    )
+
+    assert (
+        UnitLog(
+            uuid=uuid_pkg.uuid4(),
+            level=LogLevel.INFO,
+            unit_uuid=unit.uuid,
+            text=first_text,
+            create_datetime=first_datetime,
+            expiration_datetime=expiration,
+        ).to_log_line()
+        == f"INFO - 2026-09-06 03:15:58,214 - {first_text}"
+    )
+
+    log_path, filename = service.get_unit_logs_file(unit.uuid)
+    try:
+        assert filename == f"{unit.name}.log"
+        assert log_path.endswith(".log")
+        with open(log_path, encoding="utf-8") as handle:
+            content = handle.read()
+    finally:
+        os.remove(log_path)
+
+    lines = content.splitlines()
+    first_line = next(line for line in lines if line.endswith(f" - {first_text}"))
+    second_line = next(line for line in lines if line.endswith(f" - {second_text}"))
+    assert first_line.startswith("INFO - ")
+    assert second_line.startswith("ERROR - ")
+    assert lines.index(first_line) < lines.index(second_line)
+
+    # the file holds the whole history, log_list gives only the first page of it
+    stored_count, first_page = service.log_list(
+        UnitLogFilter(
+            uuid=unit.uuid,
+            level=[item.value for item in LogLevel],
+            order_by_create_date=OrderByDate.asc,
+        )
+    )
+    assert len(lines) == stored_count
+    assert lines[: len(first_page)] == [log.to_log_line() for log in first_page]
+
+    log_line_pattern = re.compile(
+        r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL) - "
+        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - .+$"
+    )
+    assert all(log_line_pattern.match(line) for line in lines)
+
+    response = get_unit_logs_file(regular_user_token, unit)
+    assert response.status_code == 200
+    assert f'filename="{unit.name}.log"' in response.headers["content-disposition"]
+    assert response.text == content
 
 
 @pytest.mark.asyncio
@@ -513,7 +644,7 @@ def test_list_units_with_output_nodes(
     live_units, regular_user, regular_user_token, database, cc
 ) -> None:
     count, units = unit_service(database, cc, regular_user_token).list(
-        UnitFilter(
+        UnitFilter.unlimited(
             creator_uuid=regular_user.uuid,
             unit_node_type=[item.value for item in UnitNodeTypeEnum],
             unit_node_uuids=[],
@@ -525,11 +656,35 @@ def test_list_units_with_output_nodes(
 
 
 def test_update_units_firmware(
-    running_units, universal_private_repo, regular_user_token, database, cc
+    running_units, universal_private_repo, regular_user_token, database
 ) -> None:
-    repo_service(database, cc, regular_user_token).update_units_firmware(
-        universal_private_repo.uuid
+    task_type = OperationTaskType.UPDATE_UNITS_FIRMWARE
+    previous_task = latest_task(database, task_type)
+
+    assert (
+        patch_update_units_firmware(regular_user_token, universal_private_repo)
+        < 400
     )
+
+    def is_finish() -> bool:
+        task = latest_task(database, task_type)
+        return (
+            task is not None
+            and (previous_task is None or task.uuid != previous_task.uuid)
+            and task.status != OperationTaskStatus.RUNNING.value
+        )
+
+    wait_until(
+        is_finish,
+        timeout=300,
+        message="units firmware update task not finished",
+        session=database,
+    )
+
+    finished = latest_task(database, task_type)
+    logging.info(finished.result)
+    assert finished.status == OperationTaskStatus.SUCCESS.value
+    assert finished.result.startswith("Updated ")
 
 
 def _mqtt_base_topic(unit, destination: DestinationTopicType, name: str = "update") -> str:

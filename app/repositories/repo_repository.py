@@ -10,6 +10,7 @@ from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
+from app.dto.enum import VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
@@ -207,3 +208,10 @@ class RepoRepository(BaseRepository):
             self.git_repo_repository.is_valid_commit(
                 repository_registry, repo.default_branch, repo.default_commit
             )
+
+    def get_public_count(self) -> int:
+        return self.db.exec(
+            select(func.count())
+            .select_from(Repo)
+            .where(Repo.visibility_level == VisibilityLevel.PUBLIC.value)
+        ).one()

@@ -9,7 +9,7 @@ from app.dto.enum import PermissionEntities
 
 
 class Permission(SQLModel, table=True):
-    """Доступы"""
+    """Permissions"""
 
     __tablename__ = "permissions"
 

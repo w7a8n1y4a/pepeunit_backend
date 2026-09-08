@@ -14,6 +14,7 @@ MARKER_ENABLED: dict[str, Callable[[], bool]] = {
         and settings.pu_ff_datapipe_default_last_value_enable
     ),
     "prometheus": lambda: settings.pu_ff_prometheus_enable,
+    "federation": lambda: settings.pu_ff_federation_enable,
     "private_repo": lambda: (
         settings.pu_test_integration_private_repo_enable
         and bool(load_private_repo_specs())
@@ -24,6 +25,9 @@ FIXTURE_MARKERS = {
     "grafana_dashboards": "grafana",
     "grafana_panels": "grafana",
     "piped_units": "datapipe",
+    "own_instance": "federation",
+    "trusted_instances": "federation",
+    "unreachable_instance": "federation",
     "private_repo_enabled": "private_repo",
     "private_registries": "private_repo",
     "private_registry": "private_repo",

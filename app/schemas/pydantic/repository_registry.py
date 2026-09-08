@@ -11,6 +11,7 @@ from app.dto.enum import (
     CredentialStatus,
     GitPlatform,
     OrderByDate,
+    OrderByText,
     RepositoryRegistryStatus,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
@@ -73,6 +74,7 @@ class RepositoryRegistryFilter(BasePaginationRestMixin):
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
+    order_by_repository_url: OrderByText | None = None
 
     def dict(self):
         return self.__dict__
@@ -88,9 +90,9 @@ class CommitFilter(Filter):
     repo_branch: str
     only_tag: bool = False
 
-    offset: int | None = Field(default=0, ge=0)
-    limit: int | None = Field(
-        default=10,
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
+        default=settings.pu_max_pagination_size,
         ge=0,
         le=settings.pu_max_pagination_size,
     )

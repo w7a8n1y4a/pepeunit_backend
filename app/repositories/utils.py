@@ -5,6 +5,7 @@ from sqlalchemy import asc, desc
 from sqlmodel import and_, or_
 
 from app.dto.enum import OrderByDate, VisibilityLevel
+from app.schemas.pydantic.pagination import NO_PAGINATION
 
 
 def apply_ilike_search_string(query, filters, fields: list):
@@ -20,15 +21,16 @@ def apply_ilike_search_string(query, filters, fields: list):
     return query
 
 
+def resolve_query_default(value: Any) -> Any:
+    return value.default if isinstance(value, params.Query) else value
+
+
 def apply_enums(query, filters, fields: dict):
     for filter_name, field in fields.items():
         if filter_name in filters.dict():
-            value = filters.dict()[filter_name]
+            value = resolve_query_default(filters.dict()[filter_name])
 
             value = [] if value is None else value
-
-            if isinstance(value, params.Query):
-                value = value.default
 
             query = query.where(field.in_(value))
     return query
@@ -61,9 +63,20 @@ def apply_restriction(query, filters, entity_type: any, restriction: list):
 
 
 def apply_offset_and_limit(query, filters) -> tuple[int, Any]:
-    return query.count(), query.offset(
-        filters.offset if filters.offset else None
-    ).limit(filters.limit if filters.limit else None)
+    count = query.count()
+
+    if filters.limit == NO_PAGINATION:
+        return count, query
+
+    return count, query.offset(filters.offset).limit(filters.limit)
+
+
+def get_offset_and_limit_clause(filters) -> str:
+    """Raw sql counterpart of apply_offset_and_limit"""
+    if filters.limit == NO_PAGINATION:
+        return ""
+
+    return " limit %(limit)s offset %(offset)s"
 
 
 def apply_orders_by(query, filters, fields: dict):

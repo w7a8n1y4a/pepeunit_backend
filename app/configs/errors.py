@@ -9,6 +9,7 @@ class CustomException(Exception):
         message_template: str,
         error_code: int,
     ):
+        self.raw_message = message
         self.message = (
             f"{status_code}: {error_code}: {message_template.format(message)}"
         )
@@ -32,7 +33,7 @@ class ValidationError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Validation Error: {}",
             error_code=2,
         )
@@ -42,7 +43,7 @@ class UserError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="User Validation Error: {}",
             error_code=3,
         )
@@ -52,7 +53,7 @@ class CustomPermissionError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Permission Validation Error: {}",
             error_code=4,
         )
@@ -62,7 +63,7 @@ class GitRepoError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Git Repo Validation Error: {}",
             error_code=5,
         )
@@ -72,7 +73,7 @@ class RepoError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Repo Validation Error: {}",
             error_code=6,
         )
@@ -82,7 +83,7 @@ class UnitError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Unit Validation Error: {}",
             error_code=7,
         )
@@ -92,7 +93,7 @@ class UnitNodeError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="UnitNode Validation Error: {}",
             error_code=8,
         )
@@ -102,7 +103,7 @@ class DataPipeError(CustomException):
     def __init__(self, message):
         super().__init__(
             message=message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="DataPipe Validation Error: {}",
             error_code=8,
         )
@@ -112,7 +113,7 @@ class CustomJSONDecodeError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="JSON Decode Error: {}",
             error_code=9,
         )
@@ -122,7 +123,7 @@ class MqttError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="MQTT Error: {}",
             error_code=10,
         )
@@ -132,7 +133,7 @@ class UpdateError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Update Error: {}",
             error_code=11,
         )
@@ -142,7 +143,7 @@ class CipherError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Cipher Error: {}",
             error_code=12,
         )
@@ -152,7 +153,7 @@ class RepositoryRegistryError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Repository Registry Validation Error: {}",
             error_code=13,
         )
@@ -162,7 +163,7 @@ class GitPlatformClientError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Git Platform Client Error: {}",
             error_code=14,
         )
@@ -172,7 +173,7 @@ class GrafanaError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Grafana Error: {}",
             error_code=14,
         )
@@ -192,7 +193,27 @@ class ReadmeGenerationError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             message_template="Readme Generation Error: {}",
             error_code=16,
+        )
+
+
+class InstanceError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            message_template="Instance Validation Error: {}",
+            error_code=17,
+        )
+
+
+class OperationTaskError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            message_template="Operation Task Validation Error: {}",
+            error_code=18,
         )

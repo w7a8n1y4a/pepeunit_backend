@@ -288,10 +288,10 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             text = ""
             match decrees_type:
                 case DecreesNames.LOCAL_UPDATE:
-                    text = "Success Local repository update"
-                    repository_registry_service.update_local_repository(
+                    repository_registry_service.schedule_update(
                         repository_registry_uuid
                     )
+                    text = "Started Local repository update"
 
         await callback.answer(parse_mode="Markdown")
         await self.telegram_response(callback, text, is_editable=False)

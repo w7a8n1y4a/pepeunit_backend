@@ -17,7 +17,9 @@ PIPE_YAMLS = {
 
 async def _activate_and_set_pipe(service, unit, yaml_path: str | None) -> None:
     for node_type in (UnitNodeTypeEnum.OUTPUT, UnitNodeTypeEnum.INPUT):
-        _, nodes = service.list(UnitNodeFilter(unit_uuid=unit.uuid, type=[node_type]))
+        _, nodes = service.list(
+            UnitNodeFilter.unlimited(unit_uuid=unit.uuid, type=[node_type])
+        )
         await service.update(nodes[0].uuid, UnitNodeUpdate(is_data_pipe_active=True))
         if yaml_path:
             await service.set_data_pipe_config(

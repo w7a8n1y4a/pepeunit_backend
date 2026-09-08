@@ -83,12 +83,12 @@ def update(
 def update_units_firmware(
     uuid: uuid_pkg.UUID, repo_service: RepoService = Depends(get_repo_service)
 ):
-    return repo_service.update_units_firmware(uuid)
+    repo_service.schedule_update_units_firmware(uuid)
 
 
 @router.post("/bulk_update", status_code=status.HTTP_204_NO_CONTENT)
 def bulk_update(repo_service: RepoService = Depends(get_repo_service)):
-    return repo_service.bulk_update_units_firmware()
+    repo_service.schedule_bulk_update_units_firmware()
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

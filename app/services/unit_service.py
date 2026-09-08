@@ -26,6 +26,7 @@ from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     LogLevel,
+    OrderByDate,
     OwnershipType,
     PermissionEntities,
     ReservedEnvVariableName,
@@ -224,16 +225,24 @@ class UnitService:
         return result_unit
 
     def sync_state_unit_nodes_for_version(
-        self, repo: Repo, unit: Unit, repository_registry: RepositoryRegistry
+        self,
+        repo: Repo,
+        unit: Unit,
+        repository_registry: RepositoryRegistry,
+        target_version_with_tag: tuple[str, str | None] = None,
     ) -> Unit:
-        self.git_repo_repository.is_valid_firmware_platform(
-            repo, repository_registry, unit, unit.target_firmware_platform
-        )
-
         target_version, target_tag = (
-            self.git_repo_repository.get_target_unit_version(
+            target_version_with_tag
+            or self.git_repo_repository.get_target_unit_version(
                 repo, repository_registry, unit
             )
+        )
+        self.git_repo_repository.is_valid_firmware_platform(
+            repo,
+            repository_registry,
+            unit,
+            unit.target_firmware_platform,
+            target_version_with_tag=(target_version, target_tag),
         )
 
         if target_version == unit.current_commit_version:
@@ -262,7 +271,7 @@ class UnitService:
             unit = self.unit_repository.update(unit.uuid, unit)
 
         count, all_exist_unit_nodes = self.unit_node_repository.list(
-            UnitNodeFilter(unit_uuid=unit.uuid)
+            UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         input_node_dict = {
@@ -631,7 +640,7 @@ class UnitService:
         )
 
         count, unit_nodes = self.unit_node_repository.list(
-            UnitNodeFilter(unit_uuid=unit.uuid)
+            UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         # orm feature =_=
@@ -684,6 +693,32 @@ class UnitService:
         )
 
         return self.unit_log_repository.list(filters)
+
+    def get_unit_logs_file(self, uuid: uuid_pkg.UUID) -> tuple[str, str]:
+        self.access_service.authorization.check_access(
+            [AgentType.USER, AgentType.UNIT]
+        )
+
+        unit = self.unit_repository.get(Unit(uuid=uuid))
+        is_valid_object(unit)
+
+        self.access_service.authorization.check_ownership(
+            unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
+        )
+
+        _, logs = self.unit_log_repository.list(
+            UnitLogFilter.unlimited(
+                uuid=uuid,
+                level=[item.value for item in LogLevel],
+                order_by_create_date=OrderByDate.asc,
+            )
+        )
+
+        log_filepath = f"tmp/{uuid}_{uuid_pkg.uuid4()}.log"
+        with open(log_filepath, "w", encoding="utf-8") as handle:
+            handle.writelines(f"{log.to_log_line()}\n" for log in logs)
+
+        return log_filepath, f"{unit.name}.log"
 
     def generate_current_schema(
         self,
