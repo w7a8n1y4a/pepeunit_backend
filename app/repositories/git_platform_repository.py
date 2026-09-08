@@ -66,6 +66,7 @@ class GitPlatformClientABC(ABC):
                 headers=headers,
                 params=params,
                 timeout=settings.http_timeout(),
+                follow_redirects=True,
             )
         except httpx.TimeoutException as err:
             msg = "External git platform request timed out"
