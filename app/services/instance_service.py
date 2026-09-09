@@ -316,7 +316,8 @@ class InstanceService:
                 instance = await service.collect(uuid)
                 service.refresh_cache()
                 service.is_valid_collection_status(instance)
-                return f"Scanned {instance.url}, ping {instance.last_ping} ms"
+                origin = InstanceService.instance_origin(instance.url)
+                return f"Scanned {origin}, ping {round(instance.last_ping)} ms"
 
         self.operation_task_service.schedule(task, operation)
         return task
@@ -608,6 +609,11 @@ class InstanceService:
         ):
             msg = f"Trust status can only be {InstanceTrustStatus.TRUST.value} or {InstanceTrustStatus.BLOCKING.value}"
             raise InstanceError(msg)
+
+    @staticmethod
+    def instance_origin(url: str) -> str:
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}"
 
     @staticmethod
     def is_valid_url(url: str) -> str:

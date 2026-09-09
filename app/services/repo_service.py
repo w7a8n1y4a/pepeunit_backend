@@ -239,6 +239,18 @@ class RepoService:
         return repo
 
     def update_units_firmware(self, uuid: uuid_pkg.UUID) -> str:
+        count_success_update, count_error_update = (
+            self._update_units_firmware(uuid)
+        )
+        summary = self._units_firmware_summary(
+            count_success_update, count_error_update
+        )
+
+        if count_error_update:
+            raise RepoError(summary)
+        return summary
+
+    def _update_units_firmware(self, uuid: uuid_pkg.UUID) -> tuple[int, int]:
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo)
 
@@ -279,20 +291,18 @@ class RepoService:
                 logging.warning(f"Failed update unit {unit.uuid} {e}")
                 count_error_update += 1
 
-        result = {
-            "repo": repo.uuid,
-            "count_success_update": count_success_update,
-            "count_error_update": count_error_update,
-        }
-
-        logging.info(result)
-        summary = (
-            f"Updated {count_success_update}, failed {count_error_update}"
+        logging.info(
+            {
+                "repo": repo.uuid,
+                "count_success_update": count_success_update,
+                "count_error_update": count_error_update,
+            }
         )
+        return count_success_update, count_error_update
 
-        if count_error_update:
-            raise RepoError(summary)
-        return summary
+    @staticmethod
+    def _units_firmware_summary(success: int, error: int) -> str:
+        return f"Updated {success}, failed {error}"
 
     def schedule_update_units_firmware(
         self,
@@ -327,17 +337,22 @@ class RepoService:
         )
         logging.info(f"{len(auto_update_repositories)} repos update launched")
 
-        failed = 0
+        count_success_update = 0
+        count_error_update = 0
         for repo in auto_update_repositories:
             logging.info(f"run update repo {repo.uuid}")
             try:
-                self.update_units_firmware(repo.uuid)
+                success, error = self._update_units_firmware(repo.uuid)
+                count_success_update += success
+                count_error_update += error
             except Exception as e:
-                failed += 1
                 logging.error(f"failed to update repo {repo.uuid}: {e}")
+                count_error_update += 1
 
         logging.info("task auto update repo successfully completed")
-        return f"Repos {len(auto_update_repositories)}, failed {failed}"
+        return self._units_firmware_summary(
+            count_success_update, count_error_update
+        )
 
     def schedule_bulk_update_units_firmware(self) -> OperationTask:
         self.access_service.authorization.check_access(

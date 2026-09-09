@@ -266,4 +266,4 @@ def test_schedule_bulk_update_units_firmware(
     finished = wait_task_finish(database, task, timeout=600)
     logging.info(finished.result)
     assert finished.status == OperationTaskStatus.SUCCESS.value
-    assert finished.result.startswith("Repos ")
+    assert finished.result.startswith("Updated ")

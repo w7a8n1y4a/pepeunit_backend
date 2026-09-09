@@ -22,6 +22,7 @@ from app.schemas.pydantic.instance import (
     InstanceFilter,
     InstanceUpdate,
 )
+from app.services.instance_service import InstanceService
 from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
 from tests.integration.helpers.names import unique_instance_url
 from tests.integration.helpers.services import (
@@ -332,7 +333,8 @@ def test_scan_one(own_instance, admin_user_token, database) -> None:
     finished = wait_task_finish(database, task)
     logging.info(finished.result)
     assert finished.status == OperationTaskStatus.SUCCESS.value
-    assert finished.result.startswith(f"Scanned {own_instance.url}")
+    origin = InstanceService.instance_origin(own_instance.url)
+    assert finished.result.startswith(f"Scanned {origin}")
 
 
 @pytest.mark.federation

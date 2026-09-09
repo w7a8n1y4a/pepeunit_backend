@@ -225,7 +225,10 @@ class InstanceBotRouter(BaseBotRouter):
             ["Domain", self._instance_domain(instance.url)],
             ["Trust", instance.trust_status],
             ["Collection", instance.last_collection_status],
-            ["Last ping", instance.last_ping],
+            [
+                "Last ping",
+                round(instance.last_ping) if instance.last_ping else None,
+            ],
             ["Last success", format_datetime(instance.last_success_datetime)],
         ]
 
