@@ -64,11 +64,25 @@ class FeatureFlagsType:
 
 @strawberry.type()
 class CurrentInstanceSettingsType:
+    pu_auth_token_expiration: int
+    pu_min_interval_sync_repository: int
     pu_state_send_interval: int
     pu_max_external_repo_size: int
     pu_max_cipher_length: int
+    pu_http_timeout: float
+    pu_http_connect_timeout: float
+    pu_instance_max_state_size: int
+    pu_instance_retention_days: int
     pu_unit_log_expiration: int
     pu_max_pagination_size: int
+    pu_available_topic_symbols: str
+    pu_available_name_entity_symbols: str
+    pu_time_window_sizes: list[int]
+
+    pu_mqtt_host: str
+    pu_mqtt_secure: bool
+    pu_mqtt_port: int
+    pu_mqtt_keepalive: int
     pu_mqtt_max_clients: int
     pu_mqtt_max_client_connection_rate: str
     pu_mqtt_max_client_id_len: int
@@ -79,6 +93,8 @@ class CurrentInstanceSettingsType:
     pu_mqtt_max_topic_levels: int
     pu_mqtt_max_len_message_queue: int
     pu_mqtt_max_topic_alias: int
+
+    pu_grafana_limit_unit_node_per_one_panel: int
 
 
 @strawberry.type()

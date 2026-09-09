@@ -70,11 +70,29 @@ class InstanceRegistriesPage(BaseModel):
 
 
 class CurrentInstanceSettingsV1(BaseModel):
+    pu_auth_token_expiration: int = settings.pu_auth_token_expiration
+    pu_min_interval_sync_repository: int = (
+        settings.pu_min_interval_sync_repository
+    )
     pu_state_send_interval: int = settings.pu_state_send_interval
     pu_max_external_repo_size: int = settings.pu_max_external_repo_size
     pu_max_cipher_length: int = settings.pu_max_cipher_length
+    pu_http_timeout: float = settings.pu_http_timeout
+    pu_http_connect_timeout: float = settings.pu_http_connect_timeout
+    pu_instance_max_state_size: int = settings.pu_instance_max_state_size
+    pu_instance_retention_days: int = settings.pu_instance_retention_days
     pu_unit_log_expiration: int = settings.pu_unit_log_expiration
     pu_max_pagination_size: int = settings.pu_max_pagination_size
+    pu_available_topic_symbols: str = settings.pu_available_topic_symbols
+    pu_available_name_entity_symbols: str = (
+        settings.pu_available_name_entity_symbols
+    )
+    pu_time_window_sizes: list[int] = settings.pu_time_window_sizes or []
+
+    pu_mqtt_host: str = settings.pu_mqtt_host
+    pu_mqtt_secure: bool = settings.pu_mqtt_secure
+    pu_mqtt_port: int = settings.pu_mqtt_port
+    pu_mqtt_keepalive: int = settings.pu_mqtt_keepalive
     pu_mqtt_max_clients: int = settings.pu_mqtt_max_clients
     pu_mqtt_max_client_connection_rate: str = (
         settings.pu_mqtt_max_client_connection_rate
@@ -89,6 +107,10 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_mqtt_max_topic_levels: int = settings.pu_mqtt_max_topic_levels
     pu_mqtt_max_len_message_queue: int = settings.pu_mqtt_max_len_message_queue
     pu_mqtt_max_topic_alias: int = settings.pu_mqtt_max_topic_alias
+
+    pu_grafana_limit_unit_node_per_one_panel: int = (
+        settings.pu_grafana_limit_unit_node_per_one_panel
+    )
 
 
 class CurrentInstanceStateV1(BaseModel):
