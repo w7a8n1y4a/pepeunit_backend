@@ -12,6 +12,7 @@ from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from tests.client.mqtt import MQTTClient
 from tests.integration.helpers.cleanup import clear_integration_data
+from tests.integration.helpers.frontend_state import preserve_demo_dashboard
 
 
 @pytest.fixture(scope="session")
@@ -25,11 +26,13 @@ def cc() -> Client:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def clean_leftovers(database) -> None:
+def clean_leftovers(database, cc) -> None:
     clear_integration_data(database)
     yield
     if settings.pu_test_integration_clear_data:
         clear_integration_data(database)
+        return
+    preserve_demo_dashboard(database, cc)
 
 
 @pytest.fixture(scope="session")

@@ -1,9 +1,17 @@
 import pytest
 
-from app.schemas.pydantic.grafana import DashboardCreate, DashboardPanelCreate
+from app import settings
 from app.dto.enum import DashboardPanelTypeEnum
+from app.schemas.pydantic.grafana import DashboardCreate, DashboardPanelCreate
 from tests.integration.helpers.names import entity_name
 from tests.integration.helpers.services import grafana_service
+
+
+def _delete_dashboard(service, uuid) -> None:
+    try:
+        service.delete_dashboard(uuid=uuid)
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="module")
@@ -12,14 +20,11 @@ def grafana_dashboards(regular_user_token, database, cc):
     first = service.create_dashboard(DashboardCreate(name=entity_name("test0")))
     second = service.create_dashboard(DashboardCreate(name=entity_name("test1")))
     yield first, second
-    try:
-        service.delete_dashboard(uuid=second.uuid)
-    except Exception:
-        pass
-    try:
-        service.delete_dashboard(uuid=first.uuid)
-    except Exception:
-        pass
+    _delete_dashboard(service, second.uuid)
+    # first dashboard has all panel types + pipe links; leave it for the
+    # frontend when PU_TEST_INTEGRATION_CLEAR_DATA=False
+    if settings.pu_test_integration_clear_data:
+        _delete_dashboard(service, first.uuid)
 
 
 @pytest.fixture(scope="module")

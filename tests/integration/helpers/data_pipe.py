@@ -9,8 +9,11 @@ from io import StringIO
 from fastapi import UploadFile
 
 from app.dto.enum import ProcessingPolicyType
+from app.schemas.pydantic.unit_node import DataPipeFilter
+from app.validators.data_pipe import is_valid_data_pipe_config
 
 CSV_DIR = "tmp/csv"
+LAST_VALUE_STATE = json.dumps({"one": 5, "two": 10, "three": 20})
 
 
 def pipe_rows(policy: ProcessingPolicyType) -> list[dict]:
@@ -100,3 +103,32 @@ async def upload_pipe_csv(
             )
     finally:
         os.remove(file_path)
+
+
+async def seed_pipe_node(service, unit_node, *, force: bool = True) -> None:
+    """Fill a node the same way grafana tests do: CSV for ClickHouse policies,
+    set_state for LastValue. force=False skips nodes that already have data.
+    """
+    if not unit_node.data_pipe_yml:
+        return
+
+    data_pipe_entity = is_valid_data_pipe_config(
+        json.loads(unit_node.data_pipe_yml), is_business_validator=True
+    )
+    policy = data_pipe_entity.processing_policy.policy_type
+
+    if policy == ProcessingPolicyType.LAST_VALUE:
+        if force or unit_node.state is None:
+            service.set_state(
+                unit_node_uuid=unit_node.uuid, state=LAST_VALUE_STATE
+            )
+        return
+
+    if not force:
+        count, _ = service.get_data_pipe_data(
+            DataPipeFilter(uuid=unit_node.uuid, type=policy)
+        )
+        if count > 0:
+            return
+
+    await upload_pipe_csv(service, unit_node.uuid, policy)

@@ -22,7 +22,7 @@ from app.schemas.pydantic.grafana import (
 )
 from app.schemas.pydantic.unit_node import DataPipeFilter, UnitNodeFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
-from tests.integration.helpers.data_pipe import upload_pipe_csv
+from tests.integration.helpers.data_pipe import seed_pipe_node
 from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     grafana_service,
@@ -75,18 +75,7 @@ async def test_import_data_to_data_pipe(
         count, input_unit_node = service.list(
             UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.INPUT])
         )
-        data_pipe_entity = is_valid_data_pipe_config(
-            json.loads(input_unit_node[0].data_pipe_yml), is_business_validator=True
-        )
-        policy = data_pipe_entity.processing_policy.policy_type
-        logging.info(policy)
-        if policy != ProcessingPolicyType.LAST_VALUE:
-            await upload_pipe_csv(service, input_unit_node[0].uuid, policy)
-        else:
-            service.set_state(
-                unit_node_uuid=input_unit_node[0].uuid,
-                state=json.dumps({"one": 5, "two": 10, "three": 20}),
-            )
+        await seed_pipe_node(service, input_unit_node[0])
 
 
 @pytest.mark.grafana
