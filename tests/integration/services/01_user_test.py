@@ -67,6 +67,7 @@ async def test_verification_user(
 ) -> None:
     service = user_service(database, cc, regular_user_token)
     logging.info(regular_user.uuid)
+    org_name = service.get(regular_user.uuid).grafana_org_name
 
     link = await service.generate_verification_link()
     code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
@@ -76,6 +77,7 @@ async def test_verification_user(
 
     redis = await anext(get_redis_session())
     assert await redis.get(code) is None
+    assert service.get(regular_user.uuid).grafana_org_name == org_name
 
 
 def test_block_unblock_user(
@@ -86,8 +88,11 @@ def test_block_unblock_user(
 
     for user in (regular_user, admin_user):
         logging.info(user.uuid)
+        org_name = repository.get(User(uuid=user.uuid)).grafana_org_name
         service.block(user.uuid)
-        assert repository.get(User(uuid=user.uuid)).status == UserStatus.BLOCKED
+        blocked = repository.get(User(uuid=user.uuid))
+        assert blocked.status == UserStatus.BLOCKED
+        assert blocked.grafana_org_name == org_name
 
         service.unblock(user.uuid)
         refreshed = repository.get(User(uuid=user.uuid))
@@ -95,6 +100,7 @@ def test_block_unblock_user(
             UserStatus.VERIFIED if refreshed.telegram_chat_id else UserStatus.UNVERIFIED
         )
         assert refreshed.status == expected
+        assert refreshed.grafana_org_name == org_name
 
 
 def test_block_without_admin(database, cc, regular_user, regular_user_token) -> None:

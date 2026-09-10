@@ -213,7 +213,11 @@ def test_create_org_if_not_exists(
 ) -> None:
     service = user_service(database, cc, regular_user_token)
     service.create_org_if_not_exists(regular_user.uuid)
-    assert service.get(regular_user.uuid).grafana_org_id
+    user = service.get(regular_user.uuid)
+    assert user.grafana_org_id
+    assert service.data_pipe_repository.get_org_name(
+        user.grafana_org_id
+    ) == str(user.grafana_org_name)
 
 
 @pytest.mark.grafana

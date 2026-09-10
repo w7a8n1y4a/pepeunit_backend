@@ -383,6 +383,19 @@ class GrafanaRepository:
         msg = "Data type not supported"
         raise GrafanaError(msg)
 
+    def get_org_name(self, org_id: str) -> str | None:
+        with self._http_client() as client:
+            resp = self._request(
+                client,
+                "GET",
+                f"{settings.pu_link}/grafana/api/orgs/{org_id}",
+                headers=self.headers,
+            )
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            return resp.json().get("name")
+
     def create_org_if_not_exists(self, user: User):
         with self._http_client() as client:
             resp = self._request(

@@ -135,18 +135,18 @@ class UserService:
             telegram_chat_id, user.uuid
         )
 
-        return self.user_repository.update(
-            user.uuid,
-            User(
-                status=UserStatus.VERIFIED, telegram_chat_id=telegram_chat_id
-            ),
-        )
+        user.status = UserStatus.VERIFIED
+        user.telegram_chat_id = telegram_chat_id
+        return self.user_repository.update(user.uuid, user)
 
     def block(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access(
             [AgentType.USER], [UserRole.ADMIN]
         )
-        self.user_repository.update(uuid, User(status=UserStatus.BLOCKED))
+        user = self.user_repository.get(User(uuid=uuid))
+        is_valid_object(user)
+        user.status = UserStatus.BLOCKED
+        self.user_repository.update(user.uuid, user)
 
     def unblock(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access(
@@ -156,13 +156,13 @@ class UserService:
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
 
-        status = (
+        user.status = (
             UserStatus.VERIFIED
             if user.telegram_chat_id
             else UserStatus.UNVERIFIED
         )
 
-        self.user_repository.update(uuid, User(status=status))
+        self.user_repository.update(user.uuid, user)
 
     def list(
         self, filters: UserFilter | UserFilterInput
@@ -177,7 +177,18 @@ class UserService:
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
 
-        if not user.grafana_org_id:
-            org_id = self.data_pipe_repository.create_org_if_not_exists(user)
-            user.grafana_org_id = str(org_id)
-            self.user_repository.update(user.uuid, user)
+        if user.grafana_org_id:
+            grafana_name = self.data_pipe_repository.get_org_name(
+                user.grafana_org_id
+            )
+            if grafana_name and grafana_name != str(user.grafana_org_name):
+                try:
+                    user.grafana_org_name = uuid_pkg.UUID(grafana_name)
+                except ValueError:
+                    return
+                self.user_repository.update(user.uuid, user)
+            return
+
+        org_id = self.data_pipe_repository.create_org_if_not_exists(user)
+        user.grafana_org_id = str(org_id)
+        self.user_repository.update(user.uuid, user)
