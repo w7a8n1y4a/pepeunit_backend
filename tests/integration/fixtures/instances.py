@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from app import settings
 from app.domain.instance_model import Instance
 from app.dto.enum import InstanceTrustStatus
 from app.repositories.instance_repository import InstanceRepository
@@ -28,6 +29,18 @@ def _drop_by_url(database, url: str) -> None:
         repository.delete(Instance(uuid=instance.uuid))
 
 
+def _own_instance(database, token) -> Instance:
+    own_url = InstanceService.get_own_url()
+    existing = (
+        database.query(Instance).filter(Instance.url == own_url).first()
+    )
+    if existing is not None and not settings.pu_test_integration_clear_data:
+        return existing
+
+    _drop_by_url(database, own_url)
+    return _create_instance(database, token, own_url)
+
+
 @dataclass
 class LiveInstances:
     own_instance: object
@@ -39,23 +52,20 @@ class LiveInstances:
 
 @pytest.fixture(scope="session")
 def trusted_instances(admin_user_token, database) -> LiveInstances:
-    own_url = InstanceService.get_own_url()
     unreachable_url = unreachable_instance_url()
-    _drop_by_url(database, own_url)
     _drop_by_url(database, unreachable_url)
 
     instances = LiveInstances(
-        own_instance=_create_instance(database, admin_user_token, own_url),
+        own_instance=_own_instance(database, admin_user_token),
         unreachable_instance=_create_instance(
             database, admin_user_token, unreachable_url
         ),
     )
     yield instances
-    for instance in instances.all():
-        try:
-            _delete_instance(database, instance.uuid)
-        except Exception:
-            pass
+    try:
+        _delete_instance(database, instances.unreachable_instance.uuid)
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session")

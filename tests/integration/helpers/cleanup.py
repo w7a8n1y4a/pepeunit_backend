@@ -50,8 +50,10 @@ def clear_integration_data(database: Session) -> None:
         ).delete()
 
     # OperationTask is deleted by cascade together with test Users
+    own_url = InstanceService.get_own_url()
     database.query(Instance).where(
-        Instance.url.ilike(f"%{TEST_HASH}%")
+        Instance.url.ilike(f"%{TEST_HASH}%"),
+        Instance.url != own_url,
     ).delete()
 
     database.query(User).where(User.login.ilike(f"%{TEST_HASH}%")).delete()
