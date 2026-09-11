@@ -52,6 +52,9 @@ registry - Repo Registry
 repo - Repo Actions
 unit - Unit Actions
 dashboard - Dashboard List url
+instances - Instance List
+tasks - Operation History
 info - Instance Metrics
 help - About Instance
+control - Admin Operations
 ```
