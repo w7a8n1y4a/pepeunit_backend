@@ -1,14 +1,13 @@
-import os
 import shutil
 from datetime import UTC, datetime
 
 from sqlmodel import Session
 
-from app import settings
 from app.domain.instance_model import Instance
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.user_model import User
 from app.dto.enum import InstanceTrustStatus
+from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.instance_repository import InstanceRepository
 from app.services.instance_service import InstanceService
 from tests.integration.helpers.names import TEST_HASH
@@ -33,21 +32,29 @@ def ensure_own_instance(database: Session) -> None:
     )
 
 
+def _drop_test_registries(database: Session) -> None:
+    urls = all_known_repo_urls()
+    if not urls:
+        return
+
+    git_repo_repository = GitRepoRepository()
+    registries = (
+        database.query(RepositoryRegistry)
+        .where(RepositoryRegistry.repository_url.in_(urls))
+        .all()
+    )
+    for registry in registries:
+        git_repo_repository.delete_repo(registry)
+
+    database.query(RepositoryRegistry).where(
+        RepositoryRegistry.repository_url.in_(urls)
+    ).delete()
+
+
 def clear_integration_data(database: Session) -> None:
     shutil.rmtree("tmp/test_units", ignore_errors=True)
     shutil.rmtree("tmp/test_units_tar_tgz", ignore_errors=True)
-
-    if os.path.isdir(settings.pu_save_repo_path):
-        for item in os.listdir(settings.pu_save_repo_path):
-            item_path = os.path.join(settings.pu_save_repo_path, item)
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path, ignore_errors=True)
-
-    urls = all_known_repo_urls()
-    if urls:
-        database.query(RepositoryRegistry).where(
-            RepositoryRegistry.repository_url.in_(urls)
-        ).delete()
+    _drop_test_registries(database)
 
     # OperationTask is deleted by cascade together with test Users
     own_url = InstanceService.get_own_url()

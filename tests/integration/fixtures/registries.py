@@ -11,6 +11,7 @@ from app.schemas.pydantic.repository_registry import (
     Credentials,
     RepositoryRegistryCreate,
 )
+from app.repositories.git_repo_repository import GitRepoRepository
 from tests.integration.helpers.http import patch_backend_sync_registry
 from tests.integration.helpers.services import registry_service
 from tests.integration.helpers.wait import wait_until
@@ -18,6 +19,14 @@ from tests.integration.helpers.wait import wait_until
 
 def _drop_known_registry(database, url: str) -> None:
     """The registry could return to the database through instance discovery, so it is recreated"""
+    git_repo_repository = GitRepoRepository()
+    registries = (
+        database.query(RepositoryRegistry)
+        .where(RepositoryRegistry.repository_url == url)
+        .all()
+    )
+    for registry in registries:
+        git_repo_repository.delete_repo(registry)
     database.query(RepositoryRegistry).where(
         RepositoryRegistry.repository_url == url
     ).delete()

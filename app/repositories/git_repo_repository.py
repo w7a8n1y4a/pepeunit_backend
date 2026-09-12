@@ -16,8 +16,13 @@ from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import (
     DestinationTopicType,
+    GitPlatform,
     ReservedEnvVariableName,
     StaticRepoFileName,
+)
+from app.repositories.git_platform_repository import (
+    GithubPlatformClient,
+    GitlabPlatformClient,
 )
 from app.services.validators import is_valid_json, is_valid_object
 from app.utils.utils import clean_files_with_pepeignore
@@ -71,6 +76,25 @@ class GitRepoRepository:
         for remote in git_repo.remotes:
             remote.fetch()
 
+    def _cloning_url(self, repository_registry: RepositoryRegistry) -> str:
+        credentials = None
+        if not repository_registry.is_public_repository:
+            credentials_map = repository_registry.get_credentials() or {}
+            credentials = repository_registry.get_first_valid_credentials(
+                credentials_map
+            )
+            if credentials is None:
+                msg = "Physic repository not exist"
+                raise GitRepoError(msg)
+
+        platforms = {
+            GitPlatform.GITLAB: GitlabPlatformClient,
+            GitPlatform.GITHUB: GithubPlatformClient,
+        }
+        return platforms[GitPlatform(repository_registry.platform)](
+            repository_registry, credentials
+        ).get_cloning_url()
+
     def local_repository_size(
         self, repository_registry: RepositoryRegistry
     ) -> int:
@@ -104,7 +128,12 @@ class GitRepoRepository:
         return tmp_git_repo_path
 
     def get_repo(self, repository_registry: RepositoryRegistry) -> GitRepo:
-        return self._open(self.get_path_physic_repository(repository_registry))
+        path = self.get_path_physic_repository(repository_registry)
+        try:
+            return self._open(path)
+        except GitRepoError:
+            self.clone(self._cloning_url(repository_registry), path)
+            return self._open(path)
 
     @staticmethod
     def get_tmp_path(gen_uuid: uuid_pkg.UUID) -> str:
@@ -113,6 +142,7 @@ class GitRepoRepository:
     def get_tmp_repo(
         self, repository_registry: RepositoryRegistry, gen_uuid: uuid_pkg.UUID
     ) -> GitRepo:
+        self.get_repo(repository_registry)
         tmp_path = self.get_tmp_path(gen_uuid)
         shutil.copytree(
             self.get_path_physic_repository(repository_registry), tmp_path
