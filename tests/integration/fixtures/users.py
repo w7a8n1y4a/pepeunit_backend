@@ -12,6 +12,7 @@ from tests.integration.helpers.names import (
     ADMIN_USER_PASSWORD,
     REGULAR_USER_PASSWORD,
     entity_name,
+    test_password,
     unique_name,
 )
 from tests.integration.helpers.services import user_service
@@ -75,7 +76,7 @@ def admin_user_token(database, cc, admin_user) -> str:
 @pytest.fixture
 def extra_user(database, cc) -> User:
     login = unique_name("extra")
-    password = "testtestx"
+    password = test_password("testtestx")
     user = _create_user(database, cc, login, password)
     user._test_password = password
     yield user

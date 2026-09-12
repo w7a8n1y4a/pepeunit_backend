@@ -10,7 +10,11 @@ from app.domain.user_model import User
 from app.dto.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
-from tests.integration.helpers.names import REGULAR_USER_PASSWORD, unique_name
+from tests.integration.helpers.names import (
+    ADMIN_USER_PASSWORD,
+    REGULAR_USER_PASSWORD,
+    unique_name,
+)
 from tests.integration.helpers.services import user_service
 
 
@@ -46,7 +50,10 @@ def test_get_auth_token_invalid_login(database, cc, admin_user) -> None:
     service = user_service(database, cc, None)
     with pytest.raises(ValidationError):
         service.get_token(
-            UserAuth(credentials=admin_user.login + "invalid", password="testtest1")
+            UserAuth(
+                credentials=admin_user.login + "invalid",
+                password=ADMIN_USER_PASSWORD,
+            )
         )
 
 
