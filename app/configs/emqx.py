@@ -22,15 +22,15 @@ class ControlEmqx:
 
         code = 500
         inc = 0
-        while code >= 400 and inc <= 60:
+        while not self.is_broker_reachable(code) and inc <= 60:
             code = self.check_state()
 
-            if code >= 400:
+            if not self.is_broker_reachable(code):
                 logging.info(
                     f"Iteration {inc}, result code - {code}. EMQX Broker not ready"
                 )
+                time.sleep(1)
 
-            time.sleep(1)
             inc += 1
 
         logging.info(f"EMQX Broker {self.current_link} - Ready to work")
@@ -51,6 +51,11 @@ class ControlEmqx:
         await self.set_auth_cache_ttl()
         await self.set_tcp_listener_settings()
         await self.set_global_mqtt_settings()
+
+    @staticmethod
+    def is_broker_reachable(status_code: int) -> bool:
+        # EMQX 6.3+ serves /api-docs with 401 until login; the node is already up.
+        return status_code < 400 or status_code in {401, 403}
 
     def check_state(self) -> int:
         response = httpx.get(
