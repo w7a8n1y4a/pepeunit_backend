@@ -8,4 +8,5 @@ pytest_plugins = [
     "tests.integration.fixtures.grafana",
     "tests.integration.fixtures.instances",
     "tests.integration.fixtures.tasks",
+    "tests.integration.fixtures.notifications",
 ]

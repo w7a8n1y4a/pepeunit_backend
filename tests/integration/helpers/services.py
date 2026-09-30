@@ -3,6 +3,7 @@ from app.configs.rest import (
     get_grafana_service,
     get_instance_service,
     get_metrics_service,
+    get_notification_service,
     get_operation_task_service,
     get_permission_service,
     get_repo_service,
@@ -54,6 +55,10 @@ def operation_task_service(database, token=None):
 
 def metrics_service(database, token=None):
     return get_metrics_service(database, token)
+
+
+def notification_service(database, cc, token=None):
+    return get_notification_service(database, cc, token)
 
 
 def registry_read(database, token, registry_or_uuid):
