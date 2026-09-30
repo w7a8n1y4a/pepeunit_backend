@@ -10,6 +10,7 @@ from aiogram import Bot, Dispatcher
 from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
+from redis.exceptions import ResponseError
 
 from app import settings
 from app.configs.emqx import ControlEmqx
@@ -21,6 +22,12 @@ from app.repositories.grafana_repository import GrafanaRepository
 from app.schemas.mqtt.manager import mqtt_manager
 from app.services.background import BackgroundService
 from app.services.instance_service import InstanceService
+from app.services.notification_delivery import (
+    DATA_PIPE_ALERT_GROUP,
+    DATA_PIPE_ALERT_STREAM,
+    listen_notification_sockets,
+    telegram_alert_queue,
+)
 from app.utils.utils import logo_to_console
 
 
@@ -50,6 +57,7 @@ class StartupService:
             await self._start_once()
         wait_for_file_unlock(FileLock.MQTT_RUN)
         await self._start_every_worker()
+        await self._start_telegram_alert_queue()
         self._start_singleton()
 
     async def stop(self) -> None:
@@ -119,6 +127,24 @@ class StartupService:
                     self._update_registry,
                 ),
                 name="automatic_update_registry",
+            )
+        )
+        self._singleton_tasks.append(
+            asyncio.create_task(
+                self._run_scheduled_notifications(),
+                name="scheduled_notifications",
+            )
+        )
+        self._singleton_tasks.append(
+            asyncio.create_task(
+                self._run_data_pipe_alerts(),
+                name="data_pipe_alerts",
+            )
+        )
+        self._singleton_tasks.append(
+            asyncio.create_task(
+                self._run_notification_sockets(),
+                name="notification_sockets",
             )
         )
 
@@ -302,6 +328,104 @@ class StartupService:
             services.get_repository_registry_service().sync_local_repository_storage(
                 True
             )
+
+    async def _start_telegram_alert_queue(self) -> None:
+        if not settings.pu_ff_telegram_bot_enable or not self.bot:
+            return
+        task = asyncio.create_task(
+            telegram_alert_queue.run(self.bot),
+            name="telegram_alert_queue",
+        )
+        self._singleton_tasks.append(task)
+        await telegram_alert_queue.ready.wait()
+
+    async def _run_scheduled_notifications(self) -> None:
+        lock = acquire_file_lock(FileLock.NOTIFICATION_SCHEDULE)
+        if lock is None:
+            return
+        try:
+            while True:
+                await asyncio.sleep(20)
+                try:
+                    with BackgroundService() as services:
+                        services.get_notification_service().dispatch_scheduled()
+                except Exception:
+                    logging.exception("Scheduled notifications failed")
+        finally:
+            lock.close()
+
+    async def _run_data_pipe_alerts(self) -> None:
+        lock = acquire_file_lock(FileLock.DATA_PIPE_ALERTS)
+        if lock is None:
+            return
+
+        try:
+            while True:
+                try:
+                    await self._read_data_pipe_alerts()
+                except Exception:
+                    logging.exception("Data pipe alert consumer failed")
+                    await asyncio.sleep(5)
+        finally:
+            lock.close()
+
+    async def _read_data_pipe_alerts(self) -> None:
+        session = get_redis_session()
+        redis = await anext(session)
+        try:
+            try:
+                await redis.xgroup_create(
+                    DATA_PIPE_ALERT_STREAM,
+                    DATA_PIPE_ALERT_GROUP,
+                    id="0",
+                    mkstream=True,
+                )
+            except ResponseError as exc:
+                if "BUSYGROUP" not in str(exc):
+                    raise
+
+            while True:
+                await self._consume_data_pipe_alerts(redis, "0", None)
+                await self._consume_data_pipe_alerts(redis, ">", 5000)
+        finally:
+            await session.aclose()
+
+    async def _consume_data_pipe_alerts(
+        self, redis, stream_id: str, block: int | None
+    ) -> None:
+        response = await redis.xreadgroup(
+            groupname=DATA_PIPE_ALERT_GROUP,
+            consumername="backend",
+            streams={DATA_PIPE_ALERT_STREAM: stream_id},
+            count=20,
+            block=block,
+        )
+        if not response:
+            return
+
+        for _stream, messages in response:
+            for message_id, fields in messages:
+                try:
+                    with BackgroundService() as services:
+                        service = services.get_notification_service()
+                        service.create_data_pipe_alerts(fields)
+                except Exception:
+                    logging.exception("Failed to handle data pipe alert")
+                await redis.xack(
+                    DATA_PIPE_ALERT_STREAM,
+                    DATA_PIPE_ALERT_GROUP,
+                    message_id,
+                )
+
+    async def _run_notification_sockets(self) -> None:
+        while True:
+            try:
+                await listen_notification_sockets()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logging.exception("Notification socket listener failed")
+                await asyncio.sleep(5)
 
     def _seconds_until(self, *, minute: int) -> float:
         now = datetime.now(UTC)

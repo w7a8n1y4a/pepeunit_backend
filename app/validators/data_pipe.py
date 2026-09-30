@@ -157,11 +157,17 @@ class ProcessingPolicyConfig(BaseModel):
         return self
 
 
+class AlertsConfig(BaseModel):
+    max_frequency: int = Field(ge=0, le=86400)
+    threshold_value: float
+
+
 class DataPipeConfig(BaseModel):
     active_period: ActivePeriod
     filters: FiltersConfig
     transformations: TransformationConfig | None = None
     processing_policy: ProcessingPolicyConfig
+    alerts: AlertsConfig | None = None
 
 
 def format_validation_error_dict(

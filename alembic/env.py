@@ -17,6 +17,8 @@ MODEL_MODULES = (
     "dashboard_model",
     "dashboard_panel_model",
     "instance_model",
+    "notification_model",
+    "notification_settings_model",
     "operation_task_model",
     "panels_unit_nodes_model",
     "permission_model",

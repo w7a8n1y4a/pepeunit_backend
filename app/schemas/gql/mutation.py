@@ -17,6 +17,11 @@ from app.schemas.gql.mutations.instance import (
     scan_instances,
     update_instance,
 )
+from app.schemas.gql.mutations.notification import (
+    mark_all_notifications_read,
+    mark_notification_read,
+    update_notification_settings,
+)
 from app.schemas.gql.mutations.permission import (
     create_permission,
     delete_permission,
@@ -110,5 +115,8 @@ Mutation = create_type(
         scan_instances,
         scan_instance,
         run_integration_tests,
+        mark_notification_read,
+        mark_all_notifications_read,
+        update_notification_settings,
     ],
 )

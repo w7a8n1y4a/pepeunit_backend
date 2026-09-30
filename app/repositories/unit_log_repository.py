@@ -1,5 +1,6 @@
 import enum
 import uuid as uuid_pkg
+from datetime import UTC, datetime
 
 from clickhouse_driver import Client
 from fastapi import Depends
@@ -89,3 +90,70 @@ class UnitLogRepository:
         )
 
         return count[0][0], unit_logs
+
+    def aggregate(
+        self,
+        levels: list[str],
+        since: datetime,
+        until: datetime,
+        unit_uuid: uuid_pkg.UUID | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        since = _naive_utc(since)
+        until = _naive_utc(until)
+        params = {
+            "levels": tuple(levels),
+            "since": since,
+            "until": until,
+            "limit": limit,
+        }
+        if unit_uuid:
+            params["unit_uuid"] = unit_uuid
+            query = """
+                SELECT level, text, count() AS count
+                FROM unit_logs
+                WHERE unit_uuid = %(unit_uuid)s
+                  AND level IN %(levels)s
+                  AND create_datetime >= %(since)s
+                  AND create_datetime < %(until)s
+                GROUP BY level, text
+                ORDER BY count DESC
+                LIMIT %(limit)s
+            """
+            rows = self.client.execute(query, params)
+            return [
+                {
+                    "level": row[0],
+                    "text": row[1],
+                    "count": int(row[2]),
+                    "unit_uuid": unit_uuid,
+                }
+                for row in rows
+            ]
+
+        query = """
+            SELECT unit_uuid, level, text, count() AS count
+            FROM unit_logs
+            WHERE level IN %(levels)s
+              AND create_datetime >= %(since)s
+              AND create_datetime < %(until)s
+            GROUP BY unit_uuid, level, text
+            ORDER BY count DESC
+            LIMIT %(limit)s
+        """
+        rows = self.client.execute(query, params)
+        return [
+            {
+                "unit_uuid": row[0],
+                "level": row[1],
+                "text": row[2],
+                "count": int(row[3]),
+            }
+            for row in rows
+        ]
+
+
+def _naive_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)

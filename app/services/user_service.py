@@ -6,11 +6,15 @@ from fastapi import Depends
 from app import settings
 from app.configs.errors import FeatureFlagError
 from app.configs.redis import get_redis_session
+from app.domain.notification_settings_model import NotificationSettings
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentGrafana, AgentUser
 from app.dto.enum import AgentType, UserRole, UserStatus
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.grafana_repository import GrafanaRepository
+from app.repositories.notification_settings_repository import (
+    NotificationSettingsRepository,
+)
 from app.repositories.user_repository import UserRepository
 from app.schemas.gql.inputs.user import (
     UserAuthInput,
@@ -35,10 +39,16 @@ class UserService:
         user_repository: UserRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
         access_service: AccessService = Depends(),
+        notification_settings_repository: (
+            NotificationSettingsRepository
+        ) = Depends(),
     ) -> None:
         self.user_repository = user_repository
         self.data_pipe_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
+        self.notification_settings_repository = (
+            notification_settings_repository
+        )
 
     def create(self, data: UserCreate | UserCreateInput) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])
@@ -59,6 +69,9 @@ class UserService:
         )
 
         user = self.user_repository.create(user)
+        self.notification_settings_repository.create(
+            NotificationSettings.for_user(user.uuid)
+        )
         self.create_org_if_not_exists(user.uuid)
 
         return self.user_repository.get(user)

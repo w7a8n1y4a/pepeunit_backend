@@ -11,6 +11,12 @@ from app.schemas.gql.queries.instance import (
     get_instances_registries,
     get_instances_urls,
 )
+from app.schemas.gql.queries.notification import (
+    get_notification,
+    get_notification_settings,
+    get_notification_unit_logs,
+    get_notifications,
+)
 from app.schemas.gql.queries.operation_task import (
     get_operation_task,
     get_operation_tasks,
@@ -90,5 +96,9 @@ Query = create_type(
         get_instances_registries,
         get_operation_task,
         get_operation_tasks,
+        get_notification,
+        get_notifications,
+        get_notification_settings,
+        get_notification_unit_logs,
     ],
 )
