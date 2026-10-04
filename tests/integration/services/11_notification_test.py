@@ -1,9 +1,11 @@
 import asyncio
+import json
 import logging
 import time
 import uuid as uuid_pkg
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 
 from app import settings
@@ -40,7 +42,6 @@ from tests.integration.helpers.services import (
     unit_service,
 )
 from tests.integration.helpers.wait import wait_until
-from tests.integration.helpers.ws import NotificationSocket
 
 LIVE_ALERT_YAML = "tests/data/yaml/integra/data_pipe_alerts_live.yaml"
 
@@ -53,9 +54,9 @@ def test_get_notification_settings(
     ).get_settings()
     logging.info(settings_row.uuid)
     assert settings_row.user_uuid == regular_user.uuid
-    assert settings_row.is_scheduled_alert_enable is False
-    assert settings_row.is_data_pipe_alert_enable is False
-    assert settings_row.is_telegram_alert_enable is False
+    assert settings_row.is_scheduled_alert_enable is True
+    assert settings_row.is_data_pipe_alert_enable is True
+    assert settings_row.is_telegram_alert_enable is True
     assert (
         settings_row.scheduled_notification_time
         == DEFAULT_SCHEDULED_NOTIFICATION_TIME
@@ -68,7 +69,7 @@ def test_user_create_makes_notification_settings(extra_user, database) -> None:
         extra_user.uuid
     )
     assert settings_row is not None
-    assert settings_row.is_data_pipe_alert_enable is False
+    assert settings_row.is_data_pipe_alert_enable is True
 
 
 def test_update_notification_settings(
@@ -319,6 +320,7 @@ def test_data_pipe_alert_delivery(
         assert delivery.user_uuid == regular_user.uuid
         assert delivery.telegram_chat_id == regular_user.telegram_chat_id
         assert delivery.is_telegram_alert_enable is True
+        assert delivery.push_sse is True
 
         payload = notification_payload(delivery.notification)
         assert payload["uuid"] == str(delivery.notification.uuid)
@@ -351,19 +353,33 @@ def test_telegram_text_by_type(regular_user) -> None:
     instance = telegram_text(
         notification(
             NotificationType.INSTANCE_DAILY_STATE,
-            {"entities": {"user_count": 3}, "errors": [{}, {}]},
+            {
+                "entities": {
+                    "user_count": 3,
+                    "repository_registry_count": 1,
+                    "repo_count": 1,
+                    "unit_count": 1,
+                    "unit_node_count": 1,
+                    "unit_node_edge_count": 1,
+                },
+                "errors": [{"count": 4, "message": "disk full"}],
+            },
         )
     )
-    assert "user_count: 3" in instance
-    assert "error and critical groups: 2" in instance
+    assert "Instance metrics" in instance
+    assert "User" in instance
+    assert "Backend logs" in instance
+    assert "disk full" in instance
 
     summary = telegram_text(
         notification(
             NotificationType.UNIT_DAILY_SUMMARY,
-            {"unit_uuid": str(uuid_pkg.uuid4()), "unit_name": "boiler"},
+            {"units": [{"unit_name": "boiler", "error_count": 7}]},
         )
     )
+    assert "Unit daily summary" in summary
     assert "boiler" in summary
+    assert "7" in summary
 
     for data, phrase in (
         (
@@ -402,32 +418,52 @@ def test_telegram_text_by_type(regular_user) -> None:
         assert phrase in text
 
 
-def test_notification_socket(
+def test_notification_stream(
     recipient_service, alert_node, regular_user_token, database
 ) -> None:
-    rejected = NotificationSocket("not-a-token")
-    try:
-        assert rejected.recv_json(timeout=5) is None
-        assert rejected.close_code == 1008
-    finally:
-        rejected.close()
+    url = f"{settings.pu_link_prefix_and_v1}/notifications/stream"
+    rejected = httpx.get(
+        url,
+        headers={"x-auth-token": "not-a-token"},
+        timeout=10,
+    )
+    assert rejected.status_code == 403
 
-    socket = NotificationSocket(regular_user_token)
     deliveries = []
     try:
-        assert socket.accepted
-        deliveries = recipient_service.create_data_pipe_alerts(
-            data_pipe_event(alert_node)
-        )
-        asyncio.run(deliver(deliveries))
+        with httpx.stream(
+            "GET",
+            url,
+            headers={
+                "x-auth-token": regular_user_token,
+                "accept": "text/event-stream",
+            },
+            timeout=httpx.Timeout(20.0, read=20.0),
+        ) as response:
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith(
+                "text/event-stream"
+            )
+            lines = response.iter_lines()
+            assert next(lines) == ": connected"
+            # The handler yields the handshake before it blocks on the stream
+            time.sleep(0.5)
+            deliveries = recipient_service.create_data_pipe_alerts(
+                data_pipe_event(alert_node)
+            )
+            asyncio.run(deliver(deliveries))
 
-        message = socket.recv_json(timeout=15)
+            message = None
+            for line in lines:
+                if not line.startswith("data: "):
+                    continue
+                message = json.loads(line.removeprefix("data: "))
+                break
         assert message is not None
         assert message["uuid"] == str(deliveries[0].notification.uuid)
         assert message["type"] == NotificationType.DATA_PIPE_ALERT.value
         assert message["data"]["topic_name"] == alert_node.topic_name
     finally:
-        socket.close()
         drop_notifications(
             database, [item.notification for item in deliveries]
         )
@@ -615,15 +651,7 @@ def test_notification_anonymous(crud_notification, database, cc) -> None:
     with pytest.raises(NoAccessError):
         service.mark_all_read()
     with pytest.raises(NoAccessError):
-        service.socket_user_uuid()
-
-
-def test_unit_log_aggregation_wrong_type(
-    crud_notification, regular_user_token, database, cc
-) -> None:
-    service = notification_service(database, cc, regular_user_token)
-    with pytest.raises(NotificationError):
-        service.get_unit_log_aggregation(crud_notification.uuid)
+        service.current_user_uuid()
 
 
 def test_dispatch_scheduled_instance_state(
@@ -650,8 +678,14 @@ def test_dispatch_scheduled_instance_state(
                 if item.type == NotificationType.INSTANCE_DAILY_STATE.value
             ]
             assert len(instance_alerts) == 1
+            assert all(item.push_sse is False for item in deliveries)
             assert "user_count" in instance_alerts[0].data["entities"]
-            assert isinstance(instance_alerts[0].data["errors"], list)
+            errors = instance_alerts[0].data["errors"]
+            assert isinstance(errors, list)
+            assert len(errors) <= 3
+            assert all(
+                "count" in item and "message" in item for item in errors
+            )
 
             # the same day is dispatched once
             assert service.dispatch_scheduled() == []
@@ -680,25 +714,12 @@ def test_dispatch_scheduled_unit_summary(
                     scheduled_notification_time=_scheduled_now(),
                 )
             )
-            deliveries = service.dispatch_scheduled()
-            created.extend(item.notification for item in deliveries)
-
-            assert all(
-                item.type != NotificationType.INSTANCE_DAILY_STATE.value
-                for item in created
-            )
-            summary = next(
-                item
-                for item in created
-                if item.type == NotificationType.UNIT_DAILY_SUMMARY.value
-                and item.data["unit_uuid"] == str(unit.uuid)
-            )
-            assert summary.data["unit_name"] == unit.name
-
             error_text = f"integration alert {uuid_pkg.uuid4()}"
             critical_text = f"integration critical {uuid_pkg.uuid4()}"
             info_text = f"integration info {uuid_pkg.uuid4()}"
-            log_time = _inside_period(summary.data["period_start"])
+            log_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+                minutes=1
+            )
             expiration = datetime.now(UTC) + timedelta(
                 seconds=settings.pu_unit_log_expiration
             )
@@ -739,16 +760,27 @@ def test_dispatch_scheduled_unit_summary(
                 ]
             )
 
-            logs = service.get_unit_log_aggregation(summary.uuid)
-            errors = [item for item in logs if item["text"] == error_text]
-            critical = [item for item in logs if item["text"] == critical_text]
-            assert len(errors) == 1
-            assert errors[0]["count"] == 2
-            assert errors[0]["level"] == LogLevel.ERROR.value
-            assert len(critical) == 1
-            assert critical[0]["count"] == 1
-            assert critical[0]["level"] == LogLevel.CRITICAL.value
-            assert all(item["text"] != info_text for item in logs)
+            deliveries = service.dispatch_scheduled()
+            created.extend(item.notification for item in deliveries)
+
+            assert all(item.push_sse is False for item in deliveries)
+            assert all(
+                item.type != NotificationType.INSTANCE_DAILY_STATE.value
+                for item in created
+            )
+            summary = next(
+                item
+                for item in created
+                if item.type == NotificationType.UNIT_DAILY_SUMMARY.value
+            )
+            row = next(
+                item
+                for item in summary.data["units"]
+                if item["unit_name"] == unit.name
+            )
+            assert row["error_count"] >= 3
+            assert len(summary.data["units"]) <= 10
+            assert set(row) == {"unit_name", "error_count"}
 
             # the same day is dispatched once
             assert service.dispatch_scheduled() == []
@@ -763,10 +795,3 @@ def _scheduled_now() -> str:
         time.sleep(60 - now.second)
         now = datetime.now(UTC)
     return now.strftime("%H:%M")
-
-
-def _inside_period(period_start: str) -> datetime:
-    start = datetime.fromisoformat(period_start)
-    if start.tzinfo is not None:
-        start = start.astimezone(UTC).replace(tzinfo=None)
-    return start + timedelta(minutes=1)

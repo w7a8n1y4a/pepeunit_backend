@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from aiogram import Bot
+from redis.asyncio import from_url
+from starlette.requests import Request
 
 from app import settings
 from app.configs.redis import get_redis_session
@@ -15,6 +17,7 @@ from app.dto.enum import (
     FilterTypeValueThreshold,
     NotificationType,
 )
+from app.schemas.bot.utils import make_monospace_table_with_title
 
 TELEGRAM_ALERT_INTERVAL_SECONDS = 10
 TELEGRAM_ALERT_TEXT_LIMIT = 4000
@@ -22,17 +25,28 @@ DATA_PIPE_ALERT_STREAM = "data_pipe_alerts"
 DATA_PIPE_ALERT_GROUP = "backend"
 # Stream messages handled with one database session and one delivery batch
 DATA_PIPE_ALERT_BATCH = 100
-NOTIFICATION_CHANNEL_PREFIX = "notification_user:"
+NOTIFICATION_STREAM_PREFIX = "notification_user:"
+NOTIFICATION_STREAM_MAXLEN = 100
+_INSTANCE_METRICS = (
+    ("user_count", "User"),
+    ("repository_registry_count", "RepositoryRegistry"),
+    ("repo_count", "Repo"),
+    ("unit_count", "Unit"),
+    ("unit_node_count", "UnitNode"),
+    ("unit_node_edge_count", "UnitNodeEdge"),
+)
 
 
 @dataclass(frozen=True)
 class Delivery:
-    """A stored notification waiting for the socket and telegram push"""
+    """A stored notification waiting for the live stream and telegram push"""
 
     user_uuid: uuid_pkg.UUID
     telegram_chat_id: str | None
     is_telegram_alert_enable: bool
     notification: Notification
+    # Daily summaries stay in the database and go to telegram only
+    push_sse: bool
 
 
 class TelegramAlertQueue:
@@ -68,35 +82,6 @@ class TelegramAlertQueue:
 telegram_alert_queue = TelegramAlertQueue()
 
 
-class NotificationSocketHub:
-    """Pushes a notification only into sockets that are open now"""
-
-    def __init__(self) -> None:
-        self._sockets: dict[str, set] = {}
-
-    async def connect(self, user_uuid: str, websocket) -> None:
-        self._sockets.setdefault(user_uuid, set()).add(websocket)
-
-    async def disconnect(self, user_uuid: str, websocket) -> None:
-        sockets = self._sockets.get(user_uuid)
-        if not sockets:
-            return
-        sockets.discard(websocket)
-        if not sockets:
-            self._sockets.pop(user_uuid, None)
-
-    async def send(self, user_uuid: str, payload: dict) -> None:
-        sockets = list(self._sockets.get(user_uuid, ()))
-        for websocket in sockets:
-            try:
-                await websocket.send_json(payload)
-            except Exception:
-                await self.disconnect(user_uuid, websocket)
-
-
-notification_socket_hub = NotificationSocketHub()
-
-
 def notification_payload(notification: Notification) -> dict:
     read_datetime = notification.read_datetime
     return {
@@ -113,21 +98,47 @@ def notification_payload(notification: Notification) -> dict:
 def telegram_text(notification: Notification) -> str:
     data = notification.data or {}
     if notification.type == NotificationType.INSTANCE_DAILY_STATE.value:
-        entities = data.get("entities") or {}
-        lines = ["Instance daily state"]
-        lines.extend(f"{key}: {value}" for key, value in entities.items())
-        error_count = len(data.get("errors") or [])
-        lines.append(f"error and critical groups: {error_count}")
-        return "\n".join(lines)
-
+        return _instance_daily_state_text(data)
     if notification.type == NotificationType.UNIT_DAILY_SUMMARY.value:
-        name = data.get("unit_name") or data.get("unit_uuid")
-        return (
-            f"Unit daily summary: {name}\n"
-            "Open the notification to load error and critical logs"
-        )
-
+        return _unit_daily_summary_text(data)
     return data_pipe_alert_text(data)
+
+
+def _instance_daily_state_text(data: dict) -> str:
+    entities = data.get("entities") or {}
+    metrics = [["Type", "Count"]]
+    metrics.extend(
+        [label, entities.get(key, 0)] for key, label in _INSTANCE_METRICS
+    )
+    logs = [["Count", "Message"]]
+    errors = data.get("errors") or []
+    if errors:
+        logs.extend(
+            [item.get("count", 0), item.get("message") or "-"]
+            for item in errors
+        )
+    else:
+        logs.append(["0", "-"])
+    return (
+        make_monospace_table_with_title(metrics, "Instance metrics")
+        + "\n"
+        + make_monospace_table_with_title(
+            logs, "Backend logs", lengths=[8, 40]
+        )
+    )
+
+
+def _unit_daily_summary_text(data: dict) -> str:
+    table = [["Unit name", "Errors"]]
+    units = data.get("units") or []
+    if units:
+        table.extend(
+            [item.get("unit_name") or "-", item.get("error_count", 0)]
+            for item in units
+        )
+    else:
+        table.append(["-", "0"])
+    return make_monospace_table_with_title(table, "Unit daily summary")
 
 
 def _number(value: object) -> str:
@@ -175,10 +186,11 @@ def data_pipe_alert_text(data: dict) -> str:
 
 
 async def deliver(deliveries: list[Delivery]) -> None:
-    """Pushes stored notifications to the user sockets and the telegram queue.
+    """Pushes stored notifications to the user stream and the telegram queue.
 
-    One Redis connection serves the whole batch, a failed push is logged and
-    never undoes the stored notification.
+    The notification row is already committed. One Redis connection serves the
+    whole batch, a failed push is logged and never undoes the stored row.
+    Daily summaries skip the stream and go to telegram only.
     """
     if not deliveries:
         return
@@ -188,16 +200,19 @@ async def deliver(deliveries: list[Delivery]) -> None:
     try:
         for delivery in deliveries:
             payload = notification_payload(delivery.notification)
-            try:
-                await redis.publish(
-                    f"{NOTIFICATION_CHANNEL_PREFIX}{delivery.user_uuid}",
-                    json.dumps(payload),
-                )
-            except Exception:
-                logging.exception(
-                    "Failed to push notification %s to sockets",
-                    payload["uuid"],
-                )
+            if delivery.push_sse:
+                try:
+                    await redis.xadd(
+                        f"{NOTIFICATION_STREAM_PREFIX}{delivery.user_uuid}",
+                        {"data": json.dumps(payload)},
+                        maxlen=NOTIFICATION_STREAM_MAXLEN,
+                        approximate=True,
+                    )
+                except Exception:
+                    logging.exception(
+                        "Failed to push notification %s to the stream",
+                        payload["uuid"],
+                    )
             if delivery.is_telegram_alert_enable:
                 telegram_alert_queue.enqueue(
                     delivery.telegram_chat_id or "",
@@ -207,26 +222,46 @@ async def deliver(deliveries: list[Delivery]) -> None:
         await session.aclose()
 
 
-async def listen_notification_sockets() -> None:
-    session = get_redis_session()
-    redis = await anext(session)
-    pubsub = redis.pubsub()
-    await pubsub.psubscribe(f"{NOTIFICATION_CHANNEL_PREFIX}*")
+async def notification_events(request: Request, user_uuid: str):
+    """Holds the request open and yields notifications appended after connect.
+
+    Each open request reads its own Redis stream, so any worker can serve it.
+    """
+    redis = from_url(
+        settings.pu_redis_url,
+        encoding="utf-8",
+        decode_responses=True,
+        socket_connect_timeout=settings.pu_http_connect_timeout,
+        # Longer than the xread block, otherwise the read times out empty
+        socket_timeout=max(settings.pu_http_timeout, 20),
+    )
+    stream = f"{NOTIFICATION_STREAM_PREFIX}{user_uuid}"
+    last_id = "$"
     try:
-        async for message in pubsub.listen():
-            if message.get("type") != "pmessage":
+        yield ": connected\n\n"
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                response = await redis.xread(
+                    {stream: last_id}, count=20, block=5_000
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logging.exception("Notification stream read failed")
+                break
+            if not response:
+                yield ": ping\n\n"
                 continue
-            channel = message.get("channel") or ""
-            if not channel.startswith(NOTIFICATION_CHANNEL_PREFIX):
-                continue
-            user_uuid = channel[len(NOTIFICATION_CHANNEL_PREFIX) :]
-            data = message.get("data")
-            if not isinstance(data, str):
-                continue
-            await notification_socket_hub.send(user_uuid, json.loads(data))
+            for _stream_name, messages in response:
+                for message_id, fields in messages:
+                    last_id = message_id
+                    data = fields.get("data")
+                    if isinstance(data, str):
+                        yield f"data: {data}\n\n"
     finally:
-        await pubsub.close()
-        await session.aclose()
+        await redis.aclose()
 
 
 def _iso(value: datetime) -> str:

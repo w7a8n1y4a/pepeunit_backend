@@ -30,7 +30,7 @@ class NotificationSettings(SQLModel, table=True):
     )
 
     # Scheduled instance and unit summaries
-    is_scheduled_alert_enable: bool = Field(nullable=False, default=False)
+    is_scheduled_alert_enable: bool = Field(nullable=False, default=True)
 
     # HH:MM relative to UTC
     scheduled_notification_time: str = Field(
@@ -40,17 +40,17 @@ class NotificationSettings(SQLModel, table=True):
     )
 
     # All data pipe alerts, the pipe rule itself stays untouched
-    is_data_pipe_alert_enable: bool = Field(nullable=False, default=False)
+    is_data_pipe_alert_enable: bool = Field(nullable=False, default=True)
 
     # Any notification delivered to the telegram bot
-    is_telegram_alert_enable: bool = Field(nullable=False, default=False)
+    is_telegram_alert_enable: bool = Field(nullable=False, default=True)
 
     @classmethod
     def for_user(cls, user_uuid: uuid_pkg.UUID) -> NotificationSettings:
         return cls(
             user_uuid=user_uuid,
-            is_scheduled_alert_enable=False,
+            is_scheduled_alert_enable=True,
             scheduled_notification_time=DEFAULT_SCHEDULED_NOTIFICATION_TIME,
-            is_data_pipe_alert_enable=False,
-            is_telegram_alert_enable=False,
+            is_data_pipe_alert_enable=True,
+            is_telegram_alert_enable=True,
         )

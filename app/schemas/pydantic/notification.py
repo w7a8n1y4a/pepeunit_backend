@@ -40,18 +40,6 @@ class NotificationSettingsUpdate(BaseModel):
     is_telegram_alert_enable: bool | None = None
 
 
-class UnitLogAggregateRead(BaseModel):
-    level: str
-    text: str
-    count: int
-    unit_uuid: uuid_pkg.UUID | None = None
-
-
-class UnitLogAggregatesResult(BaseModel):
-    count: int
-    logs: list[UnitLogAggregateRead]
-
-
 @dataclass
 class NotificationFilter(BasePaginationRestMixin):
     target_user_uuid: uuid_pkg.UUID | None = None

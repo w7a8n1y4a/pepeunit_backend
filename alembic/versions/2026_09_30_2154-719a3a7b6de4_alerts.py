@@ -59,7 +59,7 @@ def upgrade() -> None:
             is_data_pipe_alert_enable,
             is_telegram_alert_enable
         )
-        SELECT gen_random_uuid(), uuid, false, '16:00', false, false
+        SELECT gen_random_uuid(), uuid, true, '16:00', true, true
         FROM users
         """
     )

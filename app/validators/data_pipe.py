@@ -197,8 +197,8 @@ class AlertsConfig(BaseModel):
     # Violations in a row required before the first alert
     consecutive_count: int = Field(default=1, ge=1, le=1024)
 
-    # Minimum seconds between two alerts of the same node, 0 means no limit
-    max_frequency: int = Field(default=0, ge=0, le=86400)
+    # Minimum seconds between two alerts of the same node
+    max_frequency: int = Field(default=10, ge=10, le=86400)
 
     @model_validator(mode="after")
     def validate_alerts(self):

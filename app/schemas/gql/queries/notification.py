@@ -9,8 +9,6 @@ from app.schemas.gql.types.notification import (
     NotificationSettingsType,
     NotificationsResultType,
     NotificationType,
-    UnitLogAggregatesResultType,
-    UnitLogAggregateType,
 )
 
 
@@ -38,12 +36,3 @@ def get_notifications(
 def get_notification_settings(info: Info) -> NotificationSettingsType:
     settings_row = get_notification_service_gql(info).get_settings()
     return NotificationSettingsType(**settings_row.dict())
-
-
-@strawberry.field()
-def get_notification_unit_logs(
-    info: Info, uuid: uuid_pkg.UUID
-) -> UnitLogAggregatesResultType:
-    logs = get_notification_service_gql(info).get_unit_log_aggregation(uuid)
-    items = [UnitLogAggregateType(**item) for item in logs]
-    return UnitLogAggregatesResultType(count=len(items), logs=items)

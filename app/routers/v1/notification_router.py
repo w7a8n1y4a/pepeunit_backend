@@ -1,7 +1,8 @@
 import uuid as uuid_pkg
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends
+from starlette.requests import Request
+from starlette.responses import StreamingResponse
 
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
@@ -12,11 +13,10 @@ from app.schemas.pydantic.notification import (
     NotificationSettingsRead,
     NotificationSettingsUpdate,
     NotificationsResult,
-    UnitLogAggregateRead,
-    UnitLogAggregatesResult,
 )
-from app.services.notification_delivery import notification_socket_hub
+from app.services.notification_delivery import notification_events
 from app.services.notification_service import NotificationService
+from app.services.utils import token_depends
 
 router = APIRouter()
 
@@ -53,25 +53,22 @@ def mark_all_read(
     return notification_service.mark_all_read()
 
 
-@router.websocket("/ws")
-async def notifications_ws(
-    websocket: WebSocket,
-    x_auth_token: Annotated[str | None, Query(alias="x-auth-token")] = None,
+@router.get("/stream")
+async def notifications_stream(
+    request: Request,
+    jwt_token: str | None = Depends(token_depends),
 ):
-    await websocket.accept()
-    user_uuid = _user_uuid_from_token(x_auth_token)
-    if user_uuid is None:
-        await websocket.close(code=1008)
-        return
-
-    await notification_socket_hub.connect(user_uuid, websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        pass
-    finally:
-        await notification_socket_hub.disconnect(user_uuid, websocket)
+    # Auth uses a short session. The stream itself must not hold a database
+    # connection for as long as the client stays connected.
+    user_uuid = _user_uuid_from_token(jwt_token)
+    return StreamingResponse(
+        notification_events(request, user_uuid),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("", response_model=NotificationsResult)
@@ -101,18 +98,6 @@ def get_notification(
     return NotificationRead(**notification_service.get(uuid).dict())
 
 
-@router.get("/{uuid}/logs", response_model=UnitLogAggregatesResult)
-def get_notification_unit_logs(
-    uuid: uuid_pkg.UUID,
-    notification_service: NotificationService = Depends(
-        get_notification_service
-    ),
-):
-    logs = notification_service.get_unit_log_aggregation(uuid)
-    items = [UnitLogAggregateRead(**item) for item in logs]
-    return UnitLogAggregatesResult(count=len(items), logs=items)
-
-
 @router.patch("/{uuid}/read", response_model=NotificationRead)
 def mark_read(
     uuid: uuid_pkg.UUID,
@@ -123,13 +108,10 @@ def mark_read(
     return NotificationRead(**notification_service.mark_read(uuid).dict())
 
 
-def _user_uuid_from_token(token: str | None) -> str | None:
-    """Browsers cannot set headers on a socket, so the token is a query param"""
+def _user_uuid_from_token(token: str | None) -> str:
     if not token:
-        return None
-    try:
-        with get_hand_session() as db:
-            service = get_notification_service(db, None, token)
-            return str(service.socket_user_uuid())
-    except NoAccessError:
-        return None
+        msg = "Notification access not allowed"
+        raise NoAccessError(msg)
+    with get_hand_session() as db:
+        service = get_notification_service(db, None, token)
+        return str(service.current_user_uuid())

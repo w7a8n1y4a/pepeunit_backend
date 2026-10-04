@@ -152,6 +152,38 @@ class UnitLogRepository:
             for row in rows
         ]
 
+    def count_errors_by_unit(
+        self,
+        unit_uuids: list[uuid_pkg.UUID],
+        levels: list[str],
+        since: datetime,
+        until: datetime,
+        limit: int = 10,
+    ) -> list[dict]:
+        if not unit_uuids:
+            return []
+        rows = self.client.execute(
+            """
+                SELECT unit_uuid, count() AS count
+                FROM unit_logs
+                WHERE unit_uuid IN %(unit_uuids)s
+                  AND level IN %(levels)s
+                  AND create_datetime >= %(since)s
+                  AND create_datetime < %(until)s
+                GROUP BY unit_uuid
+                ORDER BY count DESC
+                LIMIT %(limit)s
+            """,
+            {
+                "unit_uuids": tuple(unit_uuids),
+                "levels": tuple(levels),
+                "since": _naive_utc(since),
+                "until": _naive_utc(until),
+                "limit": limit,
+            },
+        )
+        return [{"unit_uuid": row[0], "count": int(row[1])} for row in rows]
+
 
 def _naive_utc(value: datetime) -> datetime:
     if value.tzinfo is None:

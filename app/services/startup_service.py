@@ -28,7 +28,6 @@ from app.services.notification_delivery import (
     DATA_PIPE_ALERT_STREAM,
     Delivery,
     deliver,
-    listen_notification_sockets,
     telegram_alert_queue,
 )
 from app.utils.utils import logo_to_console
@@ -101,13 +100,6 @@ class StartupService:
             asyncio.create_task(
                 self._run_instance_cache_loop(),
                 name="run_instance_cache",
-            )
-        )
-        # Sockets are attached to this worker, every worker has to listen
-        self._instance_tasks.append(
-            asyncio.create_task(
-                self._run_notification_sockets(),
-                name="notification_sockets",
             )
         )
 
@@ -344,9 +336,9 @@ class StartupService:
         await telegram_alert_queue.ready.wait()
 
     async def _run_scheduled_notifications(self) -> None:
-        # The lock is taken per run so another worker continues after a restart
+        # Once a minute, the resolution of scheduled_notification_time
         while True:
-            await asyncio.sleep(20)
+            await asyncio.sleep(self._seconds_until_next_minute())
             lock = acquire_file_lock(FileLock.NOTIFICATION_SCHEDULE)
             if lock is None:
                 continue
@@ -433,18 +425,16 @@ class StartupService:
                         DATA_PIPE_ALERT_GROUP,
                         message_id,
                     )
+        # Rows are committed before this push
         await deliver(deliveries)
         return handled
 
-    async def _run_notification_sockets(self) -> None:
-        while True:
-            try:
-                await listen_notification_sockets()
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logging.exception("Notification socket listener failed")
-                await asyncio.sleep(5)
+    def _seconds_until_next_minute(self) -> float:
+        now = datetime.now(UTC)
+        next_run = (now + timedelta(minutes=1)).replace(
+            second=0, microsecond=0
+        )
+        return (next_run - now).total_seconds()
 
     def _seconds_until(self, *, minute: int) -> float:
         now = datetime.now(UTC)

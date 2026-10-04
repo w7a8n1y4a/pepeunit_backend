@@ -23,6 +23,7 @@ from app.dto.enum import (
     PermissionEntities,
     UserRole,
 )
+from app.repositories.loki_repository import query_backend_error_groups
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
@@ -46,7 +47,8 @@ from app.services.notification_delivery import Delivery
 from app.services.validators import is_valid_object, is_valid_uuid
 
 SCHEDULED_LOG_WINDOW = timedelta(days=1)
-LOG_AGGREGATE_LIMIT = 50
+INSTANCE_ERROR_GROUPS = 3
+UNIT_SUMMARY_LIMIT = 10
 _ALERT_LEVELS = [LogLevel.ERROR.value, LogLevel.CRITICAL.value]
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _SETTINGS_FIELDS = (
@@ -210,28 +212,8 @@ class NotificationService:
             settings_row.uuid, settings_row
         )
 
-    def get_unit_log_aggregation(self, uuid: uuid_pkg.UUID) -> list[dict]:
-        notification = self.get(uuid)
-        if notification.type != NotificationType.UNIT_DAILY_SUMMARY.value:
-            msg = "Unit log aggregation is available for a unit summary"
-            raise NotificationError(msg)
-
-        data = notification.data or {}
-        unit_uuid = data.get("unit_uuid")
-        period_start = data.get("period_start")
-        period_end = data.get("period_end")
-        if not unit_uuid or not period_start or not period_end:
-            msg = "Unit summary has no log period"
-            raise NotificationError(msg)
-
-        return self._aggregate_logs(
-            since=_parse_datetime(period_start),
-            until=_parse_datetime(period_end),
-            unit_uuid=is_valid_uuid(unit_uuid),
-        )
-
-    def socket_user_uuid(self) -> uuid_pkg.UUID:
-        """The user that a notification socket belongs to"""
+    def current_user_uuid(self) -> uuid_pkg.UUID:
+        """The user that a notification stream belongs to"""
         self._check_user()
         return self.access_service.current_agent.uuid
 
@@ -295,7 +277,11 @@ class NotificationService:
         }
         return [
             self._create(
-                user, settings_row, NotificationType.DATA_PIPE_ALERT, payload
+                user,
+                settings_row,
+                NotificationType.DATA_PIPE_ALERT,
+                payload,
+                push_sse=True,
             )
             for user, settings_row in recipients
         ]
@@ -332,7 +318,7 @@ class NotificationService:
 
         if user.role == UserRole.ADMIN.value:
             delivery = self._dispatch_instance_state(
-                user, settings_row, day_start, period_start, now
+                user, settings_row, day_start
             )
             if delivery:
                 deliveries.append(delivery)
@@ -340,12 +326,11 @@ class NotificationService:
         _, units = self.unit_repository.list(
             UnitFilter.unlimited(creator_uuid=user.uuid)
         )
-        for unit, _nodes in units:
-            delivery = self._dispatch_unit_summary(
-                user, settings_row, unit, day_start, period_start, now
-            )
-            if delivery:
-                deliveries.append(delivery)
+        delivery = self._dispatch_unit_summary(
+            user, settings_row, units, day_start, period_start, now
+        )
+        if delivery:
+            deliveries.append(delivery)
         return deliveries
 
     def _dispatch_instance_state(
@@ -353,8 +338,6 @@ class NotificationService:
         user: User,
         settings_row: NotificationSettings,
         day_start: datetime,
-        period_start: datetime,
-        period_end: datetime,
     ) -> Delivery | None:
         if self.notification_repository.exists_since(
             user.uuid,
@@ -370,38 +353,58 @@ class NotificationService:
             NotificationType.INSTANCE_DAILY_STATE,
             {
                 "entities": metrics.model_dump(),
-                "errors": self._aggregate_logs(period_start, period_end),
+                "errors": query_backend_error_groups(INSTANCE_ERROR_GROUPS),
             },
+            push_sse=False,
         )
 
     def _dispatch_unit_summary(
         self,
         user: User,
         settings_row: NotificationSettings,
-        unit: Unit,
+        units: list,
         day_start: datetime,
         period_start: datetime,
         period_end: datetime,
     ) -> Delivery | None:
-        unit_uuid = str(unit.uuid)
         if self.notification_repository.exists_since(
             user.uuid,
             NotificationType.UNIT_DAILY_SUMMARY.value,
             day_start,
-            unit_uuid=unit_uuid,
         ):
+            return None
+
+        names = {unit.uuid: unit.name for unit, _nodes in units}
+        if not names or not self.unit_log_repository:
+            return None
+
+        counted = self.unit_log_repository.count_errors_by_unit(
+            unit_uuids=list(names),
+            levels=_ALERT_LEVELS,
+            since=period_start,
+            until=period_end,
+            limit=UNIT_SUMMARY_LIMIT,
+        )
+        rows = []
+        for item in counted:
+            if not item["count"]:
+                continue
+            unit_uuid = item["unit_uuid"]
+            if not isinstance(unit_uuid, uuid_pkg.UUID):
+                unit_uuid = uuid_pkg.UUID(str(unit_uuid))
+            name = names.get(unit_uuid)
+            if name is None:
+                continue
+            rows.append({"unit_name": name, "error_count": item["count"]})
+        if not rows:
             return None
 
         return self._create(
             user,
             settings_row,
             NotificationType.UNIT_DAILY_SUMMARY,
-            {
-                "unit_uuid": unit_uuid,
-                "unit_name": unit.name,
-                "period_start": period_start.isoformat(),
-                "period_end": period_end.isoformat(),
-            },
+            {"units": rows},
+            push_sse=False,
         )
 
     def _find_unit_node(self, unit_node_uuid: str) -> UnitNode | None:
@@ -413,28 +416,13 @@ class NotificationService:
             logging.exception("Failed to load unit node %s", unit_node_uuid)
             return None
 
-    def _aggregate_logs(
-        self,
-        since: datetime,
-        until: datetime,
-        unit_uuid: uuid_pkg.UUID | None = None,
-    ) -> list[dict]:
-        if not self.unit_log_repository:
-            return []
-        return self.unit_log_repository.aggregate(
-            levels=_ALERT_LEVELS,
-            since=since,
-            until=until,
-            unit_uuid=unit_uuid,
-            limit=LOG_AGGREGATE_LIMIT,
-        )
-
     def _create(
         self,
         user: User,
         settings_row: NotificationSettings,
         notification_type: NotificationType,
         data: dict,
+        push_sse: bool,
     ) -> Delivery:
         notification = self.notification_repository.create(
             Notification(
@@ -450,6 +438,7 @@ class NotificationService:
             telegram_chat_id=user.telegram_chat_id,
             is_telegram_alert_enable=settings_row.is_telegram_alert_enable,
             notification=notification,
+            push_sse=push_sse,
         )
 
     def _check_user(self) -> None:
@@ -469,10 +458,3 @@ class NotificationService:
             msg = "scheduled_notification_time must be HH:MM in UTC"
             raise NotificationError(msg)
         return value
-
-
-def _parse_datetime(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value)
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed

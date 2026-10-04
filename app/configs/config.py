@@ -316,6 +316,7 @@ class DatabaseSettings(SettingsValidationMixin, BaseModel):
     pu_sqlalchemy_database_url: str = Field(max_length=1024)
     pu_clickhouse_database_url: str = Field(max_length=1024)
     pu_redis_url: str = Field(default="redis://redis:6379/0", max_length=1024)
+    pu_loki_url: str = Field(default="http://loki:3100", max_length=512)
     pu_clickhouse_connection: ClickHouseConnectionParams | None = None
 
     @field_validator("pu_sqlalchemy_database_url")
@@ -338,6 +339,11 @@ class DatabaseSettings(SettingsValidationMixin, BaseModel):
     @classmethod
     def validate_redis_url(cls, value: str) -> str:
         return cls.require_url(value, ("redis", "rediss"), "PU_REDIS_URL")
+
+    @field_validator("pu_loki_url")
+    @classmethod
+    def validate_loki_url(cls, value: str) -> str:
+        return cls.require_http_url(value, "PU_LOKI_URL")
 
     @model_validator(mode="after")
     def compute_clickhouse_connection(self):

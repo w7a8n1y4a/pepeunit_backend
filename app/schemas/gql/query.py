@@ -14,7 +14,6 @@ from app.schemas.gql.queries.instance import (
 from app.schemas.gql.queries.notification import (
     get_notification,
     get_notification_settings,
-    get_notification_unit_logs,
     get_notifications,
 )
 from app.schemas.gql.queries.operation_task import (
@@ -99,6 +98,5 @@ Query = create_type(
         get_notification,
         get_notifications,
         get_notification_settings,
-        get_notification_unit_logs,
     ],
 )

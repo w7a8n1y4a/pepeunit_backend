@@ -35,17 +35,3 @@ class NotificationSettingsType(TypeInputMixin):
     scheduled_notification_time: str
     is_data_pipe_alert_enable: bool
     is_telegram_alert_enable: bool
-
-
-@strawberry.type()
-class UnitLogAggregateType(TypeInputMixin):
-    level: str
-    text: str
-    count: int
-    unit_uuid: uuid_pkg.UUID | None = None
-
-
-@strawberry.type()
-class UnitLogAggregatesResultType(TypeInputMixin):
-    count: int
-    logs: list[UnitLogAggregateType] = strawberry.field(default_factory=list)
