@@ -392,13 +392,6 @@ class AlertCondition(str, enum.Enum):
 
 
 @strawberry.enum
-class AlertSeverity(str, enum.Enum):
-    INFO = "Info"
-    WARNING = "Warning"
-    CRITICAL = "Critical"
-
-
-@strawberry.enum
 class AlertEvent(str, enum.Enum):
     """
     Fired - the condition is violated, Recovered - the value is back to normal

@@ -12,7 +12,6 @@ from app.domain.notification_model import Notification
 from app.dto.enum import (
     AlertCondition,
     AlertEvent,
-    AlertSeverity,
     NotificationType,
 )
 
@@ -147,7 +146,6 @@ def _condition_phrase(data: dict) -> str:
 def data_pipe_alert_text(data: dict) -> str:
     value = data.get("value")
     topic = data.get("topic_name") or data.get("unit_node_uuid")
-    severity = data.get("severity") or AlertSeverity.WARNING.value
 
     if data.get("event") == AlertEvent.RECOVERED.value:
         return (
@@ -155,7 +153,7 @@ def data_pipe_alert_text(data: dict) -> str:
             f"Value {value} is back to normal"
         )
     return (
-        f"Data pipe alert [{severity}]\nTopic: {topic}\n"
+        f"Data pipe alert\nTopic: {topic}\n"
         f"Value {value} {_condition_phrase(data)}"
     )
 

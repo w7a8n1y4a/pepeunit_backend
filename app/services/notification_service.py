@@ -17,7 +17,6 @@ from app.dto.enum import (
     AgentType,
     AlertCondition,
     AlertEvent,
-    AlertSeverity,
     LogLevel,
     NotificationType,
     UserRole,
@@ -78,15 +77,12 @@ def _match_values(raw: object) -> list[str] | None:
 def _data_pipe_rule(event: dict) -> dict | None:
     """Rule fields of a data pipe alert, None when the event is malformed.
 
-    Events without condition, severity and event come from the first alert
+    Events without condition and event come from the first alert
     format: only the upper threshold, they stay valid.
     """
     try:
         condition = AlertCondition(
             event.get("condition") or AlertCondition.ABOVE.value
-        )
-        severity = AlertSeverity(
-            event.get("severity") or AlertSeverity.WARNING.value
         )
         alert_event = AlertEvent(event.get("event") or AlertEvent.FIRED.value)
         threshold_value = _optional_float(event.get("threshold_value"))
@@ -108,7 +104,6 @@ def _data_pipe_rule(event: dict) -> dict | None:
     return {
         "event": alert_event.value,
         "condition": condition.value,
-        "severity": severity.value,
         "threshold_value": threshold_value,
         "threshold_min": threshold_min,
         "threshold_max": threshold_max,

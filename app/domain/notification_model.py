@@ -30,8 +30,10 @@ class Notification(SQLModel, table=True):
         sa_column=Column(JSONB, nullable=False),
     )
 
+    # Whether the target user has already read the notification
     is_read: bool = Field(nullable=False, default=False)
 
+    # When the notification was marked as read (null while unread)
     read_datetime: datetime = Field(nullable=True)
 
     # to User link

@@ -19,5 +19,4 @@ alerts:
   consecutive_count: 3
   max_frequency: 60
   notify_on_recovery: true
-  severity: "Critical"
   is_enabled: true

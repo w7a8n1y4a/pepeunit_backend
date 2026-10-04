@@ -9,7 +9,6 @@ from app.dto.enum import (
     ActivePeriodType,
     AggregationFunctions,
     AlertCondition,
-    AlertSeverity,
     DataPipeStage,
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -198,7 +197,6 @@ class AlertsConfig(BaseModel):
     max_frequency: int = Field(ge=0, le=86400)
 
     notify_on_recovery: bool = False
-    severity: AlertSeverity = AlertSeverity.WARNING
 
     def _validate_number_condition(self):
         if self.condition in (AlertCondition.ABOVE, AlertCondition.BELOW):

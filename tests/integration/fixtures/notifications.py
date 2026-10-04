@@ -32,7 +32,6 @@ def crud_notification(extra_user, extra_user_token, database, cc) -> Notificatio
             "value": "12.5",
             "event": "Fired",
             "condition": "Above",
-            "severity": "Warning",
             "threshold_value": "10",
         }
     )

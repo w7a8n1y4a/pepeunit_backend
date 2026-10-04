@@ -85,7 +85,6 @@ def test_create_data_pipe_alert(crud_notification, extra_user) -> None:
     assert crud_notification.data["unit_name"] is None
     assert crud_notification.data["event"] == "Fired"
     assert crud_notification.data["condition"] == "Above"
-    assert crud_notification.data["severity"] == "Warning"
     assert crud_notification.data["threshold_min"] is None
     assert crud_notification.data["threshold_max"] is None
     assert crud_notification.data["match_values"] is None
@@ -122,7 +121,6 @@ def test_create_data_pipe_alert_old_format(
         data = notifications[0].data
         assert data["event"] == "Fired"
         assert data["condition"] == "Above"
-        assert data["severity"] == "Warning"
         assert data["threshold_value"] == 10
     finally:
         for item in notifications:
@@ -138,7 +136,6 @@ def test_create_data_pipe_alert_range_condition(
             condition="OutOfRange",
             threshold_min="1.5",
             threshold_max="10",
-            severity="Critical",
         )
     )
 
@@ -147,7 +144,6 @@ def test_create_data_pipe_alert_range_condition(
         assert len(notifications) == 1
         data = notifications[0].data
         assert data["condition"] == "OutOfRange"
-        assert data["severity"] == "Critical"
         assert data["threshold_min"] == 1.5
         assert data["threshold_max"] == 10
         assert data["threshold_value"] is None
@@ -217,7 +213,6 @@ def test_data_pipe_alert_invalid_rule(
         {"condition": "Contains", "match_values": "not json"},
         {"condition": "Contains", "match_values": '"overheat"'},
         {"condition": "Sideways", "threshold_value": "10"},
-        {"threshold_value": "10", "severity": "Fatal"},
         {"threshold_value": "10", "event": "Exploded"},
     ]
     for fields in invalid_rules:

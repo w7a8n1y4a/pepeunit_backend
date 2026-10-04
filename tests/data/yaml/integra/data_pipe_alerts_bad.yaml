@@ -16,4 +16,3 @@ alerts:
   threshold_value: 5
   consecutive_count: 0
   max_frequency: 60
-  severity: "Fatal"
