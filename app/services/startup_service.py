@@ -23,8 +23,11 @@ from app.schemas.mqtt.manager import mqtt_manager
 from app.services.background import BackgroundService
 from app.services.instance_service import InstanceService
 from app.services.notification_delivery import (
+    DATA_PIPE_ALERT_BATCH,
     DATA_PIPE_ALERT_GROUP,
     DATA_PIPE_ALERT_STREAM,
+    Delivery,
+    deliver,
     listen_notification_sockets,
     telegram_alert_queue,
 )
@@ -100,6 +103,13 @@ class StartupService:
                 name="run_instance_cache",
             )
         )
+        # Sockets are attached to this worker, every worker has to listen
+        self._instance_tasks.append(
+            asyncio.create_task(
+                self._run_notification_sockets(),
+                name="notification_sockets",
+            )
+        )
 
     def _start_singleton(self) -> None:
         if settings.pu_ff_federation_enable:
@@ -139,12 +149,6 @@ class StartupService:
             asyncio.create_task(
                 self._run_data_pipe_alerts(),
                 name="data_pipe_alerts",
-            )
-        )
-        self._singleton_tasks.append(
-            asyncio.create_task(
-                self._run_notification_sockets(),
-                name="notification_sockets",
             )
         )
 
@@ -340,34 +344,37 @@ class StartupService:
         await telegram_alert_queue.ready.wait()
 
     async def _run_scheduled_notifications(self) -> None:
-        lock = acquire_file_lock(FileLock.NOTIFICATION_SCHEDULE)
-        if lock is None:
-            return
-        try:
-            while True:
-                await asyncio.sleep(20)
-                try:
-                    with BackgroundService() as services:
-                        services.get_notification_service().dispatch_scheduled()
-                except Exception:
-                    logging.exception("Scheduled notifications failed")
-        finally:
-            lock.close()
+        # The lock is taken per run so another worker continues after a restart
+        while True:
+            await asyncio.sleep(20)
+            lock = acquire_file_lock(FileLock.NOTIFICATION_SCHEDULE)
+            if lock is None:
+                continue
+            try:
+                with BackgroundService() as services:
+                    deliveries = services.get_notification_service().dispatch_scheduled()
+                await deliver(deliveries)
+            except Exception:
+                logging.exception("Scheduled notifications failed")
+            finally:
+                lock.close()
 
     async def _run_data_pipe_alerts(self) -> None:
-        lock = acquire_file_lock(FileLock.DATA_PIPE_ALERTS)
-        if lock is None:
-            return
-
-        try:
-            while True:
-                try:
-                    await self._read_data_pipe_alerts()
-                except Exception:
-                    logging.exception("Data pipe alert consumer failed")
-                    await asyncio.sleep(5)
-        finally:
-            lock.close()
+        # One worker reads the stream, the others retry the lock in case it dies
+        while True:
+            lock = acquire_file_lock(FileLock.DATA_PIPE_ALERTS)
+            if lock is None:
+                await asyncio.sleep(5)
+                continue
+            try:
+                await self._read_data_pipe_alerts()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logging.exception("Data pipe alert consumer failed")
+                await asyncio.sleep(5)
+            finally:
+                lock.close()
 
     async def _read_data_pipe_alerts(self) -> None:
         session = get_redis_session()
@@ -384,38 +391,50 @@ class StartupService:
                 if "BUSYGROUP" not in str(exc):
                     raise
 
+            # Messages delivered but not acked by a previous consumer run
+            while await self._consume_data_pipe_alerts(redis, "0", None):
+                pass
             while True:
-                await self._consume_data_pipe_alerts(redis, "0", None)
                 await self._consume_data_pipe_alerts(redis, ">", 5000)
         finally:
             await session.aclose()
 
     async def _consume_data_pipe_alerts(
         self, redis, stream_id: str, block: int | None
-    ) -> None:
+    ) -> int:
+        """Handles one xreadgroup batch, returns the number of messages"""
         response = await redis.xreadgroup(
             groupname=DATA_PIPE_ALERT_GROUP,
             consumername="backend",
             streams={DATA_PIPE_ALERT_STREAM: stream_id},
-            count=20,
+            count=DATA_PIPE_ALERT_BATCH,
             block=block,
         )
         if not response:
-            return
+            return 0
 
-        for _stream, messages in response:
-            for message_id, fields in messages:
-                try:
-                    with BackgroundService() as services:
-                        service = services.get_notification_service()
-                        service.create_data_pipe_alerts(fields)
-                except Exception:
-                    logging.exception("Failed to handle data pipe alert")
-                await redis.xack(
-                    DATA_PIPE_ALERT_STREAM,
-                    DATA_PIPE_ALERT_GROUP,
-                    message_id,
-                )
+        handled = 0
+        deliveries: list[Delivery] = []
+        with BackgroundService() as services:
+            service = services.get_notification_service()
+            for _stream, messages in response:
+                for message_id, fields in messages:
+                    handled += 1
+                    try:
+                        deliveries.extend(
+                            service.create_data_pipe_alerts(fields)
+                        )
+                    except Exception:
+                        logging.exception("Failed to handle data pipe alert")
+                        # The session serves the rest of the batch
+                        services.db.rollback()
+                    await redis.xack(
+                        DATA_PIPE_ALERT_STREAM,
+                        DATA_PIPE_ALERT_GROUP,
+                        message_id,
+                    )
+        await deliver(deliveries)
+        return handled
 
     async def _run_notification_sockets(self) -> None:
         while True:

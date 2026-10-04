@@ -8,7 +8,6 @@ from app.configs.errors import DataPipeError
 from app.dto.enum import (
     ActivePeriodType,
     AggregationFunctions,
-    AlertCondition,
     DataPipeStage,
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -42,6 +41,60 @@ class ActivePeriod(BaseModel):
         return self
 
 
+def validate_filtering_values(
+    type_input_value: TypeInputValue,
+    type_value_filtering: FilterTypeValueFiltering | None,
+    filtering_values: list[str | int | float] | None,
+):
+    """Validate filtering values based on input type."""
+    if not (type_value_filtering and filtering_values):
+        return
+
+    if type_input_value == TypeInputValue.NUMBER and not all(
+        isinstance(x, Real) for x in filtering_values
+    ):
+        msg = "filtering_values must be numeric for NUMBER input"
+        raise ValueError(msg)
+    if type_input_value == TypeInputValue.TEXT and not all(
+        isinstance(x, str) for x in filtering_values
+    ):
+        msg = "filtering_values must be strings for TEXT input"
+        raise ValueError(msg)
+
+
+def validate_thresholds(
+    type_input_value: TypeInputValue,
+    type_value_threshold: FilterTypeValueThreshold | None,
+    threshold_min: float | None,
+    threshold_max: float | None,
+):
+    """Validate threshold configuration for numeric input."""
+    if type_input_value != TypeInputValue.NUMBER:
+        return
+
+    if (
+        type_value_threshold == FilterTypeValueThreshold.MIN
+        and threshold_min is None
+    ):
+        msg = "threshold_min is required for MIN threshold"
+        raise ValueError(msg)
+
+    if (
+        type_value_threshold == FilterTypeValueThreshold.MAX
+        and threshold_max is None
+    ):
+        msg = "threshold_max is required for MAX threshold"
+        raise ValueError(msg)
+
+    if type_value_threshold == FilterTypeValueThreshold.RANGE:
+        if threshold_min is None or threshold_max is None:
+            msg = "Both threshold_min and threshold_max are required for RANGE threshold"
+            raise ValueError(msg)
+        if threshold_min >= threshold_max:
+            msg = "threshold_min must be less than threshold_max"
+            raise ValueError(msg)
+
+
 class FiltersConfig(BaseModel):
     type_input_value: TypeInputValue
 
@@ -56,49 +109,6 @@ class FiltersConfig(BaseModel):
     last_unique_check: bool = False
     max_size: int = Field(ge=0)
 
-    def _validate_filtering_values(self):
-        """Validate filtering values based on input type."""
-        if not (self.type_value_filtering and self.filtering_values):
-            return
-
-        if self.type_input_value == TypeInputValue.NUMBER and not all(
-            isinstance(x, Real) for x in self.filtering_values
-        ):
-            msg = "filtering_values must be numeric for NUMBER input"
-            raise ValueError(msg)
-        if self.type_input_value == TypeInputValue.TEXT and not all(
-            isinstance(x, str) for x in self.filtering_values
-        ):
-            msg = "filtering_values must be strings for TEXT input"
-            raise ValueError(msg)
-
-    def _validate_thresholds(self):
-        """Validate threshold configuration for numeric input."""
-        if self.type_input_value != TypeInputValue.NUMBER:
-            return
-
-        if (
-            self.type_value_threshold == FilterTypeValueThreshold.MIN
-            and self.threshold_min is None
-        ):
-            msg = "threshold_min is required for MIN threshold"
-            raise ValueError(msg)
-
-        if (
-            self.type_value_threshold == FilterTypeValueThreshold.MAX
-            and self.threshold_max is None
-        ):
-            msg = "threshold_max is required for MAX threshold"
-            raise ValueError(msg)
-
-        if self.type_value_threshold == FilterTypeValueThreshold.RANGE:
-            if self.threshold_min is None or self.threshold_max is None:
-                msg = "Both threshold_min and threshold_max are required for RANGE threshold"
-                raise ValueError(msg)
-            if self.threshold_min >= self.threshold_max:
-                msg = "threshold_min must be less than threshold_max"
-                raise ValueError(msg)
-
     def _validate_max_size(self):
         """Validate max_size against MQTT payload limit."""
         max_allowed_size = settings.pu_mqtt_max_payload_size * 1024
@@ -108,8 +118,17 @@ class FiltersConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_filters(self):
-        self._validate_filtering_values()
-        self._validate_thresholds()
+        validate_filtering_values(
+            self.type_input_value,
+            self.type_value_filtering,
+            self.filtering_values,
+        )
+        validate_thresholds(
+            self.type_input_value,
+            self.type_value_threshold,
+            self.threshold_min,
+            self.threshold_max,
+        )
         self._validate_max_size()
         return self
 
@@ -158,73 +177,40 @@ class ProcessingPolicyConfig(BaseModel):
         return self
 
 
-NUMBER_ALERT_CONDITIONS = frozenset(
-    {
-        AlertCondition.ABOVE,
-        AlertCondition.BELOW,
-        AlertCondition.OUT_OF_RANGE,
-        AlertCondition.IN_RANGE,
-    }
-)
-TEXT_ALERT_CONDITIONS = frozenset(
-    {
-        AlertCondition.EQUALS,
-        AlertCondition.NOT_EQUALS,
-        AlertCondition.CONTAINS,
-    }
-)
-
-
 class AlertsConfig(BaseModel):
+    """Alert rules use the same shape as filters: a value an equivalent filter
+    would reject raises an alert. Values are typed by filters.type_input_value,
+    so the type dependent checks live in DataPipeConfig.
+    """
+
     is_enabled: bool = True
 
-    # Above uses threshold_max, Below uses threshold_min, OutOfRange and
-    # InRange use both, text conditions use match_values
-    condition: AlertCondition = AlertCondition.ABOVE
-    threshold_min: float | None = Field(default=None, allow_inf_nan=False)
-    threshold_max: float | None = Field(default=None, allow_inf_nan=False)
-    match_values: list[str] | None = None
+    # WhiteList alerts on a value outside the list, BlackList on a value inside it
+    type_value_filtering: FilterTypeValueFiltering | None = None
+    filtering_values: list[str | int | float] | None = None
+
+    # Min alerts below threshold_min, Max above threshold_max, Range outside both
+    type_value_threshold: FilterTypeValueThreshold | None = None
+    threshold_min: int | None = None
+    threshold_max: int | None = None
 
     # Violations in a row required before the first alert
     consecutive_count: int = Field(default=1, ge=1, le=1024)
 
-    # Minimum seconds between two alerts of the same node
-    max_frequency: int = Field(ge=0, le=86400)
-
-    def _validate_number_condition(self):
-        if self.condition == AlertCondition.ABOVE:
-            if self.threshold_max is None:
-                msg = "threshold_max is required for Above condition"
-                raise ValueError(msg)
-            return
-
-        if self.condition == AlertCondition.BELOW:
-            if self.threshold_min is None:
-                msg = "threshold_min is required for Below condition"
-                raise ValueError(msg)
-            return
-
-        if self.threshold_min is None or self.threshold_max is None:
-            msg = f"threshold_min and threshold_max are required for {self.condition.value} condition"
-            raise ValueError(msg)
-        if self.threshold_min >= self.threshold_max:
-            msg = "threshold_min must be less than threshold_max"
-            raise ValueError(msg)
-
-    def _validate_text_condition(self):
-        if not self.match_values:
-            msg = f"match_values is required for {self.condition.value} condition"
-            raise ValueError(msg)
-        if any(not item for item in self.match_values):
-            msg = "match_values must not contain empty strings"
-            raise ValueError(msg)
+    # Minimum seconds between two alerts of the same node, 0 means no limit
+    max_frequency: int = Field(default=0, ge=0, le=86400)
 
     @model_validator(mode="after")
     def validate_alerts(self):
-        if self.condition in NUMBER_ALERT_CONDITIONS:
-            self._validate_number_condition()
-        else:
-            self._validate_text_condition()
+        if (
+            self.type_value_filtering is None
+            and self.type_value_threshold is None
+        ):
+            msg = "type_value_filtering or type_value_threshold is required"
+            raise ValueError(msg)
+        if self.type_value_filtering and not self.filtering_values:
+            msg = f"filtering_values is required for {self.type_value_filtering.value} filtering"
+            raise ValueError(msg)
         return self
 
 
@@ -241,19 +227,24 @@ class DataPipeConfig(BaseModel):
         if self.alerts is None:
             return self
 
-        is_number_condition = self.alerts.condition in NUMBER_ALERT_CONDITIONS
+        type_input_value = self.filters.type_input_value
         if (
-            self.filters.type_input_value == TypeInputValue.NUMBER
-            and not is_number_condition
+            type_input_value == TypeInputValue.TEXT
+            and self.alerts.type_value_threshold is not None
         ):
-            msg = f"{self.alerts.condition.value} condition is not applicable to NUMBER input"
+            msg = "type_value_threshold is not applicable to TEXT input"
             raise ValueError(msg)
-        if (
-            self.filters.type_input_value == TypeInputValue.TEXT
-            and is_number_condition
-        ):
-            msg = f"{self.alerts.condition.value} condition is not applicable to TEXT input"
-            raise ValueError(msg)
+        validate_filtering_values(
+            type_input_value,
+            self.alerts.type_value_filtering,
+            self.alerts.filtering_values,
+        )
+        validate_thresholds(
+            type_input_value,
+            self.alerts.type_value_threshold,
+            self.alerts.threshold_min,
+            self.alerts.threshold_max,
+        )
         return self
 
 

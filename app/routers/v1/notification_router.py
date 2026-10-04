@@ -6,9 +6,6 @@ from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
 from app.configs.rest import get_notification_service
-from app.dto.enum import AgentType
-from app.repositories.unit_repository import UnitRepository
-from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationRead,
@@ -18,7 +15,6 @@ from app.schemas.pydantic.notification import (
     UnitLogAggregateRead,
     UnitLogAggregatesResult,
 )
-from app.services.auth.auth_service import JwtAuthService
 from app.services.notification_delivery import notification_socket_hub
 from app.services.notification_service import NotificationService
 
@@ -128,17 +124,12 @@ def mark_read(
 
 
 def _user_uuid_from_token(token: str | None) -> str | None:
+    """Browsers cannot set headers on a socket, so the token is a query param"""
     if not token:
         return None
     try:
         with get_hand_session() as db:
-            agent = JwtAuthService(
-                UserRepository(db),
-                UnitRepository(db),
-                token,
-            ).get_current_agent()
+            service = get_notification_service(db, None, token)
+            return str(service.socket_user_uuid())
     except NoAccessError:
         return None
-    if agent.type != AgentType.USER:
-        return None
-    return str(agent.uuid)

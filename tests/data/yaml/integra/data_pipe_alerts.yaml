@@ -12,7 +12,7 @@ processing_policy:
   policy_type: "LastValue"
 
 alerts:
-  condition: "OutOfRange"
+  type_value_threshold: "Range"
   threshold_min: 10
   threshold_max: 30
   consecutive_count: 3

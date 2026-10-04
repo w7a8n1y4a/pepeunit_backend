@@ -11,8 +11,9 @@ filters:
 processing_policy:
   policy_type: "LastValue"
 
+# consecutive_count below 1 and max_frequency above one day
 alerts:
-  condition: "Above"
+  type_value_threshold: "Max"
   threshold_max: 5
   consecutive_count: 0
-  max_frequency: 60
+  max_frequency: 100000

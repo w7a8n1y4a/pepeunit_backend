@@ -12,6 +12,6 @@ processing_policy:
   policy_type: "LastValue"
 
 alerts:
-  condition: "Contains"
-  match_values: ["overheat", "fire"]
+  type_value_filtering: "BlackList"
+  filtering_values: ["overheat", "fire"]
   max_frequency: 60

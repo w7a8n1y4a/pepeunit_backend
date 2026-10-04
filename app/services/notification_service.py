@@ -1,3 +1,4 @@
+import enum
 import json
 import logging
 import math
@@ -15,9 +16,11 @@ from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
-    AlertCondition,
+    FilterTypeValueFiltering,
+    FilterTypeValueThreshold,
     LogLevel,
     NotificationType,
+    PermissionEntities,
     UserRole,
 )
 from app.repositories.notification_repository import NotificationRepository
@@ -35,10 +38,11 @@ from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationSettingsUpdate,
 )
+from app.schemas.pydantic.permission import PermissionFilter
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.metrics_service import MetricsService
-from app.services.notification_delivery import schedule_delivery
+from app.services.notification_delivery import Delivery
 from app.services.validators import is_valid_object, is_valid_uuid
 
 SCHEDULED_LOG_WINDOW = timedelta(days=1)
@@ -63,42 +67,67 @@ def _optional_float(raw: object) -> float | None:
     return number
 
 
-def _match_values(raw: object) -> list[str] | None:
+def _optional_enum(
+    enum_type: type[enum.Enum], raw: object
+) -> enum.Enum | None:
+    return None if raw is None else enum_type(raw)
+
+
+def _filtering_values(raw: object) -> list[str | int | float] | None:
     if raw is None:
         return None
     values = json.loads(raw)
-    if not isinstance(values, list):
-        msg = "match_values must be a list"
+    if not isinstance(values, list) or not all(
+        isinstance(item, str | int | float) for item in values
+    ):
+        msg = "filtering_values must be a list of strings or numbers"
         raise TypeError(msg)
-    return [str(item) for item in values]
+    return values
 
 
 def _data_pipe_rule(event: dict) -> dict | None:
-    """Rule fields of a data pipe alert, None when the event is malformed."""
+    """Violated rules of a data pipe alert, None when the event is malformed.
+
+    The rules mirror the filters stage: a filtering list and/or a threshold.
+    """
     try:
-        condition = AlertCondition(event.get("condition"))
+        type_value_filtering = _optional_enum(
+            FilterTypeValueFiltering, event.get("type_value_filtering")
+        )
+        filtering_values = _filtering_values(event.get("filtering_values"))
+        type_value_threshold = _optional_enum(
+            FilterTypeValueThreshold, event.get("type_value_threshold")
+        )
         threshold_min = _optional_float(event.get("threshold_min"))
         threshold_max = _optional_float(event.get("threshold_max"))
-        match_values = _match_values(event.get("match_values"))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
-    if condition == AlertCondition.ABOVE:
-        is_complete = threshold_max is not None
-    elif condition == AlertCondition.BELOW:
+    if type_value_filtering is None and type_value_threshold is None:
+        return None
+    if type_value_filtering is not None and not filtering_values:
+        return None
+    if type_value_threshold == FilterTypeValueThreshold.MIN:
         is_complete = threshold_min is not None
-    elif condition in (AlertCondition.OUT_OF_RANGE, AlertCondition.IN_RANGE):
+    elif type_value_threshold == FilterTypeValueThreshold.MAX:
+        is_complete = threshold_max is not None
+    elif type_value_threshold == FilterTypeValueThreshold.RANGE:
         is_complete = threshold_min is not None and threshold_max is not None
     else:
-        is_complete = bool(match_values)
+        is_complete = True
     if not is_complete:
         return None
 
     return {
-        "condition": condition.value,
-        "threshold_min": threshold_min,
-        "threshold_max": threshold_max,
-        "match_values": match_values,
+        "type_value_filtering": (
+            type_value_filtering.value if type_value_filtering else None
+        ),
+        "filtering_values": filtering_values if type_value_filtering else None,
+        "type_value_threshold": (
+            type_value_threshold.value if type_value_threshold else None
+        ),
+        "threshold_min": threshold_min if type_value_threshold else None,
+        "threshold_max": threshold_max if type_value_threshold else None,
     }
 
 
@@ -201,56 +230,123 @@ class NotificationService:
             unit_uuid=is_valid_uuid(unit_uuid),
         )
 
-    def dispatch_scheduled(self) -> None:
+    def socket_user_uuid(self) -> uuid_pkg.UUID:
+        """The user that a notification socket belongs to"""
+        self._check_user()
+        return self.access_service.current_agent.uuid
+
+    def dispatch_scheduled(self) -> list[Delivery]:
+        """Stores the daily notifications that are due now.
+
+        Backend only: the caller pushes the returned deliveries.
+        """
         now = datetime.now(UTC)
         recipients = self.notification_settings_repository.list_scheduled(
             now.strftime("%H:%M")
         )
+        deliveries: list[Delivery] = []
         for user, settings_row in recipients:
             try:
-                self._dispatch_scheduled_for_user(user, settings_row, now)
+                deliveries.extend(
+                    self._dispatch_scheduled_for_user(user, settings_row, now)
+                )
             except Exception:
                 logging.exception(
                     "Failed scheduled notifications for %s", user.uuid
                 )
+        return deliveries
 
-    def create_data_pipe_alerts(self, event: dict) -> None:
-        payload = self._data_pipe_payload(event)
-        if payload is None:
-            return
+    def create_data_pipe_alerts(self, event: dict) -> list[Delivery]:
+        """Stores a data pipe alert for every user that has access to the node.
 
-        recipients = (
-            self.notification_settings_repository.list_data_pipe_enabled()
-        )
-        for user, settings_row in recipients:
-            self._create_and_deliver(
-                user,
-                settings_row,
-                NotificationType.DATA_PIPE_ALERT,
-                payload,
+        Backend only: the event is a data_pipe_alerts stream message, the
+        caller pushes the returned deliveries.
+        """
+        unit_node_uuid = event.get("unit_node_uuid")
+        value = event.get("value")
+        if not unit_node_uuid or value is None:
+            logging.error("Data pipe alert payload is incomplete: %s", event)
+            return []
+
+        rule = _data_pipe_rule(event)
+        if rule is None:
+            logging.error("Data pipe alert rule is invalid: %s", event)
+            return []
+
+        node = self._find_unit_node(str(unit_node_uuid))
+        if node is None:
+            logging.warning(
+                "Data pipe alert for unknown unit node %s", unit_node_uuid
             )
+            return []
+
+        recipients = self._data_pipe_recipients(node)
+        if not recipients:
+            return []
+
+        unit = self.unit_repository.get(Unit(uuid=node.unit_uuid))
+        payload = {
+            "unit_node_uuid": str(node.uuid),
+            "unit_uuid": str(node.unit_uuid),
+            "unit_name": unit.name if unit else None,
+            "topic_name": node.topic_name,
+            "value": str(value),
+            **rule,
+        }
+        return [
+            self._create(
+                user, settings_row, NotificationType.DATA_PIPE_ALERT, payload
+            )
+            for user, settings_row in recipients
+        ]
+
+    def _data_pipe_recipients(
+        self, node: UnitNode
+    ) -> list[tuple[User, NotificationSettings]]:
+        """Users with a permission on the node that enabled data pipe alerts"""
+        _, permissions = (
+            self.access_service.permission_repository.get_resource_agents(
+                PermissionFilter.unlimited(
+                    resource_uuid=node.uuid,
+                    resource_type=PermissionEntities.UNIT_NODE,
+                    agent_type=PermissionEntities.USER,
+                )
+            )
+        )
+        user_uuids = [permission.agent_uuid for permission in permissions]
+        if not user_uuids:
+            return []
+        return self.notification_settings_repository.list_data_pipe_enabled(
+            user_uuids
+        )
 
     def _dispatch_scheduled_for_user(
         self,
         user: User,
         settings_row: NotificationSettings,
         now: datetime,
-    ) -> None:
+    ) -> list[Delivery]:
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         period_start = now - SCHEDULED_LOG_WINDOW
+        deliveries: list[Delivery] = []
 
         if user.role == UserRole.ADMIN.value:
-            self._dispatch_instance_state(
+            delivery = self._dispatch_instance_state(
                 user, settings_row, day_start, period_start, now
             )
+            if delivery:
+                deliveries.append(delivery)
 
         _, units = self.unit_repository.list(
             UnitFilter.unlimited(creator_uuid=user.uuid)
         )
         for unit, _nodes in units:
-            self._dispatch_unit_summary(
+            delivery = self._dispatch_unit_summary(
                 user, settings_row, unit, day_start, period_start, now
             )
+            if delivery:
+                deliveries.append(delivery)
+        return deliveries
 
     def _dispatch_instance_state(
         self,
@@ -259,16 +355,16 @@ class NotificationService:
         day_start: datetime,
         period_start: datetime,
         period_end: datetime,
-    ) -> None:
+    ) -> Delivery | None:
         if self.notification_repository.exists_since(
             user.uuid,
             NotificationType.INSTANCE_DAILY_STATE.value,
             day_start,
         ):
-            return
+            return None
 
         metrics = self.metrics_service.get_instance_metrics(is_api=False)
-        self._create_and_deliver(
+        return self._create(
             user,
             settings_row,
             NotificationType.INSTANCE_DAILY_STATE,
@@ -286,7 +382,7 @@ class NotificationService:
         day_start: datetime,
         period_start: datetime,
         period_end: datetime,
-    ) -> None:
+    ) -> Delivery | None:
         unit_uuid = str(unit.uuid)
         if self.notification_repository.exists_since(
             user.uuid,
@@ -294,9 +390,9 @@ class NotificationService:
             day_start,
             unit_uuid=unit_uuid,
         ):
-            return
+            return None
 
-        self._create_and_deliver(
+        return self._create(
             user,
             settings_row,
             NotificationType.UNIT_DAILY_SUMMARY,
@@ -308,50 +404,6 @@ class NotificationService:
             },
         )
 
-    def _data_pipe_payload(self, event: dict) -> dict | None:
-        unit_node_uuid = event.get("unit_node_uuid")
-        unit_uuid = event.get("unit_uuid")
-        value = event.get("value")
-        if not unit_node_uuid or value is None:
-            logging.error("Data pipe alert payload is incomplete: %s", event)
-            return None
-
-        rule = _data_pipe_rule(event)
-        if rule is None:
-            logging.error("Data pipe alert rule is invalid: %s", event)
-            return None
-
-        unit_name, topic_name, resolved_unit_uuid = self._pipe_names(
-            str(unit_node_uuid), str(unit_uuid) if unit_uuid else None
-        )
-        return {
-            "unit_node_uuid": str(unit_node_uuid),
-            "unit_uuid": resolved_unit_uuid,
-            "unit_name": unit_name,
-            "topic_name": topic_name,
-            "value": str(value),
-            **rule,
-        }
-
-    def _pipe_names(
-        self, unit_node_uuid: str, unit_uuid: str | None
-    ) -> tuple[str | None, str | None, str | None]:
-        node = self._find_unit_node(unit_node_uuid)
-        if node:
-            unit = self.unit_repository.get(Unit(uuid=node.unit_uuid))
-            return (
-                unit.name if unit else None,
-                node.topic_name,
-                str(node.unit_uuid),
-            )
-
-        if not unit_uuid:
-            return None, None, None
-        unit = self._find_unit(unit_uuid)
-        if not unit:
-            return None, None, unit_uuid
-        return unit.name, None, str(unit.uuid)
-
     def _find_unit_node(self, unit_node_uuid: str) -> UnitNode | None:
         try:
             return self.unit_node_repository.get(
@@ -359,15 +411,6 @@ class NotificationService:
             )
         except Exception:
             logging.exception("Failed to load unit node %s", unit_node_uuid)
-            return None
-
-    def _find_unit(self, unit_uuid: str) -> Unit | None:
-        try:
-            return self.unit_repository.get(
-                Unit(uuid=is_valid_uuid(unit_uuid))
-            )
-        except Exception:
-            logging.exception("Failed to load unit %s", unit_uuid)
             return None
 
     def _aggregate_logs(
@@ -386,13 +429,13 @@ class NotificationService:
             limit=LOG_AGGREGATE_LIMIT,
         )
 
-    def _create_and_deliver(
+    def _create(
         self,
         user: User,
         settings_row: NotificationSettings,
         notification_type: NotificationType,
         data: dict,
-    ) -> Notification:
+    ) -> Delivery:
         notification = self.notification_repository.create(
             Notification(
                 create_datetime=datetime.now(UTC),
@@ -402,13 +445,12 @@ class NotificationService:
                 target_user_uuid=user.uuid,
             )
         )
-        schedule_delivery(
-            user.uuid,
-            user.telegram_chat_id,
-            settings_row.is_telegram_alert_enable,
-            notification,
+        return Delivery(
+            user_uuid=user.uuid,
+            telegram_chat_id=user.telegram_chat_id,
+            is_telegram_alert_enable=settings_row.is_telegram_alert_enable,
+            notification=notification,
         )
-        return notification
 
     def _check_user(self) -> None:
         self.access_service.authorization.check_access([AgentType.USER])

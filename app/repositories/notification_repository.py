@@ -1,4 +1,3 @@
-import enum
 import uuid as uuid_pkg
 from datetime import datetime
 
@@ -9,10 +8,7 @@ from sqlmodel import Session, col
 from app.configs.db import get_session
 from app.domain.notification_model import Notification
 from app.repositories.base_repository import BaseRepository
-from app.repositories.utils import (
-    apply_offset_and_limit,
-    resolve_query_default,
-)
+from app.repositories.utils import apply_enums, apply_offset_and_limit
 from app.schemas.gql.inputs.notification import NotificationFilterInput
 from app.schemas.pydantic.notification import NotificationFilter
 
@@ -31,16 +27,7 @@ class NotificationRepository(BaseRepository[Notification]):
         if filters.is_read is not None:
             query = query.filter(Notification.is_read == filters.is_read)
 
-        notification_types = resolve_query_default(filters.type)
-        if notification_types:
-            query = query.filter(
-                Notification.type.in_(
-                    [
-                        item.value if isinstance(item, enum.Enum) else item
-                        for item in notification_types
-                    ]
-                )
-            )
+        query = apply_enums(query, filters, {"type": Notification.type})
 
         query = query.order_by(col(Notification.create_datetime).desc())
         count, query = apply_offset_and_limit(query, filters)

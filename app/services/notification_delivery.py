@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import datetime
 
 from aiogram import Bot
@@ -10,7 +11,8 @@ from app import settings
 from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
 from app.dto.enum import (
-    AlertCondition,
+    FilterTypeValueFiltering,
+    FilterTypeValueThreshold,
     NotificationType,
 )
 
@@ -18,9 +20,19 @@ TELEGRAM_ALERT_INTERVAL_SECONDS = 10
 TELEGRAM_ALERT_TEXT_LIMIT = 4000
 DATA_PIPE_ALERT_STREAM = "data_pipe_alerts"
 DATA_PIPE_ALERT_GROUP = "backend"
+# Stream messages handled with one database session and one delivery batch
+DATA_PIPE_ALERT_BATCH = 100
 NOTIFICATION_CHANNEL_PREFIX = "notification_user:"
 
-_background_tasks: set[asyncio.Task] = set()
+
+@dataclass(frozen=True)
+class Delivery:
+    """A stored notification waiting for the socket and telegram push"""
+
+    user_uuid: uuid_pkg.UUID
+    telegram_chat_id: str | None
+    is_telegram_alert_enable: bool
+    notification: Notification
 
 
 class TelegramAlertQueue:
@@ -122,74 +134,75 @@ def _number(value: object) -> str:
     return f"{value:g}" if isinstance(value, int | float) else str(value)
 
 
-def _condition_phrase(data: dict) -> str:
-    condition = data["condition"]
-    matches = ", ".join(data.get("match_values") or [])
-    low = _number(data.get("threshold_min"))
-    high = _number(data.get("threshold_max"))
-    return {
-        AlertCondition.ABOVE.value: f"is above {high}",
-        AlertCondition.BELOW.value: f"is below {low}",
-        AlertCondition.OUT_OF_RANGE.value: f"is outside [{low}, {high}]",
-        AlertCondition.IN_RANGE.value: f"is inside [{low}, {high}]",
-        AlertCondition.EQUALS.value: f"equals one of: {matches}",
-        AlertCondition.NOT_EQUALS.value: f"is none of: {matches}",
-        AlertCondition.CONTAINS.value: f"contains one of: {matches}",
-    }[condition]
+def _rule_phrases(data: dict) -> list[str]:
+    """One phrase per violated rule, rules mirror the filters stage"""
+    phrases = []
+
+    type_value_threshold = data.get("type_value_threshold")
+    if type_value_threshold:
+        low = _number(data.get("threshold_min"))
+        high = _number(data.get("threshold_max"))
+        phrases.append(
+            {
+                FilterTypeValueThreshold.MIN.value: f"is below {low}",
+                FilterTypeValueThreshold.MAX.value: f"is above {high}",
+                FilterTypeValueThreshold.RANGE.value: f"is outside [{low}, {high}]",
+            }[type_value_threshold]
+        )
+
+    type_value_filtering = data.get("type_value_filtering")
+    if type_value_filtering:
+        values = ", ".join(
+            _number(item) for item in data.get("filtering_values") or []
+        )
+        phrases.append(
+            {
+                FilterTypeValueFiltering.WHITE_LIST.value: f"is not one of: {values}",
+                FilterTypeValueFiltering.BLACK_LIST.value: f"is one of: {values}",
+            }[type_value_filtering]
+        )
+
+    return phrases
 
 
 def data_pipe_alert_text(data: dict) -> str:
     value = data.get("value")
     topic = data.get("topic_name") or data.get("unit_node_uuid")
 
-    return (
-        f"Data pipe alert\nTopic: {topic}\n"
-        f"Value {value} {_condition_phrase(data)}"
-    )
+    lines = ["Data pipe alert", f"Topic: {topic}"]
+    lines.extend(f"Value {value} {phrase}" for phrase in _rule_phrases(data))
+    return "\n".join(lines)
 
 
-def schedule_delivery(
-    user_uuid: uuid_pkg.UUID,
-    telegram_chat_id: str | None,
-    is_telegram_alert_enable: bool,
-    notification: Notification,
-) -> None:
-    payload = notification_payload(notification)
-    text = telegram_text(notification)
-    chat_id = telegram_chat_id
-    telegram_enabled = is_telegram_alert_enable
+async def deliver(deliveries: list[Delivery]) -> None:
+    """Pushes stored notifications to the user sockets and the telegram queue.
 
-    async def _deliver() -> None:
-        try:
-            await _publish_socket(str(user_uuid), payload)
-            if telegram_enabled:
-                telegram_alert_queue.enqueue(chat_id or "", text)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logging.exception(
-                "Failed to deliver notification %s", payload.get("uuid")
-            )
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        logging.error("Notification delivery has no running event loop")
+    One Redis connection serves the whole batch, a failed push is logged and
+    never undoes the stored notification.
+    """
+    if not deliveries:
         return
 
-    task = loop.create_task(_deliver())
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-
-
-async def _publish_socket(user_uuid: str, payload: dict) -> None:
     session = get_redis_session()
     redis = await anext(session)
     try:
-        await redis.publish(
-            f"{NOTIFICATION_CHANNEL_PREFIX}{user_uuid}",
-            json.dumps(payload),
-        )
+        for delivery in deliveries:
+            payload = notification_payload(delivery.notification)
+            try:
+                await redis.publish(
+                    f"{NOTIFICATION_CHANNEL_PREFIX}{delivery.user_uuid}",
+                    json.dumps(payload),
+                )
+            except Exception:
+                logging.exception(
+                    "Failed to push notification %s to sockets",
+                    payload["uuid"],
+                )
+            if delivery.is_telegram_alert_enable:
+                telegram_alert_queue.enqueue(
+                    delivery.telegram_chat_id or "",
+                    telegram_text(delivery.notification),
+                )
     finally:
         await session.aclose()
 

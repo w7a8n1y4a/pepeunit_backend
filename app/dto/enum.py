@@ -374,24 +374,6 @@ class AggregationFunctions(str, enum.Enum):
 
 
 @strawberry.enum
-class AlertCondition(str, enum.Enum):
-    """
-    When a data pipe value raises an alert
-
-    Number input: Above, Below, OutOfRange, InRange
-    Text input: Equals, NotEquals, Contains
-    """
-
-    ABOVE = "Above"
-    BELOW = "Below"
-    OUT_OF_RANGE = "OutOfRange"
-    IN_RANGE = "InRange"
-    EQUALS = "Equals"
-    NOT_EQUALS = "NotEquals"
-    CONTAINS = "Contains"
-
-
-@strawberry.enum
 class DatasourceFormat(str, enum.Enum):
     TIME_SERIES = "timeseries"
 

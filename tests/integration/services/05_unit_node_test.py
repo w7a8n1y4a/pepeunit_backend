@@ -117,7 +117,7 @@ async def test_check_data_pipe_alerts_config(regular_user_token, database, cc) -
     assert len(data) == 2
     assert all(error.stage == DataPipeStage.ALERTS for error in data)
 
-    # condition does not fit the input type of the filters
+    # filtering values do not fit filters.type_input_value
     data = await service.check_data_pipe_config(
         (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_mismatch.yaml"))
     )

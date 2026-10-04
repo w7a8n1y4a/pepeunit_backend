@@ -11,7 +11,8 @@ filters:
 processing_policy:
   policy_type: "LastValue"
 
+# Text filtering values for a Number input
 alerts:
-  condition: "Contains"
-  match_values: ["overheat"]
+  type_value_filtering: "BlackList"
+  filtering_values: ["overheat"]
   max_frequency: 60

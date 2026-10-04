@@ -5,8 +5,6 @@ Revises: 57b3b29d5dfe
 Create Date: 2026-09-30 21:54:26.052971
 
 """
-import uuid
-
 import sqlalchemy as sa
 import sqlmodel
 from alembic import op
@@ -51,31 +49,20 @@ def upgrade() -> None:
     # Existing users have no settings row. Scheduled and data pipe alerts
     # join this table, so a missing row means those users never receive them.
     # New users get the same defaults in UserService.create.
-    bind = op.get_bind()
-    users = bind.execute(sa.text("SELECT uuid FROM users")).fetchall()
-    for (user_uuid,) in users:
-        bind.execute(
-            sa.text(
-                """
-                INSERT INTO notification_settings (
-                    uuid,
-                    user_uuid,
-                    is_scheduled_alert_enable,
-                    scheduled_notification_time,
-                    is_data_pipe_alert_enable,
-                    is_telegram_alert_enable
-                ) VALUES (
-                    :uuid,
-                    :user_uuid,
-                    false,
-                    '16:00',
-                    false,
-                    false
-                )
-                """
-            ),
-            {"uuid": uuid.uuid4(), "user_uuid": user_uuid},
+    op.execute(
+        """
+        INSERT INTO notification_settings (
+            uuid,
+            user_uuid,
+            is_scheduled_alert_enable,
+            scheduled_notification_time,
+            is_data_pipe_alert_enable,
+            is_telegram_alert_enable
         )
+        SELECT gen_random_uuid(), uuid, false, '16:00', false, false
+        FROM users
+        """
+    )
 
 
 def downgrade() -> None:
