@@ -11,9 +11,6 @@ import pytest
 from app import settings
 from app.configs.errors import NoAccessError, NotificationError
 from app.domain.notification_model import Notification
-from app.domain.notification_settings_model import (
-    DEFAULT_SCHEDULED_NOTIFICATION_TIME,
-)
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import LogLevel, NotificationType, UnitNodeTypeEnum
 from app.repositories.notification_settings_repository import (
@@ -57,10 +54,7 @@ def test_get_notification_settings(
     assert settings_row.is_scheduled_alert_enable is True
     assert settings_row.is_data_pipe_alert_enable is True
     assert settings_row.is_telegram_alert_enable is True
-    assert (
-        settings_row.scheduled_notification_time
-        == DEFAULT_SCHEDULED_NOTIFICATION_TIME
-    )
+    assert settings_row.scheduled_notification_time == "16:00"
 
 
 def test_user_create_makes_notification_settings(extra_user, database) -> None:

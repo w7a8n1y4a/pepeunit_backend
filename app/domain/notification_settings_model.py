@@ -4,8 +4,6 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
-DEFAULT_SCHEDULED_NOTIFICATION_TIME = "16:00"
-
 
 class NotificationSettings(SQLModel, table=True):
     """Per-user notification preferences, one row per user"""
@@ -35,7 +33,7 @@ class NotificationSettings(SQLModel, table=True):
     # HH:MM relative to UTC
     scheduled_notification_time: str = Field(
         nullable=False,
-        default=DEFAULT_SCHEDULED_NOTIFICATION_TIME,
+        default="16:00",
         max_length=5,
     )
 
@@ -50,7 +48,7 @@ class NotificationSettings(SQLModel, table=True):
         return cls(
             user_uuid=user_uuid,
             is_scheduled_alert_enable=True,
-            scheduled_notification_time=DEFAULT_SCHEDULED_NOTIFICATION_TIME,
+            scheduled_notification_time="16:00",
             is_data_pipe_alert_enable=True,
             is_telegram_alert_enable=True,
         )

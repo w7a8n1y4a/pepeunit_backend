@@ -23,7 +23,7 @@ from app.dto.enum import (
     PermissionEntities,
     UserRole,
 )
-from app.repositories.loki_repository import query_backend_error_groups
+from app.repositories.loki_repository import LokiRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
@@ -143,6 +143,7 @@ class NotificationService:
         unit_repository: UnitRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
+        loki_repository: LokiRepository = Depends(),
         metrics_service: MetricsService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
@@ -153,6 +154,7 @@ class NotificationService:
         self.unit_repository = unit_repository
         self.unit_node_repository = unit_node_repository
         self.unit_log_repository = unit_log_repository
+        self.loki_repository = loki_repository
         self.metrics_service = metrics_service
         self.access_service = access_service
 
@@ -353,7 +355,9 @@ class NotificationService:
             NotificationType.INSTANCE_DAILY_STATE,
             {
                 "entities": metrics.model_dump(),
-                "errors": query_backend_error_groups(INSTANCE_ERROR_GROUPS),
+                "errors": self.loki_repository.query_backend_error_groups(
+                    INSTANCE_ERROR_GROUPS
+                ),
             },
             push_sse=False,
         )
