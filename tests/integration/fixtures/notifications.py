@@ -30,6 +30,9 @@ def crud_notification(extra_user, extra_user_token, database, cc) -> Notificatio
             "unit_node_uuid": str(uuid_pkg.uuid4()),
             "unit_uuid": str(uuid_pkg.uuid4()),
             "value": "12.5",
+            "event": "Fired",
+            "condition": "Above",
+            "severity": "Warning",
             "threshold_value": "10",
         }
     )

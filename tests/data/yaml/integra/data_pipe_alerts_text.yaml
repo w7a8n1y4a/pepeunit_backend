@@ -1,0 +1,19 @@
+active_period:
+  type: "Permanent"
+
+filters:
+  type_input_value: "Text"
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 50
+
+processing_policy:
+  policy_type: "LastValue"
+
+alerts:
+  condition: "Contains"
+  match_values: ["overheat", "fire"]
+  max_frequency: 60
+  notify_on_recovery: true
+  severity: "Warning"

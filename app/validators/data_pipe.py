@@ -8,6 +8,8 @@ from app.configs.errors import DataPipeError
 from app.dto.enum import (
     ActivePeriodType,
     AggregationFunctions,
+    AlertCondition,
+    AlertSeverity,
     DataPipeStage,
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -157,9 +159,85 @@ class ProcessingPolicyConfig(BaseModel):
         return self
 
 
+NUMBER_ALERT_CONDITIONS = frozenset(
+    {
+        AlertCondition.ABOVE,
+        AlertCondition.BELOW,
+        AlertCondition.OUT_OF_RANGE,
+        AlertCondition.IN_RANGE,
+    }
+)
+TEXT_ALERT_CONDITIONS = frozenset(
+    {
+        AlertCondition.EQUALS,
+        AlertCondition.NOT_EQUALS,
+        AlertCondition.CONTAINS,
+    }
+)
+
+
 class AlertsConfig(BaseModel):
+    is_enabled: bool = True
+
+    # Above and Below use threshold_value, OutOfRange and InRange use
+    # threshold_min and threshold_max, text conditions use match_values
+    condition: AlertCondition = AlertCondition.ABOVE
+    threshold_value: float | None = Field(default=None, allow_inf_nan=False)
+    threshold_min: float | None = Field(default=None, allow_inf_nan=False)
+    threshold_max: float | None = Field(default=None, allow_inf_nan=False)
+    match_values: list[str] | None = None
+
+    # Numeric dead band: an active alert recovers only after the value
+    # moves back from the threshold by this distance
+    hysteresis: float = Field(default=0, ge=0, allow_inf_nan=False)
+
+    # Violations in a row required before the first alert
+    consecutive_count: int = Field(default=1, ge=1, le=1024)
+
+    # Minimum seconds between two alerts of the same node
     max_frequency: int = Field(ge=0, le=86400)
-    threshold_value: float
+
+    notify_on_recovery: bool = False
+    severity: AlertSeverity = AlertSeverity.WARNING
+
+    def _validate_number_condition(self):
+        if self.condition in (AlertCondition.ABOVE, AlertCondition.BELOW):
+            if self.threshold_value is None:
+                msg = f"threshold_value is required for {self.condition.value} condition"
+                raise ValueError(msg)
+            return
+
+        if self.threshold_min is None or self.threshold_max is None:
+            msg = f"threshold_min and threshold_max are required for {self.condition.value} condition"
+            raise ValueError(msg)
+        if self.threshold_min >= self.threshold_max:
+            msg = "threshold_min must be less than threshold_max"
+            raise ValueError(msg)
+        if (
+            self.condition == AlertCondition.OUT_OF_RANGE
+            and 2 * self.hysteresis >= self.threshold_max - self.threshold_min
+        ):
+            msg = "hysteresis is too large for the threshold range"
+            raise ValueError(msg)
+
+    def _validate_text_condition(self):
+        if not self.match_values:
+            msg = f"match_values is required for {self.condition.value} condition"
+            raise ValueError(msg)
+        if any(not item for item in self.match_values):
+            msg = "match_values must not contain empty strings"
+            raise ValueError(msg)
+        if self.hysteresis != 0:
+            msg = "hysteresis is supported only for numeric conditions"
+            raise ValueError(msg)
+
+    @model_validator(mode="after")
+    def validate_alerts(self):
+        if self.condition in NUMBER_ALERT_CONDITIONS:
+            self._validate_number_condition()
+        else:
+            self._validate_text_condition()
+        return self
 
 
 class DataPipeConfig(BaseModel):
@@ -169,13 +247,37 @@ class DataPipeConfig(BaseModel):
     processing_policy: ProcessingPolicyConfig
     alerts: AlertsConfig | None = None
 
+    @model_validator(mode="after")
+    def validate_alerts_input_type(self):
+        # Errors raised here have no field location, see format_validation_error_dict
+        if self.alerts is None:
+            return self
+
+        is_number_condition = self.alerts.condition in NUMBER_ALERT_CONDITIONS
+        if (
+            self.filters.type_input_value == TypeInputValue.NUMBER
+            and not is_number_condition
+        ):
+            msg = f"{self.alerts.condition.value} condition is not applicable to NUMBER input"
+            raise ValueError(msg)
+        if (
+            self.filters.type_input_value == TypeInputValue.TEXT
+            and is_number_condition
+        ):
+            msg = f"{self.alerts.condition.value} condition is not applicable to TEXT input"
+            raise ValueError(msg)
+        return self
+
 
 def format_validation_error_dict(
     e: ValidationError,
 ) -> list[DataPipeValidationErrorRead]:
+    # The only cross stage check is alerts against filters, it has no location
     return [
         DataPipeValidationErrorRead(
-            stage=DataPipeStage(snake_to_camel(err["loc"][0])),
+            stage=DataPipeStage(snake_to_camel(err["loc"][0]))
+            if err["loc"]
+            else DataPipeStage.ALERTS,
             message=err["msg"],
         )
         for err in e.errors()

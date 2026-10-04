@@ -1,4 +1,6 @@
+import json
 import logging
+import math
 import re
 import uuid as uuid_pkg
 from datetime import UTC, datetime, timedelta
@@ -11,7 +13,15 @@ from app.domain.notification_settings_model import NotificationSettings
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
-from app.dto.enum import AgentType, LogLevel, NotificationType, UserRole
+from app.dto.enum import (
+    AgentType,
+    AlertCondition,
+    AlertEvent,
+    AlertSeverity,
+    LogLevel,
+    NotificationType,
+    UserRole,
+)
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
@@ -43,6 +53,67 @@ _SETTINGS_FIELDS = (
     "is_data_pipe_alert_enable",
     "is_telegram_alert_enable",
 )
+
+
+def _optional_float(raw: object) -> float | None:
+    if raw is None or raw == "":
+        return None
+    number = float(raw)
+    if not math.isfinite(number):
+        msg = "threshold must be finite"
+        raise ValueError(msg)
+    return number
+
+
+def _match_values(raw: object) -> list[str] | None:
+    if raw is None or raw == "":
+        return None
+    values = json.loads(raw) if isinstance(raw, str) else raw
+    if not isinstance(values, list):
+        msg = "match_values must be a list"
+        raise TypeError(msg)
+    return [str(item) for item in values]
+
+
+def _data_pipe_rule(event: dict) -> dict | None:
+    """Rule fields of a data pipe alert, None when the event is malformed.
+
+    Events without condition, severity and event come from the first alert
+    format: only the upper threshold, they stay valid.
+    """
+    try:
+        condition = AlertCondition(
+            event.get("condition") or AlertCondition.ABOVE.value
+        )
+        severity = AlertSeverity(
+            event.get("severity") or AlertSeverity.WARNING.value
+        )
+        alert_event = AlertEvent(event.get("event") or AlertEvent.FIRED.value)
+        threshold_value = _optional_float(event.get("threshold_value"))
+        threshold_min = _optional_float(event.get("threshold_min"))
+        threshold_max = _optional_float(event.get("threshold_max"))
+        match_values = _match_values(event.get("match_values"))
+    except (TypeError, ValueError):
+        return None
+
+    if condition in (AlertCondition.ABOVE, AlertCondition.BELOW):
+        is_complete = threshold_value is not None
+    elif condition in (AlertCondition.OUT_OF_RANGE, AlertCondition.IN_RANGE):
+        is_complete = threshold_min is not None and threshold_max is not None
+    else:
+        is_complete = bool(match_values)
+    if not is_complete:
+        return None
+
+    return {
+        "event": alert_event.value,
+        "condition": condition.value,
+        "severity": severity.value,
+        "threshold_value": threshold_value,
+        "threshold_min": threshold_min,
+        "threshold_max": threshold_max,
+        "match_values": match_values,
+    }
 
 
 class NotificationService:
@@ -255,16 +326,13 @@ class NotificationService:
         unit_node_uuid = event.get("unit_node_uuid")
         unit_uuid = event.get("unit_uuid")
         value = event.get("value")
-        threshold_raw = event.get("threshold_value")
-        if not unit_node_uuid or value is None or threshold_raw is None:
+        if not unit_node_uuid or value is None:
             logging.error("Data pipe alert payload is incomplete: %s", event)
             return None
-        try:
-            threshold_value = float(threshold_raw)
-        except (TypeError, ValueError):
-            logging.error(
-                "Data pipe alert threshold is invalid: %s", threshold_raw
-            )
+
+        rule = _data_pipe_rule(event)
+        if rule is None:
+            logging.error("Data pipe alert rule is invalid: %s", event)
             return None
 
         unit_name, topic_name, resolved_unit_uuid = self._pipe_names(
@@ -276,7 +344,7 @@ class NotificationService:
             "unit_name": unit_name,
             "topic_name": topic_name,
             "value": str(value),
-            "threshold_value": threshold_value,
+            **rule,
         }
 
     def _pipe_names(
