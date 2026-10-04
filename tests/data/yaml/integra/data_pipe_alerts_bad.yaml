@@ -13,6 +13,6 @@ processing_policy:
 
 alerts:
   condition: "Above"
-  threshold_value: 5
+  threshold_max: 5
   consecutive_count: 0
   max_frequency: 60

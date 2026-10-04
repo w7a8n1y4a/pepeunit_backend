@@ -15,4 +15,3 @@ alerts:
   condition: "Contains"
   match_values: ["overheat", "fire"]
   max_frequency: 60
-  notify_on_recovery: true

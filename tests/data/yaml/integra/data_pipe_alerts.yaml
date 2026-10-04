@@ -15,8 +15,6 @@ alerts:
   condition: "OutOfRange"
   threshold_min: 10
   threshold_max: 30
-  hysteresis: 2
   consecutive_count: 3
   max_frequency: 60
-  notify_on_recovery: true
   is_enabled: true

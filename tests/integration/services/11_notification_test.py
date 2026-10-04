@@ -81,12 +81,10 @@ def test_create_data_pipe_alert(crud_notification, extra_user) -> None:
     assert crud_notification.is_read is False
     assert crud_notification.read_datetime is None
     assert crud_notification.data["value"] == "12.5"
-    assert crud_notification.data["threshold_value"] == 10
+    assert crud_notification.data["threshold_max"] == 10
     assert crud_notification.data["unit_name"] is None
-    assert crud_notification.data["event"] == "Fired"
     assert crud_notification.data["condition"] == "Above"
     assert crud_notification.data["threshold_min"] is None
-    assert crud_notification.data["threshold_max"] is None
     assert crud_notification.data["match_values"] is None
 
 
@@ -109,19 +107,21 @@ def _data_pipe_event(**fields) -> dict:
     }
 
 
-def test_create_data_pipe_alert_old_format(
+def test_create_data_pipe_alert_above_condition(
     extra_user, extra_user_token, database, cc
 ) -> None:
     service = _enable_data_pipe_alerts(extra_user, extra_user_token, database, cc)
-    service.create_data_pipe_alerts(_data_pipe_event(threshold_value="10"))
+    service.create_data_pipe_alerts(
+        _data_pipe_event(condition="Above", threshold_max="10")
+    )
 
     _, notifications = service.list(NotificationFilter.unlimited())
     try:
         assert len(notifications) == 1
         data = notifications[0].data
-        assert data["event"] == "Fired"
         assert data["condition"] == "Above"
-        assert data["threshold_value"] == 10
+        assert data["threshold_max"] == 10
+        assert data["threshold_min"] is None
     finally:
         for item in notifications:
             drop_notification(database, item.uuid)
@@ -146,7 +146,6 @@ def test_create_data_pipe_alert_range_condition(
         assert data["condition"] == "OutOfRange"
         assert data["threshold_min"] == 1.5
         assert data["threshold_max"] == 10
-        assert data["threshold_value"] is None
     finally:
         for item in notifications:
             drop_notification(database, item.uuid)
@@ -170,26 +169,8 @@ def test_create_data_pipe_alert_text_condition(
         data = notifications[0].data
         assert data["condition"] == "Contains"
         assert data["match_values"] == ["overheat", "fire"]
-        assert data["threshold_value"] is None
-    finally:
-        for item in notifications:
-            drop_notification(database, item.uuid)
-
-
-def test_create_data_pipe_alert_recovered(
-    extra_user, extra_user_token, database, cc
-) -> None:
-    service = _enable_data_pipe_alerts(extra_user, extra_user_token, database, cc)
-    service.create_data_pipe_alerts(
-        _data_pipe_event(value="7", event="Recovered", threshold_value="10")
-    )
-
-    _, notifications = service.list(NotificationFilter.unlimited())
-    try:
-        assert len(notifications) == 1
-        assert notifications[0].type == NotificationType.DATA_PIPE_ALERT.value
-        assert notifications[0].data["event"] == "Recovered"
-        assert notifications[0].data["value"] == "7"
+        assert data["threshold_min"] is None
+        assert data["threshold_max"] is None
     finally:
         for item in notifications:
             drop_notification(database, item.uuid)
@@ -203,17 +184,19 @@ def test_data_pipe_alert_invalid_rule(
     invalid_rules = [
         {},
         {"condition": "Above"},
-        {"condition": "Above", "threshold_value": "high"},
-        {"condition": "Above", "threshold_value": "nan"},
+        {"condition": "Above", "threshold_max": "high"},
+        {"condition": "Above", "threshold_max": "nan"},
+        {"condition": "Above", "threshold_min": "1"},
         {"condition": "Below"},
+        {"condition": "Below", "threshold_max": "1"},
         {"condition": "OutOfRange", "threshold_min": "1"},
         {"condition": "InRange", "threshold_max": "1"},
         {"condition": "Equals"},
         {"condition": "Contains", "match_values": "[]"},
         {"condition": "Contains", "match_values": "not json"},
         {"condition": "Contains", "match_values": '"overheat"'},
-        {"condition": "Sideways", "threshold_value": "10"},
-        {"threshold_value": "10", "event": "Exploded"},
+        {"condition": "Sideways", "threshold_max": "10"},
+        {"threshold_max": "10"},
     ]
     for fields in invalid_rules:
         service.create_data_pipe_alerts(_data_pipe_event(**fields))
@@ -231,7 +214,8 @@ def test_data_pipe_alert_disabled(extra_user, extra_user_token, database, cc) ->
             "unit_node_uuid": str(uuid_pkg.uuid4()),
             "unit_uuid": str(uuid_pkg.uuid4()),
             "value": "12.5",
-            "threshold_value": "10",
+            "condition": "Above",
+            "threshold_max": "10",
         }
     )
     count, notifications = service.list(NotificationFilter.unlimited())
@@ -320,7 +304,8 @@ def test_mark_all_notifications_read(
             "unit_node_uuid": str(uuid_pkg.uuid4()),
             "unit_uuid": str(uuid_pkg.uuid4()),
             "value": "20",
-            "threshold_value": "10",
+            "condition": "Above",
+            "threshold_max": "10",
         }
     )
     marked = service.mark_all_read()

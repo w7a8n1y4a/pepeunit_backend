@@ -178,17 +178,12 @@ TEXT_ALERT_CONDITIONS = frozenset(
 class AlertsConfig(BaseModel):
     is_enabled: bool = True
 
-    # Above and Below use threshold_value, OutOfRange and InRange use
-    # threshold_min and threshold_max, text conditions use match_values
+    # Above uses threshold_max, Below uses threshold_min, OutOfRange and
+    # InRange use both, text conditions use match_values
     condition: AlertCondition = AlertCondition.ABOVE
-    threshold_value: float | None = Field(default=None, allow_inf_nan=False)
     threshold_min: float | None = Field(default=None, allow_inf_nan=False)
     threshold_max: float | None = Field(default=None, allow_inf_nan=False)
     match_values: list[str] | None = None
-
-    # Numeric dead band: an active alert recovers only after the value
-    # moves back from the threshold by this distance
-    hysteresis: float = Field(default=0, ge=0, allow_inf_nan=False)
 
     # Violations in a row required before the first alert
     consecutive_count: int = Field(default=1, ge=1, le=1024)
@@ -196,12 +191,16 @@ class AlertsConfig(BaseModel):
     # Minimum seconds between two alerts of the same node
     max_frequency: int = Field(ge=0, le=86400)
 
-    notify_on_recovery: bool = False
-
     def _validate_number_condition(self):
-        if self.condition in (AlertCondition.ABOVE, AlertCondition.BELOW):
-            if self.threshold_value is None:
-                msg = f"threshold_value is required for {self.condition.value} condition"
+        if self.condition == AlertCondition.ABOVE:
+            if self.threshold_max is None:
+                msg = "threshold_max is required for Above condition"
+                raise ValueError(msg)
+            return
+
+        if self.condition == AlertCondition.BELOW:
+            if self.threshold_min is None:
+                msg = "threshold_min is required for Below condition"
                 raise ValueError(msg)
             return
 
@@ -211,12 +210,6 @@ class AlertsConfig(BaseModel):
         if self.threshold_min >= self.threshold_max:
             msg = "threshold_min must be less than threshold_max"
             raise ValueError(msg)
-        if (
-            self.condition == AlertCondition.OUT_OF_RANGE
-            and 2 * self.hysteresis >= self.threshold_max - self.threshold_min
-        ):
-            msg = "hysteresis is too large for the threshold range"
-            raise ValueError(msg)
 
     def _validate_text_condition(self):
         if not self.match_values:
@@ -224,9 +217,6 @@ class AlertsConfig(BaseModel):
             raise ValueError(msg)
         if any(not item for item in self.match_values):
             msg = "match_values must not contain empty strings"
-            raise ValueError(msg)
-        if self.hysteresis != 0:
-            msg = "hysteresis is supported only for numeric conditions"
             raise ValueError(msg)
 
     @model_validator(mode="after")

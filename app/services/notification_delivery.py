@@ -11,7 +11,6 @@ from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
 from app.dto.enum import (
     AlertCondition,
-    AlertEvent,
     NotificationType,
 )
 
@@ -124,34 +123,25 @@ def _number(value: object) -> str:
 
 
 def _condition_phrase(data: dict) -> str:
-    condition = data.get("condition") or AlertCondition.ABOVE.value
+    condition = data["condition"]
     matches = ", ".join(data.get("match_values") or [])
     low = _number(data.get("threshold_min"))
     high = _number(data.get("threshold_max"))
     return {
-        AlertCondition.ABOVE.value: (
-            f"is above {_number(data.get('threshold_value'))}"
-        ),
-        AlertCondition.BELOW.value: (
-            f"is below {_number(data.get('threshold_value'))}"
-        ),
+        AlertCondition.ABOVE.value: f"is above {high}",
+        AlertCondition.BELOW.value: f"is below {low}",
         AlertCondition.OUT_OF_RANGE.value: f"is outside [{low}, {high}]",
         AlertCondition.IN_RANGE.value: f"is inside [{low}, {high}]",
         AlertCondition.EQUALS.value: f"equals one of: {matches}",
         AlertCondition.NOT_EQUALS.value: f"is none of: {matches}",
         AlertCondition.CONTAINS.value: f"contains one of: {matches}",
-    }.get(condition, "violates the alert condition")
+    }[condition]
 
 
 def data_pipe_alert_text(data: dict) -> str:
     value = data.get("value")
     topic = data.get("topic_name") or data.get("unit_node_uuid")
 
-    if data.get("event") == AlertEvent.RECOVERED.value:
-        return (
-            f"Data pipe alert recovered\nTopic: {topic}\n"
-            f"Value {value} is back to normal"
-        )
     return (
         f"Data pipe alert\nTopic: {topic}\n"
         f"Value {value} {_condition_phrase(data)}"

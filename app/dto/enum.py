@@ -392,16 +392,6 @@ class AlertCondition(str, enum.Enum):
 
 
 @strawberry.enum
-class AlertEvent(str, enum.Enum):
-    """
-    Fired - the condition is violated, Recovered - the value is back to normal
-    """
-
-    FIRED = "Fired"
-    RECOVERED = "Recovered"
-
-
-@strawberry.enum
 class DatasourceFormat(str, enum.Enum):
     TIME_SERIES = "timeseries"
 

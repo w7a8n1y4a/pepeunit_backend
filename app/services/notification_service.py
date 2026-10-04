@@ -16,7 +16,6 @@ from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
     AlertCondition,
-    AlertEvent,
     LogLevel,
     NotificationType,
     UserRole,
@@ -55,7 +54,7 @@ _SETTINGS_FIELDS = (
 
 
 def _optional_float(raw: object) -> float | None:
-    if raw is None or raw == "":
+    if raw is None:
         return None
     number = float(raw)
     if not math.isfinite(number):
@@ -65,9 +64,9 @@ def _optional_float(raw: object) -> float | None:
 
 
 def _match_values(raw: object) -> list[str] | None:
-    if raw is None or raw == "":
+    if raw is None:
         return None
-    values = json.loads(raw) if isinstance(raw, str) else raw
+    values = json.loads(raw)
     if not isinstance(values, list):
         msg = "match_values must be a list"
         raise TypeError(msg)
@@ -75,25 +74,19 @@ def _match_values(raw: object) -> list[str] | None:
 
 
 def _data_pipe_rule(event: dict) -> dict | None:
-    """Rule fields of a data pipe alert, None when the event is malformed.
-
-    Events without condition and event come from the first alert
-    format: only the upper threshold, they stay valid.
-    """
+    """Rule fields of a data pipe alert, None when the event is malformed."""
     try:
-        condition = AlertCondition(
-            event.get("condition") or AlertCondition.ABOVE.value
-        )
-        alert_event = AlertEvent(event.get("event") or AlertEvent.FIRED.value)
-        threshold_value = _optional_float(event.get("threshold_value"))
+        condition = AlertCondition(event.get("condition"))
         threshold_min = _optional_float(event.get("threshold_min"))
         threshold_max = _optional_float(event.get("threshold_max"))
         match_values = _match_values(event.get("match_values"))
     except (TypeError, ValueError):
         return None
 
-    if condition in (AlertCondition.ABOVE, AlertCondition.BELOW):
-        is_complete = threshold_value is not None
+    if condition == AlertCondition.ABOVE:
+        is_complete = threshold_max is not None
+    elif condition == AlertCondition.BELOW:
+        is_complete = threshold_min is not None
     elif condition in (AlertCondition.OUT_OF_RANGE, AlertCondition.IN_RANGE):
         is_complete = threshold_min is not None and threshold_max is not None
     else:
@@ -102,9 +95,7 @@ def _data_pipe_rule(event: dict) -> dict | None:
         return None
 
     return {
-        "event": alert_event.value,
         "condition": condition.value,
-        "threshold_value": threshold_value,
         "threshold_min": threshold_min,
         "threshold_max": threshold_max,
         "match_values": match_values,
