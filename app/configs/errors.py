@@ -227,3 +227,13 @@ class NotificationError(CustomException):
             message_template="Notification Validation Error: {}",
             error_code=19,
         )
+
+
+class LokiError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            message_template="Loki Error: {}",
+            error_code=20,
+        )

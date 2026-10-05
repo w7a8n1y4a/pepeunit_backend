@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends
 
-from app.configs.errors import NoAccessError, NotificationError
+from app.configs.errors import LokiError, NoAccessError, NotificationError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
 from app.domain.unit_model import Unit
@@ -261,10 +261,12 @@ class NotificationService:
         return deliveries
 
     def _instance_errors(self) -> list[dict] | None:
-        groups = self.loki_repository.query_backend_error_groups(
-            self.INSTANCE_ERROR_GROUPS
-        )
-        if groups is None:
+        try:
+            groups = self.loki_repository.query_backend_error_groups(
+                self.INSTANCE_ERROR_GROUPS
+            )
+        except LokiError:
+            logging.exception("Failed to read backend errors from Loki")
             return None
         return [
             {"count": group.count, "message": group.message}
