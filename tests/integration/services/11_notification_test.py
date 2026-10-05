@@ -277,7 +277,7 @@ def test_data_pipe_alert_recipients(
     database,
     cc,
 ) -> None:
-    # extra_user enabled the alerts but has no permission on the node
+    # extra_user enabled the alerts but is not the node creator
     with as_recipient(
         database, cc, extra_user, extra_user_token
     ) as extra_service:

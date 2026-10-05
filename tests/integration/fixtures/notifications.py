@@ -16,7 +16,7 @@ from tests.integration.helpers.services import unit_node_service
 
 @pytest.fixture(scope="session")
 def alert_node(live_units, regular_user_token, database, cc) -> UnitNode:
-    """Output node the regular user has a permission on"""
+    """Output node created by the regular user"""
     _, nodes = unit_node_service(database, cc, regular_user_token).list(
         UnitNodeFilter.unlimited(
             unit_uuid=live_units.universal_manual_unit.uuid,

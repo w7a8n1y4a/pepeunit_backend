@@ -20,7 +20,6 @@ from app.dto.enum import (
     FilterTypeValueThreshold,
     LogLevel,
     NotificationType,
-    PermissionEntities,
     UserRole,
 )
 from app.repositories.loki_repository import LokiRepository
@@ -39,7 +38,6 @@ from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationSettingsUpdate,
 )
-from app.schemas.pydantic.permission import PermissionFilter
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.notification_delivery import Delivery
@@ -167,7 +165,7 @@ class NotificationService:
         return deliveries
 
     def create_data_pipe_alerts(self, event: dict) -> list[Delivery]:
-        """Stores a data pipe alert for every user that has access to the node.
+        """Stores a data pipe alert for the node creator.
 
         Backend only: the event is a data_pipe_alerts stream message, the
         caller pushes the returned deliveries.
@@ -190,10 +188,15 @@ class NotificationService:
             )
             return []
 
-        recipients = self._data_pipe_recipients(node)
-        if not recipients:
+        recipient = (
+            self.notification_settings_repository.get_data_pipe_enabled(
+                node.creator_uuid
+            )
+        )
+        if recipient is None:
             return []
 
+        user, settings_row = recipient
         unit = self.unit_repository.get(Unit(uuid=node.unit_uuid))
         payload = {
             "unit_node_uuid": str(node.uuid),
@@ -211,28 +214,7 @@ class NotificationService:
                 payload,
                 push_sse=True,
             )
-            for user, settings_row in recipients
         ]
-
-    def _data_pipe_recipients(
-        self, node: UnitNode
-    ) -> list[tuple[User, NotificationSettings]]:
-        """Users with a permission on the node that enabled data pipe alerts"""
-        _, permissions = (
-            self.access_service.permission_repository.get_resource_agents(
-                PermissionFilter.unlimited(
-                    resource_uuid=node.uuid,
-                    resource_type=PermissionEntities.UNIT_NODE,
-                    agent_type=PermissionEntities.USER,
-                )
-            )
-        )
-        user_uuids = [permission.agent_uuid for permission in permissions]
-        if not user_uuids:
-            return []
-        return self.notification_settings_repository.list_data_pipe_enabled(
-            user_uuids
-        )
 
     def _dispatch_scheduled_for_user(
         self,

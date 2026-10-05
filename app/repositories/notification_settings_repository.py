@@ -47,11 +47,9 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
             .all()
         )
 
-    def list_data_pipe_enabled(
-        self, user_uuids: list[uuid_pkg.UUID]
-    ) -> list[tuple[User, NotificationSettings]]:
-        if not user_uuids:
-            return []
+    def get_data_pipe_enabled(
+        self, user_uuid: uuid_pkg.UUID
+    ) -> tuple[User, NotificationSettings] | None:
         return (
             self.db.query(User, NotificationSettings)
             .join(
@@ -59,9 +57,9 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
                 NotificationSettings.user_uuid == User.uuid,
             )
             .filter(
-                User.uuid.in_(user_uuids),
+                User.uuid == user_uuid,
                 NotificationSettings.is_data_pipe_alert_enable.is_(True),
                 User.status == UserStatus.VERIFIED.value,
             )
-            .all()
+            .first()
         )
