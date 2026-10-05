@@ -8,7 +8,7 @@ from sqlmodel import Field, SQLModel
 
 
 class Notification(SQLModel, table=True):
-    """Notification addressed to one user"""
+    """Notification of one user"""
 
     __tablename__ = "notifications"
 
@@ -30,14 +30,14 @@ class Notification(SQLModel, table=True):
         sa_column=Column(JSONB, nullable=False),
     )
 
-    # Whether the target user has already read the notification
+    # Whether the user has already read the notification
     is_read: bool = Field(nullable=False, default=False)
 
     # When the notification was marked as read (null while unread)
     read_datetime: datetime = Field(nullable=True)
 
     # to User link
-    target_user_uuid: uuid_pkg.UUID = Field(
+    user_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
             ForeignKey("users.uuid", ondelete="CASCADE"),

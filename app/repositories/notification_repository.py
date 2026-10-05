@@ -18,10 +18,12 @@ class NotificationRepository(BaseRepository[Notification]):
         super().__init__(Notification, db)
 
     def list(
-        self, filters: NotificationFilter | NotificationFilterInput
+        self,
+        user_uuid: uuid_pkg.UUID,
+        filters: NotificationFilter | NotificationFilterInput,
     ) -> tuple[int, list[Notification]]:
         query = self.db.query(Notification).filter(
-            Notification.target_user_uuid == filters.target_user_uuid
+            Notification.user_uuid == user_uuid
         )
 
         if filters.is_read is not None:
@@ -35,13 +37,13 @@ class NotificationRepository(BaseRepository[Notification]):
 
     def exists_since(
         self,
-        target_user_uuid: uuid_pkg.UUID,
+        user_uuid: uuid_pkg.UUID,
         notification_type: str,
         since: datetime,
         unit_uuid: str | None = None,
     ) -> bool:
         query = self.db.query(Notification).filter(
-            Notification.target_user_uuid == target_user_uuid,
+            Notification.user_uuid == user_uuid,
             Notification.type == notification_type,
             Notification.create_datetime >= since,
         )
@@ -52,12 +54,12 @@ class NotificationRepository(BaseRepository[Notification]):
         return query.first() is not None
 
     def mark_all_read(
-        self, target_user_uuid: uuid_pkg.UUID, read_datetime: datetime
+        self, user_uuid: uuid_pkg.UUID, read_datetime: datetime
     ) -> int:
         result = self.db.execute(
             update(Notification)
             .where(
-                Notification.target_user_uuid == target_user_uuid,
+                Notification.user_uuid == user_uuid,
                 Notification.is_read.is_(False),
             )
             .values(is_read=True, read_datetime=read_datetime)

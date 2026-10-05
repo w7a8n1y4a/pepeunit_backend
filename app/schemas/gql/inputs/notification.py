@@ -1,5 +1,3 @@
-import uuid as uuid_pkg
-
 import strawberry
 
 from app.dto.enum import NotificationType
@@ -8,7 +6,6 @@ from app.schemas.gql.type_input_mixin import BasePaginationGql
 
 @strawberry.input()
 class NotificationFilterInput(BasePaginationGql):
-    target_user_uuid: uuid_pkg.UUID | None = None
     is_read: bool | None = None
     type: list[NotificationType] | None = tuple(NotificationType)
 

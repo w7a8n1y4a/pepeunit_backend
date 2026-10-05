@@ -93,7 +93,7 @@ def notification_payload(notification: Notification) -> dict:
         "data": dict(notification.data or {}),
         "is_read": notification.is_read,
         "read_datetime": _iso(read_datetime) if read_datetime else None,
-        "target_user_uuid": str(notification.target_user_uuid),
+        "user_uuid": str(notification.user_uuid),
     }
 
 

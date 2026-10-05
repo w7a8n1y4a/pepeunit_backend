@@ -116,7 +116,7 @@ def test_create_data_pipe_alert(
     )
 
     assert crud_notification.type == NotificationType.DATA_PIPE_ALERT.value
-    assert crud_notification.target_user_uuid == regular_user.uuid
+    assert crud_notification.user_uuid == regular_user.uuid
     assert crud_notification.is_read is False
     assert crud_notification.read_datetime is None
 
@@ -338,7 +338,7 @@ def test_data_pipe_alert_delivery(
         payload = notification_payload(delivery.notification)
         assert payload["uuid"] == str(delivery.notification.uuid)
         assert payload["type"] == NotificationType.DATA_PIPE_ALERT.value
-        assert payload["target_user_uuid"] == str(regular_user.uuid)
+        assert payload["user_uuid"] == str(regular_user.uuid)
         assert payload["is_read"] is False
         assert payload["data"]["topic_name"] == alert_node.topic_name
 
@@ -360,7 +360,7 @@ def test_telegram_text_by_type(regular_user) -> None:
             create_datetime=datetime.now(UTC),
             type=notification_type.value,
             data=data,
-            target_user_uuid=regular_user.uuid,
+            user_uuid=regular_user.uuid,
         )
 
     instance = telegram_text(
@@ -581,7 +581,7 @@ def test_get_many_notification(
     assert count >= 1
     assert any(item.uuid == crud_notification.uuid for item in notifications)
     assert all(
-        item.target_user_uuid == regular_user.uuid for item in notifications
+        item.user_uuid == regular_user.uuid for item in notifications
     )
 
     count, notifications = service.list(
@@ -609,11 +609,7 @@ def test_list_notifications_only_own(
     crud_notification, extra_user_token, database, cc
 ) -> None:
     service = notification_service(database, cc, extra_user_token)
-    _count, notifications = service.list(
-        NotificationFilter.unlimited(
-            target_user_uuid=crud_notification.target_user_uuid
-        )
-    )
+    _count, notifications = service.list(NotificationFilter.unlimited())
     assert all(item.uuid != crud_notification.uuid for item in notifications)
 
 

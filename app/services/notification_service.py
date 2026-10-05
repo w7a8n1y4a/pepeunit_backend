@@ -45,94 +45,20 @@ from app.services.access_service import AccessService
 from app.services.notification_delivery import Delivery
 from app.services.validators import is_valid_object, is_valid_uuid
 
-SCHEDULED_LOG_WINDOW = timedelta(days=1)
-INSTANCE_ERROR_GROUPS = 3
-UNIT_SUMMARY_LIMIT = 10
-_ALERT_LEVELS = [LogLevel.ERROR.value, LogLevel.CRITICAL.value]
-_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
-_SETTINGS_FIELDS = (
-    "is_scheduled_alert_enable",
-    "scheduled_notification_time",
-    "is_data_pipe_alert_enable",
-    "is_telegram_alert_enable",
-)
-
-
-def _optional_float(raw: object) -> float | None:
-    if raw is None:
-        return None
-    number = float(raw)
-    if not math.isfinite(number):
-        msg = "threshold must be finite"
-        raise ValueError(msg)
-    return number
-
-
-def _optional_enum(
-    enum_type: type[enum.Enum], raw: object
-) -> enum.Enum | None:
-    return None if raw is None else enum_type(raw)
-
-
-def _filtering_values(raw: object) -> list[str | int | float] | None:
-    if raw is None:
-        return None
-    values = json.loads(raw)
-    if not isinstance(values, list) or not all(
-        isinstance(item, str | int | float) for item in values
-    ):
-        msg = "filtering_values must be a list of strings or numbers"
-        raise TypeError(msg)
-    return values
-
-
-def _data_pipe_rule(event: dict) -> dict | None:
-    """Violated rules of a data pipe alert, None when the event is malformed.
-
-    The rules mirror the filters stage: a filtering list and/or a threshold.
-    """
-    try:
-        type_value_filtering = _optional_enum(
-            FilterTypeValueFiltering, event.get("type_value_filtering")
-        )
-        filtering_values = _filtering_values(event.get("filtering_values"))
-        type_value_threshold = _optional_enum(
-            FilterTypeValueThreshold, event.get("type_value_threshold")
-        )
-        threshold_min = _optional_float(event.get("threshold_min"))
-        threshold_max = _optional_float(event.get("threshold_max"))
-    except TypeError, ValueError:
-        return None
-
-    if type_value_filtering is None and type_value_threshold is None:
-        return None
-    if type_value_filtering is not None and not filtering_values:
-        return None
-    if type_value_threshold == FilterTypeValueThreshold.MIN:
-        is_complete = threshold_min is not None
-    elif type_value_threshold == FilterTypeValueThreshold.MAX:
-        is_complete = threshold_max is not None
-    elif type_value_threshold == FilterTypeValueThreshold.RANGE:
-        is_complete = threshold_min is not None and threshold_max is not None
-    else:
-        is_complete = True
-    if not is_complete:
-        return None
-
-    return {
-        "type_value_filtering": (
-            type_value_filtering.value if type_value_filtering else None
-        ),
-        "filtering_values": filtering_values if type_value_filtering else None,
-        "type_value_threshold": (
-            type_value_threshold.value if type_value_threshold else None
-        ),
-        "threshold_min": threshold_min if type_value_threshold else None,
-        "threshold_max": threshold_max if type_value_threshold else None,
-    }
-
 
 class NotificationService:
+    SCHEDULED_LOG_WINDOW = timedelta(days=1)
+    INSTANCE_ERROR_GROUPS = 3
+    UNIT_SUMMARY_LIMIT = 10
+    ALERT_LEVELS = [LogLevel.ERROR.value, LogLevel.CRITICAL.value]
+    TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+    SETTINGS_FIELDS = (
+        "is_scheduled_alert_enable",
+        "scheduled_notification_time",
+        "is_data_pipe_alert_enable",
+        "is_telegram_alert_enable",
+    )
+
     def __init__(
         self,
         notification_repository: NotificationRepository = Depends(),
@@ -159,8 +85,9 @@ class NotificationService:
         self, filters: NotificationFilter | NotificationFilterInput
     ) -> tuple[int, list[Notification]]:
         self._check_user()
-        filters.target_user_uuid = self.access_service.current_agent.uuid
-        return self.notification_repository.list(filters)
+        return self.notification_repository.list(
+            self.access_service.current_agent.uuid, filters
+        )
 
     def get(self, uuid: uuid_pkg.UUID) -> Notification:
         self._check_user()
@@ -200,7 +127,7 @@ class NotificationService:
         data: (NotificationSettingsUpdateInput | NotificationSettingsUpdate),
     ) -> NotificationSettings:
         settings_row = self.get_settings()
-        for field in _SETTINGS_FIELDS:
+        for field in self.SETTINGS_FIELDS:
             value = getattr(data, field)
             if value is None:
                 continue
@@ -249,7 +176,7 @@ class NotificationService:
             logging.error("Data pipe alert payload is incomplete: %s", event)
             return []
 
-        rule = _data_pipe_rule(event)
+        rule = self._data_pipe_rule(event)
         if rule is None:
             logging.error("Data pipe alert rule is invalid: %s", event)
             return []
@@ -313,7 +240,7 @@ class NotificationService:
     ) -> list[Delivery]:
         # The scheduled minute is the only gate. A later time the same day sends.
         slot_start = now.replace(second=0, microsecond=0)
-        period_start = now - SCHEDULED_LOG_WINDOW
+        period_start = now - self.SCHEDULED_LOG_WINDOW
         deliveries: list[Delivery] = []
 
         if user.role == UserRole.ADMIN.value:
@@ -333,6 +260,17 @@ class NotificationService:
             deliveries.append(delivery)
         return deliveries
 
+    def _instance_errors(self) -> list[dict] | None:
+        groups = self.loki_repository.query_backend_error_groups(
+            self.INSTANCE_ERROR_GROUPS
+        )
+        if groups is None:
+            return None
+        return [
+            {"count": group.count, "message": group.message}
+            for group in groups
+        ]
+
     def _dispatch_instance_state(
         self,
         user: User,
@@ -350,11 +288,7 @@ class NotificationService:
             user,
             settings_row,
             NotificationType.INSTANCE_DAILY_STATE,
-            {
-                "errors": self.loki_repository.query_backend_error_groups(
-                    INSTANCE_ERROR_GROUPS
-                ),
-            },
+            {"errors": self._instance_errors()},
             push_sse=False,
         )
 
@@ -380,17 +314,12 @@ class NotificationService:
 
         counted = self.unit_log_repository.count_errors_by_unit(
             unit_uuids=list(names),
-            levels=_ALERT_LEVELS,
+            levels=self.ALERT_LEVELS,
             since=period_start,
             until=period_end,
-            limit=UNIT_SUMMARY_LIMIT,
+            limit=self.UNIT_SUMMARY_LIMIT,
         )
-        counts: dict[uuid_pkg.UUID, int] = {}
-        for item in counted:
-            unit_uuid = item["unit_uuid"]
-            if not isinstance(unit_uuid, uuid_pkg.UUID):
-                unit_uuid = uuid_pkg.UUID(str(unit_uuid))
-            counts[unit_uuid] = item["count"]
+        counts = {item.unit_uuid: item.count for item in counted}
         rows = sorted(
             (
                 {
@@ -401,7 +330,7 @@ class NotificationService:
             ),
             key=lambda item: item["error_count"],
             reverse=True,
-        )[:UNIT_SUMMARY_LIMIT]
+        )[: self.UNIT_SUMMARY_LIMIT]
 
         return self._create(
             user,
@@ -434,7 +363,7 @@ class NotificationService:
                 type=notification_type.value,
                 data=data,
                 is_read=False,
-                target_user_uuid=user.uuid,
+                user_uuid=user.uuid,
             )
         )
         # deliver() runs after the background session closes
@@ -451,16 +380,93 @@ class NotificationService:
         self.access_service.authorization.check_access([AgentType.USER])
 
     def _check_owner(self, notification: Notification) -> None:
-        if (
-            notification.target_user_uuid
-            != self.access_service.current_agent.uuid
-        ):
+        if notification.user_uuid != self.access_service.current_agent.uuid:
             msg = "Notification access not allowed"
             raise NoAccessError(msg)
 
     @staticmethod
-    def _validate_time(value: str) -> str:
-        if not _TIME_RE.fullmatch(value):
+    def _optional_float(raw: object) -> float | None:
+        if raw is None:
+            return None
+        number = float(raw)
+        if not math.isfinite(number):
+            msg = "threshold must be finite"
+            raise ValueError(msg)
+        return number
+
+    @staticmethod
+    def _optional_enum(
+        enum_type: type[enum.Enum], raw: object
+    ) -> enum.Enum | None:
+        return None if raw is None else enum_type(raw)
+
+    @staticmethod
+    def _filtering_values(raw: object) -> list[str | int | float] | None:
+        if raw is None:
+            return None
+        values = json.loads(raw)
+        if not isinstance(values, list) or not all(
+            isinstance(item, str | int | float) for item in values
+        ):
+            msg = "filtering_values must be a list of strings or numbers"
+            raise TypeError(msg)
+        return values
+
+    @classmethod
+    def _data_pipe_rule(cls, event: dict) -> dict | None:
+        """Violated rules of a data pipe alert, None when the event is malformed.
+
+        The rules mirror the filters stage: a filtering list and/or a threshold.
+        """
+        try:
+            type_value_filtering = cls._optional_enum(
+                FilterTypeValueFiltering, event.get("type_value_filtering")
+            )
+            filtering_values = cls._filtering_values(
+                event.get("filtering_values")
+            )
+            type_value_threshold = cls._optional_enum(
+                FilterTypeValueThreshold, event.get("type_value_threshold")
+            )
+            threshold_min = cls._optional_float(event.get("threshold_min"))
+            threshold_max = cls._optional_float(event.get("threshold_max"))
+        except TypeError, ValueError:
+            return None
+
+        if type_value_filtering is None and type_value_threshold is None:
+            return None
+        if type_value_filtering is not None and not filtering_values:
+            return None
+        if type_value_threshold == FilterTypeValueThreshold.MIN:
+            is_complete = threshold_min is not None
+        elif type_value_threshold == FilterTypeValueThreshold.MAX:
+            is_complete = threshold_max is not None
+        elif type_value_threshold == FilterTypeValueThreshold.RANGE:
+            is_complete = (
+                threshold_min is not None and threshold_max is not None
+            )
+        else:
+            is_complete = True
+        if not is_complete:
+            return None
+
+        return {
+            "type_value_filtering": (
+                type_value_filtering.value if type_value_filtering else None
+            ),
+            "filtering_values": (
+                filtering_values if type_value_filtering else None
+            ),
+            "type_value_threshold": (
+                type_value_threshold.value if type_value_threshold else None
+            ),
+            "threshold_min": threshold_min if type_value_threshold else None,
+            "threshold_max": threshold_max if type_value_threshold else None,
+        }
+
+    @classmethod
+    def _validate_time(cls, value: str) -> str:
+        if not cls.TIME_RE.fullmatch(value):
             msg = "scheduled_notification_time must be HH:MM in UTC"
             raise NotificationError(msg)
         return value

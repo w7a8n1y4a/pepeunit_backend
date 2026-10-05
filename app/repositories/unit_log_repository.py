@@ -7,8 +7,9 @@ from fastapi import Depends
 from fastapi.params import Query
 
 from app.configs.clickhouse import get_clickhouse_client
-from app.dto.clickhouse.log import UnitLog
+from app.dto.clickhouse.log import UnitErrorCount, UnitLog, UnitLogAggregate
 from app.dto.clickhouse.orm import ClickhouseOrm
+from app.dto.enum import LogLevel
 from app.repositories.utils import get_offset_and_limit_clause
 from app.schemas.gql.inputs.unit import UnitLogFilterInput
 from app.schemas.pydantic.unit import UnitLogFilter
@@ -98,7 +99,7 @@ class UnitLogRepository:
         until: datetime,
         unit_uuid: uuid_pkg.UUID | None = None,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[UnitLogAggregate]:
         since = _naive_utc(since)
         until = _naive_utc(until)
         params = {
@@ -122,12 +123,12 @@ class UnitLogRepository:
             """
             rows = self.client.execute(query, params)
             return [
-                {
-                    "level": row[0],
-                    "text": row[1],
-                    "count": int(row[2]),
-                    "unit_uuid": unit_uuid,
-                }
+                UnitLogAggregate(
+                    unit_uuid=unit_uuid,
+                    level=self._level(row[0]),
+                    text=str(row[1]),
+                    count=int(row[2]),
+                )
                 for row in rows
             ]
 
@@ -143,12 +144,12 @@ class UnitLogRepository:
         """
         rows = self.client.execute(query, params)
         return [
-            {
-                "unit_uuid": row[0],
-                "level": row[1],
-                "text": row[2],
-                "count": int(row[3]),
-            }
+            UnitLogAggregate(
+                unit_uuid=self._uuid(row[0]),
+                level=self._level(row[1]),
+                text=str(row[2]),
+                count=int(row[3]),
+            )
             for row in rows
         ]
 
@@ -159,7 +160,7 @@ class UnitLogRepository:
         since: datetime,
         until: datetime,
         limit: int = 10,
-    ) -> list[dict]:
+    ) -> list[UnitErrorCount]:
         if not unit_uuids:
             return []
         rows = self.client.execute(
@@ -182,7 +183,22 @@ class UnitLogRepository:
                 "limit": limit,
             },
         )
-        return [{"unit_uuid": row[0], "count": int(row[1])} for row in rows]
+        return [
+            UnitErrorCount(unit_uuid=self._uuid(row[0]), count=int(row[1]))
+            for row in rows
+        ]
+
+    @staticmethod
+    def _uuid(raw: object) -> uuid_pkg.UUID:
+        if isinstance(raw, uuid_pkg.UUID):
+            return raw
+        return uuid_pkg.UUID(str(raw))
+
+    @staticmethod
+    def _level(raw: object) -> LogLevel:
+        if isinstance(raw, LogLevel):
+            return raw
+        return LogLevel(str(raw))
 
 
 def _naive_utc(value: datetime) -> datetime:

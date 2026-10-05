@@ -16,7 +16,7 @@ class NotificationType(TypeInputMixin):
     data: JSON
     is_read: bool
     read_datetime: datetime | None
-    target_user_uuid: uuid_pkg.UUID
+    user_uuid: uuid_pkg.UUID
 
 
 @strawberry.type()

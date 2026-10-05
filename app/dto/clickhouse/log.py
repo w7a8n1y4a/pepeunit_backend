@@ -7,6 +7,18 @@ from app.dto.enum import LogLevel
 from app.dto.mixin import ClickHouseBaseMixin
 
 
+class UnitLogAggregate(BaseModel):
+    unit_uuid: uuid_pkg.UUID
+    level: LogLevel
+    text: str
+    count: int
+
+
+class UnitErrorCount(BaseModel):
+    unit_uuid: uuid_pkg.UUID
+    count: int
+
+
 class UnitLog(BaseModel, ClickHouseBaseMixin):
     uuid: uuid_pkg.UUID
     level: LogLevel

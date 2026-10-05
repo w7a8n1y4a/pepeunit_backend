@@ -16,7 +16,7 @@ class NotificationRead(BaseModel):
     data: dict
     is_read: bool
     read_datetime: datetime | None
-    target_user_uuid: uuid_pkg.UUID
+    user_uuid: uuid_pkg.UUID
 
 
 class NotificationsResult(BaseModel):
@@ -42,7 +42,6 @@ class NotificationSettingsUpdate(BaseModel):
 
 @dataclass
 class NotificationFilter(BasePaginationRestMixin):
-    target_user_uuid: uuid_pkg.UUID | None = None
     is_read: bool | None = None
     type: list[str] | None = Query([item.value for item in NotificationType])
 
