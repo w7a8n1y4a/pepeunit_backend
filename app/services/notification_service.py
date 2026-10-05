@@ -84,18 +84,20 @@ class NotificationService:
     def list(
         self, filters: NotificationFilter | NotificationFilterInput
     ) -> tuple[int, list[Notification]]:
-        self._check_user()
+        self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_repository.list(
             self.access_service.current_agent.uuid, filters
         )
 
     def get(self, uuid: uuid_pkg.UUID) -> Notification:
-        self._check_user()
+        self.access_service.authorization.check_access([AgentType.USER])
         notification = self.notification_repository.get(
             Notification(uuid=uuid)
         )
         is_valid_object(notification)
-        self._check_owner(notification)
+        if notification.user_uuid != self.access_service.current_agent.uuid:
+            msg = "Notification access not allowed"
+            raise NoAccessError(msg)
         return notification
 
     def mark_read(self, uuid: uuid_pkg.UUID) -> Notification:
@@ -110,14 +112,14 @@ class NotificationService:
         )
 
     def mark_all_read(self) -> int:
-        self._check_user()
+        self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_repository.mark_all_read(
             self.access_service.current_agent.uuid,
             datetime.now(UTC),
         )
 
     def get_settings(self) -> NotificationSettings:
-        self._check_user()
+        self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_settings_repository.get_or_create(
             self.access_service.current_agent.uuid
         )
@@ -140,7 +142,7 @@ class NotificationService:
 
     def current_user_uuid(self) -> uuid_pkg.UUID:
         """The user that a notification stream belongs to"""
-        self._check_user()
+        self.access_service.authorization.check_access([AgentType.USER])
         return self.access_service.current_agent.uuid
 
     def dispatch_scheduled(self) -> list[Delivery]:
@@ -377,14 +379,6 @@ class NotificationService:
             notification=notification,
             push_sse=push_sse,
         )
-
-    def _check_user(self) -> None:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-    def _check_owner(self, notification: Notification) -> None:
-        if notification.user_uuid != self.access_service.current_agent.uuid:
-            msg = "Notification access not allowed"
-            raise NoAccessError(msg)
 
     @staticmethod
     def _optional_float(raw: object) -> float | None:
