@@ -42,7 +42,6 @@ from app.schemas.pydantic.notification import (
 from app.schemas.pydantic.permission import PermissionFilter
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
-from app.services.metrics_service import MetricsService
 from app.services.notification_delivery import Delivery
 from app.services.validators import is_valid_object, is_valid_uuid
 
@@ -144,7 +143,6 @@ class NotificationService:
         unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         loki_repository: LokiRepository = Depends(),
-        metrics_service: MetricsService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.notification_repository = notification_repository
@@ -155,7 +153,6 @@ class NotificationService:
         self.unit_node_repository = unit_node_repository
         self.unit_log_repository = unit_log_repository
         self.loki_repository = loki_repository
-        self.metrics_service = metrics_service
         self.access_service = access_service
 
     def list(
@@ -314,13 +311,14 @@ class NotificationService:
         settings_row: NotificationSettings,
         now: datetime,
     ) -> list[Delivery]:
-        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # The scheduled minute is the only gate. A later time the same day sends.
+        slot_start = now.replace(second=0, microsecond=0)
         period_start = now - SCHEDULED_LOG_WINDOW
         deliveries: list[Delivery] = []
 
         if user.role == UserRole.ADMIN.value:
             delivery = self._dispatch_instance_state(
-                user, settings_row, day_start
+                user, settings_row, slot_start
             )
             if delivery:
                 deliveries.append(delivery)
@@ -329,7 +327,7 @@ class NotificationService:
             UnitFilter.unlimited(creator_uuid=user.uuid)
         )
         delivery = self._dispatch_unit_summary(
-            user, settings_row, units, day_start, period_start, now
+            user, settings_row, units, slot_start, period_start, now
         )
         if delivery:
             deliveries.append(delivery)
@@ -339,22 +337,20 @@ class NotificationService:
         self,
         user: User,
         settings_row: NotificationSettings,
-        day_start: datetime,
+        since: datetime,
     ) -> Delivery | None:
         if self.notification_repository.exists_since(
             user.uuid,
             NotificationType.INSTANCE_DAILY_STATE.value,
-            day_start,
+            since,
         ):
             return None
 
-        metrics = self.metrics_service.get_instance_metrics(is_api=False)
         return self._create(
             user,
             settings_row,
             NotificationType.INSTANCE_DAILY_STATE,
             {
-                "entities": metrics.model_dump(),
                 "errors": self.loki_repository.query_backend_error_groups(
                     INSTANCE_ERROR_GROUPS
                 ),
@@ -367,14 +363,14 @@ class NotificationService:
         user: User,
         settings_row: NotificationSettings,
         units: list,
-        day_start: datetime,
+        since: datetime,
         period_start: datetime,
         period_end: datetime,
     ) -> Delivery | None:
         if self.notification_repository.exists_since(
             user.uuid,
             NotificationType.UNIT_DAILY_SUMMARY.value,
-            day_start,
+            since,
         ):
             return None
 
@@ -389,19 +385,23 @@ class NotificationService:
             until=period_end,
             limit=UNIT_SUMMARY_LIMIT,
         )
-        rows = []
+        counts: dict[uuid_pkg.UUID, int] = {}
         for item in counted:
-            if not item["count"]:
-                continue
             unit_uuid = item["unit_uuid"]
             if not isinstance(unit_uuid, uuid_pkg.UUID):
                 unit_uuid = uuid_pkg.UUID(str(unit_uuid))
-            name = names.get(unit_uuid)
-            if name is None:
-                continue
-            rows.append({"unit_name": name, "error_count": item["count"]})
-        if not rows:
-            return None
+            counts[unit_uuid] = item["count"]
+        rows = sorted(
+            (
+                {
+                    "unit_name": name,
+                    "error_count": counts.get(unit_uuid, 0),
+                }
+                for unit_uuid, name in names.items()
+            ),
+            key=lambda item: item["error_count"],
+            reverse=True,
+        )[:UNIT_SUMMARY_LIMIT]
 
         return self._create(
             user,
@@ -437,6 +437,8 @@ class NotificationService:
                 target_user_uuid=user.uuid,
             )
         )
+        # deliver() runs after the background session closes
+        self.notification_repository.db.expunge(notification)
         return Delivery(
             user_uuid=user.uuid,
             telegram_chat_id=user.telegram_chat_id,

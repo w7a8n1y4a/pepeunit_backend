@@ -12,10 +12,11 @@ from app import settings
 from app.configs.errors import NoAccessError, NotificationError
 from app.domain.notification_model import Notification
 from app.dto.clickhouse.log import UnitLog
-from app.dto.enum import LogLevel, NotificationType, UnitNodeTypeEnum
+from app.dto.enum import LogLevel, NotificationType, UnitNodeTypeEnum, UserRole
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
+from app.repositories.user_repository import UserRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.notification import (
     NotificationFilter,
@@ -189,10 +190,11 @@ def test_data_pipe_alert_rules(
                 key: value for key, value in event.items() if value is not None
             }
             deliveries = recipient_service.create_data_pipe_alerts(event)
-            assert len(deliveries) == 1
-            created.append(deliveries[0].notification)
+            own = _own_deliveries(recipient_service, deliveries)
+            assert len(own) == 1
+            created.append(own[0].notification)
 
-            data = deliveries[0].notification.data
+            data = own[0].notification.data
             assert data["value"] == event["value"]
             for key, value in expected.items():
                 assert data[key] == value
@@ -237,6 +239,9 @@ def test_data_pipe_alert_invalid_rule(recipient_service, alert_node) -> None:
         {"type_value_threshold": "Sideways"},
         {"value": None},
     ]
+    count_before, _notifications = recipient_service.list(
+        NotificationFilter.unlimited()
+    )
     for fields in invalid_rules:
         event = data_pipe_event(alert_node, **fields)
         event = {
@@ -244,20 +249,23 @@ def test_data_pipe_alert_invalid_rule(recipient_service, alert_node) -> None:
         }
         assert recipient_service.create_data_pipe_alerts(event) == []
 
-    count, _notifications = recipient_service.list(
+    count_after, _notifications = recipient_service.list(
         NotificationFilter.unlimited()
     )
-    assert count == 0
+    assert count_after == count_before
 
 
 def test_data_pipe_alert_unknown_node(recipient_service, alert_node) -> None:
+    count_before, _notifications = recipient_service.list(
+        NotificationFilter.unlimited()
+    )
     unknown = data_pipe_event(alert_node, unit_node_uuid=str(uuid_pkg.uuid4()))
     assert recipient_service.create_data_pipe_alerts(unknown) == []
     assert recipient_service.create_data_pipe_alerts({"value": "12.5"}) == []
-    count, _notifications = recipient_service.list(
+    count_after, _notifications = recipient_service.list(
         NotificationFilter.unlimited()
     )
-    assert count == 0
+    assert count_after == count_before
 
 
 def test_data_pipe_alert_recipients(
@@ -276,14 +284,23 @@ def test_data_pipe_alert_recipients(
         extra_service.update_settings(
             NotificationSettingsUpdate(is_data_pipe_alert_enable=True)
         )
+        before_extra, _rows = extra_service.list(
+            NotificationFilter.unlimited()
+        )
         deliveries = recipient_service.create_data_pipe_alerts(
             data_pipe_event(alert_node)
         )
         try:
-            assert [item.user_uuid for item in deliveries] == [
-                regular_user.uuid
-            ]
-            assert extra_service.list(NotificationFilter.unlimited())[0] == 0
+            own = _own_deliveries(recipient_service, deliveries)
+            assert len(own) == 1
+            assert own[0].user_uuid == regular_user.uuid
+            assert all(
+                item.user_uuid != extra_user.uuid for item in deliveries
+            )
+            after_extra, _rows = extra_service.list(
+                NotificationFilter.unlimited()
+            )
+            assert after_extra == before_extra
         finally:
             drop_notifications(
                 database, [item.notification for item in deliveries]
@@ -293,11 +310,13 @@ def test_data_pipe_alert_recipients(
     recipient_service.update_settings(
         NotificationSettingsUpdate(is_data_pipe_alert_enable=False)
     )
+    before, _rows = recipient_service.list(NotificationFilter.unlimited())
     assert (
         recipient_service.create_data_pipe_alerts(data_pipe_event(alert_node))
         == []
     )
-    assert recipient_service.list(NotificationFilter.unlimited())[0] == 0
+    after, _rows = recipient_service.list(NotificationFilter.unlimited())
+    assert after == before
 
 
 def test_data_pipe_alert_delivery(
@@ -310,7 +329,7 @@ def test_data_pipe_alert_delivery(
         data_pipe_event(alert_node)
     )
     try:
-        delivery = deliveries[0]
+        delivery = _own_deliveries(recipient_service, deliveries)[0]
         assert delivery.user_uuid == regular_user.uuid
         assert delivery.telegram_chat_id == regular_user.telegram_chat_id
         assert delivery.is_telegram_alert_enable is True
@@ -347,23 +366,23 @@ def test_telegram_text_by_type(regular_user) -> None:
     instance = telegram_text(
         notification(
             NotificationType.INSTANCE_DAILY_STATE,
-            {
-                "entities": {
-                    "user_count": 3,
-                    "repository_registry_count": 1,
-                    "repo_count": 1,
-                    "unit_count": 1,
-                    "unit_node_count": 1,
-                    "unit_node_edge_count": 1,
-                },
-                "errors": [{"count": 4, "message": "disk full"}],
-            },
+            {"errors": [{"count": 4, "message": "disk full"}]},
         )
     )
-    assert "Instance metrics" in instance
-    assert "User" in instance
-    assert "Backend logs" in instance
+    assert instance.startswith("\n```text\n")
+    assert instance.endswith("```")
+    assert "Instance daily summary" in instance
     assert "disk full" in instance
+
+    unavailable = telegram_text(
+        notification(
+            NotificationType.INSTANCE_DAILY_STATE,
+            {"errors": None},
+        )
+    )
+    assert "Instance daily summary" in unavailable
+    assert "Loki did not return data" in unavailable
+    assert "0" not in unavailable
 
     summary = telegram_text(
         notification(
@@ -371,6 +390,8 @@ def test_telegram_text_by_type(regular_user) -> None:
             {"units": [{"unit_name": "boiler", "error_count": 7}]},
         )
     )
+    assert summary.startswith("\n```text\n")
+    assert summary.endswith("```")
     assert "Unit daily summary" in summary
     assert "boiler" in summary
     assert "7" in summary
@@ -445,7 +466,8 @@ def test_notification_stream(
             deliveries = recipient_service.create_data_pipe_alerts(
                 data_pipe_event(alert_node)
             )
-            asyncio.run(deliver(deliveries))
+            own = _own_deliveries(recipient_service, deliveries)
+            asyncio.run(deliver(own))
 
             message = None
             for line in lines:
@@ -454,7 +476,7 @@ def test_notification_stream(
                 message = json.loads(line.removeprefix("data: "))
                 break
         assert message is not None
-        assert message["uuid"] == str(deliveries[0].notification.uuid)
+        assert message["uuid"] == str(own[0].notification.uuid)
         assert message["type"] == NotificationType.DATA_PIPE_ALERT.value
         assert message["data"]["topic_name"] == alert_node.topic_name
     finally:
@@ -476,6 +498,7 @@ async def test_data_pipe_alert_live(
         )
     )
     node = nodes[0]
+    started = datetime.now(UTC)
     created = []
     try:
         await service.update(
@@ -494,7 +517,8 @@ async def test_data_pipe_alert_live(
             created[:] = [
                 item
                 for item in notifications
-                if item.data["unit_node_uuid"] == str(node.uuid)
+                if item.data.get("unit_node_uuid") == str(node.uuid)
+                and _aware(item.create_datetime) >= started
             ]
             return bool(created)
 
@@ -660,7 +684,7 @@ def test_dispatch_scheduled_instance_state(
                     scheduled_notification_time=_scheduled_now(),
                 )
             )
-            deliveries = service.dispatch_scheduled()
+            deliveries = _dispatch_for_current(service)
             created.extend(item.notification for item in deliveries)
             assert all(
                 item.user_uuid == admin_user.uuid for item in deliveries
@@ -673,22 +697,42 @@ def test_dispatch_scheduled_instance_state(
             ]
             assert len(instance_alerts) == 1
             assert all(item.push_sse is False for item in deliveries)
-            assert "user_count" in instance_alerts[0].data["entities"]
             errors = instance_alerts[0].data["errors"]
-            assert isinstance(errors, list)
-            assert len(errors) <= 3
-            assert all(
-                "count" in item and "message" in item for item in errors
+            assert errors is None or (
+                isinstance(errors, list)
+                and len(errors) <= 3
+                and all(
+                    "count" in item and "message" in item for item in errors
+                )
             )
 
-            # the same day is dispatched once
-            assert service.dispatch_scheduled() == []
+            # the same minute does not send a second copy
+            assert _dispatch_for_current(service) == []
+            instance_alerts[0].create_datetime = datetime.now(UTC) - timedelta(
+                minutes=2
+            )
+            service.notification_repository.update(
+                instance_alerts[0].uuid, instance_alerts[0]
+            )
+            again = _dispatch_for_current(service)
+            created.extend(item.notification for item in again)
+            assert any(
+                item.notification.type
+                == NotificationType.INSTANCE_DAILY_STATE.value
+                for item in again
+            )
+            created_ids = {
+                item.uuid
+                for item in created
+                if item.type == NotificationType.INSTANCE_DAILY_STATE.value
+            }
             _, notifications = service.list(
                 NotificationFilter.unlimited(
                     type=[NotificationType.INSTANCE_DAILY_STATE.value]
                 )
             )
-            assert len(notifications) == 1
+            assert created_ids <= {item.uuid for item in notifications}
+            assert len(created_ids) == 2
         finally:
             drop_notifications(database, created)
 
@@ -754,13 +798,17 @@ def test_dispatch_scheduled_unit_summary(
                 ]
             )
 
-            deliveries = service.dispatch_scheduled()
+            deliveries = _dispatch_for_current(service)
             created.extend(item.notification for item in deliveries)
 
+            assert all(
+                item.user_uuid == regular_user.uuid for item in deliveries
+            )
             assert all(item.push_sse is False for item in deliveries)
             assert all(
-                item.type != NotificationType.INSTANCE_DAILY_STATE.value
-                for item in created
+                item.notification.type
+                != NotificationType.INSTANCE_DAILY_STATE.value
+                for item in deliveries
             )
             summary = next(
                 item
@@ -776,10 +824,102 @@ def test_dispatch_scheduled_unit_summary(
             assert len(summary.data["units"]) <= 10
             assert set(row) == {"unit_name", "error_count"}
 
-            # the same day is dispatched once
-            assert service.dispatch_scheduled() == []
+            # the same minute does not send a second copy
+            assert _dispatch_for_current(service) == []
+            summary.create_datetime = datetime.now(UTC) - timedelta(minutes=2)
+            service.notification_repository.update(summary.uuid, summary)
+            again = _dispatch_for_current(service)
+            created.extend(item.notification for item in again)
+            assert any(
+                item.notification.type
+                == NotificationType.UNIT_DAILY_SUMMARY.value
+                for item in again
+            )
         finally:
             drop_notifications(database, created)
+
+
+def _own_deliveries(service, deliveries) -> list:
+    user_uuid = service.current_user_uuid()
+    return [item for item in deliveries if item.user_uuid == user_uuid]
+
+
+def _dispatch_for_current(service):
+    """Dispatches only the signed-in user, not every due user on the instance"""
+    user = service.access_service.current_agent
+    return service._dispatch_scheduled_for_user(
+        user, service.get_settings(), datetime.now(UTC)
+    )
+
+
+def _upcoming_slot() -> datetime:
+    """The next scheduler minute, with time left to commit the settings"""
+    now = datetime.now(UTC)
+    skip = 2 if now.second >= 50 else 1
+    return (now + timedelta(minutes=skip)).replace(second=0, microsecond=0)
+
+
+def _aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def test_live_scheduled_alerts_reach_recipient(
+    live_units, regular_user, regular_user_token, database, cc
+) -> None:
+    """The running backend sends the admin and unit summaries to this user.
+
+    Data pipe alerts are covered by test_data_pipe_alert_live. Instance state
+    is admin-only, so the recipient is an admin until the scheduler minute.
+    """
+    repository = UserRepository(db=database)
+    previous_role = regular_user.role
+    regular_user.role = UserRole.ADMIN
+    repository.update(regular_user.uuid, regular_user)
+    slot = _upcoming_slot()
+    found: list[Notification] = []
+    try:
+        with as_recipient(
+            database, cc, regular_user, regular_user_token
+        ) as service:
+            service.update_settings(
+                NotificationSettingsUpdate(
+                    is_scheduled_alert_enable=True,
+                    scheduled_notification_time=slot.strftime("%H:%M"),
+                    is_telegram_alert_enable=True,
+                )
+            )
+
+            def arrived() -> bool:
+                _, rows = service.list(NotificationFilter.unlimited())
+                found[:] = [
+                    item
+                    for item in rows
+                    if _aware(item.create_datetime) >= slot
+                    and item.type
+                    in (
+                        NotificationType.INSTANCE_DAILY_STATE.value,
+                        NotificationType.UNIT_DAILY_SUMMARY.value,
+                    )
+                ]
+                types = {item.type for item in found}
+                return {
+                    NotificationType.INSTANCE_DAILY_STATE.value,
+                    NotificationType.UNIT_DAILY_SUMMARY.value,
+                } <= types
+
+            wait_until(
+                arrived,
+                timeout=120,
+                interval=2,
+                message="scheduled alerts did not reach the recipient",
+                session=database,
+            )
+    finally:
+        regular_user.role = previous_role
+        repository.update(regular_user.uuid, regular_user)
+        drop_notifications(database, found)
 
 
 def _scheduled_now() -> str:

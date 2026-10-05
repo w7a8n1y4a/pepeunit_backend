@@ -2,6 +2,7 @@ import uuid as uuid_pkg
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 
+from app import settings
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
 from app.dto.enum import UserStatus
@@ -61,6 +62,8 @@ def data_pipe_event(unit_node, **fields) -> dict:
 
 
 def drop_notification(database, uuid: uuid_pkg.UUID) -> None:
+    if not settings.pu_test_integration_clear_data:
+        return
     with suppress(Exception):
         NotificationRepository(database).delete(Notification(uuid=uuid))
 

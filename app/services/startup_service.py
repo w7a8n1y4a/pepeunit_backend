@@ -309,7 +309,9 @@ class StartupService:
             if lock_fd:
                 logging.info("Run update with lock")
                 try:
-                    work()
+                    # Git sync is synchronous and must not stall the
+                    # notification loop on this event loop
+                    await asyncio.to_thread(work)
                 finally:
                     lock_fd.close()
             else:

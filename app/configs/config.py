@@ -533,6 +533,10 @@ class IntegrationTestSettings(SettingsValidationMixin, BaseModel):
     pu_test_integration_private_repo_json: str = Field(
         default="", max_length=8192
     )
+    # Empty keeps a random chat id for the data pipe recipient
+    pu_test_integration_telegram_chat_id: str = Field(
+        default="", max_length=32
+    )
 
     @field_validator(
         "pu_test_integration_github_public_repo_url",

@@ -223,7 +223,6 @@ class ServiceFactory:
             unit_node_repository=self.unit_node_repository,
             unit_log_repository=self.unit_log_repository,
             loki_repository=self.loki_repository,
-            metrics_service=self.get_metrics_service(),
             access_service=self.access_service,
         )
 

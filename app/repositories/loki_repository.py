@@ -13,7 +13,7 @@ class LokiRepository:
     )
     EXCERPT_LIMIT = 80
 
-    def query_backend_error_groups(self, limit: int = 3) -> list[dict]:
+    def query_backend_error_groups(self, limit: int = 3) -> list[dict] | None:
         try:
             response = httpx.get(
                 f"{settings.pu_loki_url.rstrip('/')}/loki/api/v1/query",
@@ -24,11 +24,11 @@ class LokiRepository:
             payload = response.json()
         except Exception:
             logging.exception("Failed to read backend errors from Loki")
-            return []
+            return None
 
         if payload.get("status") != "success":
             logging.error("Loki query failed: %s", payload)
-            return []
+            return None
 
         groups = []
         for item in payload.get("data", {}).get("result") or []:

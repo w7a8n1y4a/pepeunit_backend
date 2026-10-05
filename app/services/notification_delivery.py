@@ -27,14 +27,10 @@ DATA_PIPE_ALERT_GROUP = "backend"
 DATA_PIPE_ALERT_BATCH = 100
 NOTIFICATION_STREAM_PREFIX = "notification_user:"
 NOTIFICATION_STREAM_MAXLEN = 100
-_INSTANCE_METRICS = (
-    ("user_count", "User"),
-    ("repository_registry_count", "RepositoryRegistry"),
-    ("repo_count", "Repo"),
-    ("unit_count", "Unit"),
-    ("unit_node_count", "UnitNode"),
-    ("unit_node_edge_count", "UnitNodeEdge"),
-)
+_DAILY_TYPES = {
+    NotificationType.INSTANCE_DAILY_STATE.value,
+    NotificationType.UNIT_DAILY_SUMMARY.value,
+}
 
 
 @dataclass(frozen=True)
@@ -53,25 +49,31 @@ class TelegramAlertQueue:
     """Sends at most one telegram message every 10 seconds"""
 
     def __init__(self) -> None:
-        self.queue: asyncio.Queue[tuple[str, str]] | None = None
+        self.queue: asyncio.Queue[tuple[str, str, str | None]] | None = None
         self.ready = asyncio.Event()
 
-    def enqueue(self, chat_id: str, text: str) -> None:
+    def enqueue(
+        self, chat_id: str, text: str, parse_mode: str | None = None
+    ) -> None:
         if (
             not settings.pu_ff_telegram_bot_enable
             or not chat_id
             or self.queue is None
         ):
             return
-        self.queue.put_nowait((chat_id, text[:TELEGRAM_ALERT_TEXT_LIMIT]))
+        self.queue.put_nowait(
+            (chat_id, text[:TELEGRAM_ALERT_TEXT_LIMIT], parse_mode)
+        )
 
     async def run(self, bot: Bot) -> None:
         self.queue = asyncio.Queue()
         self.ready.set()
         while True:
-            chat_id, text = await self.queue.get()
+            chat_id, text, parse_mode = await self.queue.get()
             try:
-                await bot.send_message(chat_id=chat_id, text=text)
+                await bot.send_message(
+                    chat_id=chat_id, text=text, parse_mode=parse_mode
+                )
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -104,26 +106,27 @@ def telegram_text(notification: Notification) -> str:
     return data_pipe_alert_text(data)
 
 
+def _text_block(body: str) -> str:
+    # A log line can contain the fence and break Telegram Markdown
+    body = body.replace("```", "'''")
+    return f"\n```text\n{body}```"
+
+
 def _instance_daily_state_text(data: dict) -> str:
-    entities = data.get("entities") or {}
-    metrics = [["Type", "Count"]]
-    metrics.extend(
-        [label, entities.get(key, 0)] for key, label in _INSTANCE_METRICS
-    )
-    logs = [["Count", "Message"]]
-    errors = data.get("errors") or []
-    if errors:
-        logs.extend(
+    errors = data.get("errors")
+    if not isinstance(errors, list):
+        table = [["Loki did not return data"]]
+        lengths = None
+    else:
+        table = [["Count", "Message"]]
+        table.extend(
             [item.get("count", 0), item.get("message") or "-"]
             for item in errors
         )
-    else:
-        logs.append(["0", "-"])
-    return (
-        make_monospace_table_with_title(metrics, "Instance metrics")
-        + "\n"
-        + make_monospace_table_with_title(
-            logs, "Backend logs", lengths=[8, 40]
+        lengths = [8, 40]
+    return _text_block(
+        make_monospace_table_with_title(
+            table, "Instance daily summary", lengths=lengths
         )
     )
 
@@ -138,7 +141,9 @@ def _unit_daily_summary_text(data: dict) -> str:
         )
     else:
         table.append(["-", "0"])
-    return make_monospace_table_with_title(table, "Unit daily summary")
+    return _text_block(
+        make_monospace_table_with_title(table, "Unit daily summary")
+    )
 
 
 def _number(value: object) -> str:
@@ -168,8 +173,8 @@ def _rule_phrases(data: dict) -> list[str]:
         )
         phrases.append(
             {
-                FilterTypeValueFiltering.WHITE_LIST.value: f"is not one of: {values}",
-                FilterTypeValueFiltering.BLACK_LIST.value: f"is one of: {values}",
+                FilterTypeValueFiltering.WHITELIST.value: f"is not one of: {values}",
+                FilterTypeValueFiltering.BLACKLIST.value: f"is one of: {values}",
             }[type_value_filtering]
         )
 
@@ -214,9 +219,16 @@ async def deliver(deliveries: list[Delivery]) -> None:
                         payload["uuid"],
                     )
             if delivery.is_telegram_alert_enable:
+                text = telegram_text(delivery.notification)
+                parse_mode = (
+                    "Markdown"
+                    if delivery.notification.type in _DAILY_TYPES
+                    else None
+                )
                 telegram_alert_queue.enqueue(
                     delivery.telegram_chat_id or "",
-                    telegram_text(delivery.notification),
+                    text,
+                    parse_mode,
                 )
     finally:
         await session.aclose()

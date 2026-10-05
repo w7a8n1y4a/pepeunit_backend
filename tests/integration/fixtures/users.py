@@ -30,7 +30,17 @@ def _token_for(database, cc, login: str, password: str) -> str:
     )
 
 
-def _maybe_verify(database, cc, token: str) -> None:
+def telegram_chat_id(*, configured: bool = False) -> str:
+    """Chat id of the data pipe recipient, random when the setting is empty"""
+    value = settings.pu_test_integration_telegram_chat_id.strip()
+    if configured and value:
+        return value
+    return str(random.randint(1_000_000, 10_000_000))
+
+
+def _maybe_verify(
+    database, cc, token: str, *, configured: bool = False
+) -> None:
     if not settings.pu_ff_telegram_bot_enable:
         return
 
@@ -38,7 +48,9 @@ def _maybe_verify(database, cc, token: str) -> None:
         service = user_service(database, cc, token)
         link = await service.generate_verification_link()
         code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
-        await service.verification(str(random.randint(1_000_000, 10_000_000)), code)
+        await service.verification(
+            telegram_chat_id(configured=configured), code
+        )
 
     asyncio.run(_verify())
 
@@ -55,7 +67,7 @@ def regular_user(clean_leftovers, database, cc) -> User:
 @pytest.fixture(scope="session")
 def regular_user_token(database, cc, regular_user) -> str:
     token = _token_for(database, cc, regular_user.login, REGULAR_USER_PASSWORD)
-    _maybe_verify(database, cc, token)
+    _maybe_verify(database, cc, token, configured=True)
     return token
 
 
