@@ -5,8 +5,15 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import Query
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
+from app.configs.errors import NotificationError
 from app.dto.enum import (
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -48,12 +55,20 @@ class DataPipeAlertData(BaseModel):
     threshold_min: float | None = None
     threshold_max: float | None = None
 
+    @classmethod
+    def validated(cls, event: dict) -> DataPipeAlertData:
+        try:
+            return cls.model_validate(event)
+        except ValidationError as err:
+            msg = "Data pipe alert payload is invalid"
+            raise NotificationError(msg) from err
+
     @field_validator("value", mode="before")
     @classmethod
     def require_value(cls, value: object) -> str:
         if value is None:
             msg = "value is required"
-            raise ValueError(msg)
+            raise NotificationError(msg)
         return str(value)
 
     @field_validator("filtering_values", mode="before")
@@ -68,10 +83,10 @@ class DataPipeAlertData(BaseModel):
                     return json.loads(value)
                 except json.JSONDecodeError as exc:
                     msg = "filtering_values must be a json list"
-                    raise ValueError(msg) from exc
+                    raise NotificationError(msg) from exc
             case _:
                 msg = "filtering_values must be a json list"
-                raise ValueError(msg)
+                raise NotificationError(msg)
 
     def with_node(
         self,
@@ -103,22 +118,22 @@ class DataPipeAlertData(BaseModel):
             and self.type_value_threshold is None
         ):
             msg = "type_value_filtering or type_value_threshold is required"
-            raise ValueError(msg)
+            raise NotificationError(msg)
         if self.type_value_filtering is not None and not self.filtering_values:
             msg = "filtering_values is required"
-            raise ValueError(msg)
+            raise NotificationError(msg)
         match self.type_value_threshold:
             case FilterTypeValueThreshold.MIN if self.threshold_min is None:
                 msg = "threshold_min is required"
-                raise ValueError(msg)
+                raise NotificationError(msg)
             case FilterTypeValueThreshold.MAX if self.threshold_max is None:
                 msg = "threshold_max is required"
-                raise ValueError(msg)
+                raise NotificationError(msg)
             case FilterTypeValueThreshold.RANGE if (
                 self.threshold_min is None or self.threshold_max is None
             ):
                 msg = "threshold_min and threshold_max are required"
-                raise ValueError(msg)
+                raise NotificationError(msg)
         return self
 
     @property

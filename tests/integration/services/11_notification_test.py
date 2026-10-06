@@ -7,10 +7,14 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
-from pydantic import ValidationError
+from pydantic import ValidationError as SchemaValidationError
 
 from app import settings
-from app.configs.errors import NoAccessError
+from app.configs.errors import (
+    NoAccessError,
+    NotificationError,
+    ValidationError,
+)
 from app.domain.notification_model import Notification
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
@@ -23,8 +27,8 @@ from app.dto.enum import (
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
-from app.repositories.user_repository import UserRepository
 from app.repositories.unit_log_repository import UnitLogRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationRead,
@@ -102,7 +106,7 @@ def test_update_notification_settings_invalid_time(
     extra_user_token, database, cc
 ) -> None:
     service = notification_service(database, cc, extra_user_token)
-    with pytest.raises(ValidationError):
+    with pytest.raises(SchemaValidationError):
         service.update_settings(
             NotificationSettingsUpdate(scheduled_notification_time="25:00")
         )
@@ -254,7 +258,8 @@ def test_data_pipe_alert_invalid_rule(recipient_service, alert_node) -> None:
         event = {
             key: value for key, value in event.items() if value is not None
         }
-        assert recipient_service.create_data_pipe_alerts(event) == []
+        with pytest.raises(NotificationError):
+            recipient_service.create_data_pipe_alerts(event)
 
     count_after, _notifications = recipient_service.list(
         NotificationFilter.unlimited()
@@ -267,8 +272,10 @@ def test_data_pipe_alert_unknown_node(recipient_service, alert_node) -> None:
         NotificationFilter.unlimited()
     )
     unknown = data_pipe_event(alert_node, unit_node_uuid=str(uuid_pkg.uuid4()))
-    assert recipient_service.create_data_pipe_alerts(unknown) == []
-    assert recipient_service.create_data_pipe_alerts({"value": "12.5"}) == []
+    with pytest.raises(ValidationError):
+        recipient_service.create_data_pipe_alerts(unknown)
+    with pytest.raises(NotificationError):
+        recipient_service.create_data_pipe_alerts({"value": "12.5"})
     count_after, _notifications = recipient_service.list(
         NotificationFilter.unlimited()
     )

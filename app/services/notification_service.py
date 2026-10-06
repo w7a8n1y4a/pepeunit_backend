@@ -3,9 +3,8 @@ import uuid as uuid_pkg
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends
-from pydantic import ValidationError
 
-from app.configs.errors import LokiError
+from app.configs.errors import LokiError, NotificationError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
 from app.domain.unit_model import Unit
@@ -157,24 +156,15 @@ class NotificationService:
         return deliveries
 
     def create_data_pipe_alerts(self, event: dict) -> list[Delivery]:
-        try:
-            incoming = DataPipeAlertData.model_validate(event)
-        except ValidationError:
-            logging.error("Data pipe alert payload is invalid: %s", event)
-            return []
+        incoming = DataPipeAlertData.validated(event)
         if incoming.unit_node_uuid is None:
-            logging.error("Data pipe alert payload is invalid: %s", event)
-            return []
+            msg = "unit_node_uuid is required"
+            raise NotificationError(msg)
 
         node = self.unit_node_repository.get(
             UnitNode(uuid=incoming.unit_node_uuid)
         )
-        if node is None:
-            logging.warning(
-                "Data pipe alert for unknown unit node %s",
-                incoming.unit_node_uuid,
-            )
-            return []
+        is_valid_object(node)
 
         recipient = (
             self.notification_settings_repository.get_data_pipe_enabled(
@@ -186,16 +176,12 @@ class NotificationService:
 
         user, settings_row = recipient
         unit = self.unit_repository.get(Unit(uuid=node.unit_uuid))
-        try:
-            payload = incoming.with_node(
-                unit_node_uuid=node.uuid,
-                unit_uuid=node.unit_uuid,
-                unit_name=None if unit is None else unit.name,
-                topic_name=node.topic_name,
-            )
-        except ValidationError:
-            logging.error("Data pipe alert rule is invalid: %s", event)
-            return []
+        payload = incoming.with_node(
+            unit_node_uuid=node.uuid,
+            unit_uuid=node.unit_uuid,
+            unit_name=None if unit is None else unit.name,
+            topic_name=node.topic_name,
+        )
         return [
             self._create(
                 user,
@@ -249,7 +235,7 @@ class NotificationService:
                 return self._unit_summary_data(user, period_start, period_end)
             case _:
                 msg = f"Notification type {notification_type} is not scheduled"
-                raise ValueError(msg)
+                raise NotificationError(msg)
 
     def _instance_errors(self) -> list[InstanceError] | None:
         try:
