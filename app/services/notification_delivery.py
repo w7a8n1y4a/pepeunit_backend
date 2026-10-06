@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import uuid as uuid_pkg
 from dataclasses import dataclass
@@ -17,7 +16,6 @@ from app.dto.enum import (
 )
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.notification import NotificationRead
-from app.utils.utils import obj_serializer
 
 
 @dataclass(frozen=True)
@@ -28,8 +26,6 @@ class Delivery:
     telegram_chat_id: str | None
     is_telegram_alert_enable: bool
     notification: Notification
-    # Daily summaries stay in the database and go to telegram only
-    push_sse: bool
 
 
 class TelegramAlertQueue:
@@ -70,7 +66,7 @@ class TelegramAlertQueue:
 
 
 class NotificationMessage:
-    """Stream payload and telegram text of one stored notification"""
+    """Telegram text of one stored notification"""
 
     DAILY_TYPES = frozenset(
         {
@@ -80,14 +76,6 @@ class NotificationMessage:
     )
     INSTANCE_COLUMN_LENGTHS = (8, 40)
     MARKDOWN = "Markdown"
-
-    @staticmethod
-    def payload(notification: Notification) -> dict:
-        read = NotificationRead.model_validate(
-            notification, from_attributes=True
-        )
-        raw = json.dumps(read.model_dump(), default=obj_serializer)
-        return json.loads(raw)
 
     @classmethod
     def text(cls, notification: Notification) -> str:
@@ -223,7 +211,7 @@ class NotificationDelivery:
 
         The notification row is already committed. One Redis connection
         serves the whole batch. A failed push is logged and never undoes
-        the stored row. Daily summaries skip the stream.
+        the stored row.
         """
         if deliveries:
             session = get_redis_session()
@@ -236,20 +224,19 @@ class NotificationDelivery:
 
     async def _push_one(self, redis, delivery: Delivery) -> None:
         notification = delivery.notification
-        payload = NotificationMessage.payload(notification)
-        if delivery.push_sse:
-            try:
-                await redis.xadd(
-                    self.stream_name(delivery.user_uuid),
-                    {"data": json.dumps(payload)},
-                    maxlen=settings.pu_notification_stream_maxlen,
-                    approximate=True,
-                )
-            except Exception:
-                logging.exception(
-                    "Failed to push notification %s to the stream",
-                    payload["uuid"],
-                )
+        read = NotificationRead(**notification.dict())
+        try:
+            await redis.xadd(
+                self.stream_name(delivery.user_uuid),
+                {"data": read.model_dump_json()},
+                maxlen=settings.pu_notification_stream_maxlen,
+                approximate=True,
+            )
+        except Exception:
+            logging.exception(
+                "Failed to push notification %s to the stream",
+                read.uuid,
+            )
         if delivery.is_telegram_alert_enable:
             self.telegram.enqueue(
                 delivery.telegram_chat_id or "",

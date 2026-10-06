@@ -212,7 +212,6 @@ class NotificationService:
                 settings_row,
                 NotificationType.DATA_PIPE_ALERT,
                 payload,
-                push_sse=True,
             )
         ]
 
@@ -275,7 +274,6 @@ class NotificationService:
             settings_row,
             NotificationType.INSTANCE_DAILY_STATE,
             {"errors": self._instance_errors()},
-            push_sse=False,
         )
 
     def _dispatch_unit_summary(
@@ -323,7 +321,6 @@ class NotificationService:
             settings_row,
             NotificationType.UNIT_DAILY_SUMMARY,
             {"units": rows},
-            push_sse=False,
         )
 
     def _find_unit_node(self, unit_node_uuid: str) -> UnitNode | None:
@@ -341,7 +338,6 @@ class NotificationService:
         settings_row: NotificationSettings,
         notification_type: NotificationType,
         data: dict,
-        push_sse: bool,
     ) -> Delivery:
         notification = self.notification_repository.create(
             Notification(
@@ -359,7 +355,6 @@ class NotificationService:
             telegram_chat_id=user.telegram_chat_id,
             is_telegram_alert_enable=settings_row.is_telegram_alert_enable,
             notification=notification,
-            push_sse=push_sse,
         )
 
     @staticmethod

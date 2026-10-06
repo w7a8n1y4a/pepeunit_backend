@@ -20,6 +20,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.notification import (
     NotificationFilter,
+    NotificationRead,
     NotificationSettingsUpdate,
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
@@ -332,14 +333,13 @@ def test_data_pipe_alert_delivery(
         assert delivery.user_uuid == regular_user.uuid
         assert delivery.telegram_chat_id == regular_user.telegram_chat_id
         assert delivery.is_telegram_alert_enable is True
-        assert delivery.push_sse is True
 
-        payload = NotificationMessage.payload(delivery.notification)
-        assert payload["uuid"] == str(delivery.notification.uuid)
-        assert payload["type"] == NotificationType.DATA_PIPE_ALERT.value
-        assert payload["user_uuid"] == str(regular_user.uuid)
-        assert payload["is_read"] is False
-        assert payload["data"]["topic_name"] == alert_node.topic_name
+        read = NotificationRead(**delivery.notification.dict())
+        assert read.uuid == delivery.notification.uuid
+        assert read.type == NotificationType.DATA_PIPE_ALERT
+        assert read.user_uuid == regular_user.uuid
+        assert read.is_read is False
+        assert read.data["topic_name"] == alert_node.topic_name
 
         text = NotificationMessage.text(delivery.notification)
         assert alert_node.topic_name in text
@@ -689,7 +689,6 @@ def test_dispatch_scheduled_instance_state(
                 if item.type == NotificationType.INSTANCE_DAILY_STATE.value
             ]
             assert len(instance_alerts) == 1
-            assert all(item.push_sse is False for item in deliveries)
             errors = instance_alerts[0].data["errors"]
             assert errors is None or (
                 isinstance(errors, list)
@@ -797,7 +796,6 @@ def test_dispatch_scheduled_unit_summary(
             assert all(
                 item.user_uuid == regular_user.uuid for item in deliveries
             )
-            assert all(item.push_sse is False for item in deliveries)
             assert all(
                 item.notification.type
                 != NotificationType.INSTANCE_DAILY_STATE.value
