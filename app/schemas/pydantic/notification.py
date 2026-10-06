@@ -1,9 +1,17 @@
+import json
+import math
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import Query
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    field_validator,
+    model_validator,
+)
 
 from app.dto.enum import (
     FilterTypeValueFiltering,
@@ -11,6 +19,16 @@ from app.dto.enum import (
     NotificationType,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
+
+
+def _finite_float(value: float) -> float:
+    if not math.isfinite(value):
+        msg = "threshold must be finite"
+        raise ValueError(msg)
+    return value
+
+
+FiniteFloat = Annotated[float, AfterValidator(_finite_float)]
 
 
 class InstanceError(BaseModel):
@@ -31,6 +49,64 @@ class UnitDailySummaryData(BaseModel):
     units: list[UnitErrorCount]
 
 
+class DataPipeAlertEvent(BaseModel):
+    """One data_pipe_alerts stream message.
+
+    filtering_values arrives as a JSON list. Thresholds arrive as numbers
+    or numeric strings.
+    """
+
+    unit_node_uuid: uuid_pkg.UUID
+    value: str
+    type_value_filtering: FilterTypeValueFiltering | None = None
+    filtering_values: list[str | float] | None = None
+    type_value_threshold: FilterTypeValueThreshold | None = None
+    threshold_min: FiniteFloat | None = None
+    threshold_max: FiniteFloat | None = None
+
+    @field_validator("value", mode="before")
+    @classmethod
+    def require_value(cls, value: object) -> str:
+        if value is None:
+            msg = "value is required"
+            raise ValueError(msg)
+        return str(value)
+
+    @field_validator("filtering_values", mode="before")
+    @classmethod
+    def parse_filtering_values(cls, value: object) -> object:
+        if value is None:
+            return None
+        try:
+            return json.loads(value)
+        except (TypeError, json.JSONDecodeError) as exc:
+            msg = "filtering_values must be a json list"
+            raise ValueError(msg) from exc
+
+    def notification_data(
+        self,
+        *,
+        unit_node_uuid: uuid_pkg.UUID,
+        unit_uuid: uuid_pkg.UUID,
+        unit_name: str | None,
+        topic_name: str,
+    ) -> DataPipeAlertData:
+        has_filter = self.type_value_filtering is not None
+        has_threshold = self.type_value_threshold is not None
+        return DataPipeAlertData(
+            value=self.value,
+            topic_name=topic_name,
+            unit_node_uuid=str(unit_node_uuid),
+            unit_uuid=str(unit_uuid),
+            unit_name=unit_name,
+            type_value_filtering=self.type_value_filtering,
+            filtering_values=self.filtering_values if has_filter else None,
+            type_value_threshold=self.type_value_threshold,
+            threshold_min=self.threshold_min if has_threshold else None,
+            threshold_max=self.threshold_max if has_threshold else None,
+        )
+
+
 class DataPipeAlertData(BaseModel):
     value: str
     topic_name: str | None = None
@@ -38,17 +114,10 @@ class DataPipeAlertData(BaseModel):
     unit_uuid: str | None = None
     unit_name: str | None = None
     type_value_filtering: FilterTypeValueFiltering | None = None
-    filtering_values: list[str | float] = []
+    filtering_values: list[str | float] | None = None
     type_value_threshold: FilterTypeValueThreshold | None = None
     threshold_min: float | None = None
     threshold_max: float | None = None
-
-    @field_validator("filtering_values", mode="before")
-    @classmethod
-    def none_filtering_values(cls, value: object) -> object:
-        if value is None:
-            return []
-        return value
 
     @model_validator(mode="after")
     def check_rules(self) -> DataPipeAlertData:
