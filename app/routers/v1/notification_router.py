@@ -60,7 +60,12 @@ async def notifications_stream(
 ):
     # Auth uses a short session. The stream itself must not hold a database
     # connection for as long as the client stays connected.
-    user_uuid = _user_uuid_from_token(jwt_token)
+    if not jwt_token:
+        msg = "Notification access not allowed"
+        raise NoAccessError(msg)
+    with get_hand_session() as db:
+        service = get_notification_service(db, None, jwt_token)
+        user_uuid = str(service.current_user_uuid())
     return StreamingResponse(
         notification_events(request, user_uuid),
         media_type="text/event-stream",
@@ -106,12 +111,3 @@ def mark_read(
     ),
 ):
     return NotificationRead(**notification_service.mark_read(uuid).dict())
-
-
-def _user_uuid_from_token(token: str | None) -> str:
-    if not token:
-        msg = "Notification access not allowed"
-        raise NoAccessError(msg)
-    with get_hand_session() as db:
-        service = get_notification_service(db, None, token)
-        return str(service.current_user_uuid())

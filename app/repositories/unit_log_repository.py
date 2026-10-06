@@ -1,6 +1,6 @@
 import enum
 import uuid as uuid_pkg
-from datetime import UTC, datetime
+from datetime import datetime
 
 from clickhouse_driver import Client
 from fastapi import Depends
@@ -12,6 +12,8 @@ from app.dto.clickhouse.orm import ClickhouseOrm
 from app.repositories.utils import get_offset_and_limit_clause
 from app.schemas.gql.inputs.unit import UnitLogFilterInput
 from app.schemas.pydantic.unit import UnitLogFilter
+from app.services.validators import is_valid_uuid
+from app.utils.utils import naive_utc
 
 
 class UnitLogRepository:
@@ -116,24 +118,12 @@ class UnitLogRepository:
             {
                 "unit_uuids": tuple(unit_uuids),
                 "levels": tuple(levels),
-                "since": _naive_utc(since),
-                "until": _naive_utc(until),
+                "since": naive_utc(since),
+                "until": naive_utc(until),
                 "limit": limit,
             },
         )
         return [
-            UnitErrorCount(unit_uuid=self._uuid(row[0]), count=int(row[1]))
+            UnitErrorCount(unit_uuid=is_valid_uuid(row[0]), count=int(row[1]))
             for row in rows
         ]
-
-    @staticmethod
-    def _uuid(raw: object) -> uuid_pkg.UUID:
-        if isinstance(raw, uuid_pkg.UUID):
-            return raw
-        return uuid_pkg.UUID(str(raw))
-
-
-def _naive_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value
-    return value.astimezone(UTC).replace(tzinfo=None)
