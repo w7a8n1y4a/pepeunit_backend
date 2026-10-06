@@ -7,9 +7,8 @@ from fastapi import Depends
 from fastapi.params import Query
 
 from app.configs.clickhouse import get_clickhouse_client
-from app.dto.clickhouse.log import UnitErrorCount, UnitLog, UnitLogAggregate
+from app.dto.clickhouse.log import UnitErrorCount, UnitLog
 from app.dto.clickhouse.orm import ClickhouseOrm
-from app.dto.enum import LogLevel
 from app.repositories.utils import get_offset_and_limit_clause
 from app.schemas.gql.inputs.unit import UnitLogFilterInput
 from app.schemas.pydantic.unit import UnitLogFilter
@@ -92,67 +91,6 @@ class UnitLogRepository:
 
         return count[0][0], unit_logs
 
-    def aggregate(
-        self,
-        levels: list[str],
-        since: datetime,
-        until: datetime,
-        unit_uuid: uuid_pkg.UUID | None = None,
-        limit: int = 50,
-    ) -> list[UnitLogAggregate]:
-        since = _naive_utc(since)
-        until = _naive_utc(until)
-        params = {
-            "levels": tuple(levels),
-            "since": since,
-            "until": until,
-            "limit": limit,
-        }
-        if unit_uuid:
-            params["unit_uuid"] = unit_uuid
-            query = """
-                SELECT level, text, count() AS count
-                FROM unit_logs
-                WHERE unit_uuid = %(unit_uuid)s
-                  AND level IN %(levels)s
-                  AND create_datetime >= %(since)s
-                  AND create_datetime < %(until)s
-                GROUP BY level, text
-                ORDER BY count DESC
-                LIMIT %(limit)s
-            """
-            rows = self.client.execute(query, params)
-            return [
-                UnitLogAggregate(
-                    unit_uuid=unit_uuid,
-                    level=self._level(row[0]),
-                    text=str(row[1]),
-                    count=int(row[2]),
-                )
-                for row in rows
-            ]
-
-        query = """
-            SELECT unit_uuid, level, text, count() AS count
-            FROM unit_logs
-            WHERE level IN %(levels)s
-              AND create_datetime >= %(since)s
-              AND create_datetime < %(until)s
-            GROUP BY unit_uuid, level, text
-            ORDER BY count DESC
-            LIMIT %(limit)s
-        """
-        rows = self.client.execute(query, params)
-        return [
-            UnitLogAggregate(
-                unit_uuid=self._uuid(row[0]),
-                level=self._level(row[1]),
-                text=str(row[2]),
-                count=int(row[3]),
-            )
-            for row in rows
-        ]
-
     def count_errors_by_unit(
         self,
         unit_uuids: list[uuid_pkg.UUID],
@@ -193,12 +131,6 @@ class UnitLogRepository:
         if isinstance(raw, uuid_pkg.UUID):
             return raw
         return uuid_pkg.UUID(str(raw))
-
-    @staticmethod
-    def _level(raw: object) -> LogLevel:
-        if isinstance(raw, LogLevel):
-            return raw
-        return LogLevel(str(raw))
 
 
 def _naive_utc(value: datetime) -> datetime:
