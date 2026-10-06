@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid as uuid_pkg
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 from aiogram import Bot
@@ -15,7 +16,11 @@ from app.dto.enum import (
     NotificationType,
 )
 from app.schemas.bot.utils import make_monospace_table_with_title
-from app.schemas.pydantic.notification import NotificationRead
+from app.schemas.pydantic.notification import (
+    DataPipeAlertData,
+    InstanceDailyStateData,
+    UnitDailySummaryData,
+)
 
 
 @dataclass(frozen=True)
@@ -35,15 +40,17 @@ class TelegramAlertQueue:
         self._queue: asyncio.Queue[tuple[str, str]] | None = None
         self.ready = asyncio.Event()
 
-    def enqueue(self, chat_id: str, text: str) -> None:
+    def enqueue(self, chat_id: str | None, text: str) -> None:
         queue = self._queue
         if (
-            settings.pu_ff_telegram_bot_enable
-            and chat_id
-            and queue is not None
+            not settings.pu_ff_telegram_bot_enable
+            or not chat_id
+            or queue is None
         ):
-            limit = settings.pu_notification_telegram_alert_text_limit
-            queue.put_nowait((chat_id, text[:limit]))
+            return
+
+        limit = settings.pu_notification_telegram_alert_text_limit
+        queue.put_nowait((chat_id, text[:limit]))
 
     async def run(self, bot: Bot) -> None:
         self._queue = asyncio.Queue()
@@ -66,35 +73,40 @@ class TelegramAlertQueue:
 class NotificationMessage:
     """Telegram text of one stored notification"""
 
-    INSTANCE_COLUMN_LENGTHS = (8, 40)
-
     @classmethod
     def text(cls, notification: Notification) -> str:
-        data = notification.data or {}
-        match notification.type:
-            case NotificationType.INSTANCE_DAILY_STATE.value:
-                return cls._instance_daily_state(data)
-            case NotificationType.UNIT_DAILY_SUMMARY.value:
-                return cls._unit_daily_summary(data)
-            case NotificationType.DATA_PIPE_ALERT.value:
-                return cls._data_pipe_alert(data)
+        match NotificationType(notification.type):
+            case NotificationType.INSTANCE_DAILY_STATE:
+                rendered = cls._instance_daily_state(
+                    InstanceDailyStateData.model_validate(notification.data)
+                )
+            case NotificationType.UNIT_DAILY_SUMMARY:
+                rendered = cls._unit_daily_summary(
+                    UnitDailySummaryData.model_validate(notification.data)
+                )
+            case NotificationType.DATA_PIPE_ALERT:
+                rendered = cls._data_pipe_alert(
+                    DataPipeAlertData.model_validate(notification.data)
+                )
             case _:
                 msg = f"Unknown notification type: {notification.type}"
                 raise ValueError(msg)
+        return rendered
 
     @classmethod
-    def _instance_daily_state(cls, data: dict) -> str:
-        errors = data.get("errors")
-        if isinstance(errors, list):
-            table = [["Count", "Message"]]
-            table.extend(
-                [item.get("count", 0), item.get("message") or "-"]
-                for item in errors
-            )
-            lengths = list(cls.INSTANCE_COLUMN_LENGTHS)
-        else:
+    def _instance_daily_state(cls, data: InstanceDailyStateData) -> str:
+        lengths = None
+        if data.errors is None:
             table = [["Loki did not return data"]]
-            lengths = None
+        else:
+            table = [
+                ["Count", "Message"],
+                *[
+                    [error.count, error.message or "-"]
+                    for error in data.errors
+                ],
+            ]
+            lengths = [8, 40]
         return cls._fenced(
             make_monospace_table_with_title(
                 table, "Instance daily summary", lengths=lengths
@@ -102,73 +114,83 @@ class NotificationMessage:
         )
 
     @classmethod
-    def _unit_daily_summary(cls, data: dict) -> str:
-        table = [["Unit name", "Errors"]]
-        units = data.get("units") or []
-        if units:
-            table.extend(
-                [item.get("unit_name") or "-", item.get("error_count", 0)]
-                for item in units
-            )
+    def _unit_daily_summary(cls, data: UnitDailySummaryData) -> str:
+        if data.units:
+            rows = [
+                [unit.unit_name or "-", unit.error_count]
+                for unit in data.units
+            ]
         else:
-            table.append(["-", "0"])
+            rows = [["-", "0"]]
         return cls._fenced(
-            make_monospace_table_with_title(table, "Unit daily summary")
+            make_monospace_table_with_title(
+                [["Unit name", "Errors"], *rows], "Unit daily summary"
+            )
         )
 
     @classmethod
-    def _data_pipe_alert(cls, data: dict) -> str:
-        value = data.get("value")
-        topic = data.get("topic_name") or data.get("unit_node_uuid")
-        lines = ["Data pipe alert", f"Topic: {topic}"]
-        lines.extend(
-            f"Value {value} {phrase}" for phrase in cls._rule_phrases(data)
-        )
+    def _data_pipe_alert(cls, data: DataPipeAlertData) -> str:
+        lines = [
+            "Data pipe alert",
+            f"Topic: {data.topic}",
+            *[
+                f"Value {data.value} {phrase}"
+                for phrase in cls._rule_phrases(data)
+            ],
+        ]
         return "\n".join(lines)
 
     @classmethod
-    def _rule_phrases(cls, data: dict) -> list[str]:
+    def _rule_phrases(cls, data: DataPipeAlertData) -> list[str]:
         """One phrase per violated rule, rules mirror the filters stage"""
         phrases = []
-        threshold = data.get("type_value_threshold")
-        if threshold:
-            phrases.append(cls._threshold_phrase(data, threshold))
-        filtering = data.get("type_value_filtering")
-        if filtering:
-            phrases.append(cls._filtering_phrase(data, filtering))
+        if data.type_value_threshold is not None:
+            phrases.append(cls._threshold_phrase(data))
+        if data.type_value_filtering is not None:
+            phrases.append(cls._filtering_phrase(data))
         return phrases
 
     @classmethod
-    def _threshold_phrase(cls, data: dict, kind: str) -> str:
-        low = cls._number(data.get("threshold_min"))
-        high = cls._number(data.get("threshold_max"))
-        phrases = {
-            FilterTypeValueThreshold.MIN.value: f"is below {low}",
-            FilterTypeValueThreshold.MAX.value: f"is above {high}",
-            FilterTypeValueThreshold.RANGE.value: (
-                f"is outside [{low}, {high}]"
-            ),
-        }
-        return phrases[kind]
+    def _threshold_phrase(cls, data: DataPipeAlertData) -> str:
+        low = data.threshold_min
+        high = data.threshold_max
+        match data.type_value_threshold:
+            case FilterTypeValueThreshold.MIN:
+                phrase = f"is below {low:g}"
+            case FilterTypeValueThreshold.MAX:
+                phrase = f"is above {high:g}"
+            case FilterTypeValueThreshold.RANGE:
+                phrase = f"is outside [{low:g}, {high:g}]"
+            case _:
+                msg = f"Unknown threshold type: {data.type_value_threshold}"
+                raise ValueError(msg)
+        return phrase
 
     @classmethod
-    def _filtering_phrase(cls, data: dict, kind: str) -> str:
+    def _filtering_phrase(cls, data: DataPipeAlertData) -> str:
         values = ", ".join(
-            cls._number(item) for item in data.get("filtering_values") or []
+            cls._text_value(item) for item in data.filtering_values
         )
-        phrases = {
-            FilterTypeValueFiltering.WHITELIST.value: (
-                f"is not one of: {values}"
-            ),
-            FilterTypeValueFiltering.BLACKLIST.value: f"is one of: {values}",
-        }
-        return phrases[kind]
+        match data.type_value_filtering:
+            case FilterTypeValueFiltering.WHITELIST:
+                phrase = f"is not one of: {values}"
+            case FilterTypeValueFiltering.BLACKLIST:
+                phrase = f"is one of: {values}"
+            case _:
+                msg = f"Unknown filtering type: {data.type_value_filtering}"
+                raise ValueError(msg)
+        return phrase
 
     @staticmethod
-    def _number(value: object) -> str:
-        rendered = str(value)
-        if isinstance(value, int | float):
-            rendered = f"{value:g}"
+    def _text_value(value: str | float) -> str:
+        match value:
+            case float():
+                rendered = f"{value:g}"
+            case str():
+                rendered = value
+            case _:
+                msg = f"Unexpected filtering value: {value!r}"
+                raise TypeError(msg)
         return rendered
 
     @staticmethod
@@ -200,37 +222,48 @@ class NotificationDelivery:
         serves the whole batch. A failed push is logged and never undoes
         the stored row.
         """
-        if deliveries:
-            session = get_redis_session()
+        if not deliveries:
+            return
+
+        session = get_redis_session()
+        try:
             redis = await anext(session)
-            try:
-                for delivery in deliveries:
-                    await self._push_one(redis, delivery)
-            finally:
-                await session.aclose()
+            for delivery in deliveries:
+                await self._push_one(redis, delivery)
+        finally:
+            await session.aclose()
 
     async def _push_one(self, redis, delivery: Delivery) -> None:
         notification = delivery.notification
-        read = NotificationRead(**notification.dict())
         try:
             await redis.xadd(
                 self.stream_name(delivery.user_uuid),
-                {"data": read.model_dump_json()},
+                {"data": notification.model_dump_json()},
                 maxlen=settings.pu_notification_stream_maxlen,
                 approximate=True,
             )
         except Exception:
             logging.exception(
                 "Failed to push notification %s to the stream",
-                read.uuid,
-            )
-        if delivery.is_telegram_alert_enable:
-            self.telegram.enqueue(
-                delivery.telegram_chat_id or "",
-                NotificationMessage.text(notification),
+                notification.uuid,
             )
 
-    async def events(self, request: Request, user_uuid: str):
+        if not delivery.is_telegram_alert_enable:
+            return
+
+        try:
+            self.telegram.enqueue(
+                delivery.telegram_chat_id,
+                NotificationMessage.text(notification),
+            )
+        except Exception:
+            logging.exception(
+                "Failed to enqueue telegram alert %s", notification.uuid
+            )
+
+    async def events(
+        self, request: Request, user_uuid: str
+    ) -> AsyncIterator[str]:
         """Yields notifications appended to the user stream after connect.
 
         Each open request reads its own Redis stream, so any worker can
@@ -241,14 +274,12 @@ class NotificationDelivery:
                 settings.pu_http_timeout, self.SOCKET_TIMEOUT_FLOOR
             )
         )
-        redis = await anext(session)
-        stream = self.stream_name(user_uuid)
-        last_id = "$"
         try:
+            redis = await anext(session)
+            last_id = "$"
+            stream = self.stream_name(user_uuid)
             yield ": connected\n\n"
-            while True:
-                if await request.is_disconnected():
-                    break
+            while not await request.is_disconnected():
                 response = await self._read(redis, stream, last_id)
                 if response is None:
                     break
@@ -258,16 +289,13 @@ class NotificationDelivery:
                 for _stream_name, messages in response:
                     for message_id, fields in messages:
                         last_id = message_id
-                        data = fields.get("data")
-                        if isinstance(data, str):
-                            yield f"data: {data}\n\n"
+                        yield f"data: {fields['data']}\n\n"
         finally:
             await session.aclose()
 
-    async def _read(self, redis, stream: str, last_id: str):
-        response = None
+    async def _read(self, redis, stream: str, last_id: str) -> list | None:
         try:
-            response = await redis.xread(
+            return await redis.xread(
                 {stream: last_id},
                 count=self.READ_COUNT,
                 block=self.READ_BLOCK_MS,
@@ -276,7 +304,7 @@ class NotificationDelivery:
             raise
         except Exception:
             logging.exception("Notification stream read failed")
-        return response
+            return None
 
 
 notification_delivery = NotificationDelivery()
