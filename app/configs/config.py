@@ -316,7 +316,6 @@ class DatabaseSettings(SettingsValidationMixin, BaseModel):
     pu_sqlalchemy_database_url: str = Field(max_length=1024)
     pu_clickhouse_database_url: str = Field(max_length=1024)
     pu_redis_url: str = Field(default="redis://redis:6379/0", max_length=1024)
-    pu_loki_url: str = Field(default="http://loki:3100", max_length=512)
     pu_clickhouse_connection: ClickHouseConnectionParams | None = None
 
     @field_validator("pu_sqlalchemy_database_url")
@@ -340,11 +339,6 @@ class DatabaseSettings(SettingsValidationMixin, BaseModel):
     def validate_redis_url(cls, value: str) -> str:
         return cls.require_url(value, ("redis", "rediss"), "PU_REDIS_URL")
 
-    @field_validator("pu_loki_url")
-    @classmethod
-    def validate_loki_url(cls, value: str) -> str:
-        return cls.require_http_url(value, "PU_LOKI_URL")
-
     @model_validator(mode="after")
     def compute_clickhouse_connection(self):
         self.pu_clickhouse_connection = (
@@ -353,6 +347,30 @@ class DatabaseSettings(SettingsValidationMixin, BaseModel):
             )
         )
         return self
+
+
+class NotificationSettings(SettingsValidationMixin, BaseModel):
+    """Notification delivery and Loki, the source of instance alerts"""
+
+    pu_notification_loki_url: str = Field(
+        default="http://loki:3100", max_length=512
+    )
+    pu_notification_telegram_alert_interval_seconds: int = Field(
+        default=10, ge=1, le=3600
+    )
+    pu_notification_telegram_alert_text_limit: int = Field(
+        default=4000, ge=1, le=4096
+    )
+    # One database session and one delivery batch
+    pu_notification_data_pipe_alert_batch: int = Field(
+        default=100, ge=1, le=1_000
+    )
+    pu_notification_stream_maxlen: int = Field(default=100, ge=1, le=10_000)
+
+    @field_validator("pu_notification_loki_url")
+    @classmethod
+    def validate_loki_url(cls, value: str) -> str:
+        return cls.require_http_url(value, "PU_NOTIFICATION_LOKI_URL")
 
 
 class TelegramSettings(SettingsValidationMixin, BaseModel):
@@ -596,6 +614,7 @@ class Settings(
     AppSettings,
     SecuritySettings,
     DatabaseSettings,
+    NotificationSettings,
     TelegramSettings,
     MqttSettings,
     GrafanaSettings,

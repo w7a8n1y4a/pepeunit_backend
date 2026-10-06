@@ -14,7 +14,7 @@ from app.schemas.pydantic.notification import (
     NotificationSettingsUpdate,
     NotificationsResult,
 )
-from app.services.notification_delivery import notification_events
+from app.services.notification_delivery import notification_delivery
 from app.services.notification_service import NotificationService
 from app.services.utils import token_depends
 
@@ -67,7 +67,7 @@ async def notifications_stream(
         service = get_notification_service(db, None, jwt_token)
         user_uuid = str(service.current_user_uuid())
     return StreamingResponse(
-        notification_events(request, user_uuid),
+        notification_delivery.events(request, user_uuid),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

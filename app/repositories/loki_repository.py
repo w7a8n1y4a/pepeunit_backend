@@ -57,7 +57,7 @@ class LokiRepository:
     def _get(self, query: str) -> httpx.Response:
         try:
             response = httpx.get(
-                f"{settings.pu_loki_url.rstrip('/')}/loki/api/v1/query",
+                f"{settings.pu_notification_loki_url.rstrip('/')}/loki/api/v1/query",
                 params={"query": query},
                 timeout=settings.http_timeout(),
             )

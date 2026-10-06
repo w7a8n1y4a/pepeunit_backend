@@ -23,17 +23,18 @@ from app.schemas.mqtt.manager import mqtt_manager
 from app.services.background import BackgroundService
 from app.services.instance_service import InstanceService
 from app.services.notification_delivery import (
-    DATA_PIPE_ALERT_BATCH,
-    DATA_PIPE_ALERT_GROUP,
-    DATA_PIPE_ALERT_STREAM,
     Delivery,
-    deliver,
-    telegram_alert_queue,
+    notification_delivery,
 )
 from app.utils.utils import logo_to_console
 
 
 class StartupService:
+    DATA_PIPE_ALERT_STREAM = "data_pipe_alerts"
+    DATA_PIPE_ALERT_GROUP = "backend"
+    DATA_PIPE_ALERT_CONSUMER = "backend"
+    DATA_PIPE_ALERT_BLOCK_MS = 5_000
+
     def __init__(
         self,
         app: FastAPI,
@@ -331,11 +332,11 @@ class StartupService:
         if not settings.pu_ff_telegram_bot_enable or not self.bot:
             return
         task = asyncio.create_task(
-            telegram_alert_queue.run(self.bot),
+            notification_delivery.telegram.run(self.bot),
             name="telegram_alert_queue",
         )
         self._singleton_tasks.append(task)
-        await telegram_alert_queue.ready.wait()
+        await notification_delivery.telegram.ready.wait()
 
     async def _run_scheduled_notifications(self) -> None:
         # Once a minute, the resolution of scheduled_notification_time
@@ -347,7 +348,7 @@ class StartupService:
             try:
                 with BackgroundService() as services:
                     deliveries = services.get_notification_service().dispatch_scheduled()
-                await deliver(deliveries)
+                await notification_delivery.push(deliveries)
             except Exception:
                 logging.exception("Scheduled notifications failed")
             finally:
@@ -376,8 +377,8 @@ class StartupService:
         try:
             try:
                 await redis.xgroup_create(
-                    DATA_PIPE_ALERT_STREAM,
-                    DATA_PIPE_ALERT_GROUP,
+                    self.DATA_PIPE_ALERT_STREAM,
+                    self.DATA_PIPE_ALERT_GROUP,
                     id="0",
                     mkstream=True,
                 )
@@ -389,7 +390,9 @@ class StartupService:
             while await self._consume_data_pipe_alerts(redis, "0", None):
                 pass
             while True:
-                await self._consume_data_pipe_alerts(redis, ">", 5000)
+                await self._consume_data_pipe_alerts(
+                    redis, ">", self.DATA_PIPE_ALERT_BLOCK_MS
+                )
         finally:
             await session.aclose()
 
@@ -398,10 +401,10 @@ class StartupService:
     ) -> int:
         """Handles one xreadgroup batch, returns the number of messages"""
         response = await redis.xreadgroup(
-            groupname=DATA_PIPE_ALERT_GROUP,
-            consumername="backend",
-            streams={DATA_PIPE_ALERT_STREAM: stream_id},
-            count=DATA_PIPE_ALERT_BATCH,
+            groupname=self.DATA_PIPE_ALERT_GROUP,
+            consumername=self.DATA_PIPE_ALERT_CONSUMER,
+            streams={self.DATA_PIPE_ALERT_STREAM: stream_id},
+            count=settings.pu_notification_data_pipe_alert_batch,
             block=block,
         )
         if not response:
@@ -423,12 +426,12 @@ class StartupService:
                         # The session serves the rest of the batch
                         services.db.rollback()
                     await redis.xack(
-                        DATA_PIPE_ALERT_STREAM,
-                        DATA_PIPE_ALERT_GROUP,
+                        self.DATA_PIPE_ALERT_STREAM,
+                        self.DATA_PIPE_ALERT_GROUP,
                         message_id,
                     )
         # Rows are committed before this push
-        await deliver(deliveries)
+        await notification_delivery.push(deliveries)
         return handled
 
     def _seconds_until_next_minute(self) -> float:

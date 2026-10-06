@@ -24,9 +24,8 @@ from app.schemas.pydantic.notification import (
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
 from app.services.notification_delivery import (
-    deliver,
-    notification_payload,
-    telegram_text,
+    NotificationMessage,
+    notification_delivery,
 )
 from app.utils.utils import create_upload_file_from_path
 from tests.integration.helpers.notifications import (
@@ -335,14 +334,14 @@ def test_data_pipe_alert_delivery(
         assert delivery.is_telegram_alert_enable is True
         assert delivery.push_sse is True
 
-        payload = notification_payload(delivery.notification)
+        payload = NotificationMessage.payload(delivery.notification)
         assert payload["uuid"] == str(delivery.notification.uuid)
         assert payload["type"] == NotificationType.DATA_PIPE_ALERT.value
         assert payload["user_uuid"] == str(regular_user.uuid)
         assert payload["is_read"] is False
         assert payload["data"]["topic_name"] == alert_node.topic_name
 
-        text = telegram_text(delivery.notification)
+        text = NotificationMessage.text(delivery.notification)
         assert alert_node.topic_name in text
         assert "12.5" in text
         assert "above 10" in text
@@ -363,7 +362,7 @@ def test_telegram_text_by_type(regular_user) -> None:
             user_uuid=regular_user.uuid,
         )
 
-    instance = telegram_text(
+    instance = NotificationMessage.text(
         notification(
             NotificationType.INSTANCE_DAILY_STATE,
             {"errors": [{"count": 4, "message": "disk full"}]},
@@ -374,7 +373,7 @@ def test_telegram_text_by_type(regular_user) -> None:
     assert "Instance daily summary" in instance
     assert "disk full" in instance
 
-    unavailable = telegram_text(
+    unavailable = NotificationMessage.text(
         notification(
             NotificationType.INSTANCE_DAILY_STATE,
             {"errors": None},
@@ -384,7 +383,7 @@ def test_telegram_text_by_type(regular_user) -> None:
     assert "Loki did not return data" in unavailable
     assert "0" not in unavailable
 
-    summary = telegram_text(
+    summary = NotificationMessage.text(
         notification(
             NotificationType.UNIT_DAILY_SUMMARY,
             {"units": [{"unit_name": "boiler", "error_count": 7}]},
@@ -424,7 +423,7 @@ def test_telegram_text_by_type(regular_user) -> None:
             "is one of: a, b",
         ),
     ):
-        text = telegram_text(
+        text = NotificationMessage.text(
             notification(
                 NotificationType.DATA_PIPE_ALERT,
                 {"value": "x", **data},
@@ -467,7 +466,7 @@ def test_notification_stream(
                 data_pipe_event(alert_node)
             )
             own = _own_deliveries(recipient_service, deliveries)
-            asyncio.run(deliver(own))
+            asyncio.run(notification_delivery.push(own))
 
             message = None
             for line in lines:
@@ -580,9 +579,7 @@ def test_get_many_notification(
     count, notifications = service.list(NotificationFilter.unlimited())
     assert count >= 1
     assert any(item.uuid == crud_notification.uuid for item in notifications)
-    assert all(
-        item.user_uuid == regular_user.uuid for item in notifications
-    )
+    assert all(item.user_uuid == regular_user.uuid for item in notifications)
 
     count, notifications = service.list(
         NotificationFilter.unlimited(

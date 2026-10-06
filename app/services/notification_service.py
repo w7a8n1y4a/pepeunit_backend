@@ -352,7 +352,7 @@ class NotificationService:
                 user_uuid=user.uuid,
             )
         )
-        # deliver() runs after the background session closes
+        # push() runs after the background session closes
         self.notification_repository.db.expunge(notification)
         return Delivery(
             user_uuid=user.uuid,
