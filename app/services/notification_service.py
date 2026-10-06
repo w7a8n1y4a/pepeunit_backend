@@ -139,11 +139,7 @@ class NotificationService:
             settings_row.uuid, settings_row
         )
 
-    def dispatch_scheduled(self) -> list[Delivery]:
-        """Stores the daily notifications that are due now.
-
-        Backend only: the caller pushes the returned deliveries.
-        """
+    def create_scheduled(self) -> list[Delivery]:
         now = datetime.now(UTC)
         recipients = self.notification_settings_repository.list_scheduled(
             now.strftime("%H:%M")
@@ -152,7 +148,7 @@ class NotificationService:
         for user, settings_row in recipients:
             try:
                 deliveries.extend(
-                    self._dispatch_scheduled_for_user(user, settings_row, now)
+                    self._create_scheduled_for_user(user, settings_row, now)
                 )
             except Exception:
                 logging.exception(
@@ -161,11 +157,6 @@ class NotificationService:
         return deliveries
 
     def create_data_pipe_alerts(self, event: dict) -> list[Delivery]:
-        """Stores a data pipe alert for the node creator.
-
-        Backend only: the event is a data_pipe_alerts stream message, the
-        caller pushes the returned deliveries.
-        """
         try:
             incoming = DataPipeAlertData.model_validate(event)
         except ValidationError:
@@ -175,7 +166,9 @@ class NotificationService:
             logging.error("Data pipe alert payload is invalid: %s", event)
             return []
 
-        node = self._find_unit_node(incoming.unit_node_uuid)
+        node = self.unit_node_repository.get(
+            UnitNode(uuid=incoming.unit_node_uuid)
+        )
         if node is None:
             logging.warning(
                 "Data pipe alert for unknown unit node %s",
@@ -212,7 +205,7 @@ class NotificationService:
             )
         ]
 
-    def _dispatch_scheduled_for_user(
+    def _create_scheduled_for_user(
         self,
         user: User,
         settings_row: NotificationSettings,
@@ -221,24 +214,42 @@ class NotificationService:
         # The scheduled minute is the only gate. A later time the same day sends.
         slot_start = now.replace(second=0, microsecond=0)
         period_start = now - self.SCHEDULED_LOG_WINDOW
-        deliveries: list[Delivery] = []
-
+        notification_types = []
         if user.role == UserRole.ADMIN:
-            delivery = self._dispatch_instance_state(
-                user, settings_row, slot_start
-            )
-            if delivery:
-                deliveries.append(delivery)
+            notification_types.append(NotificationType.INSTANCE_DAILY_STATE)
+        notification_types.append(NotificationType.UNIT_DAILY_SUMMARY)
 
-        _, units = self.unit_repository.list(
-            UnitFilter.unlimited(creator_uuid=user.uuid)
-        )
-        delivery = self._dispatch_unit_summary(
-            user, settings_row, units, slot_start, period_start, now
-        )
-        if delivery:
-            deliveries.append(delivery)
+        deliveries: list[Delivery] = []
+        for notification_type in notification_types:
+            if self.notification_repository.exists_since(
+                user.uuid, notification_type.value, slot_start
+            ):
+                continue
+            data = self._scheduled_data(
+                user, notification_type, period_start, now
+            )
+            if data is None:
+                continue
+            deliveries.append(
+                self._create(user, settings_row, notification_type, data)
+            )
         return deliveries
+
+    def _scheduled_data(
+        self,
+        user: User,
+        notification_type: NotificationType,
+        period_start: datetime,
+        period_end: datetime,
+    ) -> InstanceDailyStateData | UnitDailySummaryData | None:
+        match notification_type:
+            case NotificationType.INSTANCE_DAILY_STATE:
+                return InstanceDailyStateData(errors=self._instance_errors())
+            case NotificationType.UNIT_DAILY_SUMMARY:
+                return self._unit_summary_data(user, period_start, period_end)
+            case _:
+                msg = f"Notification type {notification_type} is not scheduled"
+                raise ValueError(msg)
 
     def _instance_errors(self) -> list[InstanceError] | None:
         try:
@@ -253,42 +264,15 @@ class NotificationService:
             for group in groups
         ]
 
-    def _dispatch_instance_state(
+    def _unit_summary_data(
         self,
         user: User,
-        settings_row: NotificationSettings,
-        since: datetime,
-    ) -> Delivery | None:
-        if self.notification_repository.exists_since(
-            user.uuid,
-            NotificationType.INSTANCE_DAILY_STATE.value,
-            since,
-        ):
-            return None
-
-        return self._create(
-            user,
-            settings_row,
-            NotificationType.INSTANCE_DAILY_STATE,
-            InstanceDailyStateData(errors=self._instance_errors()),
-        )
-
-    def _dispatch_unit_summary(
-        self,
-        user: User,
-        settings_row: NotificationSettings,
-        units: list,
-        since: datetime,
         period_start: datetime,
         period_end: datetime,
-    ) -> Delivery | None:
-        if self.notification_repository.exists_since(
-            user.uuid,
-            NotificationType.UNIT_DAILY_SUMMARY.value,
-            since,
-        ):
-            return None
-
+    ) -> UnitDailySummaryData | None:
+        _, units = self.unit_repository.list(
+            UnitFilter.unlimited(creator_uuid=user.uuid)
+        )
         names = {unit.uuid: unit.name for unit, _nodes in units}
         if not names or not self.unit_log_repository:
             return None
@@ -314,22 +298,7 @@ class NotificationService:
             key=lambda item: item.error_count,
             reverse=True,
         )[: self.UNIT_SUMMARY_LIMIT]
-
-        return self._create(
-            user,
-            settings_row,
-            NotificationType.UNIT_DAILY_SUMMARY,
-            UnitDailySummaryData(units=rows),
-        )
-
-    def _find_unit_node(
-        self, unit_node_uuid: uuid_pkg.UUID
-    ) -> UnitNode | None:
-        try:
-            return self.unit_node_repository.get(UnitNode(uuid=unit_node_uuid))
-        except Exception:
-            logging.exception("Failed to load unit node %s", unit_node_uuid)
-            return None
+        return UnitDailySummaryData(units=rows)
 
     def _create(
         self,

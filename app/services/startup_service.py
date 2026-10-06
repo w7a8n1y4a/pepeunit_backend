@@ -347,7 +347,9 @@ class StartupService:
                 continue
             try:
                 with BackgroundService() as services:
-                    deliveries = services.get_notification_service().dispatch_scheduled()
+                    deliveries = (
+                        services.get_notification_service().create_scheduled()
+                    )
                 await notification_delivery.push(deliveries)
             except Exception:
                 logging.exception("Scheduled notifications failed")

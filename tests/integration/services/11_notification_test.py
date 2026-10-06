@@ -672,7 +672,7 @@ def test_notification_anonymous(crud_notification, database, cc) -> None:
         service.access_service.authorization.check_access([AgentType.USER])
 
 
-def test_dispatch_scheduled_instance_state(
+def test_create_scheduled_instance_state(
     admin_user, admin_user_token, database, cc
 ) -> None:
     created = []
@@ -684,7 +684,7 @@ def test_dispatch_scheduled_instance_state(
                     scheduled_notification_time=_scheduled_now(),
                 )
             )
-            deliveries = _dispatch_for_current(service)
+            deliveries = _create_scheduled_for_current(service)
             created.extend(item.notification for item in deliveries)
             assert all(
                 item.user_uuid == admin_user.uuid for item in deliveries
@@ -706,14 +706,14 @@ def test_dispatch_scheduled_instance_state(
             )
 
             # the same minute does not send a second copy
-            assert _dispatch_for_current(service) == []
+            assert _create_scheduled_for_current(service) == []
             instance_alerts[0].create_datetime = datetime.now(UTC) - timedelta(
                 minutes=2
             )
             service.notification_repository.update(
                 instance_alerts[0].uuid, instance_alerts[0]
             )
-            again = _dispatch_for_current(service)
+            again = _create_scheduled_for_current(service)
             created.extend(item.notification for item in again)
             assert any(
                 item.notification.type
@@ -736,7 +736,7 @@ def test_dispatch_scheduled_instance_state(
             drop_notifications(database, created)
 
 
-def test_dispatch_scheduled_unit_summary(
+def test_create_scheduled_unit_summary(
     live_units, regular_user, regular_user_token, database, cc
 ) -> None:
     created = []
@@ -797,7 +797,7 @@ def test_dispatch_scheduled_unit_summary(
                 ]
             )
 
-            deliveries = _dispatch_for_current(service)
+            deliveries = _create_scheduled_for_current(service)
             created.extend(item.notification for item in deliveries)
 
             assert all(
@@ -823,10 +823,10 @@ def test_dispatch_scheduled_unit_summary(
             assert set(row) == {"unit_name", "error_count"}
 
             # the same minute does not send a second copy
-            assert _dispatch_for_current(service) == []
+            assert _create_scheduled_for_current(service) == []
             summary.create_datetime = datetime.now(UTC) - timedelta(minutes=2)
             service.notification_repository.update(summary.uuid, summary)
-            again = _dispatch_for_current(service)
+            again = _create_scheduled_for_current(service)
             created.extend(item.notification for item in again)
             assert any(
                 item.notification.type
@@ -842,10 +842,10 @@ def _own_deliveries(service, deliveries) -> list:
     return [item for item in deliveries if item.user_uuid == user_uuid]
 
 
-def _dispatch_for_current(service):
-    """Dispatches only the signed-in user, not every due user on the instance"""
+def _create_scheduled_for_current(service):
+    """Creates notifications only for the signed-in user"""
     user = service.access_service.current_agent
-    return service._dispatch_scheduled_for_user(
+    return service._create_scheduled_for_user(
         user, service.get_settings(), datetime.now(UTC)
     )
 
@@ -921,7 +921,7 @@ def test_live_scheduled_alerts_reach_recipient(
 
 
 def _scheduled_now() -> str:
-    """HH:MM of now, waits out the end of a minute so dispatch sees the same one"""
+    """HH:MM of now, waits out the end of a minute so creation sees the same one"""
     now = datetime.now(UTC)
     if now.second > 50:
         time.sleep(60 - now.second)
