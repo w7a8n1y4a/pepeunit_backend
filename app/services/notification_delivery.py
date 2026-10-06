@@ -71,13 +71,16 @@ class NotificationMessage:
     @classmethod
     def text(cls, notification: Notification) -> str:
         data = notification.data or {}
-        if notification.type == NotificationType.INSTANCE_DAILY_STATE.value:
-            rendered = cls._instance_daily_state(data)
-        elif notification.type == NotificationType.UNIT_DAILY_SUMMARY.value:
-            rendered = cls._unit_daily_summary(data)
-        else:
-            rendered = cls._data_pipe_alert(data)
-        return rendered
+        match notification.type:
+            case NotificationType.INSTANCE_DAILY_STATE.value:
+                return cls._instance_daily_state(data)
+            case NotificationType.UNIT_DAILY_SUMMARY.value:
+                return cls._unit_daily_summary(data)
+            case NotificationType.DATA_PIPE_ALERT.value:
+                return cls._data_pipe_alert(data)
+            case _:
+                msg = f"Unknown notification type: {notification.type}"
+                raise ValueError(msg)
 
     @classmethod
     def _instance_daily_state(cls, data: dict) -> str:
