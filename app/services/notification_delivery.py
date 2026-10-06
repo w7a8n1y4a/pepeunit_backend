@@ -32,12 +32,10 @@ class TelegramAlertQueue:
     """Sends telegram alerts one message at a time"""
 
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[tuple[str, str, str | None]] | None = None
+        self._queue: asyncio.Queue[tuple[str, str]] | None = None
         self.ready = asyncio.Event()
 
-    def enqueue(
-        self, chat_id: str, text: str, parse_mode: str | None = None
-    ) -> None:
+    def enqueue(self, chat_id: str, text: str) -> None:
         queue = self._queue
         if (
             settings.pu_ff_telegram_bot_enable
@@ -45,16 +43,16 @@ class TelegramAlertQueue:
             and queue is not None
         ):
             limit = settings.pu_notification_telegram_alert_text_limit
-            queue.put_nowait((chat_id, text[:limit], parse_mode))
+            queue.put_nowait((chat_id, text[:limit]))
 
     async def run(self, bot: Bot) -> None:
         self._queue = asyncio.Queue()
         self.ready.set()
         while True:
-            chat_id, text, parse_mode = await self._queue.get()
+            chat_id, text = await self._queue.get()
             try:
                 await bot.send_message(
-                    chat_id=chat_id, text=text, parse_mode=parse_mode
+                    chat_id=chat_id, text=text, parse_mode="Markdown"
                 )
             except asyncio.CancelledError:
                 raise
@@ -68,14 +66,7 @@ class TelegramAlertQueue:
 class NotificationMessage:
     """Telegram text of one stored notification"""
 
-    DAILY_TYPES = frozenset(
-        {
-            NotificationType.INSTANCE_DAILY_STATE.value,
-            NotificationType.UNIT_DAILY_SUMMARY.value,
-        }
-    )
     INSTANCE_COLUMN_LENGTHS = (8, 40)
-    MARKDOWN = "Markdown"
 
     @classmethod
     def text(cls, notification: Notification) -> str:
@@ -87,13 +78,6 @@ class NotificationMessage:
         else:
             rendered = cls._data_pipe_alert(data)
         return rendered
-
-    @classmethod
-    def parse_mode(cls, notification: Notification) -> str | None:
-        mode = None
-        if notification.type in cls.DAILY_TYPES:
-            mode = cls.MARKDOWN
-        return mode
 
     @classmethod
     def _instance_daily_state(cls, data: dict) -> str:
@@ -241,7 +225,6 @@ class NotificationDelivery:
             self.telegram.enqueue(
                 delivery.telegram_chat_id or "",
                 NotificationMessage.text(notification),
-                NotificationMessage.parse_mode(notification),
             )
 
     async def events(self, request: Request, user_uuid: str):
