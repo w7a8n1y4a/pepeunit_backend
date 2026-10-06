@@ -32,7 +32,6 @@ from app.schemas.gql.inputs.notification import (
 )
 from app.schemas.pydantic.notification import (
     DataPipeAlertData,
-    DataPipeAlertEvent,
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
@@ -95,7 +94,14 @@ class NotificationService:
         return notification
 
     def mark_read(self, uuid: uuid_pkg.UUID) -> Notification:
-        notification = self.get(uuid)
+        self.access_service.authorization.check_access([AgentType.USER])
+        notification = self.notification_repository.get(
+            Notification(uuid=uuid)
+        )
+        is_valid_object(notification)
+        if notification.user_uuid != self.access_service.current_agent.uuid:
+            msg = "Notification access not allowed"
+            raise NoAccessError(msg)
         if notification.is_read:
             return notification
 
@@ -122,23 +128,18 @@ class NotificationService:
         self,
         data: (NotificationSettingsUpdateInput | NotificationSettingsUpdate),
     ) -> NotificationSettings:
-        settings_row = self.get_settings()
-        if data.is_scheduled_alert_enable is not None:
-            settings_row.is_scheduled_alert_enable = (
-                data.is_scheduled_alert_enable
+        self.access_service.authorization.check_access([AgentType.USER])
+        settings_row = self.notification_settings_repository.get_or_create(
+            self.access_service.current_agent.uuid
+        )
+        changes = NotificationSettingsUpdate.model_validate(
+            data, from_attributes=True
+        ).model_dump(exclude_none=True)
+        if "scheduled_notification_time" in changes:
+            changes["scheduled_notification_time"] = self._validate_time(
+                changes["scheduled_notification_time"]
             )
-        if data.scheduled_notification_time is not None:
-            settings_row.scheduled_notification_time = self._validate_time(
-                data.scheduled_notification_time
-            )
-        if data.is_data_pipe_alert_enable is not None:
-            settings_row.is_data_pipe_alert_enable = (
-                data.is_data_pipe_alert_enable
-            )
-        if data.is_telegram_alert_enable is not None:
-            settings_row.is_telegram_alert_enable = (
-                data.is_telegram_alert_enable
-            )
+        settings_row.sqlmodel_update(changes)
         return self.notification_settings_repository.update(
             settings_row.uuid, settings_row
         )
@@ -176,8 +177,11 @@ class NotificationService:
         caller pushes the returned deliveries.
         """
         try:
-            incoming = DataPipeAlertEvent.model_validate(event)
+            incoming = DataPipeAlertData.model_validate(event)
         except ValidationError:
+            logging.error("Data pipe alert payload is invalid: %s", event)
+            return []
+        if incoming.unit_node_uuid is None:
             logging.error("Data pipe alert payload is invalid: %s", event)
             return []
 
@@ -200,7 +204,7 @@ class NotificationService:
         user, settings_row = recipient
         unit = self.unit_repository.get(Unit(uuid=node.unit_uuid))
         try:
-            payload = incoming.notification_data(
+            payload = incoming.with_node(
                 unit_node_uuid=node.uuid,
                 unit_uuid=node.unit_uuid,
                 unit_name=None if unit is None else unit.name,

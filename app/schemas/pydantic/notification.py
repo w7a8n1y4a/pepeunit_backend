@@ -1,17 +1,10 @@
 import json
-import math
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Annotated
 
 from fastapi import Query
-from pydantic import (
-    AfterValidator,
-    BaseModel,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.dto.enum import (
     FilterTypeValueFiltering,
@@ -19,16 +12,6 @@ from app.dto.enum import (
     NotificationType,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
-
-
-def _finite_float(value: float) -> float:
-    if not math.isfinite(value):
-        msg = "threshold must be finite"
-        raise ValueError(msg)
-    return value
-
-
-FiniteFloat = Annotated[float, AfterValidator(_finite_float)]
 
 
 class InstanceError(BaseModel):
@@ -49,20 +32,20 @@ class UnitDailySummaryData(BaseModel):
     units: list[UnitErrorCount]
 
 
-class DataPipeAlertEvent(BaseModel):
-    """One data_pipe_alerts stream message.
+class DataPipeAlertData(BaseModel):
+    # float("nan") and float("inf") are otherwise valid floats
+    model_config = ConfigDict(allow_inf_nan=False)
 
-    filtering_values arrives as a JSON list. Thresholds arrive as numbers
-    or numeric strings.
-    """
-
-    unit_node_uuid: uuid_pkg.UUID
     value: str
+    topic_name: str | None = None
+    unit_node_uuid: uuid_pkg.UUID | None = None
+    unit_uuid: uuid_pkg.UUID | None = None
+    unit_name: str | None = None
     type_value_filtering: FilterTypeValueFiltering | None = None
     filtering_values: list[str | float] | None = None
     type_value_threshold: FilterTypeValueThreshold | None = None
-    threshold_min: FiniteFloat | None = None
-    threshold_max: FiniteFloat | None = None
+    threshold_min: float | None = None
+    threshold_max: float | None = None
 
     @field_validator("value", mode="before")
     @classmethod
@@ -75,15 +58,21 @@ class DataPipeAlertEvent(BaseModel):
     @field_validator("filtering_values", mode="before")
     @classmethod
     def parse_filtering_values(cls, value: object) -> object:
-        if value is None:
-            return None
-        try:
-            return json.loads(value)
-        except (TypeError, json.JSONDecodeError) as exc:
-            msg = "filtering_values must be a json list"
-            raise ValueError(msg) from exc
+        # Redis sends a JSON list, the stored row already has the list
+        match value:
+            case None | list():
+                return value
+            case str():
+                try:
+                    return json.loads(value)
+                except json.JSONDecodeError as exc:
+                    msg = "filtering_values must be a json list"
+                    raise ValueError(msg) from exc
+            case _:
+                msg = "filtering_values must be a json list"
+                raise ValueError(msg)
 
-    def notification_data(
+    def with_node(
         self,
         *,
         unit_node_uuid: uuid_pkg.UUID,
@@ -96,8 +85,8 @@ class DataPipeAlertEvent(BaseModel):
         return DataPipeAlertData(
             value=self.value,
             topic_name=topic_name,
-            unit_node_uuid=str(unit_node_uuid),
-            unit_uuid=str(unit_uuid),
+            unit_node_uuid=unit_node_uuid,
+            unit_uuid=unit_uuid,
             unit_name=unit_name,
             type_value_filtering=self.type_value_filtering,
             filtering_values=self.filtering_values if has_filter else None,
@@ -105,19 +94,6 @@ class DataPipeAlertEvent(BaseModel):
             threshold_min=self.threshold_min if has_threshold else None,
             threshold_max=self.threshold_max if has_threshold else None,
         )
-
-
-class DataPipeAlertData(BaseModel):
-    value: str
-    topic_name: str | None = None
-    unit_node_uuid: str | None = None
-    unit_uuid: str | None = None
-    unit_name: str | None = None
-    type_value_filtering: FilterTypeValueFiltering | None = None
-    filtering_values: list[str | float] | None = None
-    type_value_threshold: FilterTypeValueThreshold | None = None
-    threshold_min: float | None = None
-    threshold_max: float | None = None
 
     @model_validator(mode="after")
     def check_rules(self) -> DataPipeAlertData:
@@ -146,7 +122,7 @@ class DataPipeAlertData(BaseModel):
 
     @property
     def topic(self) -> str:
-        return self.topic_name or self.unit_node_uuid or "-"
+        return self.topic_name or str(self.unit_node_uuid or "-")
 
 
 class NotificationRead(BaseModel):
