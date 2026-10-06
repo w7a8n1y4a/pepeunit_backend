@@ -45,3 +45,7 @@ class Notification(SQLModel, table=True):
             index=True,
         )
     )
+
+    @property
+    def creator_uuid(self) -> uuid_pkg.UUID:
+        return self.user_uuid

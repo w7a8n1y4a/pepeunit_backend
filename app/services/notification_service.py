@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import Depends
 from pydantic import ValidationError
 
-from app.configs.errors import LokiError, NoAccessError, NotificationError
+from app.configs.errors import LokiError, NotificationError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
 from app.domain.unit_model import Unit
@@ -16,6 +16,7 @@ from app.dto.enum import (
     AgentType,
     LogLevel,
     NotificationType,
+    OwnershipType,
     UserRole,
 )
 from app.repositories.loki_repository import LokiRepository
@@ -88,9 +89,9 @@ class NotificationService:
             Notification(uuid=uuid)
         )
         is_valid_object(notification)
-        if notification.user_uuid != self.access_service.current_agent.uuid:
-            msg = "Notification access not allowed"
-            raise NoAccessError(msg)
+        self.access_service.authorization.check_ownership(
+            notification, [OwnershipType.CREATOR]
+        )
         return notification
 
     def mark_read(self, uuid: uuid_pkg.UUID) -> Notification:
@@ -99,9 +100,9 @@ class NotificationService:
             Notification(uuid=uuid)
         )
         is_valid_object(notification)
-        if notification.user_uuid != self.access_service.current_agent.uuid:
-            msg = "Notification access not allowed"
-            raise NoAccessError(msg)
+        self.access_service.authorization.check_ownership(
+            notification, [OwnershipType.CREATOR]
+        )
         if notification.is_read:
             return notification
 
