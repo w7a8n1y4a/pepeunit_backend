@@ -7,12 +7,19 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from app import settings
-from app.configs.errors import NoAccessError, NotificationError
+from app.configs.errors import NoAccessError
 from app.domain.notification_model import Notification
 from app.dto.clickhouse.log import UnitLog
-from app.dto.enum import LogLevel, NotificationType, UnitNodeTypeEnum, UserRole
+from app.dto.enum import (
+    AgentType,
+    LogLevel,
+    NotificationType,
+    UnitNodeTypeEnum,
+    UserRole,
+)
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
@@ -95,7 +102,7 @@ def test_update_notification_settings_invalid_time(
     extra_user_token, database, cc
 ) -> None:
     service = notification_service(database, cc, extra_user_token)
-    with pytest.raises(NotificationError):
+    with pytest.raises(ValidationError):
         service.update_settings(
             NotificationSettingsUpdate(scheduled_notification_time="25:00")
         )
@@ -662,7 +669,7 @@ def test_notification_anonymous(crud_notification, database, cc) -> None:
     with pytest.raises(NoAccessError):
         service.mark_all_read()
     with pytest.raises(NoAccessError):
-        service.current_user_uuid()
+        service.access_service.authorization.check_access([AgentType.USER])
 
 
 def test_dispatch_scheduled_instance_state(
@@ -831,7 +838,7 @@ def test_dispatch_scheduled_unit_summary(
 
 
 def _own_deliveries(service, deliveries) -> list:
-    user_uuid = service.current_user_uuid()
+    user_uuid = service.access_service.current_agent.uuid
     return [item for item in deliveries if item.user_uuid == user_uuid]
 
 

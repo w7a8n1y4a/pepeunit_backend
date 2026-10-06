@@ -7,6 +7,7 @@ from starlette.responses import StreamingResponse
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
 from app.configs.rest import get_notification_service
+from app.dto.enum import AgentType
 from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationRead,
@@ -65,7 +66,8 @@ async def notifications_stream(
         raise NoAccessError(msg)
     with get_hand_session() as db:
         service = get_notification_service(db, None, jwt_token)
-        user_uuid = str(service.current_user_uuid())
+        service.access_service.authorization.check_access([AgentType.USER])
+        user_uuid = str(service.access_service.current_agent.uuid)
     return StreamingResponse(
         notification_delivery.events(request, user_uuid),
         media_type="text/event-stream",

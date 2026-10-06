@@ -1,12 +1,11 @@
 import logging
-import re
 import uuid as uuid_pkg
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends
 from pydantic import ValidationError
 
-from app.configs.errors import LokiError, NotificationError
+from app.configs.errors import LokiError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
 from app.domain.unit_model import Unit
@@ -51,7 +50,6 @@ class NotificationService:
     INSTANCE_ERROR_GROUPS = 3
     UNIT_SUMMARY_LIMIT = 10
     ALERT_LEVELS = [LogLevel.ERROR.value, LogLevel.CRITICAL.value]
-    TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
     def __init__(
         self,
@@ -136,19 +134,10 @@ class NotificationService:
         changes = NotificationSettingsUpdate.model_validate(
             data, from_attributes=True
         ).model_dump(exclude_none=True)
-        if "scheduled_notification_time" in changes:
-            changes["scheduled_notification_time"] = self._validate_time(
-                changes["scheduled_notification_time"]
-            )
         settings_row.sqlmodel_update(changes)
         return self.notification_settings_repository.update(
             settings_row.uuid, settings_row
         )
-
-    def current_user_uuid(self) -> uuid_pkg.UUID:
-        """The user that a notification stream belongs to"""
-        self.access_service.authorization.check_access([AgentType.USER])
-        return self.access_service.current_agent.uuid
 
     def dispatch_scheduled(self) -> list[Delivery]:
         """Stores the daily notifications that are due now.
@@ -368,10 +357,3 @@ class NotificationService:
             is_telegram_alert_enable=settings_row.is_telegram_alert_enable,
             notification=notification,
         )
-
-    @classmethod
-    def _validate_time(cls, value: str) -> str:
-        if not cls.TIME_RE.fullmatch(value):
-            msg = "scheduled_notification_time must be HH:MM in UTC"
-            raise NotificationError(msg)
-        return value

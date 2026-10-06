@@ -1,4 +1,5 @@
 import json
+import re
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
@@ -154,6 +155,14 @@ class NotificationSettingsUpdate(BaseModel):
     scheduled_notification_time: str | None = None
     is_data_pipe_alert_enable: bool | None = None
     is_telegram_alert_enable: bool | None = None
+
+    @field_validator("scheduled_notification_time")
+    @classmethod
+    def validate_time(cls, value: str | None) -> str | None:
+        if value is None or re.fullmatch(r"^([01]\d|2[0-3]):[0-5]\d$", value):
+            return value
+        msg = "scheduled_notification_time must be HH:MM in UTC"
+        raise ValueError(msg)
 
 
 @dataclass
