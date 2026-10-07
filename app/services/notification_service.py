@@ -98,14 +98,14 @@ class NotificationService:
         self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_repository.list(
-            self.access_service.current_agent.uuid, filters
+            self.access_service.current_agent.uuid, filters, is_visible=True
         )
 
     def get(self, uuid: uuid_pkg.UUID) -> Notification:
         self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         notification = self.notification_repository.get(
-            Notification(uuid=uuid)
+            Notification(uuid=uuid), is_visible=True
         )
         is_valid_object(notification)
         self.access_service.authorization.check_ownership(
@@ -117,7 +117,7 @@ class NotificationService:
         self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         notification = self.notification_repository.get(
-            Notification(uuid=uuid)
+            Notification(uuid=uuid), is_visible=True
         )
         is_valid_object(notification)
         self.access_service.authorization.check_ownership(
@@ -138,6 +138,7 @@ class NotificationService:
         return self.notification_repository.mark_all_read(
             self.access_service.current_agent.uuid,
             datetime.now(UTC),
+            is_visible=True,
         )
 
     def get_settings(self) -> NotificationSettings:
@@ -168,7 +169,7 @@ class NotificationService:
         """Stores already built notifications. Data stays an untyped dict."""
         if not settings.pu_ff_notification_enable:
             return []
-        return self.notification_repository.create_many(notifications)
+        return self.notification_repository.bulk_create(notifications)
 
     def generate_scheduled(
         self,
@@ -194,7 +195,7 @@ class NotificationService:
             for user, _settings_row in recipients
             for row in self._scheduled_rows(user, moment, present)
         ]
-        return self.notification_repository.create_many(rows)
+        return self.notification_repository.bulk_create(rows)
 
     async def process_pending(self) -> int:
         """Types one locked batch, stores the text, then delivers it."""

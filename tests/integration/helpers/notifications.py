@@ -94,7 +94,9 @@ def process_saved(service, notifications: list[Notification]) -> None:
         done = [
             uuid
             for uuid in waiting
-            if service.get(uuid).is_processed
+            if service.notification_repository.get(
+                Notification(uuid=uuid)
+            ).is_processed
         ]
         waiting.difference_update(done)
 

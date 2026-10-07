@@ -29,14 +29,33 @@ class NotificationRepository(BaseRepository[Notification]):
     def __init__(self, db: Session = Depends(get_session)) -> None:
         super().__init__(Notification, db)
 
+    def get(
+        self, obj: Notification, is_visible: bool = False
+    ) -> Notification | None:
+        query = self.db.query(Notification).filter(
+            Notification.uuid == obj.uuid
+        )
+        if is_visible:
+            query = query.filter(
+                Notification.is_processed.is_(True),
+                Notification.text.is_not(None),
+            )
+        return query.first()
+
     def list(
         self,
         user_uuid: uuid_pkg.UUID,
         filters: NotificationFilter | NotificationFilterInput,
+        is_visible: bool = False,
     ) -> tuple[int, list[Notification]]:
         query = self.db.query(Notification).filter(
             Notification.user_uuid == user_uuid
         )
+        if is_visible:
+            query = query.filter(
+                Notification.is_processed.is_(True),
+                Notification.text.is_not(None),
+            )
 
         if filters.is_read is not None:
             query = query.filter(Notification.is_read == filters.is_read)
@@ -47,7 +66,7 @@ class NotificationRepository(BaseRepository[Notification]):
         count, query = apply_offset_and_limit(query, filters)
         return count, query.all()
 
-    def create_many(
+    def bulk_create(
         self, notifications: list[Notification]
     ) -> list[Notification]:
         if not notifications:
@@ -115,15 +134,22 @@ class NotificationRepository(BaseRepository[Notification]):
         self.db.commit()
 
     def mark_all_read(
-        self, user_uuid: uuid_pkg.UUID, read_datetime: datetime
+        self,
+        user_uuid: uuid_pkg.UUID,
+        read_datetime: datetime,
+        is_visible: bool = False,
     ) -> int:
-        result = self.db.execute(
-            update(Notification)
-            .where(
-                Notification.user_uuid == user_uuid,
-                Notification.is_read.is_(False),
+        statement = update(Notification).where(
+            Notification.user_uuid == user_uuid,
+            Notification.is_read.is_(False),
+        )
+        if is_visible:
+            statement = statement.where(
+                Notification.is_processed.is_(True),
+                Notification.text.is_not(None),
             )
-            .values(is_read=True, read_datetime=read_datetime)
+        result = self.db.execute(
+            statement.values(is_read=True, read_datetime=read_datetime)
         )
         self.db.commit()
         return result.rowcount or 0

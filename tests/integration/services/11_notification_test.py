@@ -11,7 +11,7 @@ from pydantic import ValidationError as SchemaValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app import settings
-from app.configs.errors import NoAccessError
+from app.configs.errors import NoAccessError, ValidationError
 from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
 from app.dto.clickhouse.log import UnitLog
@@ -243,10 +243,23 @@ def test_broken_notification_does_not_stop_the_batch(
     try:
         with caplog.at_level(logging.ERROR):
             process_saved(recipient_service, saved)
-        rows = [recipient_service.get(item.uuid) for item in saved]
+        rows = [
+            recipient_service.notification_repository.get(
+                Notification(uuid=item.uuid)
+            )
+            for item in saved
+        ]
         assert all(item.is_processed for item in rows)
         assert all(item.text is None for item in rows[:-1])
         assert "above 10" in rows[-1].text
+        _count, visible = recipient_service.list(
+            NotificationFilter.unlimited()
+        )
+        visible_uuids = {item.uuid for item in visible}
+        assert rows[-1].uuid in visible_uuids
+        assert all(item.uuid not in visible_uuids for item in rows[:-1])
+        with pytest.raises(ValidationError):
+            recipient_service.get(rows[0].uuid)
         assert any(
             "payload is invalid" in record.message for record in caplog.records
         )
