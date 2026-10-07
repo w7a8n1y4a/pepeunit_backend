@@ -10,7 +10,6 @@ from aiogram import Bot, Dispatcher
 from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
-from redis.exceptions import ResponseError
 
 from app import settings
 from app.configs.emqx import ControlEmqx
@@ -20,7 +19,6 @@ from app.dto.agent.abc import AgentBackend
 from app.dto.enum import FileLock, GlobalPrefixTopic
 from app.repositories.grafana_repository import GrafanaRepository
 from app.schemas.mqtt.manager import mqtt_manager
-from app.schemas.pydantic.notification import NotificationIn
 from app.services.background import BackgroundService
 from app.services.instance_service import InstanceService
 from app.services.notification_delivery import notification_delivery
@@ -28,9 +26,7 @@ from app.utils.utils import logo_to_console
 
 
 class StartupService:
-    NOTIFICATION_GROUP = "backend"
-    NOTIFICATION_CONSUMER = "backend"
-    NOTIFICATION_BLOCK_MS = 5_000
+    NOTIFICATION_POLL_SECONDS = 5
 
     def __init__(
         self,
@@ -129,18 +125,19 @@ class StartupService:
                 name="automatic_update_registry",
             )
         )
-        self._singleton_tasks.append(
-            asyncio.create_task(
-                self._run_scheduled_notifications(),
-                name="scheduled_notifications",
+        if settings.pu_ff_notification_enable:
+            self._singleton_tasks.append(
+                asyncio.create_task(
+                    self._run_scheduled_notifications(),
+                    name="scheduled_notifications",
+                )
             )
-        )
-        self._singleton_tasks.append(
-            asyncio.create_task(
-                self._run_notifications(),
-                name="notifications",
+            self._singleton_tasks.append(
+                asyncio.create_task(
+                    self._run_notifications(),
+                    name="notifications",
+                )
             )
-        )
 
     async def _init_clickhouse(self) -> None:
         clickhouse_cluster = ClickhouseCluster(
@@ -326,7 +323,11 @@ class StartupService:
             )
 
     async def _start_telegram_alert_queue(self) -> None:
-        if not settings.pu_ff_telegram_bot_enable or not self.bot:
+        if (
+            not settings.pu_ff_notification_enable
+            or not settings.pu_ff_telegram_bot_enable
+            or not self.bot
+        ):
             return
         task = asyncio.create_task(
             notification_delivery.telegram.run(self.bot),
@@ -336,97 +337,49 @@ class StartupService:
         await notification_delivery.telegram.ready.wait()
 
     async def _run_scheduled_notifications(self) -> None:
-        # Once a minute, the resolution of scheduled_notification_time
+        # Once a minute, the resolution of scheduled_notification_time.
+        # The write is synchronous and must not stall the processing loop.
         while True:
             await asyncio.sleep(self._seconds_until_next_minute())
             lock = acquire_file_lock(FileLock.NOTIFICATION_SCHEDULE)
             if lock is None:
                 continue
             try:
-                with BackgroundService() as services:
-                    await (
-                        services.get_notification_service().publish_scheduled()
-                    )
+                await asyncio.to_thread(self._generate_scheduled)
             except Exception:
                 logging.exception("Scheduled notifications failed")
             finally:
                 lock.close()
 
+    def _generate_scheduled(self) -> None:
+        with BackgroundService() as services:
+            services.get_notification_service().generate_scheduled()
+
     async def _run_notifications(self) -> None:
-        # One worker reads the stream, the others retry the lock in case it dies
+        # One worker processes the table, the others retry the lock
         while True:
-            lock = acquire_file_lock(FileLock.DATA_PIPE_ALERTS)
+            lock = acquire_file_lock(FileLock.NOTIFICATION_PROCESS)
             if lock is None:
-                await asyncio.sleep(5)
+                await asyncio.sleep(self.NOTIFICATION_POLL_SECONDS)
                 continue
             try:
-                await self._read_notifications()
+                await self._process_notifications()
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logging.exception("Notification consumer failed")
-                await asyncio.sleep(5)
+                logging.exception("Notification processing failed")
+                await asyncio.sleep(self.NOTIFICATION_POLL_SECONDS)
             finally:
                 lock.close()
 
-    async def _read_notifications(self) -> None:
-        session = get_redis_session()
-        redis = await anext(session)
-        try:
-            try:
-                await redis.xgroup_create(
-                    notification_delivery.INCOMING_STREAM,
-                    self.NOTIFICATION_GROUP,
-                    id="0",
-                    mkstream=True,
+    async def _process_notifications(self) -> None:
+        while True:
+            with BackgroundService() as services:
+                handled = (
+                    await services.get_notification_service().process_pending()
                 )
-            except ResponseError as exc:
-                if "BUSYGROUP" not in str(exc):
-                    raise
-
-            # Messages delivered but not acked by a previous consumer run
-            while await self._consume_notifications(redis, "0", None):
-                pass
-            while True:
-                await self._consume_notifications(
-                    redis, ">", self.NOTIFICATION_BLOCK_MS
-                )
-        finally:
-            await session.aclose()
-
-    async def _consume_notifications(
-        self, redis, stream_id: str, block: int | None
-    ) -> int:
-        """Types one xreadgroup batch and runs it through notification_pipe"""
-        response = await redis.xreadgroup(
-            groupname=self.NOTIFICATION_GROUP,
-            consumername=self.NOTIFICATION_CONSUMER,
-            streams={notification_delivery.INCOMING_STREAM: stream_id},
-            count=settings.pu_notification_data_pipe_alert_batch,
-            block=block,
-        )
-        if not response:
-            return 0
-
-        handled = 0
-        with BackgroundService() as services:
-            service = services.get_notification_service()
-            for _stream, messages in response:
-                for message_id, fields in messages:
-                    handled += 1
-                    try:
-                        await service.notification_pipe(
-                            NotificationIn.from_stream(fields)
-                        )
-                    except Exception:
-                        logging.exception("Failed to handle notification")
-                        services.db.rollback()
-                    await redis.xack(
-                        notification_delivery.INCOMING_STREAM,
-                        self.NOTIFICATION_GROUP,
-                        message_id,
-                    )
-        return handled
+            if handled < settings.pu_notification_data_pipe_alert_batch:
+                await asyncio.sleep(self.NOTIFICATION_POLL_SECONDS)
 
     def _seconds_until_next_minute(self) -> float:
         now = datetime.now(UTC)

@@ -1,7 +1,8 @@
-import json
+import asyncio
 import uuid as uuid_pkg
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
+from datetime import UTC, datetime
 
 from app import settings
 from app.domain.notification_model import Notification
@@ -10,26 +11,18 @@ from app.domain.user_model import User
 from app.dto.enum import NotificationType, UserStatus
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.pydantic.notification import (
-    DataPipeAlertData,
-    NotificationIn,
-    NotificationSettingsUpdate,
-)
+from app.schemas.pydantic.notification import NotificationSettingsUpdate
 from tests.integration.helpers.services import notification_service
-
-SETTINGS_FIELDS = (
-    "is_scheduled_alert_enable",
-    "scheduled_notification_time",
-    "is_data_pipe_alert_enable",
-    "is_telegram_alert_enable",
-)
 
 
 def settings_update_of(
     settings_row: NotificationSettings,
 ) -> NotificationSettingsUpdate:
     return NotificationSettingsUpdate(
-        **{field: getattr(settings_row, field) for field in SETTINGS_FIELDS}
+        is_scheduled_alert_enable=settings_row.is_scheduled_alert_enable,
+        scheduled_notification_time=settings_row.scheduled_notification_time,
+        is_data_pipe_alert_enable=settings_row.is_data_pipe_alert_enable,
+        is_telegram_alert_enable=settings_row.is_telegram_alert_enable,
     )
 
 
@@ -55,46 +48,55 @@ def as_recipient(database, cc, user, token) -> Iterator:
         repository.update(user.uuid, user)
 
 
-def data_pipe_alert(
+def data_pipe_notification(
     unit_node, user: User, unit_name: str | None = None, **fields
-) -> NotificationIn:
-    """A data pipe alert as the data pipe publishes it"""
-    payload = {
+) -> Notification:
+    """A data pipe alert as the data pipe inserts it, still untyped."""
+    data = {
         "unit_node_uuid": str(unit_node.uuid),
         "unit_uuid": str(unit_node.unit_uuid),
         "topic_name": unit_node.topic_name,
-        "unit_name": unit_name,
         "value": "12.5",
         "type_value_threshold": "Max",
         "threshold_max": 10,
         **fields,
     }
-    return NotificationIn(
-        type=NotificationType.DATA_PIPE_ALERT,
+    if unit_name is not None:
+        data["unit_name"] = unit_name
+    return Notification(
+        create_datetime=datetime.now(UTC),
+        type=NotificationType.DATA_PIPE_ALERT.value,
+        data=data,
+        is_read=False,
+        is_processed=False,
         user_uuid=user.uuid,
-        data=DataPipeAlertData.model_validate(payload),
     )
 
 
-def data_pipe_stream(unit_node, user: User, **fields) -> dict[str, str]:
-    """Redis fields of a data pipe alert, before they are typed"""
-    payload = {
-        "unit_node_uuid": str(unit_node.uuid),
-        "unit_uuid": str(unit_node.unit_uuid),
-        "topic_name": unit_node.topic_name,
-        "value": "12.5",
-        "type_value_threshold": "Max",
-        "threshold_max": 10,
-        **fields,
-    }
-    payload = {
-        key: value for key, value in payload.items() if value is not None
-    }
-    return {
-        "type": NotificationType.DATA_PIPE_ALERT.value,
-        "user_uuid": str(user.uuid),
-        "data": json.dumps(payload),
-    }
+def deliver_notification(service, notification: Notification) -> Notification:
+    """Saves one notification and runs it through the processing job."""
+    saved = service.save([notification])[0]
+    process_saved(service, [saved])
+    return service.get(saved.uuid)
+
+
+def process_saved(service, notifications: list[Notification]) -> None:
+    """Processes batches until these rows are closed.
+
+    The job also picks up other unprocessed rows, so one pass is not enough
+    when the table is already busy.
+    """
+    waiting = {item.uuid for item in notifications}
+    for _ in range(10):
+        if not waiting:
+            return
+        asyncio.run(service.process_pending())
+        done = [
+            uuid
+            for uuid in waiting
+            if service.get(uuid).is_processed
+        ]
+        waiting.difference_update(done)
 
 
 def drop_notification(database, uuid: uuid_pkg.UUID) -> None:

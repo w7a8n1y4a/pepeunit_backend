@@ -1,6 +1,7 @@
-import json
+import logging
 import re
 import uuid as uuid_pkg
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -13,13 +14,25 @@ from pydantic import (
     model_validator,
 )
 
-from app.configs.errors import NotificationError
+from app.domain.notification_model import Notification
 from app.dto.enum import (
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
     NotificationType,
 )
+from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
+
+
+class NotificationData(BaseModel, ABC):
+    """Typed notification payload. `text` is the base text, with no
+    delivery wrapper.
+    """
+
+    @property
+    @abstractmethod
+    def text(self) -> str:
+        """Base notification text."""
 
 
 class InstanceError(BaseModel):
@@ -27,8 +40,26 @@ class InstanceError(BaseModel):
     message: str
 
 
-class InstanceDailyStateData(BaseModel):
+class InstanceDailyStateData(NotificationData):
     errors: list[InstanceError] | None
+
+    @property
+    def text(self) -> str:
+        if self.errors is None:
+            table = [["Loki did not return data"]]
+            lengths = None
+        else:
+            table = [
+                ["Count", "Message"],
+                *[
+                    [error.count, error.message or "-"]
+                    for error in self.errors
+                ],
+            ]
+            lengths = [8, 40]
+        return make_monospace_table_with_title(
+            table, "Instance daily summary", lengths=lengths
+        )
 
 
 class UnitErrorCount(BaseModel):
@@ -36,11 +67,24 @@ class UnitErrorCount(BaseModel):
     error_count: int
 
 
-class UnitDailySummaryData(BaseModel):
+class UnitDailySummaryData(NotificationData):
     units: list[UnitErrorCount]
 
+    @property
+    def text(self) -> str:
+        if self.units:
+            rows = [
+                [unit.unit_name or "-", unit.error_count]
+                for unit in self.units
+            ]
+        else:
+            rows = [["-", "0"]]
+        return make_monospace_table_with_title(
+            [["Unit name", "Errors"], *rows], "Unit daily summary"
+        )
 
-class DataPipeAlertData(BaseModel):
+
+class DataPipeAlertData(NotificationData):
     # float("nan") and float("inf") are otherwise valid floats
     model_config = ConfigDict(allow_inf_nan=False)
 
@@ -60,25 +104,18 @@ class DataPipeAlertData(BaseModel):
     def require_value(cls, value: object) -> str:
         if value is None:
             msg = "value is required"
-            raise NotificationError(msg)
+            raise ValueError(msg)
         return str(value)
 
     @field_validator("filtering_values", mode="before")
     @classmethod
-    def parse_filtering_values(cls, value: object) -> object:
-        # Redis sends a JSON list, the stored row already has the list
+    def filtering_values_are_a_list(cls, value: object) -> object:
         match value:
             case None | list():
                 return value
-            case str():
-                try:
-                    return json.loads(value)
-                except json.JSONDecodeError as exc:
-                    msg = "filtering_values must be a json list"
-                    raise NotificationError(msg) from exc
             case _:
-                msg = "filtering_values must be a json list"
-                raise NotificationError(msg)
+                msg = "filtering_values must be a list"
+                raise ValueError(msg)
 
     @model_validator(mode="after")
     def check_rules(self) -> DataPipeAlertData:
@@ -87,81 +124,163 @@ class DataPipeAlertData(BaseModel):
             and self.type_value_threshold is None
         ):
             msg = "type_value_filtering or type_value_threshold is required"
-            raise NotificationError(msg)
+            raise ValueError(msg)
         if self.type_value_filtering is not None and not self.filtering_values:
             msg = "filtering_values is required"
-            raise NotificationError(msg)
+            raise ValueError(msg)
         match self.type_value_threshold:
             case FilterTypeValueThreshold.MIN if self.threshold_min is None:
                 msg = "threshold_min is required"
-                raise NotificationError(msg)
+                raise ValueError(msg)
             case FilterTypeValueThreshold.MAX if self.threshold_max is None:
                 msg = "threshold_max is required"
-                raise NotificationError(msg)
+                raise ValueError(msg)
             case FilterTypeValueThreshold.RANGE if (
                 self.threshold_min is None or self.threshold_max is None
             ):
                 msg = "threshold_min and threshold_max are required"
-                raise NotificationError(msg)
+                raise ValueError(msg)
         return self
 
     @property
     def topic(self) -> str:
         return self.topic_name or str(self.unit_node_uuid or "-")
 
+    @property
+    def text(self) -> str:
+        lines = [
+            "Data pipe alert",
+            f"Topic: {self.topic}",
+            *[
+                f"Value {self.value} {phrase}"
+                for phrase in self._rule_phrases()
+            ],
+        ]
+        return "\n".join(lines)
 
-_PAYLOADS: dict[NotificationType, type[BaseModel]] = {}
+    def _rule_phrases(self) -> list[str]:
+        phrases = []
+        if self.type_value_threshold is not None:
+            phrases.append(self._threshold_phrase())
+        if self.type_value_filtering is not None:
+            phrases.append(self._filtering_phrase())
+        return phrases
 
+    def _threshold_phrase(self) -> str:
+        low = self.threshold_min
+        high = self.threshold_max
+        match self.type_value_threshold:
+            case FilterTypeValueThreshold.MIN:
+                phrase = f"is below {low:g}"
+            case FilterTypeValueThreshold.MAX:
+                phrase = f"is above {high:g}"
+            case FilterTypeValueThreshold.RANGE:
+                phrase = f"is outside [{low:g}, {high:g}]"
+            case _:
+                msg = f"Unknown threshold type: {self.type_value_threshold}"
+                raise ValueError(msg)
+        return phrase
 
-class NotificationIn(BaseModel):
-    """One notification already built by a producer"""
-
-    type: NotificationType
-    user_uuid: uuid_pkg.UUID
-    data: InstanceDailyStateData | UnitDailySummaryData | DataPipeAlertData
-
-    @classmethod
-    def from_stream(cls, fields: dict[str, str]) -> NotificationIn:
-        try:
-            notification_type = NotificationType(fields["type"])
-            data = _PAYLOADS[notification_type].model_validate(
-                json.loads(fields["data"])
-            )
-        except (
-            KeyError,
-            ValueError,
-            json.JSONDecodeError,
-            ValidationError,
-        ) as err:
-            msg = "Notification payload is invalid"
-            raise NotificationError(msg) from err
-        return cls(
-            type=notification_type,
-            user_uuid=fields["user_uuid"],
-            data=data,
+    def _filtering_phrase(self) -> str:
+        values = ", ".join(
+            self._text_value(item) for item in self._filtering_list()
         )
+        match self.type_value_filtering:
+            case FilterTypeValueFiltering.WHITELIST:
+                phrase = f"is not one of: {values}"
+            case FilterTypeValueFiltering.BLACKLIST:
+                phrase = f"is one of: {values}"
+            case _:
+                msg = f"Unknown filtering type: {self.type_value_filtering}"
+                raise ValueError(msg)
+        return phrase
 
-    def stream(self) -> dict[str, str]:
-        return {
-            "type": self.type.value,
-            "user_uuid": str(self.user_uuid),
-            "data": self.data.model_dump_json(),
-        }
+    def _filtering_list(self) -> list[str | float]:
+        if self.filtering_values is None:
+            msg = "filtering_values is required"
+            raise ValueError(msg)
+        return self.filtering_values
+
+    @staticmethod
+    def _text_value(value: str | float | int) -> str:
+        match value:
+            case bool():
+                rendered = str(value)
+            case int() | float():
+                rendered = f"{value:g}"
+            case str():
+                rendered = value
+            case _:
+                msg = f"Unexpected filtering value: {value!r}"
+                raise TypeError(msg)
+        return rendered
 
 
-_PAYLOADS[NotificationType.INSTANCE_DAILY_STATE] = InstanceDailyStateData
-_PAYLOADS[NotificationType.UNIT_DAILY_SUMMARY] = UnitDailySummaryData
-_PAYLOADS[NotificationType.DATA_PIPE_ALERT] = DataPipeAlertData
+def is_notification_text(
+    notification_type: str,
+    data: dict,
+    notification_uuid: uuid_pkg.UUID,
+) -> str | None:
+    """Base text of one stored notification.
+
+    None means the row is broken. The caller still finishes the row.
+    """
+    payload = _notification_data(notification_type, data, notification_uuid)
+    if payload is None:
+        return None
+    try:
+        return payload.text
+    except (TypeError, ValueError) as err:
+        logging.error(
+            f"Notification {notification_uuid} ({notification_type}) "
+            f"text failed: {err}"
+        )
+        return None
+
+
+def _notification_data(
+    notification_type: str,
+    data: dict,
+    notification_uuid: uuid_pkg.UUID,
+) -> NotificationData | None:
+    try:
+        match NotificationType(notification_type):
+            case NotificationType.INSTANCE_DAILY_STATE:
+                payload = InstanceDailyStateData.model_validate(data)
+            case NotificationType.UNIT_DAILY_SUMMARY:
+                payload = UnitDailySummaryData.model_validate(data)
+            case NotificationType.DATA_PIPE_ALERT:
+                payload = DataPipeAlertData.model_validate(data)
+            case _:
+                logging.error(
+                    f"Notification {notification_uuid} type is not "
+                    f"supported: {notification_type}"
+                )
+                return None
+    except (ValueError, ValidationError) as err:
+        logging.error(
+            f"Notification {notification_uuid} ({notification_type}) "
+            f"payload is invalid: {err}"
+        )
+        return None
+    return payload
 
 
 class NotificationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     uuid: uuid_pkg.UUID
     create_datetime: datetime
     type: NotificationType
-    data: dict
+    text: str | None
     is_read: bool
     read_datetime: datetime | None
+    is_processed: bool
     user_uuid: uuid_pkg.UUID
+
+
+def notification_read(notification: Notification) -> NotificationRead:
+    return NotificationRead.model_validate(notification, from_attributes=True)
 
 
 class NotificationsResult(BaseModel):

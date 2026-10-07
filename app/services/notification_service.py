@@ -1,12 +1,12 @@
-import logging
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from operator import attrgetter
 
 from fastapi import Depends
 
 from app import settings
-from app.configs.errors import LokiError
-from app.configs.redis import get_redis_session
+from app.configs.errors import FeatureFlagError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
 from app.domain.user_model import User
@@ -16,9 +16,13 @@ from app.dto.enum import (
     NotificationType,
     OwnershipType,
     UserRole,
+    UserStatus,
 )
 from app.repositories.loki_repository import LokiRepository
-from app.repositories.notification_repository import NotificationRepository
+from app.repositories.notification_repository import (
+    NotificationRepository,
+    PendingNotification,
+)
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
@@ -29,21 +33,28 @@ from app.schemas.gql.inputs.notification import (
     NotificationSettingsUpdateInput,
 )
 from app.schemas.pydantic.notification import (
-    InstanceDailyStateData,
-    InstanceError,
     NotificationFilter,
-    NotificationIn,
     NotificationSettingsUpdate,
-    UnitDailySummaryData,
-    UnitErrorCount,
+    is_notification_text,
+    notification_read,
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
-from app.services.notification_delivery import (
-    NotificationMessage,
-    notification_delivery,
-)
+from app.services.notification_delivery import Outgoing, notification_delivery
 from app.services.validators import is_valid_object
+
+
+@dataclass(frozen=True)
+class _UnitError:
+    unit_name: str
+    error_count: int
+
+
+@dataclass(frozen=True)
+class _Prepared:
+    notification: Notification
+    text: str | None
+    outgoing: Outgoing | None
 
 
 class NotificationService:
@@ -51,6 +62,10 @@ class NotificationService:
     INSTANCE_ERROR_GROUPS = 3
     UNIT_SUMMARY_LIMIT = 10
     ALERT_LEVELS = [LogLevel.ERROR.value, LogLevel.CRITICAL.value]
+    SCHEDULED_TYPES = (
+        NotificationType.INSTANCE_DAILY_STATE.value,
+        NotificationType.UNIT_DAILY_SUMMARY.value,
+    )
 
     def __init__(
         self,
@@ -72,15 +87,22 @@ class NotificationService:
         self.loki_repository = loki_repository
         self.access_service = access_service
 
+    @staticmethod
+    def is_notification_enable() -> None:
+        if not settings.pu_ff_notification_enable:
+            raise FeatureFlagError()
+
     def list(
         self, filters: NotificationFilter | NotificationFilterInput
     ) -> tuple[int, list[Notification]]:
+        self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_repository.list(
             self.access_service.current_agent.uuid, filters
         )
 
     def get(self, uuid: uuid_pkg.UUID) -> Notification:
+        self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         notification = self.notification_repository.get(
             Notification(uuid=uuid)
@@ -92,6 +114,7 @@ class NotificationService:
         return notification
 
     def mark_read(self, uuid: uuid_pkg.UUID) -> Notification:
+        self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         notification = self.notification_repository.get(
             Notification(uuid=uuid)
@@ -110,6 +133,7 @@ class NotificationService:
         )
 
     def mark_all_read(self) -> int:
+        self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_repository.mark_all_read(
             self.access_service.current_agent.uuid,
@@ -117,6 +141,7 @@ class NotificationService:
         )
 
     def get_settings(self) -> NotificationSettings:
+        self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         return self.notification_settings_repository.get_or_create(
             self.access_service.current_agent.uuid
@@ -126,6 +151,7 @@ class NotificationService:
         self,
         data: (NotificationSettingsUpdateInput | NotificationSettingsUpdate),
     ) -> NotificationSettings:
+        self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
         settings_row = self.notification_settings_repository.get_or_create(
             self.access_service.current_agent.uuid
@@ -138,169 +164,229 @@ class NotificationService:
             settings_row.uuid, settings_row
         )
 
-    def due_scheduled(
-        self, now: datetime, user_uuid: uuid_pkg.UUID | None = None
-    ) -> list[NotificationIn]:
-        # The scheduled minute is the only gate. A later time the same day sends.
-        slot_start = now.replace(second=0, microsecond=0)
-        period_start = now - self.SCHEDULED_LOG_WINDOW
+    def save(self, notifications: list[Notification]) -> list[Notification]:
+        """Stores already built notifications. Data stays an untyped dict."""
+        if not settings.pu_ff_notification_enable:
+            return []
+        return self.notification_repository.create_many(notifications)
+
+    def generate_scheduled(
+        self,
+        now: datetime | None = None,
+        user_uuid: uuid_pkg.UUID | None = None,
+    ) -> list[Notification]:
+        """Writes the daily rows whose minute has come and which are not
+        already stored for that minute.
+        """
+        if not settings.pu_ff_notification_enable:
+            return []
+        moment = now or datetime.now(UTC)
+        recipients = self._due_recipients(moment, user_uuid)
+        if not recipients:
+            return []
+        present = self.notification_repository.present_since(
+            [user.uuid for user, _settings_row in recipients],
+            self.SCHEDULED_TYPES,
+            self._slot_start(moment),
+        )
+        rows = [
+            row
+            for user, _settings_row in recipients
+            for row in self._scheduled_rows(user, moment, present)
+        ]
+        return self.notification_repository.create_many(rows)
+
+    async def process_pending(self) -> int:
+        """Types one locked batch, stores the text, then delivers it."""
+        if not settings.pu_ff_notification_enable:
+            return 0
+        pending = self.notification_repository.lock_unprocessed(
+            settings.pu_notification_data_pipe_alert_batch
+        )
+        prepared = [self._prepare(item) for item in pending]
+        self.notification_repository.mark_processed(
+            [(item.notification, item.text) for item in prepared]
+        )
+        await notification_delivery.deliver(
+            [item.outgoing for item in prepared if item.outgoing is not None]
+        )
+        return len(prepared)
+
+    def _due_recipients(
+        self, moment: datetime, user_uuid: uuid_pkg.UUID | None
+    ) -> list[tuple[User, NotificationSettings]]:
         recipients = self.notification_settings_repository.list_scheduled(
-            now.strftime("%H:%M")
+            moment.strftime("%H:%M")
         )
-        if user_uuid is not None:
-            recipients = [
-                item for item in recipients if item[0].uuid == user_uuid
-            ]
-
-        incoming: list[NotificationIn] = []
-        for user, _settings_row in recipients:
-            if user.role == UserRole.ADMIN and not (
-                self.notification_repository.exists_since(
-                    user.uuid,
-                    NotificationType.INSTANCE_DAILY_STATE.value,
-                    slot_start,
-                )
-            ):
-                incoming.append(
-                    NotificationIn(
-                        type=NotificationType.INSTANCE_DAILY_STATE,
-                        user_uuid=user.uuid,
-                        data=InstanceDailyStateData(
-                            errors=self._instance_errors()
-                        ),
-                    )
-                )
-            if self.notification_repository.exists_since(
-                user.uuid,
-                NotificationType.UNIT_DAILY_SUMMARY.value,
-                slot_start,
-            ):
-                continue
-            summary = self._unit_summary_data(user, period_start, now)
-            if summary is None:
-                continue
-            incoming.append(
-                NotificationIn(
-                    type=NotificationType.UNIT_DAILY_SUMMARY,
-                    user_uuid=user.uuid,
-                    data=summary,
-                )
-            )
-        return incoming
-
-    async def publish_scheduled(self) -> None:
-        incoming = self.due_scheduled(datetime.now(UTC))
-        if not incoming:
-            return
-        session = get_redis_session()
-        redis = await anext(session)
-        try:
-            for item in incoming:
-                await redis.xadd(
-                    notification_delivery.INCOMING_STREAM, item.stream()
-                )
-        finally:
-            await session.aclose()
-
-    async def notification_pipe(
-        self, incoming: NotificationIn
-    ) -> Notification | None:
-        recipient = self.notification_settings_repository.get_recipient(
-            incoming.user_uuid
-        )
-        if recipient is None:
-            return None
-        user, settings_row = recipient
-
-        enabled = {
-            NotificationType.DATA_PIPE_ALERT: (
-                settings_row.is_data_pipe_alert_enable
-            ),
-            NotificationType.INSTANCE_DAILY_STATE: (
-                settings_row.is_scheduled_alert_enable
-            ),
-            NotificationType.UNIT_DAILY_SUMMARY: (
-                settings_row.is_scheduled_alert_enable
-            ),
-        }
-        if not enabled[incoming.type]:
-            return None
-
-        notification = self.notification_repository.create(
-            Notification(
-                create_datetime=datetime.now(UTC),
-                type=incoming.type.value,
-                data=incoming.data.model_dump(mode="json"),
-                is_read=False,
-                user_uuid=user.uuid,
-            )
-        )
-        self.notification_repository.db.expunge(notification)
-
-        session = get_redis_session()
-        redis = await anext(session)
-        try:
-            await redis.xadd(
-                notification_delivery.stream_name(user.uuid),
-                {"data": notification.model_dump_json()},
-                maxlen=settings.pu_notification_stream_maxlen,
-                approximate=True,
-            )
-        finally:
-            await session.aclose()
-
-        if settings_row.is_telegram_alert_enable:
-            notification_delivery.telegram.enqueue(
-                user.telegram_chat_id,
-                NotificationMessage.text(notification),
-            )
-        return notification
-
-    def _instance_errors(self) -> list[InstanceError] | None:
-        try:
-            groups = self.loki_repository.query_backend_error_groups(
-                self.INSTANCE_ERROR_GROUPS
-            )
-        except LokiError:
-            logging.exception("Failed to read backend errors from Loki")
-            return None
+        if user_uuid is None:
+            return recipients
         return [
-            InstanceError(count=group.count, message=group.message)
-            for group in groups
+            (user, settings_row)
+            for user, settings_row in recipients
+            if user.uuid == user_uuid
         ]
 
-    def _unit_summary_data(
+    def _scheduled_rows(
         self,
         user: User,
-        period_start: datetime,
-        period_end: datetime,
-    ) -> UnitDailySummaryData | None:
+        moment: datetime,
+        present: set[tuple[uuid_pkg.UUID, str]],
+    ) -> list[Notification]:
+        rows = []
+        if self._needs_instance_state(user, present):
+            rows.append(self._instance_state(user))
+        summary = self._unit_summary(user, moment, present)
+        if summary is not None:
+            rows.append(summary)
+        return rows
+
+    def _needs_instance_state(
+        self, user: User, present: set[tuple[uuid_pkg.UUID, str]]
+    ) -> bool:
+        key = (user.uuid, NotificationType.INSTANCE_DAILY_STATE.value)
+        return user.role == UserRole.ADMIN and key not in present
+
+    def _instance_state(self, user: User) -> Notification:
+        return self._new(
+            user,
+            NotificationType.INSTANCE_DAILY_STATE,
+            self._instance_data(),
+        )
+
+    def _instance_data(self) -> dict:
+        groups = self.loki_repository.backend_error_groups(
+            self.INSTANCE_ERROR_GROUPS
+        )
+        if groups is None:
+            return {"errors": None}
+        return {
+            "errors": [
+                {"count": group.count, "message": group.message}
+                for group in groups
+            ]
+        }
+
+    def _unit_summary(
+        self,
+        user: User,
+        moment: datetime,
+        present: set[tuple[uuid_pkg.UUID, str]],
+    ) -> Notification | None:
+        key = (user.uuid, NotificationType.UNIT_DAILY_SUMMARY.value)
+        if key in present:
+            return None
+        data = self._unit_summary_data(user, moment)
+        if data is None:
+            return None
+        return self._new(user, NotificationType.UNIT_DAILY_SUMMARY, data)
+
+    def _unit_summary_data(self, user: User, moment: datetime) -> dict | None:
         _, units = self.unit_repository.list(
             UnitFilter.unlimited(creator_uuid=user.uuid)
         )
         names = {unit.uuid: unit.name for unit, _nodes in units}
         if not names:
             return None
-
         counted = self.unit_log_repository.count_errors_by_unit(
             unit_uuids=list(names),
             levels=self.ALERT_LEVELS,
-            since=period_start,
-            until=period_end,
-            limit=self.UNIT_SUMMARY_LIMIT,
+            since=moment - self.SCHEDULED_LOG_WINDOW,
+            until=moment,
+            limit=len(names),
         )
-        counts = dict.fromkeys(names, 0)
-        for item in counted:
-            counts[item.unit_uuid] = item.count
-        rows = sorted(
+        counts = {item.unit_uuid: item.count for item in counted}
+        ranked = sorted(
             (
-                UnitErrorCount(
+                _UnitError(
                     unit_name=name,
-                    error_count=counts[unit_uuid],
+                    error_count=self._error_count(counts, unit_uuid),
                 )
                 for unit_uuid, name in names.items()
             ),
-            key=lambda item: item.error_count,
+            key=attrgetter("error_count"),
             reverse=True,
         )[: self.UNIT_SUMMARY_LIMIT]
-        return UnitDailySummaryData(units=rows)
+        return {
+            "units": [
+                {
+                    "unit_name": item.unit_name,
+                    "error_count": item.error_count,
+                }
+                for item in ranked
+            ]
+        }
+
+    def _prepare(self, pending: PendingNotification) -> _Prepared:
+        notification = pending.notification
+        text = is_notification_text(
+            notification.type, notification.data, notification.uuid
+        )
+        if text is None:
+            return _Prepared(notification, None, None)
+        return _Prepared(notification, text, self._outgoing(pending, text))
+
+    def _outgoing(
+        self, pending: PendingNotification, text: str
+    ) -> Outgoing | None:
+        if not self._is_deliverable(pending):
+            return None
+        notification = pending.notification
+        read = notification_read(notification).model_copy(
+            update={"text": text, "is_processed": True}
+        )
+        return Outgoing(
+            user_uuid=pending.user.uuid,
+            chat_id=pending.user.telegram_chat_id,
+            telegram=pending.settings.is_telegram_alert_enable,
+            notification_type=NotificationType(notification.type),
+            text=text,
+            sse_body=read.model_dump_json(),
+        )
+
+    def _is_deliverable(self, pending: PendingNotification) -> bool:
+        if pending.user.status != UserStatus.VERIFIED.value:
+            return False
+        return self._is_type_enabled(
+            pending.notification.type, pending.settings
+        )
+
+    @staticmethod
+    def _new(
+        user: User, notification_type: NotificationType, data: dict
+    ) -> Notification:
+        return Notification(
+            create_datetime=datetime.now(UTC),
+            type=notification_type.value,
+            data=data,
+            is_read=False,
+            is_processed=False,
+            user_uuid=user.uuid,
+        )
+
+    @staticmethod
+    def _slot_start(moment: datetime) -> datetime:
+        return moment.replace(second=0, microsecond=0)
+
+    @staticmethod
+    def _error_count(
+        counts: dict[uuid_pkg.UUID, int], unit_uuid: uuid_pkg.UUID
+    ) -> int:
+        if unit_uuid in counts:
+            return counts[unit_uuid]
+        return 0
+
+    @staticmethod
+    def _is_type_enabled(
+        notification_type: str, settings_row: NotificationSettings
+    ) -> bool:
+        match NotificationType(notification_type):
+            case NotificationType.DATA_PIPE_ALERT:
+                enabled = settings_row.is_data_pipe_alert_enable
+            case (
+                NotificationType.INSTANCE_DAILY_STATE
+                | NotificationType.UNIT_DAILY_SUMMARY
+            ):
+                enabled = settings_row.is_scheduled_alert_enable
+            case _:
+                enabled = False
+        return enabled

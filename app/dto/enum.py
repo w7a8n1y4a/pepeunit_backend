@@ -566,4 +566,4 @@ class FileLock(str, enum.Enum):
     UPDATE_REGISTRY = "tmp/update_registry.lock"
     COLLECT_INSTANCES = "tmp/collect_instances.lock"
     NOTIFICATION_SCHEDULE = "tmp/notification_schedule.lock"
-    DATA_PIPE_ALERTS = "tmp/data_pipe_alerts.lock"
+    NOTIFICATION_PROCESS = "tmp/notification_process.lock"

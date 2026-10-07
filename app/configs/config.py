@@ -122,6 +122,7 @@ class FeatureFlagSettings(BaseModel):
     pu_ff_datapipe_default_last_value_enable: bool = True
     pu_ff_prometheus_enable: bool = True
     pu_ff_federation_enable: bool = True
+    pu_ff_notification_enable: bool = True
 
 
 class ProjectSettings(BaseModel):
@@ -361,7 +362,7 @@ class NotificationSettings(SettingsValidationMixin, BaseModel):
     pu_notification_telegram_alert_text_limit: int = Field(
         default=4000, ge=1, le=4096
     )
-    # One database session and one delivery batch
+    # How many unprocessed notifications one processing pass locks
     pu_notification_data_pipe_alert_batch: int = Field(
         default=100, ge=1, le=1_000
     )

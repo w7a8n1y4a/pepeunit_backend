@@ -15,6 +15,7 @@ MARKER_ENABLED: dict[str, Callable[[], bool]] = {
     ),
     "prometheus": lambda: settings.pu_ff_prometheus_enable,
     "federation": lambda: settings.pu_ff_federation_enable,
+    "notification": lambda: settings.pu_ff_notification_enable,
     "private_repo": lambda: (
         settings.pu_test_integration_private_repo_enable
         and bool(load_private_repo_specs())

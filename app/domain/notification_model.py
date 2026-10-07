@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, SQLModel
 
@@ -35,6 +35,17 @@ class Notification(SQLModel, table=True):
 
     # When the notification was marked as read (null while unread)
     read_datetime: datetime = Field(nullable=True)
+
+    # Base text, filled when the row is processed. Null while it waits
+    # or when the payload could not be typed.
+    text: str | None = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+    )
+
+    # False until the processing job finishes. Stays false only while the
+    # row is waiting, then becomes true even if delivery was skipped.
+    is_processed: bool = Field(default=False, nullable=False, index=True)
 
     # to User link
     user_uuid: uuid_pkg.UUID = Field(

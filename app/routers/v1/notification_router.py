@@ -14,6 +14,7 @@ from app.schemas.pydantic.notification import (
     NotificationSettingsRead,
     NotificationSettingsUpdate,
     NotificationsResult,
+    notification_read,
 )
 from app.services.notification_delivery import notification_delivery
 from app.services.notification_service import NotificationService
@@ -59,6 +60,7 @@ async def notifications_stream(
     request: Request,
     jwt_token: str | None = Depends(token_depends),
 ):
+    NotificationService.is_notification_enable()
     # Auth uses a short session. The stream itself must not hold a database
     # connection for as long as the client stays connected.
     if not jwt_token:
@@ -89,8 +91,7 @@ def get_notifications(
     return NotificationsResult(
         count=count,
         notifications=[
-            NotificationRead(**notification.dict())
-            for notification in notifications
+            notification_read(notification) for notification in notifications
         ],
     )
 
@@ -102,7 +103,7 @@ def get_notification(
         get_notification_service
     ),
 ):
-    return NotificationRead(**notification_service.get(uuid).dict())
+    return notification_read(notification_service.get(uuid))
 
 
 @router.patch("/{uuid}/read", response_model=NotificationRead)
@@ -112,4 +113,4 @@ def mark_read(
         get_notification_service
     ),
 ):
-    return NotificationRead(**notification_service.mark_read(uuid).dict())
+    return notification_read(notification_service.mark_read(uuid))

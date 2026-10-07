@@ -46,19 +46,3 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
             )
             .all()
         )
-
-    def get_recipient(
-        self, user_uuid: uuid_pkg.UUID
-    ) -> tuple[User, NotificationSettings] | None:
-        return (
-            self.db.query(User, NotificationSettings)
-            .join(
-                NotificationSettings,
-                NotificationSettings.user_uuid == User.uuid,
-            )
-            .filter(
-                User.uuid == user_uuid,
-                User.status == UserStatus.VERIFIED.value,
-            )
-            .first()
-        )

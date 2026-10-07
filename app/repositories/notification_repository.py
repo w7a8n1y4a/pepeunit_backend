@@ -1,4 +1,5 @@
 import uuid as uuid_pkg
+from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import Depends
@@ -7,10 +8,21 @@ from sqlmodel import Session, col
 
 from app.configs.db import get_session
 from app.domain.notification_model import Notification
+from app.domain.notification_settings_model import NotificationSettings
+from app.domain.user_model import User
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_enums, apply_offset_and_limit
 from app.schemas.gql.inputs.notification import NotificationFilterInput
 from app.schemas.pydantic.notification import NotificationFilter
+
+
+@dataclass(frozen=True)
+class PendingNotification:
+    """One locked, unprocessed notification and the recipient it belongs to."""
+
+    notification: Notification
+    user: User
+    settings: NotificationSettings
 
 
 class NotificationRepository(BaseRepository[Notification]):
@@ -35,23 +47,72 @@ class NotificationRepository(BaseRepository[Notification]):
         count, query = apply_offset_and_limit(query, filters)
         return count, query.all()
 
-    def exists_since(
+    def create_many(
+        self, notifications: list[Notification]
+    ) -> list[Notification]:
+        if not notifications:
+            return []
+        self.db.add_all(notifications)
+        self.db.commit()
+        return notifications
+
+    def present_since(
         self,
-        user_uuid: uuid_pkg.UUID,
-        notification_type: str,
+        user_uuids: list[uuid_pkg.UUID],
+        notification_types: tuple[str, ...] | list[str],
         since: datetime,
-        unit_uuid: str | None = None,
-    ) -> bool:
-        query = self.db.query(Notification).filter(
-            Notification.user_uuid == user_uuid,
-            Notification.type == notification_type,
-            Notification.create_datetime >= since,
-        )
-        if unit_uuid is not None:
-            query = query.filter(
-                Notification.data["unit_uuid"].astext == unit_uuid
+    ) -> set[tuple[uuid_pkg.UUID, str]]:
+        """User and type pairs that already have a row in this window."""
+        if not user_uuids:
+            return set()
+        rows = (
+            self.db.query(Notification.user_uuid, Notification.type)
+            .filter(
+                col(Notification.user_uuid).in_(user_uuids),
+                col(Notification.type).in_(notification_types),
+                Notification.create_datetime >= since,
             )
-        return query.first() is not None
+            .all()
+        )
+        return {
+            (user_uuid, notification_type)
+            for user_uuid, notification_type in rows
+        }
+
+    def lock_unprocessed(self, limit: int) -> list[PendingNotification]:
+        """Locks one batch. Another worker skips these rows."""
+        rows = (
+            self.db.query(Notification, User, NotificationSettings)
+            .join(User, User.uuid == Notification.user_uuid)
+            .join(
+                NotificationSettings,
+                NotificationSettings.user_uuid == User.uuid,
+            )
+            .filter(Notification.is_processed.is_(False))
+            .order_by(col(Notification.create_datetime))
+            .limit(limit)
+            .with_for_update(skip_locked=True, of=Notification)
+            .all()
+        )
+        return [
+            PendingNotification(
+                notification=notification,
+                user=user,
+                settings=settings_row,
+            )
+            for notification, user, settings_row in rows
+        ]
+
+    def mark_processed(
+        self, updates: list[tuple[Notification, str | None]]
+    ) -> None:
+        """Stores the text and closes the row, in one transaction."""
+        if not updates:
+            return
+        for notification, text in updates:
+            notification.text = text
+            notification.is_processed = True
+        self.db.commit()
 
     def mark_all_read(
         self, user_uuid: uuid_pkg.UUID, read_datetime: datetime

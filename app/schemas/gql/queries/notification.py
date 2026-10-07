@@ -9,13 +9,14 @@ from app.schemas.gql.types.notification import (
     NotificationSettingsType,
     NotificationsResultType,
     NotificationType,
+    notification_type,
 )
 
 
 @strawberry.field()
 def get_notification(info: Info, uuid: uuid_pkg.UUID) -> NotificationType:
     notification = get_notification_service_gql(info).get(uuid)
-    return NotificationType(**notification.dict())
+    return notification_type(notification)
 
 
 @strawberry.field()
@@ -26,8 +27,7 @@ def get_notifications(
     return NotificationsResultType(
         count=count,
         notifications=[
-            NotificationType(**notification.dict())
-            for notification in notifications
+            notification_type(notification) for notification in notifications
         ],
     )
 

@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from operator import attrgetter
 from typing import Literal
@@ -6,7 +7,6 @@ import httpx
 from pydantic import BaseModel, ValidationError, field_validator
 
 from app import settings
-from app.configs.errors import LokiError
 
 
 @dataclass(frozen=True)
@@ -40,11 +40,16 @@ class _LokiQuery(BaseModel):
 
 
 class LokiRepository:
-    def query_backend_error_groups(
+    def backend_error_groups(
         self, limit: int = 3
-    ) -> list[BackendErrorGroup]:
-        response = self._get(self._query(limit))
-        groups = [self._group(sample) for sample in self._samples(response)]
+    ) -> list[BackendErrorGroup] | None:
+        response = self._response(self._query(limit))
+        if response is None:
+            return None
+        samples = self._samples(response)
+        if samples is None:
+            return None
+        groups = [self._group(sample) for sample in samples]
         return sorted(groups, key=attrgetter("count"), reverse=True)[:limit]
 
     def _query(self, limit: int) -> str:
@@ -54,7 +59,7 @@ class LokiRepository:
             f"(count_over_time({selector} [24h])))"
         )
 
-    def _get(self, query: str) -> httpx.Response:
+    def _response(self, query: str) -> httpx.Response | None:
         try:
             response = httpx.get(
                 f"{settings.pu_notification_loki_url.rstrip('/')}/loki/api/v1/query",
@@ -62,20 +67,17 @@ class LokiRepository:
                 timeout=settings.http_timeout(),
             )
             response.raise_for_status()
-        except httpx.TimeoutException as err:
-            msg = "Loki request timed out"
-            raise LokiError(msg) from err
         except httpx.HTTPError as err:
-            msg = "Loki request failed"
-            raise LokiError(msg) from err
+            logging.error(f"Loki request failed: {err}")
+            return None
         return response
 
-    def _samples(self, response: httpx.Response) -> list[_LokiSample]:
+    def _samples(self, response: httpx.Response) -> list[_LokiSample] | None:
         try:
             payload = _LokiQuery.model_validate_json(response.content)
         except ValidationError as err:
-            msg = "Loki query failed"
-            raise LokiError(msg) from err
+            logging.error(f"Loki query failed: {err}")
+            return None
         return payload.data.result
 
     def _group(self, sample: _LokiSample) -> BackendErrorGroup:
