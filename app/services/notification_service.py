@@ -4,11 +4,11 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends
 
-from app.configs.errors import LokiError, NotificationError
+from app import settings
+from app.configs.errors import LokiError
+from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
-from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
@@ -23,24 +23,26 @@ from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
 from app.repositories.unit_log_repository import UnitLogRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.gql.inputs.notification import (
     NotificationFilterInput,
     NotificationSettingsUpdateInput,
 )
 from app.schemas.pydantic.notification import (
-    DataPipeAlertData,
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
+    NotificationIn,
     NotificationSettingsUpdate,
     UnitDailySummaryData,
     UnitErrorCount,
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
-from app.services.notification_delivery import Delivery
+from app.services.notification_delivery import (
+    NotificationMessage,
+    notification_delivery,
+)
 from app.services.validators import is_valid_object
 
 
@@ -57,7 +59,6 @@ class NotificationService:
             NotificationSettingsRepository
         ) = Depends(),
         unit_repository: UnitRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         loki_repository: LokiRepository = Depends(),
         access_service: AccessService = Depends(),
@@ -67,7 +68,6 @@ class NotificationService:
             notification_settings_repository
         )
         self.unit_repository = unit_repository
-        self.unit_node_repository = unit_node_repository
         self.unit_log_repository = unit_log_repository
         self.loki_repository = loki_repository
         self.access_service = access_service
@@ -138,104 +138,123 @@ class NotificationService:
             settings_row.uuid, settings_row
         )
 
-    def create_scheduled(self) -> list[Delivery]:
-        now = datetime.now(UTC)
-        recipients = self.notification_settings_repository.list_scheduled(
-            now.strftime("%H:%M")
-        )
-        deliveries: list[Delivery] = []
-        for user, settings_row in recipients:
-            try:
-                deliveries.extend(
-                    self._create_scheduled_for_user(user, settings_row, now)
-                )
-            except Exception:
-                logging.exception(
-                    "Failed scheduled notifications for %s", user.uuid
-                )
-        return deliveries
-
-    def create_data_pipe_alerts(self, event: dict) -> list[Delivery]:
-        incoming = DataPipeAlertData.validated(event)
-        if incoming.unit_node_uuid is None:
-            msg = "unit_node_uuid is required"
-            raise NotificationError(msg)
-
-        node = self.unit_node_repository.get(
-            UnitNode(uuid=incoming.unit_node_uuid)
-        )
-        is_valid_object(node)
-
-        recipient = (
-            self.notification_settings_repository.get_data_pipe_enabled(
-                node.creator_uuid
-            )
-        )
-        if recipient is None:
-            return []
-
-        user, settings_row = recipient
-        unit = self.unit_repository.get(Unit(uuid=node.unit_uuid))
-        payload = incoming.with_node(
-            unit_node_uuid=node.uuid,
-            unit_uuid=node.unit_uuid,
-            unit_name=None if unit is None else unit.name,
-            topic_name=node.topic_name,
-        )
-        return [
-            self._create(
-                user,
-                settings_row,
-                NotificationType.DATA_PIPE_ALERT,
-                payload,
-            )
-        ]
-
-    def _create_scheduled_for_user(
-        self,
-        user: User,
-        settings_row: NotificationSettings,
-        now: datetime,
-    ) -> list[Delivery]:
+    def due_scheduled(
+        self, now: datetime, user_uuid: uuid_pkg.UUID | None = None
+    ) -> list[NotificationIn]:
         # The scheduled minute is the only gate. A later time the same day sends.
         slot_start = now.replace(second=0, microsecond=0)
         period_start = now - self.SCHEDULED_LOG_WINDOW
-        notification_types = []
-        if user.role == UserRole.ADMIN:
-            notification_types.append(NotificationType.INSTANCE_DAILY_STATE)
-        notification_types.append(NotificationType.UNIT_DAILY_SUMMARY)
+        recipients = self.notification_settings_repository.list_scheduled(
+            now.strftime("%H:%M")
+        )
+        if user_uuid is not None:
+            recipients = [
+                item for item in recipients if item[0].uuid == user_uuid
+            ]
 
-        deliveries: list[Delivery] = []
-        for notification_type in notification_types:
+        incoming: list[NotificationIn] = []
+        for user, _settings_row in recipients:
+            if user.role == UserRole.ADMIN and not (
+                self.notification_repository.exists_since(
+                    user.uuid,
+                    NotificationType.INSTANCE_DAILY_STATE.value,
+                    slot_start,
+                )
+            ):
+                incoming.append(
+                    NotificationIn(
+                        type=NotificationType.INSTANCE_DAILY_STATE,
+                        user_uuid=user.uuid,
+                        data=InstanceDailyStateData(
+                            errors=self._instance_errors()
+                        ),
+                    )
+                )
             if self.notification_repository.exists_since(
-                user.uuid, notification_type.value, slot_start
+                user.uuid,
+                NotificationType.UNIT_DAILY_SUMMARY.value,
+                slot_start,
             ):
                 continue
-            data = self._scheduled_data(
-                user, notification_type, period_start, now
-            )
-            if data is None:
+            summary = self._unit_summary_data(user, period_start, now)
+            if summary is None:
                 continue
-            deliveries.append(
-                self._create(user, settings_row, notification_type, data)
+            incoming.append(
+                NotificationIn(
+                    type=NotificationType.UNIT_DAILY_SUMMARY,
+                    user_uuid=user.uuid,
+                    data=summary,
+                )
             )
-        return deliveries
+        return incoming
 
-    def _scheduled_data(
-        self,
-        user: User,
-        notification_type: NotificationType,
-        period_start: datetime,
-        period_end: datetime,
-    ) -> InstanceDailyStateData | UnitDailySummaryData | None:
-        match notification_type:
-            case NotificationType.INSTANCE_DAILY_STATE:
-                return InstanceDailyStateData(errors=self._instance_errors())
-            case NotificationType.UNIT_DAILY_SUMMARY:
-                return self._unit_summary_data(user, period_start, period_end)
-            case _:
-                msg = f"Notification type {notification_type} is not scheduled"
-                raise NotificationError(msg)
+    async def publish_scheduled(self) -> None:
+        incoming = self.due_scheduled(datetime.now(UTC))
+        if not incoming:
+            return
+        session = get_redis_session()
+        redis = await anext(session)
+        try:
+            for item in incoming:
+                await redis.xadd(
+                    notification_delivery.INCOMING_STREAM, item.stream()
+                )
+        finally:
+            await session.aclose()
+
+    async def notification_pipe(
+        self, incoming: NotificationIn
+    ) -> Notification | None:
+        recipient = self.notification_settings_repository.get_recipient(
+            incoming.user_uuid
+        )
+        if recipient is None:
+            return None
+        user, settings_row = recipient
+
+        enabled = {
+            NotificationType.DATA_PIPE_ALERT: (
+                settings_row.is_data_pipe_alert_enable
+            ),
+            NotificationType.INSTANCE_DAILY_STATE: (
+                settings_row.is_scheduled_alert_enable
+            ),
+            NotificationType.UNIT_DAILY_SUMMARY: (
+                settings_row.is_scheduled_alert_enable
+            ),
+        }
+        if not enabled[incoming.type]:
+            return None
+
+        notification = self.notification_repository.create(
+            Notification(
+                create_datetime=datetime.now(UTC),
+                type=incoming.type.value,
+                data=incoming.data.model_dump(mode="json"),
+                is_read=False,
+                user_uuid=user.uuid,
+            )
+        )
+        self.notification_repository.db.expunge(notification)
+
+        session = get_redis_session()
+        redis = await anext(session)
+        try:
+            await redis.xadd(
+                notification_delivery.stream_name(user.uuid),
+                {"data": notification.model_dump_json()},
+                maxlen=settings.pu_notification_stream_maxlen,
+                approximate=True,
+            )
+        finally:
+            await session.aclose()
+
+        if settings_row.is_telegram_alert_enable:
+            notification_delivery.telegram.enqueue(
+                user.telegram_chat_id,
+                NotificationMessage.text(notification),
+            )
+        return notification
 
     def _instance_errors(self) -> list[InstanceError] | None:
         try:
@@ -260,7 +279,7 @@ class NotificationService:
             UnitFilter.unlimited(creator_uuid=user.uuid)
         )
         names = {unit.uuid: unit.name for unit, _nodes in units}
-        if not names or not self.unit_log_repository:
+        if not names:
             return None
 
         counted = self.unit_log_repository.count_errors_by_unit(
@@ -285,30 +304,3 @@ class NotificationService:
             reverse=True,
         )[: self.UNIT_SUMMARY_LIMIT]
         return UnitDailySummaryData(units=rows)
-
-    def _create(
-        self,
-        user: User,
-        settings_row: NotificationSettings,
-        notification_type: NotificationType,
-        data: (
-            InstanceDailyStateData | UnitDailySummaryData | DataPipeAlertData
-        ),
-    ) -> Delivery:
-        notification = self.notification_repository.create(
-            Notification(
-                create_datetime=datetime.now(UTC),
-                type=notification_type.value,
-                data=data.model_dump(mode="json"),
-                is_read=False,
-                user_uuid=user.uuid,
-            )
-        )
-        # push() runs after the background session closes
-        self.notification_repository.db.expunge(notification)
-        return Delivery(
-            user_uuid=user.uuid,
-            telegram_chat_id=user.telegram_chat_id,
-            is_telegram_alert_enable=settings_row.is_telegram_alert_enable,
-            notification=notification,
-        )

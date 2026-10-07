@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.domain.notification_model import Notification
@@ -8,7 +10,7 @@ from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.notification_service import NotificationService
 from tests.integration.helpers.notifications import (
     as_recipient,
-    data_pipe_event,
+    data_pipe_alert,
     drop_notification,
 )
 from tests.integration.helpers.services import unit_node_service
@@ -41,10 +43,17 @@ def recipient_service(
 
 
 @pytest.fixture
-def crud_notification(recipient_service, alert_node, database) -> Notification:
-    deliveries = recipient_service.create_data_pipe_alerts(
-        data_pipe_event(alert_node)
+def crud_notification(
+    recipient_service, alert_node, regular_user, live_units, database
+) -> Notification:
+    notification = asyncio.run(
+        recipient_service.notification_pipe(
+            data_pipe_alert(
+                alert_node,
+                regular_user,
+                live_units.universal_manual_unit.name,
+            )
+        )
     )
-    notification = deliveries[0].notification
     yield notification
     drop_notification(database, notification.uuid)

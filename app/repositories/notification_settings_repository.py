@@ -47,7 +47,7 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
             .all()
         )
 
-    def get_data_pipe_enabled(
+    def get_recipient(
         self, user_uuid: uuid_pkg.UUID
     ) -> tuple[User, NotificationSettings] | None:
         return (
@@ -58,7 +58,6 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
             )
             .filter(
                 User.uuid == user_uuid,
-                NotificationSettings.is_data_pipe_alert_enable.is_(True),
                 User.status == UserStatus.VERIFIED.value,
             )
             .first()

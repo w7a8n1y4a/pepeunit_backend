@@ -20,20 +20,17 @@ from app.dto.agent.abc import AgentBackend
 from app.dto.enum import FileLock, GlobalPrefixTopic
 from app.repositories.grafana_repository import GrafanaRepository
 from app.schemas.mqtt.manager import mqtt_manager
+from app.schemas.pydantic.notification import NotificationIn
 from app.services.background import BackgroundService
 from app.services.instance_service import InstanceService
-from app.services.notification_delivery import (
-    Delivery,
-    notification_delivery,
-)
+from app.services.notification_delivery import notification_delivery
 from app.utils.utils import logo_to_console
 
 
 class StartupService:
-    DATA_PIPE_ALERT_STREAM = "data_pipe_alerts"
-    DATA_PIPE_ALERT_GROUP = "backend"
-    DATA_PIPE_ALERT_CONSUMER = "backend"
-    DATA_PIPE_ALERT_BLOCK_MS = 5_000
+    NOTIFICATION_GROUP = "backend"
+    NOTIFICATION_CONSUMER = "backend"
+    NOTIFICATION_BLOCK_MS = 5_000
 
     def __init__(
         self,
@@ -140,8 +137,8 @@ class StartupService:
         )
         self._singleton_tasks.append(
             asyncio.create_task(
-                self._run_data_pipe_alerts(),
-                name="data_pipe_alerts",
+                self._run_notifications(),
+                name="notifications",
             )
         )
 
@@ -347,16 +344,15 @@ class StartupService:
                 continue
             try:
                 with BackgroundService() as services:
-                    deliveries = (
-                        services.get_notification_service().create_scheduled()
+                    await (
+                        services.get_notification_service().publish_scheduled()
                     )
-                await notification_delivery.push(deliveries)
             except Exception:
                 logging.exception("Scheduled notifications failed")
             finally:
                 lock.close()
 
-    async def _run_data_pipe_alerts(self) -> None:
+    async def _run_notifications(self) -> None:
         # One worker reads the stream, the others retry the lock in case it dies
         while True:
             lock = acquire_file_lock(FileLock.DATA_PIPE_ALERTS)
@@ -364,23 +360,23 @@ class StartupService:
                 await asyncio.sleep(5)
                 continue
             try:
-                await self._read_data_pipe_alerts()
+                await self._read_notifications()
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logging.exception("Data pipe alert consumer failed")
+                logging.exception("Notification consumer failed")
                 await asyncio.sleep(5)
             finally:
                 lock.close()
 
-    async def _read_data_pipe_alerts(self) -> None:
+    async def _read_notifications(self) -> None:
         session = get_redis_session()
         redis = await anext(session)
         try:
             try:
                 await redis.xgroup_create(
-                    self.DATA_PIPE_ALERT_STREAM,
-                    self.DATA_PIPE_ALERT_GROUP,
+                    notification_delivery.INCOMING_STREAM,
+                    self.NOTIFICATION_GROUP,
                     id="0",
                     mkstream=True,
                 )
@@ -389,23 +385,23 @@ class StartupService:
                     raise
 
             # Messages delivered but not acked by a previous consumer run
-            while await self._consume_data_pipe_alerts(redis, "0", None):
+            while await self._consume_notifications(redis, "0", None):
                 pass
             while True:
-                await self._consume_data_pipe_alerts(
-                    redis, ">", self.DATA_PIPE_ALERT_BLOCK_MS
+                await self._consume_notifications(
+                    redis, ">", self.NOTIFICATION_BLOCK_MS
                 )
         finally:
             await session.aclose()
 
-    async def _consume_data_pipe_alerts(
+    async def _consume_notifications(
         self, redis, stream_id: str, block: int | None
     ) -> int:
-        """Handles one xreadgroup batch, returns the number of messages"""
+        """Types one xreadgroup batch and runs it through notification_pipe"""
         response = await redis.xreadgroup(
-            groupname=self.DATA_PIPE_ALERT_GROUP,
-            consumername=self.DATA_PIPE_ALERT_CONSUMER,
-            streams={self.DATA_PIPE_ALERT_STREAM: stream_id},
+            groupname=self.NOTIFICATION_GROUP,
+            consumername=self.NOTIFICATION_CONSUMER,
+            streams={notification_delivery.INCOMING_STREAM: stream_id},
             count=settings.pu_notification_data_pipe_alert_batch,
             block=block,
         )
@@ -413,27 +409,23 @@ class StartupService:
             return 0
 
         handled = 0
-        deliveries: list[Delivery] = []
         with BackgroundService() as services:
             service = services.get_notification_service()
             for _stream, messages in response:
                 for message_id, fields in messages:
                     handled += 1
                     try:
-                        deliveries.extend(
-                            service.create_data_pipe_alerts(fields)
+                        await service.notification_pipe(
+                            NotificationIn.from_stream(fields)
                         )
                     except Exception:
-                        logging.exception("Failed to handle data pipe alert")
-                        # The session serves the rest of the batch
+                        logging.exception("Failed to handle notification")
                         services.db.rollback()
                     await redis.xack(
-                        self.DATA_PIPE_ALERT_STREAM,
-                        self.DATA_PIPE_ALERT_GROUP,
+                        notification_delivery.INCOMING_STREAM,
+                        self.NOTIFICATION_GROUP,
                         message_id,
                     )
-        # Rows are committed before this push
-        await notification_delivery.push(deliveries)
         return handled
 
     def _seconds_until_next_minute(self) -> float:

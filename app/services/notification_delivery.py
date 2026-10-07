@@ -2,7 +2,6 @@ import asyncio
 import logging
 import uuid as uuid_pkg
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
 
 from aiogram import Bot
 from starlette.requests import Request
@@ -21,16 +20,6 @@ from app.schemas.pydantic.notification import (
     InstanceDailyStateData,
     UnitDailySummaryData,
 )
-
-
-@dataclass(frozen=True)
-class Delivery:
-    """A stored notification waiting for the live stream and telegram push"""
-
-    user_uuid: uuid_pkg.UUID
-    telegram_chat_id: str | None
-    is_telegram_alert_enable: bool
-    notification: Notification
 
 
 class TelegramAlertQueue:
@@ -203,6 +192,8 @@ class NotificationMessage:
 class NotificationDelivery:
     """User Redis stream and the telegram queue for stored notifications"""
 
+    # Producers append here, one consumer runs notification_pipe
+    INCOMING_STREAM = "notifications"
     STREAM_PREFIX = "notification_user:"
     READ_COUNT = 20
     READ_BLOCK_MS = 5_000
@@ -214,52 +205,6 @@ class NotificationDelivery:
 
     def stream_name(self, user_uuid: uuid_pkg.UUID | str) -> str:
         return f"{self.STREAM_PREFIX}{user_uuid}"
-
-    async def push(self, deliveries: list[Delivery]) -> None:
-        """Pushes stored notifications to the user stream and telegram.
-
-        The notification row is already committed. One Redis connection
-        serves the whole batch. A failed push is logged and never undoes
-        the stored row.
-        """
-        if not deliveries:
-            return
-
-        session = get_redis_session()
-        try:
-            redis = await anext(session)
-            for delivery in deliveries:
-                await self._push_one(redis, delivery)
-        finally:
-            await session.aclose()
-
-    async def _push_one(self, redis, delivery: Delivery) -> None:
-        notification = delivery.notification
-        try:
-            await redis.xadd(
-                self.stream_name(delivery.user_uuid),
-                {"data": notification.model_dump_json()},
-                maxlen=settings.pu_notification_stream_maxlen,
-                approximate=True,
-            )
-        except Exception:
-            logging.exception(
-                "Failed to push notification %s to the stream",
-                notification.uuid,
-            )
-
-        if not delivery.is_telegram_alert_enable:
-            return
-
-        try:
-            self.telegram.enqueue(
-                delivery.telegram_chat_id,
-                NotificationMessage.text(notification),
-            )
-        except Exception:
-            logging.exception(
-                "Failed to enqueue telegram alert %s", notification.uuid
-            )
 
     async def events(
         self, request: Request, user_uuid: str

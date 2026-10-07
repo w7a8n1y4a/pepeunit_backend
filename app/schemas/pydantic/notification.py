@@ -55,14 +55,6 @@ class DataPipeAlertData(BaseModel):
     threshold_min: float | None = None
     threshold_max: float | None = None
 
-    @classmethod
-    def validated(cls, event: dict) -> DataPipeAlertData:
-        try:
-            return cls.model_validate(event)
-        except ValidationError as err:
-            msg = "Data pipe alert payload is invalid"
-            raise NotificationError(msg) from err
-
     @field_validator("value", mode="before")
     @classmethod
     def require_value(cls, value: object) -> str:
@@ -87,29 +79,6 @@ class DataPipeAlertData(BaseModel):
             case _:
                 msg = "filtering_values must be a json list"
                 raise NotificationError(msg)
-
-    def with_node(
-        self,
-        *,
-        unit_node_uuid: uuid_pkg.UUID,
-        unit_uuid: uuid_pkg.UUID,
-        unit_name: str | None,
-        topic_name: str,
-    ) -> DataPipeAlertData:
-        has_filter = self.type_value_filtering is not None
-        has_threshold = self.type_value_threshold is not None
-        return DataPipeAlertData(
-            value=self.value,
-            topic_name=topic_name,
-            unit_node_uuid=unit_node_uuid,
-            unit_uuid=unit_uuid,
-            unit_name=unit_name,
-            type_value_filtering=self.type_value_filtering,
-            filtering_values=self.filtering_values if has_filter else None,
-            type_value_threshold=self.type_value_threshold,
-            threshold_min=self.threshold_min if has_threshold else None,
-            threshold_max=self.threshold_max if has_threshold else None,
-        )
 
     @model_validator(mode="after")
     def check_rules(self) -> DataPipeAlertData:
@@ -139,6 +108,50 @@ class DataPipeAlertData(BaseModel):
     @property
     def topic(self) -> str:
         return self.topic_name or str(self.unit_node_uuid or "-")
+
+
+_PAYLOADS: dict[NotificationType, type[BaseModel]] = {}
+
+
+class NotificationIn(BaseModel):
+    """One notification already built by a producer"""
+
+    type: NotificationType
+    user_uuid: uuid_pkg.UUID
+    data: InstanceDailyStateData | UnitDailySummaryData | DataPipeAlertData
+
+    @classmethod
+    def from_stream(cls, fields: dict[str, str]) -> NotificationIn:
+        try:
+            notification_type = NotificationType(fields["type"])
+            data = _PAYLOADS[notification_type].model_validate(
+                json.loads(fields["data"])
+            )
+        except (
+            KeyError,
+            ValueError,
+            json.JSONDecodeError,
+            ValidationError,
+        ) as err:
+            msg = "Notification payload is invalid"
+            raise NotificationError(msg) from err
+        return cls(
+            type=notification_type,
+            user_uuid=fields["user_uuid"],
+            data=data,
+        )
+
+    def stream(self) -> dict[str, str]:
+        return {
+            "type": self.type.value,
+            "user_uuid": str(self.user_uuid),
+            "data": self.data.model_dump_json(),
+        }
+
+
+_PAYLOADS[NotificationType.INSTANCE_DAILY_STATE] = InstanceDailyStateData
+_PAYLOADS[NotificationType.UNIT_DAILY_SUMMARY] = UnitDailySummaryData
+_PAYLOADS[NotificationType.DATA_PIPE_ALERT] = DataPipeAlertData
 
 
 class NotificationRead(BaseModel):

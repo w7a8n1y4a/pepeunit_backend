@@ -1,3 +1,4 @@
+import json
 import uuid as uuid_pkg
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
@@ -5,10 +6,15 @@ from contextlib import contextmanager, suppress
 from app import settings
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
-from app.dto.enum import UserStatus
+from app.domain.user_model import User
+from app.dto.enum import NotificationType, UserStatus
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.pydantic.notification import NotificationSettingsUpdate
+from app.schemas.pydantic.notification import (
+    DataPipeAlertData,
+    NotificationIn,
+    NotificationSettingsUpdate,
+)
 from tests.integration.helpers.services import notification_service
 
 SETTINGS_FIELDS = (
@@ -49,15 +55,45 @@ def as_recipient(database, cc, user, token) -> Iterator:
         repository.update(user.uuid, user)
 
 
-def data_pipe_event(unit_node, **fields) -> dict:
-    """A data_pipe_alerts stream message as the data pipe publishes it"""
-    return {
+def data_pipe_alert(
+    unit_node, user: User, unit_name: str | None = None, **fields
+) -> NotificationIn:
+    """A data pipe alert as the data pipe publishes it"""
+    payload = {
         "unit_node_uuid": str(unit_node.uuid),
         "unit_uuid": str(unit_node.unit_uuid),
+        "topic_name": unit_node.topic_name,
+        "unit_name": unit_name,
         "value": "12.5",
         "type_value_threshold": "Max",
-        "threshold_max": "10",
+        "threshold_max": 10,
         **fields,
+    }
+    return NotificationIn(
+        type=NotificationType.DATA_PIPE_ALERT,
+        user_uuid=user.uuid,
+        data=DataPipeAlertData.model_validate(payload),
+    )
+
+
+def data_pipe_stream(unit_node, user: User, **fields) -> dict[str, str]:
+    """Redis fields of a data pipe alert, before they are typed"""
+    payload = {
+        "unit_node_uuid": str(unit_node.uuid),
+        "unit_uuid": str(unit_node.unit_uuid),
+        "topic_name": unit_node.topic_name,
+        "value": "12.5",
+        "type_value_threshold": "Max",
+        "threshold_max": 10,
+        **fields,
+    }
+    payload = {
+        key: value for key, value in payload.items() if value is not None
+    }
+    return {
+        "type": NotificationType.DATA_PIPE_ALERT.value,
+        "user_uuid": str(user.uuid),
+        "data": json.dumps(payload),
     }
 
 
