@@ -10,7 +10,6 @@ from app.schemas.gql.inputs.notification import (
 from app.schemas.gql.types.notification import (
     NotificationSettingsType,
     NotificationType,
-    notification_type,
 )
 
 
@@ -18,8 +17,10 @@ from app.schemas.gql.types.notification import (
 def mark_notification_read(
     info: Info, uuid: uuid_pkg.UUID
 ) -> NotificationType:
-    notification = get_notification_service_gql(info).mark_read(uuid)
-    return notification_type(notification)
+    notification_service = get_notification_service_gql(info)
+    return notification_service.mapper_notification_to_notification_type(
+        notification_service.mark_read(uuid)
+    )
 
 
 @strawberry.mutation()

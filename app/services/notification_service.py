@@ -32,6 +32,9 @@ from app.schemas.gql.inputs.notification import (
     NotificationFilterInput,
     NotificationSettingsUpdateInput,
 )
+from app.schemas.gql.types.notification import (
+    NotificationType as NotificationTypeGql,
+)
 from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationSettingsUpdate,
@@ -140,6 +143,15 @@ class NotificationService:
             datetime.now(UTC),
             is_visible=True,
         )
+
+    @staticmethod
+    def mapper_notification_to_notification_type(
+        notification: Notification,
+    ) -> NotificationTypeGql:
+        notification_dict = notification.dict()
+        del notification_dict["data"]
+        del notification_dict["is_processed"]
+        return NotificationTypeGql(**notification_dict)
 
     def get_settings(self) -> NotificationSettings:
         self.is_notification_enable()

@@ -3,10 +3,8 @@ from datetime import datetime
 
 import strawberry
 
-from app.domain.notification_model import Notification
 from app.dto.enum import NotificationType as NotificationTypeEnum
 from app.schemas.gql.type_input_mixin import TypeInputMixin
-from app.schemas.pydantic.notification import notification_read
 
 
 @strawberry.type(name="Notification")
@@ -18,10 +16,6 @@ class NotificationType(TypeInputMixin):
     is_read: bool
     read_datetime: datetime | None
     user_uuid: uuid_pkg.UUID
-
-
-def notification_type(notification: Notification) -> NotificationType:
-    return NotificationType(**notification_read(notification).model_dump())
 
 
 @strawberry.type()
