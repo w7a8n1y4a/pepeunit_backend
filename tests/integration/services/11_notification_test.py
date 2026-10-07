@@ -350,8 +350,8 @@ def test_data_pipe_alert_delivery(
         assert read.type == NotificationType.DATA_PIPE_ALERT
         assert read.user_uuid == regular_user.uuid
         assert read.is_read is False
-        assert read.is_processed is True
         assert "data" not in read.model_dump()
+        assert "is_processed" not in read.model_dump()
         assert alert_node.topic_name in read.text
         assert "12.5" in read.text
         assert "above 10" in read.text
@@ -478,7 +478,7 @@ def test_notification_stream(
         assert message is not None
         assert message["uuid"] == str(notification.uuid)
         assert message["type"] == NotificationType.DATA_PIPE_ALERT.value
-        assert message["is_processed"] is True
+        assert "is_processed" not in message
         assert "data" not in message
         assert alert_node.topic_name in message["text"]
     finally:

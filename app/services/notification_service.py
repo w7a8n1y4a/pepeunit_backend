@@ -332,9 +332,8 @@ class NotificationService:
         if not self._is_deliverable(pending):
             return None
         notification = pending.notification
-        read = notification_read(notification).model_copy(
-            update={"text": text, "is_processed": True}
-        )
+        notification.text = text
+        read = notification_read(notification)
         return Outgoing(
             user_uuid=pending.user.uuid,
             chat_id=pending.user.telegram_chat_id,
