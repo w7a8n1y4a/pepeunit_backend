@@ -19,12 +19,29 @@ class TelegramAlertQueue:
         self._queue: asyncio.Queue[tuple[str, str]] | None = None
         self.ready = asyncio.Event()
 
-    def enqueue(self, chat_id: str, text: str) -> None:
+    @staticmethod
+    def text(notification_type: NotificationType, text: str) -> str:
+        if notification_type not in (
+            NotificationType.INSTANCE_DAILY_STATE,
+            NotificationType.UNIT_DAILY_SUMMARY,
+        ):
+            return text
+        # A log line can contain the fence and break Telegram Markdown
+        safe = text.replace("```", "'''")
+        return f"\n```text\n{safe}```"
+
+    def enqueue(
+        self,
+        chat_id: str,
+        notification_type: NotificationType,
+        text: str,
+    ) -> None:
         if not settings.pu_ff_telegram_bot_enable or self._queue is None:
             return
 
         limit = settings.pu_notification_telegram_alert_text_limit
-        self._queue.put_nowait((chat_id, text[:limit]))
+        rendered = self.text(notification_type, text)
+        self._queue.put_nowait((chat_id, rendered[:limit]))
 
     async def run(self, bot: Bot) -> None:
         self._queue = asyncio.Queue()
@@ -44,27 +61,6 @@ class TelegramAlertQueue:
             )
 
 
-@dataclass(frozen=True)
-class Outgoing:
-    user_uuid: uuid_pkg.UUID
-    chat_id: str
-    telegram: bool
-    notification_type: NotificationType
-    text: str
-    sse_body: str
-
-
-def telegram_text(notification_type: NotificationType, text: str) -> str:
-    if notification_type not in (
-        NotificationType.INSTANCE_DAILY_STATE,
-        NotificationType.UNIT_DAILY_SUMMARY,
-    ):
-        return text
-    # A log line can contain the fence and break Telegram Markdown
-    safe = text.replace("```", "'''")
-    return f"\n```text\n{safe}```"
-
-
 class NotificationDelivery:
     """Redis stream of one user and the telegram queue.
 
@@ -79,6 +75,15 @@ class NotificationDelivery:
     # Redis must outlive the blocking read, otherwise xread returns empty
     SOCKET_TIMEOUT_FLOOR = 20
 
+    @dataclass(frozen=True)
+    class Outgoing:
+        user_uuid: uuid_pkg.UUID
+        chat_id: str
+        telegram: bool
+        notification_type: NotificationType
+        text: str
+        sse_body: str
+
     def __init__(self) -> None:
         self.telegram = TelegramAlertQueue()
 
@@ -91,7 +96,8 @@ class NotificationDelivery:
                 continue
             self.telegram.enqueue(
                 item.chat_id,
-                telegram_text(item.notification_type, item.text),
+                item.notification_type,
+                item.text,
             )
         if not outgoing:
             return

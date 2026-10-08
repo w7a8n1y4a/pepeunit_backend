@@ -37,8 +37,8 @@ from app.schemas.pydantic.notification import (
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
 from app.services.notification_delivery import (
+    TelegramAlertQueue,
     notification_delivery,
-    telegram_text,
 )
 from app.utils.utils import create_upload_file_from_path
 from tests.integration.helpers.notifications import (
@@ -328,7 +328,7 @@ def test_data_pipe_alert_delivery(
         assert "12.5" in read.text
         assert "above 10" in read.text
         assert (
-            telegram_text(NotificationType.DATA_PIPE_ALERT, read.text)
+            TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, read.text)
             == read.text
         )
     finally:
@@ -342,7 +342,7 @@ def test_notification_text_by_type() -> None:
     assert "```" not in instance
     assert "Instance daily summary" in instance
     assert "disk full" in instance
-    wrapped = telegram_text(NotificationType.INSTANCE_DAILY_STATE, instance)
+    wrapped = TelegramAlertQueue.text(NotificationType.INSTANCE_DAILY_STATE, instance)
     assert wrapped.startswith("\n```text\n")
     assert wrapped.endswith("```")
 
@@ -353,7 +353,7 @@ def test_notification_text_by_type() -> None:
     assert "Unit daily summary" in summary
     assert "boiler" in summary
     assert "7" in summary
-    fenced = telegram_text(NotificationType.UNIT_DAILY_SUMMARY, summary)
+    fenced = TelegramAlertQueue.text(NotificationType.UNIT_DAILY_SUMMARY, summary)
     assert fenced.startswith("\n```text\n")
     assert fenced.endswith("```")
 
@@ -387,7 +387,7 @@ def test_notification_text_by_type() -> None:
     ):
         text = DataPipeAlertData.model_validate({"value": "x", **data}).text
         assert phrase in text
-        assert telegram_text(NotificationType.DATA_PIPE_ALERT, text) == text
+        assert TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, text) == text
 
 
 def test_notification_stream(

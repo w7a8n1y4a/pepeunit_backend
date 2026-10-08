@@ -43,7 +43,10 @@ from app.schemas.pydantic.notification import (
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
-from app.services.notification_delivery import Outgoing, notification_delivery
+from app.services.notification_delivery import (
+    NotificationDelivery,
+    notification_delivery,
+)
 from app.services.validators import is_valid_object
 
 
@@ -292,7 +295,7 @@ class NotificationService:
                     and settings_row.allows(notification.type)
                 ):
                     outgoing.append(
-                        Outgoing(
+                        NotificationDelivery.Outgoing(
                             user_uuid=user.uuid,
                             chat_id=user.telegram_chat_id,
                             telegram=settings_row.is_telegram_alert_enable,
