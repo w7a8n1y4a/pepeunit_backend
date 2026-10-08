@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import Query
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, field_validator
 
-from app.domain.notification_model import Notification
 from app.dto.enum import (
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -106,19 +105,13 @@ def notification_text(notification_type: str, data: dict) -> str:
 
 
 class NotificationRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     uuid: uuid_pkg.UUID
     create_datetime: datetime
     type: NotificationType
     text: str
     is_read: bool
-    read_datetime: datetime | None
+    read_datetime: datetime | None = None
     user_uuid: uuid_pkg.UUID
-
-
-def notification_read(notification: Notification) -> NotificationRead:
-    return NotificationRead.model_validate(notification, from_attributes=True)
 
 
 class NotificationsResult(BaseModel):

@@ -35,10 +35,10 @@ from app.schemas.pydantic.notification import (
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
+    NotificationRead,
     NotificationSettingsUpdate,
     UnitDailySummaryData,
     UnitErrorCount,
-    notification_read,
     notification_text,
 )
 from app.schemas.pydantic.unit import UnitFilter
@@ -294,8 +294,8 @@ class NotificationService:
                                 notification.type
                             ),
                             text=notification.text,
-                            sse_body=notification_read(
-                                notification
+                            sse_body=NotificationRead(
+                                **notification.dict()
                             ).model_dump_json(),
                         )
                     )

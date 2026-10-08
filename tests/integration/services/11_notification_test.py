@@ -29,8 +29,8 @@ from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import (
     NotificationFilter,
+    NotificationRead,
     NotificationSettingsUpdate,
-    notification_read,
     notification_text,
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
@@ -315,7 +315,7 @@ def test_data_pipe_alert_delivery(
             recipient_service.get_settings().is_telegram_alert_enable is True
         )
 
-        read = notification_read(notification)
+        read = NotificationRead(**notification.dict())
         assert read.uuid == notification.uuid
         assert read.type == NotificationType.DATA_PIPE_ALERT
         assert read.user_uuid == regular_user.uuid

@@ -14,7 +14,6 @@ from app.schemas.pydantic.notification import (
     NotificationSettingsRead,
     NotificationSettingsUpdate,
     NotificationsResult,
-    notification_read,
 )
 from app.services.notification_delivery import notification_delivery
 from app.services.notification_service import NotificationService
@@ -91,7 +90,8 @@ def get_notifications(
     return NotificationsResult(
         count=count,
         notifications=[
-            notification_read(notification) for notification in notifications
+            NotificationRead(**notification.dict())
+            for notification in notifications
         ],
     )
 
@@ -103,7 +103,7 @@ def get_notification(
         get_notification_service
     ),
 ):
-    return notification_read(notification_service.get(uuid))
+    return NotificationRead(**notification_service.get(uuid).dict())
 
 
 @router.patch("/{uuid}/read", response_model=NotificationRead)
@@ -113,4 +113,4 @@ def mark_read(
         get_notification_service
     ),
 ):
-    return notification_read(notification_service.mark_read(uuid))
+    return NotificationRead(**notification_service.mark_read(uuid).dict())
