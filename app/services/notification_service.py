@@ -32,6 +32,7 @@ from app.schemas.gql.types.notification import (
     NotificationType as NotificationTypeGql,
 )
 from app.schemas.pydantic.notification import (
+    DataPipeAlertData,
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
@@ -39,7 +40,6 @@ from app.schemas.pydantic.notification import (
     NotificationSettingsUpdate,
     UnitDailySummaryData,
     UnitErrorCount,
-    notification_text,
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
@@ -56,6 +56,11 @@ class NotificationService:
         NotificationType.INSTANCE_DAILY_STATE.value,
         NotificationType.UNIT_DAILY_SUMMARY.value,
     )
+    PAYLOADS = {
+        NotificationType.INSTANCE_DAILY_STATE: InstanceDailyStateData,
+        NotificationType.UNIT_DAILY_SUMMARY: UnitDailySummaryData,
+        NotificationType.DATA_PIPE_ALERT: DataPipeAlertData,
+    }
 
     def __init__(
         self,
@@ -272,9 +277,10 @@ class NotificationService:
         outgoing = []
         for notification, user, settings_row in pending:
             try:
-                notification.text = notification_text(
-                    notification.type, notification.data
-                )
+                payload = self.PAYLOADS[NotificationType(notification.type)]
+                notification.text = payload.model_validate(
+                    notification.data
+                ).text
             except (KeyError, TypeError, ValueError) as err:
                 logging.error(
                     f"Notification {notification.uuid} ({notification.type}) "

@@ -28,10 +28,12 @@ from app.repositories.notification_settings_repository import (
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import (
+    DataPipeAlertData,
+    InstanceDailyStateData,
     NotificationFilter,
     NotificationRead,
     NotificationSettingsUpdate,
-    notification_text,
+    UnitDailySummaryData,
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
 from app.services.notification_delivery import (
@@ -334,10 +336,9 @@ def test_data_pipe_alert_delivery(
 
 
 def test_notification_text_by_type() -> None:
-    instance = notification_text(
-        NotificationType.INSTANCE_DAILY_STATE.value,
-        {"errors": [{"count": 4, "message": "disk full"}]},
-    )
+    instance = InstanceDailyStateData.model_validate(
+        {"errors": [{"count": 4, "message": "disk full"}]}
+    ).text
     assert "```" not in instance
     assert "Instance daily summary" in instance
     assert "disk full" in instance
@@ -345,10 +346,9 @@ def test_notification_text_by_type() -> None:
     assert wrapped.startswith("\n```text\n")
     assert wrapped.endswith("```")
 
-    summary = notification_text(
-        NotificationType.UNIT_DAILY_SUMMARY.value,
-        {"units": [{"unit_name": "boiler", "error_count": 7}]},
-    )
+    summary = UnitDailySummaryData.model_validate(
+        {"units": [{"unit_name": "boiler", "error_count": 7}]}
+    ).text
     assert "```" not in summary
     assert "Unit daily summary" in summary
     assert "boiler" in summary
@@ -385,10 +385,7 @@ def test_notification_text_by_type() -> None:
             "is one of: a, b",
         ),
     ):
-        text = notification_text(
-            NotificationType.DATA_PIPE_ALERT.value,
-            {"value": "x", **data},
-        )
+        text = DataPipeAlertData.model_validate({"value": "x", **data}).text
         assert phrase in text
         assert telegram_text(NotificationType.DATA_PIPE_ALERT, text) == text
 

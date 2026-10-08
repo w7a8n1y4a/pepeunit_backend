@@ -95,15 +95,6 @@ class DataPipeAlertData(BaseModel):
         return "\n".join(lines)
 
 
-def notification_text(notification_type: str, data: dict) -> str:
-    model = {
-        NotificationType.INSTANCE_DAILY_STATE: InstanceDailyStateData,
-        NotificationType.UNIT_DAILY_SUMMARY: UnitDailySummaryData,
-        NotificationType.DATA_PIPE_ALERT: DataPipeAlertData,
-    }[NotificationType(notification_type)]
-    return model.model_validate(data).text
-
-
 class NotificationRead(BaseModel):
     uuid: uuid_pkg.UUID
     create_datetime: datetime
