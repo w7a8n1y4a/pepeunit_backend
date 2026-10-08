@@ -1,0 +1,20 @@
+active_period:
+  type: "Permanent"
+
+filters:
+  type_input_value: "Number"
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 50
+
+processing_policy:
+  policy_type: "LastValue"
+
+# The unit emulator publishes a counter from 0, every value is below the
+# threshold so the second message in a row raises the alert
+alerts:
+  type_value_threshold: "Min"
+  threshold_min: 1000
+  consecutive_count: 2
+  max_frequency: 10

@@ -60,6 +60,7 @@ class FeatureFlagsType:
     pu_ff_datapipe_default_last_value_enable: bool
     pu_ff_prometheus_enable: bool
     pu_ff_federation_enable: bool
+    pu_ff_notification_enable: bool
 
 
 @strawberry.type()

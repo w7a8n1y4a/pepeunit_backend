@@ -1,16 +1,19 @@
 import enum
 import uuid as uuid_pkg
+from datetime import datetime
 
 from clickhouse_driver import Client
 from fastapi import Depends
 from fastapi.params import Query
 
 from app.configs.clickhouse import get_clickhouse_client
-from app.dto.clickhouse.log import UnitLog
+from app.dto.clickhouse.log import UnitErrorCount, UnitLog
 from app.dto.clickhouse.orm import ClickhouseOrm
 from app.repositories.utils import get_offset_and_limit_clause
 from app.schemas.gql.inputs.unit import UnitLogFilterInput
 from app.schemas.pydantic.unit import UnitLogFilter
+from app.services.validators import is_valid_uuid
+from app.utils.utils import naive_utc
 
 
 class UnitLogRepository:
@@ -89,3 +92,38 @@ class UnitLogRepository:
         )
 
         return count[0][0], unit_logs
+
+    def count_errors_by_unit(
+        self,
+        unit_uuids: list[uuid_pkg.UUID],
+        levels: list[str],
+        since: datetime,
+        until: datetime,
+        limit: int = 10,
+    ) -> list[UnitErrorCount]:
+        if not unit_uuids:
+            return []
+        rows = self.client.execute(
+            """
+                SELECT unit_uuid, count() AS count
+                FROM unit_logs
+                WHERE unit_uuid IN %(unit_uuids)s
+                  AND level IN %(levels)s
+                  AND create_datetime >= %(since)s
+                  AND create_datetime < %(until)s
+                GROUP BY unit_uuid
+                ORDER BY count DESC
+                LIMIT %(limit)s
+            """,
+            {
+                "unit_uuids": tuple(unit_uuids),
+                "levels": tuple(levels),
+                "since": naive_utc(since),
+                "until": naive_utc(until),
+                "limit": limit,
+            },
+        )
+        return [
+            UnitErrorCount(unit_uuid=is_valid_uuid(row[0]), count=int(row[1]))
+            for row in rows
+        ]

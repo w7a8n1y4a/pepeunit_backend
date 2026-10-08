@@ -7,6 +7,7 @@ from app.configs.db import get_session
 from app.configs.rest import (
     get_grafana_service,
     get_instance_service,
+    get_notification_service,
     get_operation_task_service,
     get_permission_service,
     get_repo_service,
@@ -17,6 +18,7 @@ from app.configs.rest import (
 )
 from app.services.grafana_service import GrafanaService
 from app.services.instance_service import InstanceService
+from app.services.notification_service import NotificationService
 from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
@@ -88,6 +90,13 @@ def get_grafana_service_gql(info: Info) -> GrafanaService:
     clickhouse_client = info.context.get("clickhouse_client")
     jwt_token = info.context["jwt_token"]
     return get_grafana_service(db, clickhouse_client, jwt_token)
+
+
+def get_notification_service_gql(info: Info) -> NotificationService:
+    db = info.context.get("db")
+    clickhouse_client = info.context.get("clickhouse_client")
+    jwt_token = info.context["jwt_token"]
+    return get_notification_service(db, clickhouse_client, jwt_token)
 
 
 def get_operation_task_service_gql(info: Info) -> OperationTaskService:

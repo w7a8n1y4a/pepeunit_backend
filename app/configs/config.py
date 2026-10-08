@@ -122,6 +122,7 @@ class FeatureFlagSettings(BaseModel):
     pu_ff_datapipe_default_last_value_enable: bool = True
     pu_ff_prometheus_enable: bool = True
     pu_ff_federation_enable: bool = True
+    pu_ff_notification_enable: bool = True
 
 
 class ProjectSettings(BaseModel):
@@ -349,6 +350,30 @@ class DatabaseSettings(SettingsValidationMixin, BaseModel):
         return self
 
 
+class NotificationSettings(SettingsValidationMixin, BaseModel):
+    """Notification delivery and Loki, the source of instance alerts"""
+
+    pu_notification_loki_url: str = Field(
+        default="http://loki:3100", max_length=512
+    )
+    pu_notification_telegram_alert_interval_seconds: int = Field(
+        default=10, ge=1, le=3600
+    )
+    pu_notification_telegram_alert_text_limit: int = Field(
+        default=4000, ge=1, le=4096
+    )
+    # How many unprocessed notifications one processing pass locks
+    pu_notification_data_pipe_alert_batch: int = Field(
+        default=100, ge=1, le=1_000
+    )
+    pu_notification_stream_maxlen: int = Field(default=100, ge=1, le=10_000)
+
+    @field_validator("pu_notification_loki_url")
+    @classmethod
+    def validate_loki_url(cls, value: str) -> str:
+        return cls.require_http_url(value, "PU_NOTIFICATION_LOKI_URL")
+
+
 class TelegramSettings(SettingsValidationMixin, BaseModel):
     _TELEGRAM_TOKEN_RE: ClassVar[re.Pattern[str]] = re.compile(
         r"^\d+:[A-Za-z0-9_-]+$"
@@ -527,6 +552,10 @@ class IntegrationTestSettings(SettingsValidationMixin, BaseModel):
     pu_test_integration_private_repo_json: str = Field(
         default="", max_length=8192
     )
+    # Empty keeps a random chat id for the data pipe recipient
+    pu_test_integration_telegram_chat_id: str = Field(
+        default="", max_length=32
+    )
 
     @field_validator(
         "pu_test_integration_github_public_repo_url",
@@ -586,6 +615,7 @@ class Settings(
     AppSettings,
     SecuritySettings,
     DatabaseSettings,
+    NotificationSettings,
     TelegramSettings,
     MqttSettings,
     GrafanaSettings,

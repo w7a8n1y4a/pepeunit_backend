@@ -1,5 +1,4 @@
 import logging
-import random
 
 import pytest
 
@@ -15,6 +14,7 @@ from tests.integration.helpers.names import (
     REGULAR_USER_PASSWORD,
     unique_name,
 )
+from tests.integration.fixtures.users import telegram_chat_id
 from tests.integration.helpers.services import user_service
 
 
@@ -80,7 +80,7 @@ async def test_verification_user(
     code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
     logging.info(code)
 
-    await service.verification(str(random.randint(1_000_000, 10_000_000)), code)
+    await service.verification(telegram_chat_id(configured=True), code)
 
     redis = await anext(get_redis_session())
     assert await redis.get(code) is None

@@ -230,6 +230,12 @@ def ensure_timezone_aware(dt: datetime.datetime) -> datetime.datetime:
     return dt
 
 
+def naive_utc(dt: datetime.datetime) -> datetime.datetime:
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(datetime.UTC).replace(tzinfo=None)
+
+
 def parse_interval(s: str) -> datetime.timedelta | relativedelta:
     value, unit = int(s[:-1]), s[-1]
     match unit:

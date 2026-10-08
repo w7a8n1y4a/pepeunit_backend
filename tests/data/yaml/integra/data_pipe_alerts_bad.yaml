@@ -1,0 +1,19 @@
+active_period:
+  type: "Permanent"
+
+filters:
+  type_input_value: "Number"
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 50
+
+processing_policy:
+  policy_type: "LastValue"
+
+# consecutive_count below 1 and max_frequency above one day
+alerts:
+  type_value_threshold: "Max"
+  threshold_max: 5
+  consecutive_count: 0
+  max_frequency: 100000

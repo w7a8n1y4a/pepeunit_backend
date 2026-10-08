@@ -15,6 +15,11 @@ from app.repositories.instance_external_repository import (
     InstanceExternalRepository,
 )
 from app.repositories.instance_repository import InstanceRepository
+from app.repositories.loki_repository import LokiRepository
+from app.repositories.notification_repository import NotificationRepository
+from app.repositories.notification_settings_repository import (
+    NotificationSettingsRepository,
+)
 from app.repositories.operation_task_repository import OperationTaskRepository
 from app.repositories.panels_unit_nodes_repository import (
     PanelsUnitNodesRepository,
@@ -33,6 +38,7 @@ from app.services.access_service import AccessService
 from app.services.grafana_service import GrafanaService
 from app.services.instance_service import InstanceService
 from app.services.metrics_service import MetricsService
+from app.services.notification_service import NotificationService
 from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
@@ -64,7 +70,12 @@ class ServiceFactory:
         self.repository_registry_repository = RepositoryRegistryRepository(db)
         self.instance_repository = InstanceRepository(db)
         self.instance_external_repository = InstanceExternalRepository()
+        self.loki_repository = LokiRepository()
         self.operation_task_repository = OperationTaskRepository(db)
+        self.notification_repository = NotificationRepository(db)
+        self.notification_settings_repository = NotificationSettingsRepository(
+            db
+        )
         self.unit_node_repository = UnitNodeRepository(db)
         self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
         self.unit_log_repository = (
@@ -96,6 +107,9 @@ class ServiceFactory:
             user_repository=self.user_repository,
             access_service=self.access_service,
             data_pipe_repository=self.data_pipe_repository,
+            notification_settings_repository=(
+                self.notification_settings_repository
+            ),
         )
 
     def get_instance_service(self) -> InstanceService:
@@ -199,6 +213,18 @@ class ServiceFactory:
     def get_permission_service(self) -> PermissionService:
         return self.permission_service
 
+    def get_notification_service(self) -> NotificationService:
+        return NotificationService(
+            notification_repository=self.notification_repository,
+            notification_settings_repository=(
+                self.notification_settings_repository
+            ),
+            unit_repository=self.unit_repository,
+            unit_log_repository=self.unit_log_repository,
+            loki_repository=self.loki_repository,
+            access_service=self.access_service,
+        )
+
 
 def create_service_factory(
     db: Session = Depends(get_session),
@@ -289,6 +315,16 @@ def get_permission_service(
     jwt_token: str | None = Depends(token_depends),
 ) -> PermissionService:
     return create_service_factory(db, None, jwt_token).get_permission_service()
+
+
+def get_notification_service(
+    db: Session = Depends(get_session),
+    client: Client = Depends(get_clickhouse_client),
+    jwt_token: str | None = Depends(token_depends),
+) -> NotificationService:
+    return create_service_factory(
+        db, client, jwt_token
+    ).get_notification_service()
 
 
 def create_bot_service_factory(

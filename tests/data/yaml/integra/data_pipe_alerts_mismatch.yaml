@@ -1,0 +1,18 @@
+active_period:
+  type: "Permanent"
+
+filters:
+  type_input_value: "Number"
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 50
+
+processing_policy:
+  policy_type: "LastValue"
+
+# Text filtering values for a Number input
+alerts:
+  type_value_filtering: "BlackList"
+  filtering_values: ["overheat"]
+  max_frequency: 60

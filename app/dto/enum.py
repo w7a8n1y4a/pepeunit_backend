@@ -327,6 +327,7 @@ class DataPipeStage(str, enum.Enum):
     FILTERS = "Filters"
     TRANSFORMATIONS = "Transformations"
     PROCESSING_POLICY = "ProcessingPolicy"
+    ALERTS = "Alerts"
 
 
 @strawberry.enum
@@ -546,6 +547,17 @@ class CacheKey(str, enum.Enum):
     INSTANCE_METRICS_PUBLIC = "InstanceMetricsPublic"
 
 
+@strawberry.enum
+class NotificationType(str, enum.Enum):
+    """
+    What a notification shows
+    """
+
+    INSTANCE_DAILY_STATE = "InstanceDailyState"
+    UNIT_DAILY_SUMMARY = "UnitDailySummary"
+    DATA_PIPE_ALERT = "DataPipeAlert"
+
+
 class FileLock(str, enum.Enum):
     INIT = "tmp/init_lock.lock"
     MQTT_RUN = "tmp/mqtt_run_lock.lock"
@@ -553,3 +565,5 @@ class FileLock(str, enum.Enum):
     UPDATE_REPOS = "tmp/update_repos.lock"
     UPDATE_REGISTRY = "tmp/update_registry.lock"
     COLLECT_INSTANCES = "tmp/collect_instances.lock"
+    NOTIFICATION_SCHEDULE = "tmp/notification_schedule.lock"
+    NOTIFICATION_PROCESS = "tmp/notification_process.lock"

@@ -18,6 +18,7 @@ class FeatureFlags(BaseModel):
     )
     pu_ff_prometheus_enable: bool = settings.pu_ff_prometheus_enable
     pu_ff_federation_enable: bool = settings.pu_ff_federation_enable
+    pu_ff_notification_enable: bool = settings.pu_ff_notification_enable
 
 
 class Root(BaseModel):

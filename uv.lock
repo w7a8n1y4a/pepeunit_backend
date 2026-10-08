@@ -1201,7 +1201,7 @@ wheels = [
 
 [[package]]
 name = "pepeunit-backend"
-version = "1.3.0"
+version = "1.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiogram" },
@@ -1243,6 +1243,7 @@ dependencies = [
     { name = "toml" },
     { name = "uuid" },
     { name = "uvicorn" },
+    { name = "wsproto" },
 ]
 
 [package.optional-dependencies]
@@ -1306,6 +1307,7 @@ requires-dist = [
     { name = "tqdm", marker = "extra == 'load'", specifier = ">=4.67.1" },
     { name = "uuid", specifier = ">=1.30" },
     { name = "uvicorn", specifier = ">=0.21.1" },
+    { name = "wsproto", specifier = ">=1.2.0" },
 ]
 provides-extras = ["dev", "load"]
 

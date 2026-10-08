@@ -1,0 +1,292 @@
+import logging
+import uuid as uuid_pkg
+from datetime import UTC, datetime, timedelta
+from operator import attrgetter
+
+from fastapi import Depends
+
+from app import settings
+from app.configs.errors import FeatureFlagError
+from app.domain.notification_model import Notification
+from app.domain.notification_settings_model import NotificationSettings
+from app.domain.user_model import User
+from app.dto.enum import (
+    AgentType,
+    LogLevel,
+    NotificationType,
+    OwnershipType,
+    UserRole,
+    UserStatus,
+)
+from app.repositories.loki_repository import LokiRepository
+from app.repositories.notification_repository import NotificationRepository
+from app.repositories.notification_settings_repository import (
+    NotificationSettingsRepository,
+)
+from app.repositories.unit_log_repository import UnitLogRepository
+from app.repositories.unit_repository import UnitRepository
+from app.schemas.gql.inputs.notification import (
+    NotificationFilterInput,
+    NotificationSettingsUpdateInput,
+)
+from app.schemas.gql.types.notification import (
+    NotificationType as NotificationTypeGql,
+)
+from app.schemas.pydantic.notification import (
+    DataPipeAlertData,
+    InstanceDailyStateData,
+    InstanceError,
+    NotificationFilter,
+    NotificationSettingsUpdate,
+    UnitDailySummaryData,
+    UnitErrorCount,
+)
+from app.schemas.pydantic.unit import UnitFilter
+from app.services.access_service import AccessService
+from app.services.notification_delivery import notification_delivery
+from app.services.utils import (
+    merge_two_dict_first_priority,
+    remove_none_value_dict,
+)
+from app.services.validators import is_valid_object
+
+
+class NotificationService:
+    SCHEDULED_LOG_WINDOW = timedelta(days=1)
+    INSTANCE_ERROR_GROUPS = 3
+    UNIT_SUMMARY_LIMIT = 10
+    ALERT_LEVELS = [LogLevel.ERROR.value, LogLevel.CRITICAL.value]
+    PAYLOADS = {
+        NotificationType.INSTANCE_DAILY_STATE: InstanceDailyStateData,
+        NotificationType.UNIT_DAILY_SUMMARY: UnitDailySummaryData,
+        NotificationType.DATA_PIPE_ALERT: DataPipeAlertData,
+    }
+
+    def __init__(
+        self,
+        notification_repository: NotificationRepository = Depends(),
+        notification_settings_repository: (
+            NotificationSettingsRepository
+        ) = Depends(),
+        unit_repository: UnitRepository = Depends(),
+        unit_log_repository: UnitLogRepository = Depends(),
+        loki_repository: LokiRepository = Depends(),
+        access_service: AccessService = Depends(),
+    ) -> None:
+        self.notification_repository = notification_repository
+        self.notification_settings_repository = (
+            notification_settings_repository
+        )
+        self.unit_repository = unit_repository
+        self.unit_log_repository = unit_log_repository
+        self.loki_repository = loki_repository
+        self.access_service = access_service
+
+    @staticmethod
+    def is_notification_enable() -> None:
+        if not settings.pu_ff_notification_enable:
+            raise FeatureFlagError()
+
+    def list(
+        self, filters: NotificationFilter | NotificationFilterInput
+    ) -> tuple[int, list[Notification]]:
+        self.is_notification_enable()
+        self.access_service.authorization.check_access([AgentType.USER])
+        return self.notification_repository.list(
+            self.access_service.current_agent.uuid, filters, is_visible=True
+        )
+
+    def get(self, uuid: uuid_pkg.UUID) -> Notification:
+        self.is_notification_enable()
+        self.access_service.authorization.check_access([AgentType.USER])
+        notification = self.notification_repository.get(
+            Notification(uuid=uuid), is_visible=True
+        )
+        is_valid_object(notification)
+        self.access_service.authorization.check_ownership(
+            notification, [OwnershipType.CREATOR]
+        )
+        return notification
+
+    def mark_read(self, uuid: uuid_pkg.UUID) -> Notification:
+        self.is_notification_enable()
+        self.access_service.authorization.check_access([AgentType.USER])
+        notification = self.notification_repository.get(
+            Notification(uuid=uuid), is_visible=True
+        )
+        is_valid_object(notification)
+        self.access_service.authorization.check_ownership(
+            notification, [OwnershipType.CREATOR]
+        )
+        if notification.is_read:
+            return notification
+
+        notification.is_read = True
+        notification.read_datetime = datetime.now(UTC)
+        return self.notification_repository.update(
+            notification.uuid, notification
+        )
+
+    def mark_all_read(self) -> int:
+        self.is_notification_enable()
+        self.access_service.authorization.check_access([AgentType.USER])
+        return self.notification_repository.mark_all_read(
+            self.access_service.current_agent.uuid,
+            datetime.now(UTC),
+            is_visible=True,
+        )
+
+    @staticmethod
+    def mapper_notification_to_notification_type(
+        notification: Notification,
+    ) -> NotificationTypeGql:
+        notification_dict = notification.dict()
+        del notification_dict["data"]
+        del notification_dict["is_processed"]
+        return NotificationTypeGql(**notification_dict)
+
+    def get_settings(self) -> NotificationSettings:
+        self.is_notification_enable()
+        self.access_service.authorization.check_access([AgentType.USER])
+        return self.notification_settings_repository.get_or_create(
+            self.access_service.current_agent.uuid
+        )
+
+    def update_settings(
+        self,
+        data: (NotificationSettingsUpdateInput | NotificationSettingsUpdate),
+    ) -> NotificationSettings:
+        self.is_notification_enable()
+        self.access_service.authorization.check_access([AgentType.USER])
+        settings_row = self.notification_settings_repository.get_or_create(
+            self.access_service.current_agent.uuid
+        )
+        changes = NotificationSettingsUpdate.model_validate(
+            data, from_attributes=True
+        )
+        updated = NotificationSettings(
+            **merge_two_dict_first_priority(
+                remove_none_value_dict(changes.dict()),
+                settings_row.dict(),
+            )
+        )
+        return self.notification_settings_repository.update(
+            settings_row.uuid, updated
+        )
+
+    def generate_scheduled(self) -> list[Notification]:
+        moment = datetime.now(UTC)
+        users = self.notification_settings_repository.list_scheduled(
+            moment.strftime("%H:%M")
+        )
+        return self.notification_repository.bulk_create(
+            [
+                *self._instance_daily_state(users, moment),
+                *self._unit_daily_summary(users, moment),
+            ]
+        )
+
+    def _instance_daily_state(
+        self, users: list[User], moment: datetime
+    ) -> list[Notification]:
+        admins = [user for user in users if user.role == UserRole.ADMIN]
+        if not admins:
+            return []
+
+        groups = self.loki_repository.backend_error_groups(
+            self.INSTANCE_ERROR_GROUPS
+        )
+        data = InstanceDailyStateData(
+            errors=[
+                InstanceError(count=group.count, message=group.message)
+                for group in groups
+            ]
+        ).model_dump()
+        return [
+            Notification(
+                create_datetime=moment,
+                type=NotificationType.INSTANCE_DAILY_STATE.value,
+                data=data,
+                is_read=False,
+                is_processed=False,
+                user_uuid=user.uuid,
+            )
+            for user in admins
+        ]
+
+    def _unit_daily_summary(
+        self, users: list[User], moment: datetime
+    ) -> list[Notification]:
+        notifications = []
+        for user in users:
+            ranked = self._unit_error_counts(user, moment)
+            if not ranked:
+                continue
+            notifications.append(
+                Notification(
+                    create_datetime=moment,
+                    type=NotificationType.UNIT_DAILY_SUMMARY.value,
+                    data=UnitDailySummaryData(units=ranked).model_dump(),
+                    is_read=False,
+                    is_processed=False,
+                    user_uuid=user.uuid,
+                )
+            )
+        return notifications
+
+    def _unit_error_counts(
+        self, user: User, moment: datetime
+    ) -> list[UnitErrorCount]:
+        _, units = self.unit_repository.list(
+            UnitFilter.unlimited(creator_uuid=user.uuid)
+        )
+        names = {unit.uuid: unit.name for unit, _nodes in units}
+        counted = self.unit_log_repository.count_errors_by_unit(
+            unit_uuids=list(names),
+            levels=self.ALERT_LEVELS,
+            since=moment - self.SCHEDULED_LOG_WINDOW,
+            until=moment,
+            limit=len(names),
+        )
+        counts = {item.unit_uuid: item.count for item in counted}
+        return sorted(
+            (
+                UnitErrorCount(
+                    unit_name=name,
+                    error_count=counts.get(unit_uuid, 0),
+                )
+                for unit_uuid, name in names.items()
+            ),
+            key=attrgetter("error_count"),
+            reverse=True,
+        )[: self.UNIT_SUMMARY_LIMIT]
+
+    async def process_pending(self) -> int:
+        pending = self.notification_repository.lock_unprocessed(
+            settings.pu_notification_data_pipe_alert_batch
+        )
+        ready = []
+        for notification, user, settings_row in pending:
+            try:
+                payload = self.PAYLOADS[NotificationType(notification.type)]
+                notification.text = payload.model_validate(
+                    notification.data
+                ).text
+            except (KeyError, TypeError, ValueError) as err:
+                logging.error(
+                    f"Notification {notification.uuid} ({notification.type}) "
+                    f"payload is invalid: {err}"
+                )
+            else:
+                if (
+                    user.status == UserStatus.VERIFIED.value
+                    and settings_row.allows(notification.type)
+                ):
+                    ready.append((notification, user, settings_row))
+            notification.is_processed = True
+
+        self.notification_repository.mark_processed(
+            [notification for notification, _user, _settings_row in pending]
+        )
+        await notification_delivery.deliver(ready)
+        return len(pending)

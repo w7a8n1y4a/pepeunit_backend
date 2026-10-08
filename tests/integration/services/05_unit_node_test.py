@@ -9,6 +9,7 @@ import pytest
 from app import settings
 from app.configs.errors import DataPipeError, UnitNodeError, ValidationError
 from app.dto.enum import (
+    DataPipeStage,
     GlobalPrefixTopic,
     ProcessingPolicyType,
     UnitNodeTypeEnum,
@@ -95,6 +96,33 @@ async def test_set_data_pipe(piped_units, regular_user_token, database, cc) -> N
         (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_aggregation.yaml"))
     )
     assert len(data) == 0
+
+
+@pytest.mark.datapipe
+async def test_check_data_pipe_alerts_config(regular_user_token, database, cc) -> None:
+    service = unit_node_service(database, cc, regular_user_token)
+
+    for valid_yml in (
+        "tests/data/yaml/integra/data_pipe_alerts.yaml",
+        "tests/data/yaml/integra/data_pipe_alerts_text.yaml",
+    ):
+        data = await service.check_data_pipe_config(
+            (await create_upload_file_from_path(valid_yml))
+        )
+        assert len(data) == 0
+
+    data = await service.check_data_pipe_config(
+        (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_bad.yaml"))
+    )
+    assert len(data) == 2
+    assert all(error.stage == DataPipeStage.ALERTS for error in data)
+
+    # filtering values do not fit filters.type_input_value
+    data = await service.check_data_pipe_config(
+        (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_mismatch.yaml"))
+    )
+    assert len(data) == 1
+    assert data[0].stage == DataPipeStage.ALERTS
 
 
 @pytest.mark.datapipe
