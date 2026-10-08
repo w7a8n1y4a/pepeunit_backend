@@ -36,17 +36,13 @@ from app.schemas.pydantic.notification import (
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
-    NotificationRead,
     NotificationSettingsUpdate,
     UnitDailySummaryData,
     UnitErrorCount,
 )
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
-from app.services.notification_delivery import (
-    NotificationDelivery,
-    notification_delivery,
-)
+from app.services.notification_delivery import notification_delivery
 from app.services.validators import is_valid_object
 
 
@@ -277,7 +273,7 @@ class NotificationService:
         pending = self.notification_repository.lock_unprocessed(
             settings.pu_notification_data_pipe_alert_batch
         )
-        outgoing = []
+        ready = []
         for notification, user, settings_row in pending:
             try:
                 payload = self.PAYLOADS[NotificationType(notification.type)]
@@ -294,24 +290,11 @@ class NotificationService:
                     user.status == UserStatus.VERIFIED.value
                     and settings_row.allows(notification.type)
                 ):
-                    outgoing.append(
-                        NotificationDelivery.Outgoing(
-                            user_uuid=user.uuid,
-                            chat_id=user.telegram_chat_id,
-                            telegram=settings_row.is_telegram_alert_enable,
-                            notification_type=NotificationType(
-                                notification.type
-                            ),
-                            text=notification.text,
-                            sse_body=NotificationRead(
-                                **notification.dict()
-                            ).model_dump_json(),
-                        )
-                    )
+                    ready.append((notification, user, settings_row))
             notification.is_processed = True
 
         self.notification_repository.mark_processed(
             [notification for notification, _user, _settings_row in pending]
         )
-        await notification_delivery.deliver(outgoing)
+        await notification_delivery.deliver(ready)
         return len(pending)

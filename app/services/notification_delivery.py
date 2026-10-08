@@ -2,14 +2,17 @@ import asyncio
 import logging
 import uuid as uuid_pkg
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
 
 from aiogram import Bot
 from starlette.requests import Request
 
 from app import settings
 from app.configs.redis import get_redis_session
+from app.domain.notification_model import Notification
+from app.domain.notification_settings_model import NotificationSettings
+from app.domain.user_model import User
 from app.dto.enum import NotificationType
+from app.schemas.pydantic.notification import NotificationRead
 
 
 class TelegramAlertQueue:
@@ -75,40 +78,37 @@ class NotificationDelivery:
     # Redis must outlive the blocking read, otherwise xread returns empty
     SOCKET_TIMEOUT_FLOOR = 20
 
-    @dataclass(frozen=True)
-    class Outgoing:
-        user_uuid: uuid_pkg.UUID
-        chat_id: str
-        telegram: bool
-        notification_type: NotificationType
-        text: str
-        sse_body: str
-
     def __init__(self) -> None:
         self.telegram = TelegramAlertQueue()
 
     def stream_name(self, user_uuid: uuid_pkg.UUID | str) -> str:
         return f"{self.STREAM_PREFIX}{user_uuid}"
 
-    async def deliver(self, outgoing: list[Outgoing]) -> None:
-        for item in outgoing:
-            if not item.telegram:
+    async def deliver(
+        self,
+        pending: list[tuple[Notification, User, NotificationSettings]],
+    ) -> None:
+        for notification, user, settings_row in pending:
+            if not settings_row.is_telegram_alert_enable:
                 continue
             self.telegram.enqueue(
-                item.chat_id,
-                item.notification_type,
-                item.text,
+                user.telegram_chat_id,
+                NotificationType(notification.type),
+                notification.text,
             )
-        if not outgoing:
+        if not pending:
             return
 
         session = get_redis_session()
         try:
             redis = await anext(session)
-            for item in outgoing:
+            for notification, user, _settings_row in pending:
+                body = NotificationRead(
+                    **notification.dict()
+                ).model_dump_json()
                 await redis.xadd(
-                    self.stream_name(item.user_uuid),
-                    {self.EVENT: item.sse_body},
+                    self.stream_name(user.uuid),
+                    {self.EVENT: body},
                     maxlen=settings.pu_notification_stream_maxlen,
                     approximate=True,
                 )
