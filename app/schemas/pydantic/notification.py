@@ -87,8 +87,10 @@ class DataPipeAlertData(BaseModel):
             ):
                 phrases.append(f"is one of: {values}")
         topic = self.topic_name or self.unit_node_uuid or "-"
+        unit = [f"Unit: {self.unit_name}"] if self.unit_name else []
         lines = [
             "Data pipe alert",
+            *unit,
             f"Topic: {topic}",
             *[f"Value {self.value} {phrase}" for phrase in phrases],
         ]
