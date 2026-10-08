@@ -27,6 +27,7 @@ class TelegramAlertQueue:
         if notification_type not in (
             NotificationType.INSTANCE_DAILY_STATE,
             NotificationType.UNIT_DAILY_SUMMARY,
+            NotificationType.DATA_PIPE_ALERT,
         ):
             return text
         # A log line can contain the fence and break Telegram Markdown

@@ -64,37 +64,45 @@ class DataPipeAlertData(BaseModel):
     threshold_min: float | None = None
     threshold_max: float | None = None
 
-    @property
-    def text(self) -> str:
-        phrases = []
+    def _listed(self, values: list[str | int | float]) -> str:
+        return ", ".join(
+            item if isinstance(item, str) else f"{item:g}" for item in values
+        )
+
+    def _checks(self) -> list[str]:
+        checks = []
         if self.type_value_threshold == FilterTypeValueThreshold.MIN:
-            phrases.append(f"is below {self.threshold_min:g}")
+            checks.append(f"< {self.threshold_min:g}")
         elif self.type_value_threshold == FilterTypeValueThreshold.MAX:
-            phrases.append(f"is above {self.threshold_max:g}")
+            checks.append(f"> {self.threshold_max:g}")
         elif self.type_value_threshold == FilterTypeValueThreshold.RANGE:
-            phrases.append(
-                f"is outside [{self.threshold_min:g}, {self.threshold_max:g}]"
+            checks.append(
+                f"∉ [{self.threshold_min:g}, {self.threshold_max:g}]"
             )
         if self.type_value_filtering is not None:
-            values = ", ".join(
-                item if isinstance(item, str) else f"{item:g}"
-                for item in self.filtering_values
-            )
+            values = self._listed(self.filtering_values)
             if self.type_value_filtering == FilterTypeValueFiltering.WHITELIST:
-                phrases.append(f"is not one of: {values}")
+                checks.append(f"not is {values}")
             elif (
                 self.type_value_filtering == FilterTypeValueFiltering.BLACKLIST
             ):
-                phrases.append(f"is one of: {values}")
+                checks.append(f"is {values}")
+        return checks
+
+    @property
+    def text(self) -> str:
         topic = self.topic_name or self.unit_node_uuid or "-"
-        unit = [f"Unit: {self.unit_name}"] if self.unit_name else []
-        lines = [
+        checks = self._checks()
+        return make_monospace_table_with_title(
+            [
+                ["Unit", self.unit_name or "-"],
+                ["Topic", topic],
+                ["Value", self.value],
+                ["Check", ", ".join(checks) or "-"],
+            ],
             "Data pipe alert",
-            *unit,
-            f"Topic: {topic}",
-            *[f"Value {self.value} {phrase}" for phrase in phrases],
-        ]
-        return "\n".join(lines)
+            lengths=[8, 40],
+        )
 
 
 class NotificationRead(BaseModel):

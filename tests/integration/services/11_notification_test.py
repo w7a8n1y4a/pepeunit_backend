@@ -146,7 +146,8 @@ def test_create_data_pipe_alert(
     assert data["type_value_threshold"] == "Max"
     assert data["threshold_max"] == 10
     assert unit.name in crud_notification.text
-    assert "above 10" in crud_notification.text
+    assert "> 10" in crud_notification.text
+    assert "Data pipe alert" in crud_notification.text
 
 
 def test_data_pipe_alert_rules(
@@ -159,7 +160,7 @@ def test_data_pipe_alert_rules(
                 "threshold_min": 1,
                 "threshold_max": 10,
             },
-            "outside [1, 10]",
+            "∉ [1, 10]",
         ),
         (
             {
@@ -167,7 +168,7 @@ def test_data_pipe_alert_rules(
                 "threshold_min": 3,
                 "threshold_max": None,
             },
-            "below 3",
+            "< 3",
         ),
         (
             {
@@ -177,7 +178,7 @@ def test_data_pipe_alert_rules(
                 "type_value_filtering": "BlackList",
                 "filtering_values": ["overheat", "fire"],
             },
-            "is one of: overheat, fire",
+            "is overheat, fire",
         ),
     ]
     created = []
@@ -225,7 +226,7 @@ def test_broken_notification_does_not_stop_the_batch(
         ]
         assert all(item.is_processed for item in rows)
         assert all(item.text is None for item in rows[:-1])
-        assert "above 10" in rows[-1].text
+        assert "> 10" in rows[-1].text
         _count, visible = recipient_service.list(
             NotificationFilter.unlimited()
         )
@@ -328,13 +329,13 @@ def test_data_pipe_alert_delivery(
         assert "is_processed" not in read.model_dump()
         assert alert_node.topic_name in read.text
         assert "12.5" in read.text
-        assert "above 10" in read.text
-        assert (
-            TelegramAlertQueue.text(
-                NotificationType.DATA_PIPE_ALERT, read.text
-            )
-            == read.text
+        assert "> 10" in read.text
+        fenced = TelegramAlertQueue.text(
+            NotificationType.DATA_PIPE_ALERT, read.text
         )
+        assert fenced.startswith("\n```text\n")
+        assert fenced.endswith("```")
+        assert read.text in fenced
     finally:
         drop_notifications(database, [notification])
 
@@ -368,7 +369,11 @@ def test_notification_text_by_type() -> None:
     for data, phrase in (
         (
             {"type_value_threshold": "Min", "threshold_min": 1},
-            "below 1",
+            "< 1",
+        ),
+        (
+            {"type_value_threshold": "Max", "threshold_max": 10},
+            "> 10",
         ),
         (
             {
@@ -376,33 +381,36 @@ def test_notification_text_by_type() -> None:
                 "threshold_min": 1,
                 "threshold_max": 2,
             },
-            "outside [1, 2]",
+            "∉ [1, 2]",
         ),
         (
             {
                 "type_value_filtering": "WhiteList",
                 "filtering_values": ["a", "b"],
             },
-            "is not one of: a, b",
+            "not is a, b",
         ),
         (
             {
                 "type_value_filtering": "BlackList",
                 "filtering_values": ["a", "b"],
             },
-            "is one of: a, b",
+            "is a, b",
         ),
     ):
         text = DataPipeAlertData.model_validate({"value": "x", **data}).text
+        assert "```" not in text
+        assert "Data pipe alert" in text
         assert phrase in text
         named = DataPipeAlertData.model_validate(
             {"value": "x", "unit_name": "boiler", **data}
         ).text
-        assert "Unit: boiler" in named
-        assert (
-            TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, text)
-            == text
+        assert "boiler" in named
+        fenced = TelegramAlertQueue.text(
+            NotificationType.DATA_PIPE_ALERT, text
         )
+        assert fenced.startswith("\n```text\n")
+        assert fenced.endswith("```")
 
 
 def test_notification_stream(
