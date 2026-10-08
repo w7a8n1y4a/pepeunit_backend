@@ -30,8 +30,8 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import (
     NotificationFilter,
     NotificationSettingsUpdate,
-    is_notification_text,
     notification_read,
+    notification_text,
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
 from app.services.notification_delivery import (
@@ -364,8 +364,8 @@ def test_data_pipe_alert_delivery(
 
 
 def test_notification_text_by_type() -> None:
-    instance = _text(
-        NotificationType.INSTANCE_DAILY_STATE,
+    instance = notification_text(
+        NotificationType.INSTANCE_DAILY_STATE.value,
         {"errors": [{"count": 4, "message": "disk full"}]},
     )
     assert "```" not in instance
@@ -375,16 +375,8 @@ def test_notification_text_by_type() -> None:
     assert wrapped.startswith("\n```text\n")
     assert wrapped.endswith("```")
 
-    unavailable = _text(
-        NotificationType.INSTANCE_DAILY_STATE,
-        {"errors": None},
-    )
-    assert "Instance daily summary" in unavailable
-    assert "Loki did not return data" in unavailable
-    assert "0" not in unavailable
-
-    summary = _text(
-        NotificationType.UNIT_DAILY_SUMMARY,
+    summary = notification_text(
+        NotificationType.UNIT_DAILY_SUMMARY.value,
         {"units": [{"unit_name": "boiler", "error_count": 7}]},
     )
     assert "```" not in summary
@@ -423,8 +415,8 @@ def test_notification_text_by_type() -> None:
             "is one of: a, b",
         ),
     ):
-        text = _text(
-            NotificationType.DATA_PIPE_ALERT,
+        text = notification_text(
+            NotificationType.DATA_PIPE_ALERT.value,
             {"value": "x", **data},
         )
         assert phrase in text
@@ -518,7 +510,7 @@ async def test_data_pipe_alert_live(
             created[:] = [
                 item
                 for item in notifications
-                if _unit_node_uuid(item) == str(node.uuid)
+                if item.data["unit_node_uuid"] == str(node.uuid)
                 and _aware(item.create_datetime) >= started
             ]
             return bool(created)
@@ -554,7 +546,7 @@ async def test_data_pipe_alert_live(
             [
                 item
                 for item in leftovers
-                if _unit_node_uuid(item) == str(node.uuid)
+                if item.data["unit_node_uuid"] == str(node.uuid)
             ],
         )
 
@@ -691,11 +683,9 @@ def test_create_scheduled_instance_state(
             ]
             assert len(instance_alerts) == 1
             errors = instance_alerts[0].data["errors"]
-            assert errors is None or (
-                len(errors) <= 3
-                and all(
-                    "count" in item and "message" in item for item in errors
-                )
+            assert len(errors) <= 3
+            assert all(
+                "count" in item and "message" in item for item in errors
             )
             assert instance_alerts[0].is_processed is True
             assert instance_alerts[0].text
@@ -839,14 +829,6 @@ def _create_scheduled_for_current(service):
     return [service.get(item.uuid) for item in created]
 
 
-def _text(notification_type: NotificationType, data: dict) -> str:
-    rendered = is_notification_text(
-        notification_type.value, data, uuid_pkg.uuid4()
-    )
-    assert rendered is not None
-    return rendered
-
-
 def _stream_has(
     user_uuid: uuid_pkg.UUID, notification_uuid: uuid_pkg.UUID
 ) -> bool:
@@ -867,14 +849,6 @@ def _stream_has(
         )
 
     return asyncio.run(has())
-
-
-def _unit_node_uuid(notification: Notification) -> str | None:
-    match notification.data:
-        case {"unit_node_uuid": str(value)}:
-            return value
-        case _:
-            return None
 
 
 def _upcoming_slot() -> datetime:

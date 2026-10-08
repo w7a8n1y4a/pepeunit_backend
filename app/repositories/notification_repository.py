@@ -122,15 +122,9 @@ class NotificationRepository(BaseRepository[Notification]):
             for notification, user, settings_row in rows
         ]
 
-    def mark_processed(
-        self, updates: list[tuple[Notification, str | None]]
-    ) -> None:
-        """Stores the text and closes the row, in one transaction."""
-        if not updates:
+    def mark_processed(self, notifications: list[Notification]) -> None:
+        if not notifications:
             return
-        for notification, text in updates:
-            notification.text = text
-            notification.is_processed = True
         self.db.commit()
 
     def mark_all_read(

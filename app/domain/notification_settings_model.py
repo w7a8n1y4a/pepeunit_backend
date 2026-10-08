@@ -4,6 +4,8 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
+from app.dto.enum import NotificationType
+
 
 class NotificationSettings(SQLModel, table=True):
     """Per-user notification preferences, one row per user"""
@@ -52,3 +54,15 @@ class NotificationSettings(SQLModel, table=True):
             is_data_pipe_alert_enable=True,
             is_telegram_alert_enable=True,
         )
+
+    def allows(self, notification_type: str) -> bool:
+        match NotificationType(notification_type):
+            case NotificationType.DATA_PIPE_ALERT:
+                return self.is_data_pipe_alert_enable
+            case (
+                NotificationType.INSTANCE_DAILY_STATE
+                | NotificationType.UNIT_DAILY_SUMMARY
+            ):
+                return self.is_scheduled_alert_enable
+        msg = f"Notification type is not supported: {notification_type}"
+        raise ValueError(msg)
