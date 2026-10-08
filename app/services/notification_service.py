@@ -179,34 +179,17 @@ class NotificationService:
         users = self.notification_settings_repository.list_scheduled(
             moment.strftime("%H:%M")
         )
-        notifications = [
-            *self._instance_daily_state(users, moment),
-            *self._unit_daily_summary(users, moment),
-        ]
-        return self.notification_repository.bulk_create(notifications)
-
-    def _unsent(
-        self, users: list[User], notification_type: str, moment: datetime
-    ) -> list[User]:
-        sent = self.notification_repository.present_since(
-            [user.uuid for user in users],
-            [notification_type],
-            moment.replace(second=0, microsecond=0),
+        return self.notification_repository.bulk_create(
+            [
+                *self._instance_daily_state(users, moment),
+                *self._unit_daily_summary(users, moment),
+            ]
         )
-        return [
-            user
-            for user in users
-            if (user.uuid, notification_type) not in sent
-        ]
 
     def _instance_daily_state(
         self, users: list[User], moment: datetime
     ) -> list[Notification]:
-        admins = self._unsent(
-            [user for user in users if user.role == UserRole.ADMIN],
-            NotificationType.INSTANCE_DAILY_STATE.value,
-            moment,
-        )
+        admins = [user for user in users if user.role == UserRole.ADMIN]
         if not admins:
             return []
 
@@ -221,7 +204,7 @@ class NotificationService:
         ).model_dump()
         return [
             Notification(
-                create_datetime=datetime.now(UTC),
+                create_datetime=moment,
                 type=NotificationType.INSTANCE_DAILY_STATE.value,
                 data=data,
                 is_read=False,
@@ -235,38 +218,13 @@ class NotificationService:
         self, users: list[User], moment: datetime
     ) -> list[Notification]:
         notifications = []
-        for user in self._unsent(
-            users, NotificationType.UNIT_DAILY_SUMMARY.value, moment
-        ):
-            _, units = self.unit_repository.list(
-                UnitFilter.unlimited(creator_uuid=user.uuid)
-            )
-            names = {unit.uuid: unit.name for unit, _nodes in units}
-            if not names:
+        for user in users:
+            ranked = self._unit_error_counts(user, moment)
+            if not ranked:
                 continue
-
-            counted = self.unit_log_repository.count_errors_by_unit(
-                unit_uuids=list(names),
-                levels=self.ALERT_LEVELS,
-                since=moment - self.SCHEDULED_LOG_WINDOW,
-                until=moment,
-                limit=len(names),
-            )
-            counts = {item.unit_uuid: item.count for item in counted}
-            ranked = sorted(
-                (
-                    UnitErrorCount(
-                        unit_name=name,
-                        error_count=counts.get(unit_uuid, 0),
-                    )
-                    for unit_uuid, name in names.items()
-                ),
-                key=attrgetter("error_count"),
-                reverse=True,
-            )[: self.UNIT_SUMMARY_LIMIT]
             notifications.append(
                 Notification(
-                    create_datetime=datetime.now(UTC),
+                    create_datetime=moment,
                     type=NotificationType.UNIT_DAILY_SUMMARY.value,
                     data=UnitDailySummaryData(units=ranked).model_dump(),
                     is_read=False,
@@ -275,6 +233,33 @@ class NotificationService:
                 )
             )
         return notifications
+
+    def _unit_error_counts(
+        self, user: User, moment: datetime
+    ) -> list[UnitErrorCount]:
+        _, units = self.unit_repository.list(
+            UnitFilter.unlimited(creator_uuid=user.uuid)
+        )
+        names = {unit.uuid: unit.name for unit, _nodes in units}
+        counted = self.unit_log_repository.count_errors_by_unit(
+            unit_uuids=list(names),
+            levels=self.ALERT_LEVELS,
+            since=moment - self.SCHEDULED_LOG_WINDOW,
+            until=moment,
+            limit=len(names),
+        )
+        counts = {item.unit_uuid: item.count for item in counted}
+        return sorted(
+            (
+                UnitErrorCount(
+                    unit_name=name,
+                    error_count=counts.get(unit_uuid, 0),
+                )
+                for unit_uuid, name in names.items()
+            ),
+            key=attrgetter("error_count"),
+            reverse=True,
+        )[: self.UNIT_SUMMARY_LIMIT]
 
     async def process_pending(self) -> int:
         pending = self.notification_repository.lock_unprocessed(

@@ -664,31 +664,14 @@ def test_create_scheduled_instance_state(
             assert instance_alerts[0].is_processed is True
             assert instance_alerts[0].text
 
-            # the same minute does not send a second copy
-            assert _generate_scheduled(service, created) == []
-            instance_alerts[0].create_datetime = datetime.now(UTC) - timedelta(
-                minutes=2
-            )
-            service.notification_repository.update(
-                instance_alerts[0].uuid, instance_alerts[0]
-            )
-            again = _generate_scheduled(service, created)
-            assert any(
-                item.type == NotificationType.INSTANCE_DAILY_STATE.value
-                for item in again
-            )
-            created_ids = {
-                item.uuid
-                for item in (*deliveries, *again)
-                if item.type == NotificationType.INSTANCE_DAILY_STATE.value
-            }
             _, notifications = service.list(
                 NotificationFilter.unlimited(
                     type=[NotificationType.INSTANCE_DAILY_STATE.value]
                 )
             )
-            assert created_ids <= {item.uuid for item in notifications}
-            assert len(created_ids) == 2
+            assert instance_alerts[0].uuid in {
+                item.uuid for item in notifications
+            }
         finally:
             drop_notifications(database, created)
 
@@ -775,16 +758,6 @@ def test_create_scheduled_unit_summary(
             assert set(row) == {"unit_name", "error_count"}
             assert summary.is_processed is True
             assert unit.name in summary.text
-
-            # the same minute does not send a second copy
-            assert _generate_scheduled(service, created) == []
-            summary.create_datetime = datetime.now(UTC) - timedelta(minutes=2)
-            service.notification_repository.update(summary.uuid, summary)
-            again = _generate_scheduled(service, created)
-            assert any(
-                item.type == NotificationType.UNIT_DAILY_SUMMARY.value
-                for item in again
-            )
         finally:
             drop_notifications(database, created)
 

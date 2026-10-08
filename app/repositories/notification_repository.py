@@ -65,29 +65,6 @@ class NotificationRepository(BaseRepository[Notification]):
         self.db.commit()
         return notifications
 
-    def present_since(
-        self,
-        user_uuids: list[uuid_pkg.UUID],
-        notification_types: tuple[str, ...] | list[str],
-        since: datetime,
-    ) -> set[tuple[uuid_pkg.UUID, str]]:
-        """User and type pairs that already have a row in this window."""
-        if not user_uuids:
-            return set()
-        rows = (
-            self.db.query(Notification.user_uuid, Notification.type)
-            .filter(
-                col(Notification.user_uuid).in_(user_uuids),
-                col(Notification.type).in_(notification_types),
-                Notification.create_datetime >= since,
-            )
-            .all()
-        )
-        return {
-            (user_uuid, notification_type)
-            for user_uuid, notification_type in rows
-        }
-
     def lock_unprocessed(
         self, limit: int
     ) -> list[tuple[Notification, User, NotificationSettings]]:
