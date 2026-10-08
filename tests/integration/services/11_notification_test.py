@@ -648,15 +648,11 @@ def test_create_scheduled_instance_state(
                     scheduled_notification_time=_scheduled_now(),
                 )
             )
-            deliveries = _create_scheduled_for_current(service)
-            created.extend(deliveries)
-            assert all(
-                item.user_uuid == admin_user.uuid for item in deliveries
-            )
+            deliveries = _generate_scheduled(service, created)
 
             instance_alerts = [
                 item
-                for item in created
+                for item in deliveries
                 if item.type == NotificationType.INSTANCE_DAILY_STATE.value
             ]
             assert len(instance_alerts) == 1
@@ -669,22 +665,21 @@ def test_create_scheduled_instance_state(
             assert instance_alerts[0].text
 
             # the same minute does not send a second copy
-            assert _create_scheduled_for_current(service) == []
+            assert _generate_scheduled(service, created) == []
             instance_alerts[0].create_datetime = datetime.now(UTC) - timedelta(
                 minutes=2
             )
             service.notification_repository.update(
                 instance_alerts[0].uuid, instance_alerts[0]
             )
-            again = _create_scheduled_for_current(service)
-            created.extend(again)
+            again = _generate_scheduled(service, created)
             assert any(
                 item.type == NotificationType.INSTANCE_DAILY_STATE.value
                 for item in again
             )
             created_ids = {
                 item.uuid
-                for item in created
+                for item in (*deliveries, *again)
                 if item.type == NotificationType.INSTANCE_DAILY_STATE.value
             }
             _, notifications = service.list(
@@ -759,19 +754,15 @@ def test_create_scheduled_unit_summary(
                 ]
             )
 
-            deliveries = _create_scheduled_for_current(service)
-            created.extend(deliveries)
+            deliveries = _generate_scheduled(service, created)
 
-            assert all(
-                item.user_uuid == regular_user.uuid for item in deliveries
-            )
             assert all(
                 item.type != NotificationType.INSTANCE_DAILY_STATE.value
                 for item in deliveries
             )
             summary = next(
                 item
-                for item in created
+                for item in deliveries
                 if item.type == NotificationType.UNIT_DAILY_SUMMARY.value
             )
             row = next(
@@ -786,11 +777,10 @@ def test_create_scheduled_unit_summary(
             assert unit.name in summary.text
 
             # the same minute does not send a second copy
-            assert _create_scheduled_for_current(service) == []
+            assert _generate_scheduled(service, created) == []
             summary.create_datetime = datetime.now(UTC) - timedelta(minutes=2)
             service.notification_repository.update(summary.uuid, summary)
-            again = _create_scheduled_for_current(service)
-            created.extend(again)
+            again = _generate_scheduled(service, created)
             assert any(
                 item.type == NotificationType.UNIT_DAILY_SUMMARY.value
                 for item in again
@@ -799,12 +789,19 @@ def test_create_scheduled_unit_summary(
             drop_notifications(database, created)
 
 
-def _create_scheduled_for_current(service):
-    """Creates notifications only for the signed-in user"""
-    user = service.access_service.current_agent
-    created = service.generate_scheduled(user.uuid)
-    process_saved(service, created)
-    return [service.get(item.uuid) for item in created]
+def _generate_scheduled(service, created: list) -> list[Notification]:
+    """Runs the scheduler and returns the signed-in user's notifications.
+
+    Every row from this run is kept in created, including other recipients
+    of the same minute, so the test can delete what it caused.
+    """
+    rows = service.generate_scheduled()
+    created.extend(rows)
+    process_saved(service, rows)
+    user_uuid = service.access_service.current_agent.uuid
+    return [
+        service.get(item.uuid) for item in rows if item.user_uuid == user_uuid
+    ]
 
 
 def _stream_has(

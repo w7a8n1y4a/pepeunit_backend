@@ -39,7 +39,7 @@ class TelegramAlertQueue:
         notification_type: NotificationType,
         text: str,
     ) -> None:
-        if not settings.pu_ff_telegram_bot_enable or self._queue is None:
+        if self._queue is None:
             return
 
         limit = settings.pu_notification_telegram_alert_text_limit

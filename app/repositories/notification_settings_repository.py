@@ -29,11 +29,9 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
             return settings_row
         return self.create(NotificationSettings.for_user(user_uuid))
 
-    def list_scheduled(
-        self, scheduled_notification_time: str
-    ) -> list[tuple[User, NotificationSettings]]:
+    def list_scheduled(self, scheduled_notification_time: str) -> list[User]:
         return (
-            self.db.query(User, NotificationSettings)
+            self.db.query(User)
             .join(
                 NotificationSettings,
                 NotificationSettings.user_uuid == User.uuid,
