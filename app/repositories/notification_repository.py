@@ -1,5 +1,4 @@
 import uuid as uuid_pkg
-from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import Depends
@@ -14,15 +13,6 @@ from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_enums, apply_offset_and_limit
 from app.schemas.gql.inputs.notification import NotificationFilterInput
 from app.schemas.pydantic.notification import NotificationFilter
-
-
-@dataclass(frozen=True)
-class PendingNotification:
-    """One locked, unprocessed notification and the recipient it belongs to."""
-
-    notification: Notification
-    user: User
-    settings: NotificationSettings
 
 
 class NotificationRepository(BaseRepository[Notification]):
@@ -98,9 +88,11 @@ class NotificationRepository(BaseRepository[Notification]):
             for user_uuid, notification_type in rows
         }
 
-    def lock_unprocessed(self, limit: int) -> list[PendingNotification]:
+    def lock_unprocessed(
+        self, limit: int
+    ) -> list[tuple[Notification, User, NotificationSettings]]:
         """Locks one batch. Another worker skips these rows."""
-        rows = (
+        return (
             self.db.query(Notification, User, NotificationSettings)
             .join(User, User.uuid == Notification.user_uuid)
             .join(
@@ -113,14 +105,6 @@ class NotificationRepository(BaseRepository[Notification]):
             .with_for_update(skip_locked=True, of=Notification)
             .all()
         )
-        return [
-            PendingNotification(
-                notification=notification,
-                user=user,
-                settings=settings_row,
-            )
-            for notification, user, settings_row in rows
-        ]
 
     def mark_processed(self, notifications: list[Notification]) -> None:
         if not notifications:

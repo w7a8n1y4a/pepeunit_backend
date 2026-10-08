@@ -270,8 +270,7 @@ class NotificationService:
             settings.pu_notification_data_pipe_alert_batch
         )
         outgoing = []
-        for item in pending:
-            notification = item.notification
+        for notification, user, settings_row in pending:
             try:
                 notification.text = notification_text(
                     notification.type, notification.data
@@ -283,14 +282,14 @@ class NotificationService:
                 )
             else:
                 if (
-                    item.user.status == UserStatus.VERIFIED.value
-                    and item.settings.allows(notification.type)
+                    user.status == UserStatus.VERIFIED.value
+                    and settings_row.allows(notification.type)
                 ):
                     outgoing.append(
                         Outgoing(
-                            user_uuid=item.user.uuid,
-                            chat_id=item.user.telegram_chat_id,
-                            telegram=item.settings.is_telegram_alert_enable,
+                            user_uuid=user.uuid,
+                            chat_id=user.telegram_chat_id,
+                            telegram=settings_row.is_telegram_alert_enable,
                             notification_type=NotificationType(
                                 notification.type
                             ),
@@ -303,7 +302,7 @@ class NotificationService:
             notification.is_processed = True
 
         self.notification_repository.mark_processed(
-            [item.notification for item in pending]
+            [notification for notification, _user, _settings_row in pending]
         )
         await notification_delivery.deliver(outgoing)
         return len(pending)

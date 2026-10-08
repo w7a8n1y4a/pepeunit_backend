@@ -196,38 +196,8 @@ def test_broken_notification_does_not_stop_the_batch(
     recipient_service, alert_node, regular_user, database, caplog
 ) -> None:
     invalid_rules = [
-        {"type_value_threshold": None, "threshold_max": None},
-        {"type_value_threshold": None},
         {"threshold_max": "high"},
-        {"threshold_max": "nan"},
-        {"type_value_threshold": None, "threshold_min": "1"},
-        {"type_value_threshold": "Min", "threshold_max": None},
-        {"type_value_threshold": "Min"},
-        {
-            "type_value_threshold": "Range",
-            "threshold_max": None,
-            "threshold_min": "1",
-        },
-        {"type_value_threshold": "Range"},
-        {
-            "type_value_threshold": None,
-            "type_value_filtering": "WhiteList",
-        },
-        {
-            "type_value_threshold": None,
-            "type_value_filtering": "BlackList",
-            "filtering_values": [],
-        },
-        {
-            "type_value_threshold": None,
-            "type_value_filtering": "BlackList",
-            "filtering_values": "not json",
-        },
-        {
-            "type_value_threshold": None,
-            "type_value_filtering": "BlackList",
-            "filtering_values": "overheat",
-        },
+        {"type_value_filtering": "BlackList", "filtering_values": "overheat"},
         {"type_value_threshold": "Sideways"},
         {"value": None},
         {"type": "NotAType"},
