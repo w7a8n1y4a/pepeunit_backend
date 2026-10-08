@@ -395,6 +395,10 @@ def test_notification_text_by_type() -> None:
     ):
         text = DataPipeAlertData.model_validate({"value": "x", **data}).text
         assert phrase in text
+        named = DataPipeAlertData.model_validate(
+            {"value": "x", "unit_name": "boiler", **data}
+        ).text
+        assert "Unit: boiler" in named
         assert (
             TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, text)
             == text
