@@ -211,7 +211,9 @@ def test_broken_notification_does_not_stop_the_batch(
     # The last override replaces the column type, not the payload
     broken[-1].type = "NotAType"
     valid = data_pipe_notification(alert_node, regular_user)
-    saved = recipient_service.save([*broken, valid])
+    saved = recipient_service.notification_repository.bulk_create(
+        [*broken, valid]
+    )
     try:
         with caplog.at_level(logging.ERROR):
             process_saved(recipient_service, saved)
@@ -246,7 +248,7 @@ def test_data_pipe_alert_unknown_user(
     incoming = data_pipe_notification(alert_node, regular_user)
     incoming.user_uuid = uuid_pkg.uuid4()
     with pytest.raises(IntegrityError):
-        recipient_service.save([incoming])
+        recipient_service.notification_repository.bulk_create([incoming])
     database.rollback()
 
 
@@ -328,7 +330,9 @@ def test_data_pipe_alert_delivery(
         assert "12.5" in read.text
         assert "above 10" in read.text
         assert (
-            TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, read.text)
+            TelegramAlertQueue.text(
+                NotificationType.DATA_PIPE_ALERT, read.text
+            )
             == read.text
         )
     finally:
@@ -342,7 +346,9 @@ def test_notification_text_by_type() -> None:
     assert "```" not in instance
     assert "Instance daily summary" in instance
     assert "disk full" in instance
-    wrapped = TelegramAlertQueue.text(NotificationType.INSTANCE_DAILY_STATE, instance)
+    wrapped = TelegramAlertQueue.text(
+        NotificationType.INSTANCE_DAILY_STATE, instance
+    )
     assert wrapped.startswith("\n```text\n")
     assert wrapped.endswith("```")
 
@@ -353,7 +359,9 @@ def test_notification_text_by_type() -> None:
     assert "Unit daily summary" in summary
     assert "boiler" in summary
     assert "7" in summary
-    fenced = TelegramAlertQueue.text(NotificationType.UNIT_DAILY_SUMMARY, summary)
+    fenced = TelegramAlertQueue.text(
+        NotificationType.UNIT_DAILY_SUMMARY, summary
+    )
     assert fenced.startswith("\n```text\n")
     assert fenced.endswith("```")
 
@@ -387,7 +395,10 @@ def test_notification_text_by_type() -> None:
     ):
         text = DataPipeAlertData.model_validate({"value": "x", **data}).text
         assert phrase in text
-        assert TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, text) == text
+        assert (
+            TelegramAlertQueue.text(NotificationType.DATA_PIPE_ALERT, text)
+            == text
+        )
 
 
 def test_notification_stream(
@@ -791,7 +802,7 @@ def test_create_scheduled_unit_summary(
 def _create_scheduled_for_current(service):
     """Creates notifications only for the signed-in user"""
     user = service.access_service.current_agent
-    created = service.generate_scheduled(datetime.now(UTC), user.uuid)
+    created = service.generate_scheduled(user.uuid)
     process_saved(service, created)
     return [service.get(item.uuid) for item in created]
 

@@ -9,6 +9,7 @@ from app import settings
 from app.configs.errors import FeatureFlagError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
+from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
     LogLevel,
@@ -43,6 +44,10 @@ from app.schemas.pydantic.notification import (
 from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.notification_delivery import notification_delivery
+from app.services.utils import (
+    merge_two_dict_first_priority,
+    remove_none_value_dict,
+)
 from app.services.validators import is_valid_object
 
 
@@ -162,32 +167,23 @@ class NotificationService:
         )
         changes = NotificationSettingsUpdate.model_validate(
             data, from_attributes=True
-        ).model_dump(exclude_none=True)
-        settings_row.sqlmodel_update(changes)
-        return self.notification_settings_repository.update(
-            settings_row.uuid, settings_row
         )
-
-    def save(self, notifications: list[Notification]) -> list[Notification]:
-        self.is_notification_enable()
-        return self.notification_repository.bulk_create(notifications)
+        updated = NotificationSettings(
+            **merge_two_dict_first_priority(
+                remove_none_value_dict(changes.dict()),
+                settings_row.dict(),
+            )
+        )
+        return self.notification_settings_repository.update(
+            settings_row.uuid, updated
+        )
 
     def generate_scheduled(
-        self,
-        now: datetime | None = None,
-        user_uuid: uuid_pkg.UUID | None = None,
+        self, user_uuid: uuid_pkg.UUID | None = None
     ) -> list[Notification]:
         self.is_notification_enable()
-        moment = now or datetime.now(UTC)
-        recipients = self.notification_settings_repository.list_scheduled(
-            moment.strftime("%H:%M")
-        )
-        if user_uuid is not None:
-            recipients = [
-                (user, settings_row)
-                for user, settings_row in recipients
-                if user.uuid == user_uuid
-            ]
+        moment = datetime.now(UTC)
+        recipients = self._scheduled_recipients(moment, user_uuid)
         if not recipients:
             return []
 
@@ -198,75 +194,96 @@ class NotificationService:
         )
         rows = []
         for user, _settings_row in recipients:
-            instance_key = (
-                user.uuid,
-                NotificationType.INSTANCE_DAILY_STATE.value,
-            )
-            if user.role == UserRole.ADMIN and instance_key not in present:
-                groups = self.loki_repository.backend_error_groups(
-                    self.INSTANCE_ERROR_GROUPS
-                )
-                rows.append(
-                    Notification(
-                        create_datetime=datetime.now(UTC),
-                        type=NotificationType.INSTANCE_DAILY_STATE.value,
-                        data=InstanceDailyStateData(
-                            errors=[
-                                InstanceError(
-                                    count=group.count,
-                                    message=group.message,
-                                )
-                                for group in groups
-                            ]
-                        ).model_dump(),
-                        is_read=False,
-                        is_processed=False,
-                        user_uuid=user.uuid,
-                    )
-                )
-
-            summary_key = (
-                user.uuid,
-                NotificationType.UNIT_DAILY_SUMMARY.value,
-            )
-            if summary_key in present:
-                continue
-            _, units = self.unit_repository.list(
-                UnitFilter.unlimited(creator_uuid=user.uuid)
-            )
-            names = {unit.uuid: unit.name for unit, _nodes in units}
-            if not names:
-                continue
-            counted = self.unit_log_repository.count_errors_by_unit(
-                unit_uuids=list(names),
-                levels=self.ALERT_LEVELS,
-                since=moment - self.SCHEDULED_LOG_WINDOW,
-                until=moment,
-                limit=len(names),
-            )
-            counts = {item.unit_uuid: item.count for item in counted}
-            ranked = sorted(
-                (
-                    UnitErrorCount(
-                        unit_name=name,
-                        error_count=counts.get(unit_uuid, 0),
-                    )
-                    for unit_uuid, name in names.items()
-                ),
-                key=attrgetter("error_count"),
-                reverse=True,
-            )[: self.UNIT_SUMMARY_LIMIT]
-            rows.append(
-                Notification(
-                    create_datetime=datetime.now(UTC),
-                    type=NotificationType.UNIT_DAILY_SUMMARY.value,
-                    data=UnitDailySummaryData(units=ranked).model_dump(),
-                    is_read=False,
-                    is_processed=False,
-                    user_uuid=user.uuid,
-                )
-            )
+            rows.extend(self._instance_daily_state(user, present))
+            rows.extend(self._unit_daily_summary(user, moment, present))
         return self.notification_repository.bulk_create(rows)
+
+    def _scheduled_recipients(
+        self, moment: datetime, user_uuid: uuid_pkg.UUID | None
+    ) -> list[tuple[User, NotificationSettings]]:
+        recipients = self.notification_settings_repository.list_scheduled(
+            moment.strftime("%H:%M")
+        )
+        if user_uuid is None:
+            return recipients
+        return [
+            (user, settings_row)
+            for user, settings_row in recipients
+            if user.uuid == user_uuid
+        ]
+
+    def _instance_daily_state(
+        self, user: User, present: set[tuple[uuid_pkg.UUID, str]]
+    ) -> list[Notification]:
+        key = (user.uuid, NotificationType.INSTANCE_DAILY_STATE.value)
+        if user.role != UserRole.ADMIN or key in present:
+            return []
+
+        groups = self.loki_repository.backend_error_groups(
+            self.INSTANCE_ERROR_GROUPS
+        )
+        return [
+            Notification(
+                create_datetime=datetime.now(UTC),
+                type=NotificationType.INSTANCE_DAILY_STATE.value,
+                data=InstanceDailyStateData(
+                    errors=[
+                        InstanceError(count=group.count, message=group.message)
+                        for group in groups
+                    ]
+                ).model_dump(),
+                is_read=False,
+                is_processed=False,
+                user_uuid=user.uuid,
+            )
+        ]
+
+    def _unit_daily_summary(
+        self,
+        user: User,
+        moment: datetime,
+        present: set[tuple[uuid_pkg.UUID, str]],
+    ) -> list[Notification]:
+        key = (user.uuid, NotificationType.UNIT_DAILY_SUMMARY.value)
+        if key in present:
+            return []
+
+        _, units = self.unit_repository.list(
+            UnitFilter.unlimited(creator_uuid=user.uuid)
+        )
+        names = {unit.uuid: unit.name for unit, _nodes in units}
+        if not names:
+            return []
+
+        counted = self.unit_log_repository.count_errors_by_unit(
+            unit_uuids=list(names),
+            levels=self.ALERT_LEVELS,
+            since=moment - self.SCHEDULED_LOG_WINDOW,
+            until=moment,
+            limit=len(names),
+        )
+        counts = {item.unit_uuid: item.count for item in counted}
+        ranked = sorted(
+            (
+                UnitErrorCount(
+                    unit_name=name,
+                    error_count=counts.get(unit_uuid, 0),
+                )
+                for unit_uuid, name in names.items()
+            ),
+            key=attrgetter("error_count"),
+            reverse=True,
+        )[: self.UNIT_SUMMARY_LIMIT]
+        return [
+            Notification(
+                create_datetime=datetime.now(UTC),
+                type=NotificationType.UNIT_DAILY_SUMMARY.value,
+                data=UnitDailySummaryData(units=ranked).model_dump(),
+                is_read=False,
+                is_processed=False,
+                user_uuid=user.uuid,
+            )
+        ]
 
     async def process_pending(self) -> int:
         self.is_notification_enable()

@@ -75,7 +75,7 @@ def data_pipe_notification(
 
 def deliver_notification(service, notification: Notification) -> Notification:
     """Saves one notification and runs it through the processing job."""
-    saved = service.save([notification])[0]
+    saved = service.notification_repository.bulk_create([notification])[0]
     process_saved(service, [saved])
     return service.get(saved.uuid)
 
