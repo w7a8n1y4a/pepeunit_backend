@@ -298,11 +298,8 @@ class RepoBotRouter(BaseBotRouter):
                 db, cc, str(callback.from_user.id)
             )
 
-            text = ""
             match decrees_type:
                 case DecreesNames.RELATED_UNIT:
                     repo_service.schedule_update_units_firmware(repo_uuid)
-                    text = "Started linked Unit update"
 
         await callback.answer(parse_mode="Markdown")
-        await self.telegram_response(callback, text, is_editable=False)

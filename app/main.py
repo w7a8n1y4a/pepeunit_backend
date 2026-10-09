@@ -25,7 +25,7 @@ from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
 from app.schemas.bot.instance_bot_router import InstanceBotRouter
-from app.schemas.bot.operation_task_bot_router import OperationTaskBotRouter
+from app.schemas.bot.notification_bot_router import NotificationBotRouter
 from app.schemas.bot.repo_bot_router import RepoBotRouter
 from app.schemas.bot.repository_registry_bot_router import (
     RepositoryRegistryBotRouter,
@@ -120,7 +120,7 @@ if settings.pu_ff_telegram_bot_enable:
     dp.include_router(info_router)
     dp.include_router(ControlBotRouter().router)
     dp.include_router(InstanceBotRouter().router)
-    dp.include_router(OperationTaskBotRouter().router)
+    dp.include_router(NotificationBotRouter().router)
     dp.include_router(base_router)
     dp.include_router(RepositoryRegistryBotRouter().router)
     dp.include_router(RepoBotRouter().router)

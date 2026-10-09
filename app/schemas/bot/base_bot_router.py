@@ -11,8 +11,7 @@ from app import settings
 from app.dto.enum import (
     EntityNames,
     LogLevel,
-    OperationTaskStatus,
-    OperationTaskType,
+    NotificationType,
     RepositoryRegistryType,
     UnitNodeTypeEnum,
     VisibilityLevel,
@@ -57,11 +56,8 @@ class BaseBotFilters(BaseModel):
     repository_types: list[str] = Query(
         [item.value for item in RepositoryRegistryType]
     )
-    operation_task_statuses: list[str] = Query(
-        [item.value for item in OperationTaskStatus]
-    )
-    operation_task_types: list[str] = Query(
-        [item.value for item in OperationTaskType]
+    notification_types: list[str] = Query(
+        [item.value for item in NotificationType]
     )
     is_only_my_entity: bool = False
     search_string: str | None = None
@@ -241,10 +237,8 @@ class BaseBotRouter(ABC):
             self._toggle_filter_value(filters.log_levels, target)
         elif target in [item.value for item in RepositoryRegistryType]:
             self._toggle_filter_value(filters.repository_types, target)
-        elif target in [item.value for item in OperationTaskStatus]:
-            self._toggle_filter_value(filters.operation_task_statuses, target)
-        elif target in [item.value for item in OperationTaskType]:
-            self._toggle_filter_value(filters.operation_task_types, target)
+        elif target in [item.value for item in NotificationType]:
+            self._toggle_filter_value(filters.notification_types, target)
 
         await state.update_data(current_filters=filters)
         await self.show_entities(callback, filters)

@@ -231,7 +231,7 @@ class CommandNames(str, enum.Enum):
     VERIFICATION = "verification"
     DASHBOARD = "dashboard"
     INSTANCES = "instances"
-    TASKS = "tasks"
+    ALERTS = "alerts"
     CONTROL = "control"
 
 
@@ -248,7 +248,7 @@ class EntityNames(str, enum.Enum):
     UNIT_LOG = "UnitLog"
     DASHBOARD = "Dashboard"
     INSTANCE = "Instance"
-    OPERATION_TASK = "OperationTask"
+    NOTIFICATION = "Notification"
     CONTROL = "Control"
 
 
@@ -556,6 +556,15 @@ class NotificationType(str, enum.Enum):
     INSTANCE_DAILY_STATE = "InstanceDailyState"
     UNIT_DAILY_SUMMARY = "UnitDailySummary"
     DATA_PIPE_ALERT = "DataPipeAlert"
+    INTEGRATION_TESTS = OperationTaskType.INTEGRATION_TESTS.value
+    SCAN_ALL_INSTANCES = OperationTaskType.SCAN_ALL_INSTANCES.value
+    SCAN_INSTANCE = OperationTaskType.SCAN_INSTANCE.value
+    UPDATE_ALL_REGISTRIES = OperationTaskType.UPDATE_ALL_REGISTRIES.value
+    UPDATE_REGISTRY = OperationTaskType.UPDATE_REGISTRY.value
+    UPDATE_UNITS_FIRMWARE = OperationTaskType.UPDATE_UNITS_FIRMWARE.value
+    UPDATE_ALL_UNITS_FIRMWARE = (
+        OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE.value
+    )
 
 
 class FileLock(str, enum.Enum):

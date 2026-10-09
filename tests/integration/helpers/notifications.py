@@ -2,13 +2,11 @@ import asyncio
 import uuid as uuid_pkg
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
-from datetime import UTC, datetime
 
 from app import settings
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
-from app.domain.user_model import User
-from app.dto.enum import NotificationType, UserStatus
+from app.dto.enum import UserStatus
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import NotificationSettingsUpdate
@@ -48,36 +46,13 @@ def as_recipient(database, cc, user, token) -> Iterator:
         repository.update(user.uuid, user)
 
 
-def data_pipe_notification(
-    unit_node, user: User, unit_name: str | None = None, **fields
-) -> Notification:
-    """A data pipe alert as the data pipe inserts it, still untyped."""
-    data = {
-        "unit_node_uuid": str(unit_node.uuid),
-        "unit_uuid": str(unit_node.unit_uuid),
-        "topic_name": unit_node.topic_name,
-        "value": "12.5",
-        "type_value_threshold": "Max",
-        "threshold_max": 10,
-        **fields,
-    }
-    if unit_name is not None:
-        data["unit_name"] = unit_name
-    return Notification(
-        create_datetime=datetime.now(UTC),
-        type=NotificationType.DATA_PIPE_ALERT.value,
-        data=data,
-        is_read=False,
-        is_processed=False,
-        user_uuid=user.uuid,
+def latest_notification(database, user_uuid) -> Notification | None:
+    return (
+        database.query(Notification)
+        .filter(Notification.user_uuid == user_uuid)
+        .order_by(Notification.create_datetime.desc())
+        .first()
     )
-
-
-def deliver_notification(service, notification: Notification) -> Notification:
-    """Saves one notification and runs it through the processing job."""
-    saved = service.notification_repository.bulk_create([notification])[0]
-    process_saved(service, [saved])
-    return service.get(saved.uuid)
 
 
 def process_saved(service, notifications: list[Notification]) -> None:

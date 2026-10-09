@@ -64,5 +64,6 @@ class NotificationSettings(SQLModel, table=True):
                 | NotificationType.UNIT_DAILY_SUMMARY
             ):
                 return self.is_scheduled_alert_enable
-        msg = f"Notification type is not supported: {notification_type}"
-        raise ValueError(msg)
+            # The other types are the operation tasks. They are always on.
+            case _:
+                return True

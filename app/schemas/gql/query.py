@@ -16,10 +16,6 @@ from app.schemas.gql.queries.notification import (
     get_notification_settings,
     get_notifications,
 )
-from app.schemas.gql.queries.operation_task import (
-    get_operation_task,
-    get_operation_tasks,
-)
 from app.schemas.gql.queries.permission import get_resource_agents
 from app.schemas.gql.queries.repo import (
     get_available_platforms,
@@ -93,8 +89,6 @@ Query = create_type(
         get_instances,
         get_instances_urls,
         get_instances_registries,
-        get_operation_task,
-        get_operation_tasks,
         get_notification,
         get_notifications,
         get_notification_settings,

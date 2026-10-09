@@ -356,12 +356,19 @@ class NotificationSettings(SettingsValidationMixin, BaseModel):
     pu_notification_loki_url: str = Field(
         default="http://loki:3100", max_length=512
     )
-    pu_notification_telegram_alert_interval_seconds: int = Field(
-        default=10, ge=1, le=3600
+    # One chat, the Telegram private-chat limit
+    pu_notification_telegram_user_interval_seconds: float = Field(
+        default=2, ge=1, le=60
+    )
+    # Whole instance, under the free broadcast limit of about 30 per second
+    pu_notification_telegram_instance_rate: int = Field(
+        default=20, ge=1, le=30
     )
     pu_notification_telegram_alert_text_limit: int = Field(
         default=4000, ge=1, le=4096
     )
+    # One list line. The column stores up to 96, so this can move either way.
+    pu_notification_small_text_limit: int = Field(default=48, ge=1, le=96)
     # How many unprocessed notifications one processing pass locks
     pu_notification_data_pipe_alert_batch: int = Field(
         default=100, ge=1, le=1_000

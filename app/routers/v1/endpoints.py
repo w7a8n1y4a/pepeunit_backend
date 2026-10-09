@@ -3,9 +3,6 @@ from fastapi import APIRouter
 from app.routers.v1.grafana import router as grafana_router
 from app.routers.v1.instance_router import router as instance_router
 from app.routers.v1.notification_router import router as notification_router
-from app.routers.v1.operation_task_router import (
-    router as operation_task_router,
-)
 from app.routers.v1.permission_router import router as permission_router
 from app.routers.v1.repo_router import router as repo_router
 from app.routers.v1.repository_registry_router import (
@@ -28,7 +25,6 @@ routers = (
     (permission_router, "permission", "permission"),
     (grafana_router, "grafana", "grafana"),
     (instance_router, "instances", "instances"),
-    (operation_task_router, "tasks", "tasks"),
     (notification_router, "notifications", "notifications"),
 )
 

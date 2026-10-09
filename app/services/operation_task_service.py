@@ -12,25 +12,20 @@ from sqlmodel import Session
 from app import settings
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException, OperationTaskError
+from app.domain.notification_model import Notification
 from app.domain.operation_task_model import OperationTask
-from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
+    NotificationType,
     OperationTaskStatus,
     OperationTaskType,
-    OwnershipType,
 )
-from app.dto.integration_tests import IntegrationTestsStats
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.operation_task_repository import (
     OperationTaskRepository,
 )
-from app.repositories.user_repository import UserRepository
-from app.schemas.bot.utils import build_telegram_bot
-from app.schemas.gql.inputs.operation_task import OperationTaskFilterInput
-from app.schemas.pydantic.operation_task import (
-    OperationTaskCreate,
-    OperationTaskFilter,
-)
+from app.schemas.pydantic.notification import OPERATION_TASK_ALERTS
+from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object
 from app.utils.utils import ensure_timezone_aware
@@ -52,7 +47,7 @@ class OperationTaskService:
 
         create_datetime = datetime.now(UTC)
 
-        return self.operation_task_repository.create(
+        task = self.operation_task_repository.create(
             OperationTask(
                 creator_uuid=self.access_service.current_agent.uuid,
                 task_type=data.task_type.value,
@@ -60,26 +55,8 @@ class OperationTaskService:
                 start_datetime=create_datetime,
             )
         )
-
-    def get(self, uuid: uuid_pkg.UUID) -> OperationTask:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        task = self.operation_task_repository.get(OperationTask(uuid=uuid))
-        is_valid_object(task)
-
-        self.access_service.authorization.check_ownership(
-            task, [OwnershipType.CREATOR]
-        )
+        self._record_alert(self.operation_task_repository.db, task)
         return task
-
-    def list(
-        self, filters: OperationTaskFilter | OperationTaskFilterInput
-    ) -> tuple[int, list[OperationTask]]:
-        self.access_service.authorization.check_access([AgentType.USER])
-
-        filters.creator_uuid = self.access_service.current_agent.uuid
-
-        return self.operation_task_repository.list(filters)
 
     def schedule(
         self,
@@ -87,16 +64,9 @@ class OperationTaskService:
         operation: OperationTaskCallable,
     ) -> None:
         task_uuid = task.uuid
-        is_telegram_notify = self.access_service.is_bot_auth
 
         def runner() -> None:
-            asyncio.run(
-                self._execute_background(
-                    task_uuid,
-                    operation,
-                    is_telegram_notify,
-                )
-            )
+            asyncio.run(self._execute_background(task_uuid, operation))
 
         threading.Thread(target=runner, daemon=True).start()
 
@@ -124,7 +94,6 @@ class OperationTaskService:
     async def _execute_background(
         task_uuid: uuid_pkg.UUID,
         operation: OperationTaskCallable,
-        is_telegram_notify: bool,
     ) -> None:
         with get_hand_session() as db:
             repository = OperationTaskRepository(db)
@@ -150,9 +119,12 @@ class OperationTaskService:
                     operation_result,
                 )
 
-            await OperationTaskService._notify_telegram(
-                task, db, is_telegram_notify
-            )
+            try:
+                OperationTaskService._record_alert(db, task)
+            except Exception:
+                logging.exception(
+                    f"Failed to record OperationTask alert {task.uuid}"
+                )
 
     @staticmethod
     def _get_error_text(error: Exception) -> str:
@@ -182,37 +154,23 @@ class OperationTaskService:
         return repository.update(task.uuid, task)
 
     @staticmethod
-    async def _notify_telegram(
-        task: OperationTask,
-        db: Session,
-        is_telegram_notify: bool,
-    ) -> None:
-        if not is_telegram_notify or not settings.pu_ff_telegram_bot_enable:
+    def _record_alert(db: Session, task: OperationTask) -> None:
+        if not settings.pu_ff_notification_enable:
             return
 
-        user = UserRepository(db).get(User(uuid=task.creator_uuid))
-        if not user or not user.telegram_chat_id:
-            return
-
-        bot = build_telegram_bot()
-        try:
-            await bot.send_message(
-                chat_id=user.telegram_chat_id,
-                text=OperationTaskService._get_finish_text(task),
-                parse_mode="Markdown",
+        kind = NotificationType(task.task_type)
+        NotificationRepository(db).create(
+            Notification(
+                create_datetime=datetime.now(UTC),
+                type=kind.value,
+                data=OPERATION_TASK_ALERTS[kind](
+                    status=task.status,
+                    start_datetime=task.start_datetime,
+                    finish_datetime=task.finish_datetime,
+                    result=task.result,
+                ).model_dump(mode="json"),
+                is_read=False,
+                is_processed=False,
+                user_uuid=task.creator_uuid,
             )
-        except Exception as e:
-            logging.error(f"Failed send OperationTask notification: {e}")
-        finally:
-            await bot.session.close()
-
-    @staticmethod
-    def _get_finish_text(task: OperationTask) -> str:
-        result = ""
-        if task.result:
-            escaped_result = IntegrationTestsStats.get_result_text(
-                task.result
-            ).replace("`", "'")
-            result = f": `{escaped_result}`"
-
-        return f"Task `{task.task_type}` finish with `{task.status}`{result}"
+        )

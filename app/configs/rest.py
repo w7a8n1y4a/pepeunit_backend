@@ -406,10 +406,10 @@ def get_bot_instance_service(
     ).get_instance_service()
 
 
-def get_bot_operation_task_service(
+def get_bot_notification_service(
     db: Session = Depends(get_session),
     jwt_token: str | None = Depends(token_depends),
-) -> OperationTaskService:
+) -> NotificationService:
     return create_bot_service_factory(
         db, None, jwt_token
-    ).get_operation_task_service()
+    ).get_notification_service()

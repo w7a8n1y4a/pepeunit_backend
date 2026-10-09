@@ -28,7 +28,7 @@ class NotificationRepository(BaseRepository[Notification]):
         if is_visible:
             query = query.filter(
                 Notification.is_processed.is_(True),
-                Notification.text.is_not(None),
+                Notification.table_text.is_not(None),
             )
         return query.first()
 
@@ -44,7 +44,7 @@ class NotificationRepository(BaseRepository[Notification]):
         if is_visible:
             query = query.filter(
                 Notification.is_processed.is_(True),
-                Notification.text.is_not(None),
+                Notification.table_text.is_not(None),
             )
 
         if filters.is_read is not None:
@@ -101,7 +101,7 @@ class NotificationRepository(BaseRepository[Notification]):
         if is_visible:
             statement = statement.where(
                 Notification.is_processed.is_(True),
-                Notification.text.is_not(None),
+                Notification.table_text.is_not(None),
             )
         result = self.db.execute(
             statement.values(is_read=True, read_datetime=read_datetime)

@@ -38,7 +38,9 @@ def upgrade() -> None:
     sa.Column('data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('is_read', sa.Boolean(), nullable=False),
     sa.Column('read_datetime', sa.DateTime(), nullable=True),
-    sa.Column('text', sa.Text(), nullable=True),
+    sa.Column('small_text', sa.String(length=96), nullable=True),
+    sa.Column('table_text', sa.Text(), nullable=True),
+    sa.Column('big_text', sa.Text(), nullable=True),
     sa.Column('is_processed', sa.Boolean(), nullable=False),
     sa.Column('user_uuid', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['user_uuid'], ['users.uuid'], ondelete='CASCADE'),
@@ -48,6 +50,34 @@ def upgrade() -> None:
     op.create_index(op.f('ix_notifications_user_uuid'), 'notifications', ['user_uuid'], unique=False)
     op.create_index(op.f('ix_notifications_uuid'), 'notifications', ['uuid'], unique=False)
     # ### end Alembic commands ###
+
+    # Users created before this table have no row. Processing joins settings,
+    # so a missing row keeps that user's alerts unprocessed forever.
+    op.execute(
+        """
+        INSERT INTO notification_settings (
+            uuid,
+            user_uuid,
+            is_scheduled_alert_enable,
+            scheduled_notification_time,
+            is_data_pipe_alert_enable,
+            is_telegram_alert_enable
+        )
+        SELECT
+            gen_random_uuid(),
+            users.uuid,
+            true,
+            '16:00',
+            true,
+            true
+        FROM users
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM notification_settings
+            WHERE notification_settings.user_uuid = users.uuid
+        )
+        """
+    )
 
 
 def downgrade() -> None:

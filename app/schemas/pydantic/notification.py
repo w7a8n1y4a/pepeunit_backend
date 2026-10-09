@@ -2,17 +2,47 @@ import re
 import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import datetime
+from typing import ClassVar
 
 from fastapi import Query
 from pydantic import BaseModel, field_validator
 
+from app import settings
 from app.dto.enum import (
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
     NotificationType,
+    OperationTaskStatus,
+    OperationTaskType,
 )
-from app.schemas.bot.utils import make_monospace_table_with_title
+from app.dto.integration_tests import IntegrationTestsStats
+from app.schemas.bot.utils import (
+    format_datetime,
+    make_monospace_table_with_title,
+)
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
+
+
+def short_line(value: str) -> str:
+    """One line, cut to the configured list length. The rest stays in the table."""
+    limit = settings.pu_notification_small_text_limit
+    return " ".join(value.split())[:limit]
+
+
+class NotificationContent(BaseModel):
+    """small_text is the row, table_text is the table, big_text is a raw log."""
+
+    @property
+    def small_text(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def table_text(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def big_text(self) -> str | None:
+        return None
 
 
 class InstanceError(BaseModel):
@@ -20,11 +50,17 @@ class InstanceError(BaseModel):
     message: str
 
 
-class InstanceDailyStateData(BaseModel):
+class InstanceDailyStateData(NotificationContent):
     errors: list[InstanceError]
 
     @property
-    def text(self) -> str:
+    def small_text(self) -> str:
+        total = sum(error.count for error in self.errors)
+        noun = "error" if total == 1 else "errors"
+        return f"Instance has {total} {noun}"
+
+    @property
+    def table_text(self) -> str:
         table = [
             ["Count", "Message"],
             *[[error.count, error.message or "-"] for error in self.errors],
@@ -39,11 +75,17 @@ class UnitErrorCount(BaseModel):
     error_count: int
 
 
-class UnitDailySummaryData(BaseModel):
+class UnitDailySummaryData(NotificationContent):
     units: list[UnitErrorCount]
 
     @property
-    def text(self) -> str:
+    def small_text(self) -> str:
+        total = sum(unit.error_count for unit in self.units)
+        noun = "error" if total == 1 else "errors"
+        return f"Unit has {total} {noun}"
+
+    @property
+    def table_text(self) -> str:
         rows = [[unit.unit_name, unit.error_count] for unit in self.units] or [
             ["-", "0"]
         ]
@@ -52,7 +94,7 @@ class UnitDailySummaryData(BaseModel):
         )
 
 
-class DataPipeAlertData(BaseModel):
+class DataPipeAlertData(NotificationContent):
     value: str | int | float
     topic_name: str | None = None
     unit_node_uuid: uuid_pkg.UUID | None = None
@@ -89,8 +131,19 @@ class DataPipeAlertData(BaseModel):
                 checks.append(f"is {values}")
         return checks
 
+    def _shown_value(self) -> str:
+        if isinstance(self.value, float):
+            return f"{self.value:g}"
+        return str(self.value)
+
     @property
-    def text(self) -> str:
+    def small_text(self) -> str:
+        check = ", ".join(self._checks()) or "-"
+        name = self.unit_name or "-"
+        return short_line(f"{name}: {self._shown_value()} {check}")
+
+    @property
+    def table_text(self) -> str:
         topic = self.topic_name or self.unit_node_uuid or "-"
         checks = self._checks()
         return make_monospace_table_with_title(
@@ -105,11 +158,128 @@ class DataPipeAlertData(BaseModel):
         )
 
 
+class OperationTaskAlertData(NotificationContent):
+    """Shared body of an operation-task alert.
+
+    The notification type is the task type. Subclasses only add what
+    that particular task shows beyond the short table.
+    """
+
+    task_type: ClassVar[OperationTaskType]
+    status: OperationTaskStatus
+    start_datetime: datetime | None = None
+    finish_datetime: datetime | None = None
+    result: str | None = None
+    _TITLE_SPLIT: ClassVar[re.Pattern[str]] = re.compile(
+        r"(?<=[a-z])(?=[A-Z])"
+    )
+
+    @property
+    def title(self) -> str:
+        return self._TITLE_SPLIT.sub(" ", self.task_type.value)
+
+    def _result_line(self) -> str | None:
+        if not self.result:
+            return None
+        return " ".join(
+            IntegrationTestsStats.get_result_text(self.result).split()
+        )
+
+    def _brief_result(self) -> str | None:
+        """The result line, unless it is a raw log. That log is big_text."""
+        if not self.result:
+            return None
+        summary = IntegrationTestsStats.from_result(self.result).to_text()
+        if summary:
+            return " ".join(summary.split())
+        if "\n" not in self.result:
+            return " ".join(self.result.split())
+        return None
+
+    @property
+    def small_text(self) -> str:
+        detail = self._brief_result() or self.status.value
+        return short_line(f"{self.task_type.value}: {detail}")
+
+    @property
+    def table_text(self) -> str:
+        rows = [
+            ["Status", self.status.value],
+            ["Started", format_datetime(self.start_datetime)],
+            ["Finished", format_datetime(self.finish_datetime)],
+        ]
+        line = self._result_line()
+        if line:
+            rows.append(["Result", line])
+        return make_monospace_table_with_title(
+            rows, self.title, lengths=[10, 32]
+        )
+
+
+class IntegrationTestsAlertData(OperationTaskAlertData):
+    """The full test log stays readable. Admins debug the instance from it."""
+
+    task_type: ClassVar[OperationTaskType] = (
+        OperationTaskType.INTEGRATION_TESTS
+    )
+
+    @property
+    def big_text(self) -> str | None:
+        return self.result or None
+
+
+class ScanAllInstancesAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = (
+        OperationTaskType.SCAN_ALL_INSTANCES
+    )
+
+
+class ScanInstanceAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.SCAN_INSTANCE
+
+
+class UpdateAllRegistriesAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = (
+        OperationTaskType.UPDATE_ALL_REGISTRIES
+    )
+
+
+class UpdateRegistryAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.UPDATE_REGISTRY
+
+
+class UpdateUnitsFirmwareAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = (
+        OperationTaskType.UPDATE_UNITS_FIRMWARE
+    )
+
+
+class UpdateAllUnitsFirmwareAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = (
+        OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE
+    )
+
+
+OPERATION_TASK_ALERTS: dict[NotificationType, type[OperationTaskAlertData]] = {
+    NotificationType.INTEGRATION_TESTS: IntegrationTestsAlertData,
+    NotificationType.SCAN_ALL_INSTANCES: ScanAllInstancesAlertData,
+    NotificationType.SCAN_INSTANCE: ScanInstanceAlertData,
+    NotificationType.UPDATE_ALL_REGISTRIES: UpdateAllRegistriesAlertData,
+    NotificationType.UPDATE_REGISTRY: UpdateRegistryAlertData,
+    NotificationType.UPDATE_UNITS_FIRMWARE: UpdateUnitsFirmwareAlertData,
+    NotificationType.UPDATE_ALL_UNITS_FIRMWARE: (
+        UpdateAllUnitsFirmwareAlertData
+    ),
+}
+
+
 class NotificationRead(BaseModel):
     uuid: uuid_pkg.UUID
     create_datetime: datetime
     type: NotificationType
-    text: str
+    small_text: str
+    table_text: str
+    big_text: str | None = None
     is_read: bool
     read_datetime: datetime | None = None
     user_uuid: uuid_pkg.UUID

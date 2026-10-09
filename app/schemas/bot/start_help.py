@@ -60,7 +60,7 @@ async def start_help_resolver(message: types.Message):
         ],
         ["/dashboard", "List of your Dashboards, links to Pepeunit"],
         ["/instances", "List of known Pepeunit instances"],
-        ["/tasks", "History and status of your manual operations"],
+        ["/alerts", "Your alerts and the status of operations"],
     ]
     with get_hand_session() as db:
         user = UserRepository(db).get_user_by_telegram_id(str(message.chat.id))

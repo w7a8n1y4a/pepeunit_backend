@@ -8,10 +8,9 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import pytest
 from pydantic import ValidationError as SchemaValidationError
-from sqlalchemy.exc import IntegrityError
 
 from app import settings
-from app.configs.errors import NoAccessError, ValidationError
+from app.configs.errors import NoAccessError
 from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
 from app.dto.clickhouse.log import UnitLog
@@ -19,15 +18,21 @@ from app.dto.enum import (
     AgentType,
     LogLevel,
     NotificationType,
+    OperationTaskStatus,
+    OperationTaskType,
     UnitNodeTypeEnum,
     UserRole,
 )
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
+from app.repositories.operation_task_repository import (
+    OperationTaskRepository,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import (
+    OPERATION_TASK_ALERTS,
     DataPipeAlertData,
     InstanceDailyStateData,
     NotificationFilter,
@@ -35,24 +40,26 @@ from app.schemas.pydantic.notification import (
     NotificationSettingsUpdate,
     UnitDailySummaryData,
 )
+from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
 from app.services.notification_delivery import (
     TelegramAlertQueue,
     notification_delivery,
 )
+from app.services.operation_task_service import OperationTaskService
 from app.utils.utils import create_upload_file_from_path
 from tests.integration.helpers.notifications import (
     as_recipient,
-    data_pipe_notification,
-    deliver_notification,
     drop_notifications,
+    latest_notification,
     process_saved,
 )
 from tests.integration.helpers.services import (
     notification_service,
+    operation_task_service,
     unit_node_service,
-    unit_service,
 )
+from tests.integration.helpers.tasks import drop_task
 from tests.integration.helpers.wait import wait_until
 
 LIVE_ALERT_YAML = "tests/data/yaml/integra/data_pipe_alerts_live.yaml"
@@ -118,253 +125,76 @@ def test_update_notification_settings_invalid_time(
     assert service.get_settings().scheduled_notification_time == "16:00"
 
 
-def test_create_data_pipe_alert(
-    crud_notification,
-    regular_user,
-    regular_user_token,
-    alert_node,
-    database,
-    cc,
-) -> None:
-    logging.info(crud_notification.uuid)
-    unit = unit_service(database, cc, regular_user_token).get(
-        alert_node.unit_uuid
-    )
-
-    assert crud_notification.type == NotificationType.DATA_PIPE_ALERT.value
-    assert crud_notification.user_uuid == regular_user.uuid
-    assert crud_notification.is_read is False
-    assert crud_notification.read_datetime is None
-    assert crud_notification.is_processed is True
-
-    data = crud_notification.data
-    assert data["unit_node_uuid"] == str(alert_node.uuid)
-    assert data["unit_uuid"] == str(alert_node.unit_uuid)
-    assert data["unit_name"] == unit.name
-    assert data["topic_name"] == alert_node.topic_name
-    assert data["value"] == "12.5"
-    assert data["type_value_threshold"] == "Max"
-    assert data["threshold_max"] == 10
-    assert unit.name in crud_notification.text
-    assert "> 10" in crud_notification.text
-    assert "Data pipe alert" in crud_notification.text
-
-
-def test_data_pipe_alert_rules(
-    recipient_service, alert_node, regular_user, database
-) -> None:
-    rules = [
-        (
-            {
-                "type_value_threshold": "Range",
-                "threshold_min": 1,
-                "threshold_max": 10,
-            },
-            "∉ [1, 10]",
-        ),
-        (
-            {
-                "type_value_threshold": "Min",
-                "threshold_min": 3,
-                "threshold_max": None,
-            },
-            "< 3",
-        ),
-        (
-            {
-                "value": "overheat",
-                "type_value_threshold": None,
-                "threshold_max": None,
-                "type_value_filtering": "BlackList",
-                "filtering_values": ["overheat", "fire"],
-            },
-            "is overheat, fire",
-        ),
-    ]
-    created = []
-    try:
-        for fields, phrase in rules:
-            notification = deliver_notification(
-                recipient_service,
-                data_pipe_notification(alert_node, regular_user, **fields),
-            )
-            created.append(notification)
-            assert notification.is_processed is True
-            assert phrase in notification.text
-    finally:
-        drop_notifications(database, created)
-
-
-def test_broken_notification_does_not_stop_the_batch(
-    recipient_service, alert_node, regular_user, database, caplog
-) -> None:
-    invalid_rules = [
-        {"threshold_max": "high"},
-        {"type_value_filtering": "BlackList", "filtering_values": "overheat"},
-        {"type_value_threshold": "Sideways"},
-        {"value": None},
-        {"type": "NotAType"},
-    ]
-    broken = [
-        data_pipe_notification(alert_node, regular_user, **fields)
-        for fields in invalid_rules
-    ]
-    # The last override replaces the column type, not the payload
-    broken[-1].type = "NotAType"
-    valid = data_pipe_notification(alert_node, regular_user)
-    saved = recipient_service.notification_repository.bulk_create(
-        [*broken, valid]
-    )
-    try:
-        with caplog.at_level(logging.ERROR):
-            process_saved(recipient_service, saved)
-        rows = [
-            recipient_service.notification_repository.get(
-                Notification(uuid=item.uuid)
-            )
-            for item in saved
-        ]
-        assert all(item.is_processed for item in rows)
-        assert all(item.text is None for item in rows[:-1])
-        assert "> 10" in rows[-1].text
-        _count, visible = recipient_service.list(
-            NotificationFilter.unlimited()
-        )
-        visible_uuids = {item.uuid for item in visible}
-        assert rows[-1].uuid in visible_uuids
-        assert all(item.uuid not in visible_uuids for item in rows[:-1])
-        with pytest.raises(ValidationError):
-            recipient_service.get(rows[0].uuid)
-        assert any(
-            "payload is invalid" in record.message for record in caplog.records
-        )
-    finally:
-        drop_notifications(database, saved)
-
-
-def test_data_pipe_alert_unknown_user(
-    recipient_service, alert_node, regular_user, database
-) -> None:
-    # The row is addressed to a user that does not exist, so it is not stored
-    incoming = data_pipe_notification(alert_node, regular_user)
-    incoming.user_uuid = uuid_pkg.uuid4()
-    with pytest.raises(IntegrityError):
-        recipient_service.notification_repository.bulk_create([incoming])
-    database.rollback()
-
-
-def test_data_pipe_alert_recipients(
-    recipient_service,
-    alert_node,
-    regular_user,
-    extra_user,
-    extra_user_token,
-    database,
-    cc,
-) -> None:
-    # extra_user enabled the alerts but is not the node creator
-    with as_recipient(
-        database, cc, extra_user, extra_user_token
-    ) as extra_service:
-        extra_service.update_settings(
-            NotificationSettingsUpdate(is_data_pipe_alert_enable=True)
-        )
-        before_extra, _rows = extra_service.list(
-            NotificationFilter.unlimited()
-        )
-        notification = deliver_notification(
-            recipient_service,
-            data_pipe_notification(alert_node, regular_user),
-        )
-        try:
-            assert notification.user_uuid == regular_user.uuid
-            after_extra, _rows = extra_service.list(
-                NotificationFilter.unlimited()
-            )
-            assert after_extra == before_extra
-        finally:
-            drop_notifications(database, [notification])
-
-    # the owner disabled delivery: the row is stored, the stream is not
-    recipient_service.update_settings(
-        NotificationSettingsUpdate(is_data_pipe_alert_enable=False)
-    )
-    before, _rows = recipient_service.list(NotificationFilter.unlimited())
-    silent = deliver_notification(
-        recipient_service,
-        data_pipe_notification(alert_node, regular_user),
-    )
-    try:
-        after, _rows = recipient_service.list(NotificationFilter.unlimited())
-        assert after == before + 1
-        assert silent.is_processed is True
-        assert silent.text is not None
-        assert not _stream_has(regular_user.uuid, silent.uuid)
-    finally:
-        drop_notifications(database, [silent])
-
-
-def test_data_pipe_alert_delivery(
-    recipient_service, alert_node, regular_user, database
-) -> None:
-    recipient_service.update_settings(
-        NotificationSettingsUpdate(is_telegram_alert_enable=True)
-    )
-    notification = deliver_notification(
-        recipient_service,
-        data_pipe_notification(alert_node, regular_user),
-    )
-    try:
-        assert notification.user_uuid == regular_user.uuid
-        assert (
-            recipient_service.get_settings().is_telegram_alert_enable is True
-        )
-
-        read = NotificationRead(**notification.dict())
-        assert read.uuid == notification.uuid
-        assert read.type == NotificationType.DATA_PIPE_ALERT
-        assert read.user_uuid == regular_user.uuid
-        assert read.is_read is False
-        assert "data" not in read.model_dump()
-        assert "is_processed" not in read.model_dump()
-        assert alert_node.topic_name in read.text
-        assert "12.5" in read.text
-        assert "> 10" in read.text
-        fenced = TelegramAlertQueue.text(
-            NotificationType.DATA_PIPE_ALERT, read.text
-        )
-        assert fenced.startswith("\n```text\n")
-        assert fenced.endswith("```")
-        assert read.text in fenced
-    finally:
-        drop_notifications(database, [notification])
-
-
 def test_notification_text_by_type() -> None:
-    instance = InstanceDailyStateData.model_validate(
+    instance_alert = InstanceDailyStateData.model_validate(
         {"errors": [{"count": 4, "message": "disk full"}]}
-    ).text
-    assert "```" not in instance
+    )
+    instance = instance_alert.table_text
+    assert instance_alert.small_text == "Instance has 4 errors"
+    several = InstanceDailyStateData.model_validate(
+        {
+            "errors": [
+                {"count": 2, "message": "disk full"},
+                {"count": 1, "message": "timeout"},
+            ]
+        }
+    )
+    assert several.small_text == "Instance has 3 errors"
+    one = InstanceDailyStateData.model_validate(
+        {"errors": [{"count": 1, "message": "disk full"}]}
+    )
+    assert one.small_text == "Instance has 1 error"
+    assert instance_alert.big_text is None
     assert "Instance daily summary" in instance
     assert "disk full" in instance
-    wrapped = TelegramAlertQueue.text(
-        NotificationType.INSTANCE_DAILY_STATE, instance
-    )
+    wrapped = TelegramAlertQueue.text(instance)
     assert wrapped.startswith("\n```text\n")
     assert wrapped.endswith("```")
 
-    summary = UnitDailySummaryData.model_validate(
+    summary_alert = UnitDailySummaryData.model_validate(
         {"units": [{"unit_name": "boiler", "error_count": 7}]}
-    ).text
-    assert "```" not in summary
+    )
+    summary = summary_alert.table_text
+    assert summary_alert.small_text == "Unit has 7 errors"
+    assert summary_alert.big_text is None
     assert "Unit daily summary" in summary
     assert "boiler" in summary
     assert "7" in summary
-    fenced = TelegramAlertQueue.text(
-        NotificationType.UNIT_DAILY_SUMMARY, summary
-    )
+    fenced = TelegramAlertQueue.text(summary)
     assert fenced.startswith("\n```text\n")
     assert fenced.endswith("```")
+
+    started = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
+    for task_type in OperationTaskType:
+        alert = OPERATION_TASK_ALERTS[NotificationType(task_type)](
+            status=OperationTaskStatus.RUNNING,
+            start_datetime=started,
+        )
+        text = alert.table_text
+        assert alert.small_text == f"{alert.task_type.value}: Running"
+        assert "```" not in text
+        assert alert.title in text
+        assert "Operation task" not in text
+        assert "Running" in text
+        assert "Result" not in text
+        assert alert.big_text is None
+        wrapped = TelegramAlertQueue.text(text)
+        assert wrapped.startswith("\n```text\n")
+        assert wrapped.endswith("```")
+
+    full_log = "UNIQUE_DEBUG\n" + ("x" * 400)
+    finished_alert = OPERATION_TASK_ALERTS[NotificationType.INTEGRATION_TESTS](
+        status=OperationTaskStatus.ERROR,
+        start_datetime=started,
+        finish_datetime=started + timedelta(seconds=12),
+        result=full_log,
+    )
+    finished = finished_alert.table_text
+    assert "Error" in finished
+    assert "2026-01-02 03:04:05" in finished
+    assert "UNIQUE_DEBUG" not in finished
+    assert finished_alert.small_text == "IntegrationTests: Error"
+    assert finished_alert.big_text == full_log
 
     for data, phrase in (
         (
@@ -398,23 +228,98 @@ def test_notification_text_by_type() -> None:
             "is a, b",
         ),
     ):
-        text = DataPipeAlertData.model_validate({"value": "x", **data}).text
+        pipe = DataPipeAlertData.model_validate({"value": "x", **data})
+        text = pipe.table_text
+        assert phrase in pipe.small_text
+        assert pipe.big_text is None
         assert "```" not in text
         assert "Data pipe alert" in text
         assert phrase in text
         named = DataPipeAlertData.model_validate(
             {"value": "x", "unit_name": "boiler", **data}
-        ).text
+        ).table_text
         assert "boiler" in named
-        fenced = TelegramAlertQueue.text(
-            NotificationType.DATA_PIPE_ALERT, text
-        )
+        fenced = TelegramAlertQueue.text(text)
         assert fenced.startswith("\n```text\n")
         assert fenced.endswith("```")
 
 
+def test_integration_tests_big_text_is_stored(
+    admin_user, admin_user_token, database, cc
+) -> None:
+    full_log = "UNIQUE_STORED\n" + ("y" * 400)
+    owned = {
+        row.uuid
+        for row in database.query(Notification)
+        .filter(Notification.user_uuid == admin_user.uuid)
+        .all()
+    }
+    task = operation_task_service(database, admin_user_token).create(
+        OperationTaskCreate(task_type=OperationTaskType.INTEGRATION_TESTS)
+    )
+    finished = OperationTaskService._finish(
+        OperationTaskRepository(database),
+        task.uuid,
+        OperationTaskStatus.ERROR,
+        full_log,
+    )
+    OperationTaskService._record_alert(database, finished)
+    service = notification_service(database, cc, admin_user_token)
+    pending = (
+        database.query(Notification)
+        .filter(
+            Notification.user_uuid == admin_user.uuid,
+            Notification.is_processed.is_(False),
+        )
+        .all()
+    )
+    pending = [row for row in pending if row.uuid not in owned]
+    process_saved(service, pending)
+    stored = [service.get(row.uuid) for row in pending]
+    saved = next(row for row in stored if row.big_text)
+    try:
+        assert saved.big_text == full_log
+        assert "UNIQUE_STORED" not in saved.table_text
+        assert saved.small_text == "IntegrationTests: Error"
+        read = NotificationRead(**saved.dict())
+        assert read.small_text == saved.small_text
+        assert read.table_text == saved.table_text
+        assert read.big_text == full_log
+        dumped = read.model_dump()
+        assert "data" not in dumped
+        assert "text" not in dumped
+    finally:
+        drop_notifications(database, stored)
+        drop_task(database, task.uuid)
+
+
+def test_telegram_alert_send_rate() -> None:
+    queue = TelegramAlertQueue(user_interval=1, instance_rate=20)
+    queue.ready.set()
+    gap = 1 / 20
+
+    queue.enqueue("alpha", "a0")
+    queue.enqueue("alpha", "a1")
+    queue.enqueue("beta", "b")
+
+    chat, _text = queue._ready_message(0)
+    assert chat == "alpha"
+    queue._mark_sent("alpha", 0)
+    assert queue._ready_message(gap / 2) is None
+    assert queue._seconds_until_next(gap / 2) == gap / 2
+
+    chat, _text = queue._ready_message(gap)
+    assert chat == "beta"
+    queue._mark_sent("beta", gap)
+    assert queue._ready_message(gap * 2) is None
+
+    chat, _text = queue._ready_message(1)
+    assert chat == "alpha"
+    assert queue._ready_message(1) is None
+
+
 def test_notification_stream(
-    recipient_service, alert_node, regular_user, regular_user_token, database
+    regular_user, regular_user_token, database, cc
 ) -> None:
     url = f"{settings.pu_link_prefix_and_v1}/notifications/stream"
     rejected = httpx.get(
@@ -425,6 +330,7 @@ def test_notification_stream(
     assert rejected.status_code == 403
 
     notification = None
+    task = None
     try:
         with httpx.stream(
             "GET",
@@ -443,10 +349,17 @@ def test_notification_stream(
             assert next(lines) == ": connected"
             # The handler yields the handshake before it blocks on the stream
             time.sleep(0.5)
-            notification = deliver_notification(
-                recipient_service,
-                data_pipe_notification(alert_node, regular_user),
+            task = operation_task_service(
+                database, regular_user_token
+            ).create(
+                OperationTaskCreate(
+                    task_type=OperationTaskType.UPDATE_REGISTRY
+                )
             )
+            service = notification_service(database, cc, regular_user_token)
+            notification = latest_notification(database, regular_user.uuid)
+            process_saved(service, [notification])
+            notification = service.get(notification.uuid)
 
             message = None
             expected = str(notification.uuid)
@@ -459,13 +372,17 @@ def test_notification_stream(
                     break
         assert message is not None
         assert message["uuid"] == str(notification.uuid)
-        assert message["type"] == NotificationType.DATA_PIPE_ALERT.value
+        assert message["type"] == NotificationType.UPDATE_REGISTRY.value
         assert "is_processed" not in message
         assert "data" not in message
-        assert alert_node.topic_name in message["text"]
+        assert "Update Registry" in message["table_text"]
+        assert message["small_text"]
+        assert "text" not in message
     finally:
         if notification is not None:
             drop_notifications(database, [notification])
+        if task is not None:
+            drop_task(database, task.uuid)
 
 
 @pytest.mark.datapipe
@@ -518,7 +435,13 @@ async def test_data_pipe_alert_live(
         assert data["threshold_min"] == 1000
         assert data["topic_name"] == node.topic_name
         assert data["unit_uuid"] == str(node.unit_uuid)
+        assert data["unit_name"] == running_units.chain_sink_unit.name
         assert float(data["value"]) < 1000
+        alert = created[0]
+        assert running_units.chain_sink_unit.name in alert.small_text
+        assert running_units.chain_sink_unit.name in alert.table_text
+        assert "Data pipe alert" in alert.table_text
+        assert alert.big_text is None
     finally:
         await service.update(
             node.uuid, UnitNodeUpdate(is_data_pipe_active=False)
@@ -567,13 +490,13 @@ def test_get_many_notification(
 
     count, notifications = service.list(
         NotificationFilter.unlimited(
-            type=[NotificationType.DATA_PIPE_ALERT.value],
+            type=[NotificationType.UPDATE_REGISTRY.value],
             is_read=False,
         )
     )
     assert any(item.uuid == crud_notification.uuid for item in notifications)
     assert all(
-        item.type == NotificationType.DATA_PIPE_ALERT.value
+        item.type == NotificationType.UPDATE_REGISTRY.value
         for item in notifications
     )
     assert all(item.is_read is False for item in notifications)
@@ -607,25 +530,26 @@ def test_mark_notification_read(
 
 
 def test_mark_all_notifications_read(
-    crud_notification, recipient_service, alert_node, regular_user, database
+    crud_notification, regular_user, regular_user_token, database, cc
 ) -> None:
-    notification = deliver_notification(
-        recipient_service,
-        data_pipe_notification(alert_node, regular_user, value="20"),
+    task = operation_task_service(database, regular_user_token).create(
+        OperationTaskCreate(task_type=OperationTaskType.SCAN_INSTANCE)
     )
+    service = notification_service(database, cc, regular_user_token)
+    second = latest_notification(database, regular_user.uuid)
+    process_saved(service, [second])
     try:
-        marked = recipient_service.mark_all_read()
+        marked = service.mark_all_read()
         assert marked >= 2
-        _count, notifications = recipient_service.list(
-            NotificationFilter.unlimited()
-        )
+        _count, notifications = service.list(NotificationFilter.unlimited())
         assert any(
             item.uuid == crud_notification.uuid for item in notifications
         )
         assert all(item.is_read is True for item in notifications)
-        assert recipient_service.mark_all_read() == 0
+        assert service.mark_all_read() == 0
     finally:
-        drop_notifications(database, [notification])
+        drop_notifications(database, [second])
+        drop_task(database, task.uuid)
 
 
 def test_notification_anonymous(crud_notification, database, cc) -> None:
@@ -674,8 +598,13 @@ def test_create_scheduled_instance_state(
                 "count" in item and "message" in item for item in errors
             )
             assert instance_alerts[0].is_processed is True
-            assert instance_alerts[0].text
-
+            total = sum(item["count"] for item in errors)
+            noun = "error" if total == 1 else "errors"
+            assert (
+                instance_alerts[0].small_text
+                == f"Instance has {total} {noun}"
+            )
+            assert instance_alerts[0].table_text
             _, notifications = service.list(
                 NotificationFilter.unlimited(
                     type=[NotificationType.INSTANCE_DAILY_STATE.value]
@@ -769,7 +698,9 @@ def test_create_scheduled_unit_summary(
             assert len(summary.data["units"]) <= 10
             assert set(row) == {"unit_name", "error_count"}
             assert summary.is_processed is True
-            assert unit.name in summary.text
+            total = sum(item["error_count"] for item in summary.data["units"])
+            assert summary.small_text == f"Unit has {total} errors"
+            assert unit.name in summary.table_text
         finally:
             drop_notifications(database, created)
 

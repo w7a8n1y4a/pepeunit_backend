@@ -12,7 +12,9 @@ class NotificationType(TypeInputMixin):
     uuid: uuid_pkg.UUID
     create_datetime: datetime
     type: NotificationTypeEnum
-    text: str
+    small_text: str
+    table_text: str
+    big_text: str | None
     is_read: bool
     read_datetime: datetime | None
     user_uuid: uuid_pkg.UUID

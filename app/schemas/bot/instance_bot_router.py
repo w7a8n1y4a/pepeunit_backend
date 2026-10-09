@@ -201,11 +201,9 @@ class InstanceBotRouter(BaseBotRouter):
                 instance_service = get_bot_instance_service(
                     db, str(callback.from_user.id)
                 )
-                text = ""
                 match decrees_type:
                     case DecreesNames.SCAN:
                         instance_service.scan_one(instance_uuid)
-                        text = "Started Instance scan"
         except CustomException as e:
             await callback.answer()
             await self.telegram_response(
@@ -214,7 +212,6 @@ class InstanceBotRouter(BaseBotRouter):
             return
 
         await callback.answer(parse_mode="Markdown")
-        await self.telegram_response(callback, text, is_editable=False)
 
     @staticmethod
     def _instance_domain(url: str) -> str:

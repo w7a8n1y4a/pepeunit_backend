@@ -109,7 +109,6 @@ class ControlBotRouter(BaseBotRouter):
     ) -> None:
         *_, decrees_type, _target = callback.data.split("_")
         chat_id = str(callback.from_user.id)
-        text = ""
 
         try:
             with get_hand_session() as db, get_hand_clickhouse_client() as cc:
@@ -118,22 +117,21 @@ class ControlBotRouter(BaseBotRouter):
                         get_bot_instance_service(
                             db, chat_id
                         ).start_integration_tests()
-                        text = "Started Integration Tests, it takes 3 minutes or more"
                     case DecreesNames.SCAN_ALL:
                         get_bot_instance_service(db, chat_id).scan_all()
-                        text = "Started Scan All Instances"
                     case DecreesNames.UPDATE_ALL_REGISTRIES:
                         get_bot_repository_registry_service(
                             db, chat_id
                         ).schedule_update_all()
-                        text = "Started Update All Registries"
                     case DecreesNames.UPDATE_ALL_UNITS_FIRMWARE:
                         get_bot_repo_service(
                             db, cc, chat_id
                         ).schedule_bulk_update_units_firmware()
-                        text = "Started Update All Units Firmware"
         except CustomException as e:
-            text = e.message
+            await callback.answer(parse_mode="Markdown")
+            await self.telegram_response(
+                callback, e.message, is_editable=False
+            )
+            return
 
         await callback.answer(parse_mode="Markdown")
-        await self.telegram_response(callback, text, is_editable=False)

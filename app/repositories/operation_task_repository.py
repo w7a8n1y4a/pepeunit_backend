@@ -6,7 +6,6 @@ from app.domain.operation_task_model import OperationTask
 from app.dto.enum import OperationTaskType
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_enums, apply_offset_and_limit
-from app.schemas.gql.inputs.operation_task import OperationTaskFilterInput
 from app.schemas.pydantic.operation_task import OperationTaskFilter
 from app.services.validators import is_valid_uuid
 
@@ -16,7 +15,7 @@ class OperationTaskRepository(BaseRepository[OperationTask]):
         super().__init__(OperationTask, db)
 
     def list(
-        self, filters: OperationTaskFilter | OperationTaskFilterInput
+        self, filters: OperationTaskFilter
     ) -> tuple[int, list[OperationTask]]:
         query = self.db.query(OperationTask)
 

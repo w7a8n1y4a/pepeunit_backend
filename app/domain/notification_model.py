@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, ForeignKey, Text
+from sqlalchemy import Column, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, SQLModel
 
@@ -36,9 +36,22 @@ class Notification(SQLModel, table=True):
     # When the notification was marked as read (null while unread)
     read_datetime: datetime = Field(nullable=True)
 
-    # Base text, filled when the row is processed. Null while it waits
-    # or when the payload could not be typed.
-    text: str | None = Field(
+    # One line for lists and the telegram push. Cut by the notification
+    # setting, which stays within this column.
+    small_text: str | None = Field(
+        default=None,
+        max_length=96,
+        sa_column=Column(String(96), nullable=True),
+    )
+
+    # Monospace table. Null while the row waits or the payload is invalid.
+    table_text: str | None = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+    )
+
+    # Raw log. Empty until a notification type has one to show.
+    big_text: str | None = Field(
         default=None,
         sa_column=Column(Text, nullable=True),
     )

@@ -33,10 +33,12 @@ from app.schemas.gql.types.notification import (
     NotificationType as NotificationTypeGql,
 )
 from app.schemas.pydantic.notification import (
+    OPERATION_TASK_ALERTS,
     DataPipeAlertData,
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
+    NotificationRead,
     NotificationSettingsUpdate,
     UnitDailySummaryData,
     UnitErrorCount,
@@ -60,6 +62,7 @@ class NotificationService:
         NotificationType.INSTANCE_DAILY_STATE: InstanceDailyStateData,
         NotificationType.UNIT_DAILY_SUMMARY: UnitDailySummaryData,
         NotificationType.DATA_PIPE_ALERT: DataPipeAlertData,
+        **OPERATION_TASK_ALERTS,
     }
 
     def __init__(
@@ -140,10 +143,9 @@ class NotificationService:
     def mapper_notification_to_notification_type(
         notification: Notification,
     ) -> NotificationTypeGql:
-        notification_dict = notification.dict()
-        del notification_dict["data"]
-        del notification_dict["is_processed"]
-        return NotificationTypeGql(**notification_dict)
+        return NotificationTypeGql(
+            **NotificationRead(**notification.dict()).dict()
+        )
 
     def get_settings(self) -> NotificationSettings:
         self.is_notification_enable()
@@ -269,9 +271,10 @@ class NotificationService:
         for notification, user, settings_row in pending:
             try:
                 payload = self.PAYLOADS[NotificationType(notification.type)]
-                notification.text = payload.model_validate(
-                    notification.data
-                ).text
+                typed = payload.model_validate(notification.data)
+                notification.small_text = typed.small_text
+                notification.table_text = typed.table_text
+                notification.big_text = typed.big_text
             except (KeyError, TypeError, ValueError) as err:
                 logging.error(
                     f"Notification {notification.uuid} ({notification.type}) "
