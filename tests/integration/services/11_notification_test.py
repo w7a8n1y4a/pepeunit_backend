@@ -199,11 +199,11 @@ def test_notification_text_by_type() -> None:
     for data, phrase in (
         (
             {"type_value_threshold": "Min", "threshold_min": 1},
-            "< 1",
+            ">= 1",
         ),
         (
             {"type_value_threshold": "Max", "threshold_max": 10},
-            "> 10",
+            "<= 10",
         ),
         (
             {
@@ -211,22 +211,23 @@ def test_notification_text_by_type() -> None:
                 "threshold_min": 1,
                 "threshold_max": 2,
             },
-            "∉ [1, 2]",
+            "∈ [1, 2]",
         ),
         (
             {
                 "type_value_filtering": "WhiteList",
                 "filtering_values": ["a", "b"],
             },
-            "not is a, b",
+            "is a, b",
         ),
         (
             {
                 "type_value_filtering": "BlackList",
                 "filtering_values": ["a", "b"],
             },
-            "is a, b",
+            "not is a, b",
         ),
+        ({}, "any"),
     ):
         pipe = DataPipeAlertData.model_validate({"value": "x", **data})
         text = pipe.table_text
@@ -432,11 +433,11 @@ async def test_data_pipe_alert_live(
 
         data = created[0].data
         assert data["type_value_threshold"] == "Min"
-        assert data["threshold_min"] == 1000
+        assert data["threshold_min"] == 0
         assert data["topic_name"] == node.topic_name
         assert data["unit_uuid"] == str(node.unit_uuid)
         assert data["unit_name"] == running_units.chain_sink_unit.name
-        assert float(data["value"]) < 1000
+        assert float(data["value"]) >= 0
         alert = created[0]
         assert running_units.chain_sink_unit.name in alert.small_text
         assert running_units.chain_sink_unit.name in alert.table_text

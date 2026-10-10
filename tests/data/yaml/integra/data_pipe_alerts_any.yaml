@@ -1,0 +1,16 @@
+active_period:
+  type: "Permanent"
+
+filters:
+  type_input_value: "Text"
+
+  max_rate: 0
+  last_unique_check: false
+  max_size: 50
+
+processing_policy:
+  policy_type: "LastValue"
+
+# Neither list nor threshold: every value that passed the pipe alerts
+alerts:
+  is_enabled: true

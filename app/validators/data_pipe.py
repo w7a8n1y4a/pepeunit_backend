@@ -178,23 +178,25 @@ class ProcessingPolicyConfig(BaseModel):
 
 
 class AlertsConfig(BaseModel):
-    """Alert rules use the same shape as filters: a value an equivalent filter
-    would reject raises an alert. Values are typed by filters.type_input_value,
-    so the type dependent checks live in DataPipeConfig.
+    """Alert rules use the same acceptance as filters: a value an equivalent
+    filter would keep raises an alert. With neither rule set, every value
+    alerts. Values are typed by filters.type_input_value, so the type
+    dependent checks live in DataPipeConfig.
     """
 
     is_enabled: bool = True
 
-    # WhiteList alerts on a value outside the list, BlackList on a value inside it
+    # WhiteList alerts on a value in the list, BlackList on a value outside it
     type_value_filtering: FilterTypeValueFiltering | None = None
     filtering_values: list[str | int | float] | None = None
 
-    # Min alerts below threshold_min, Max above threshold_max, Range outside both
+    # Min alerts at or above threshold_min, Max at or below threshold_max,
+    # Range inside both
     type_value_threshold: FilterTypeValueThreshold | None = None
     threshold_min: int | None = None
     threshold_max: int | None = None
 
-    # Violations in a row required before the first alert
+    # Matches in a row required before the first alert
     consecutive_count: int = Field(default=1, ge=1, le=1024)
 
     # Minimum seconds between two alerts of the same node
@@ -202,12 +204,6 @@ class AlertsConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_alerts(self):
-        if (
-            self.type_value_filtering is None
-            and self.type_value_threshold is None
-        ):
-            msg = "type_value_filtering or type_value_threshold is required"
-            raise ValueError(msg)
         if self.type_value_filtering and not self.filtering_values:
             msg = f"filtering_values is required for {self.type_value_filtering.value} filtering"
             raise ValueError(msg)

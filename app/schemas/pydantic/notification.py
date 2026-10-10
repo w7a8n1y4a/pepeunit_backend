@@ -114,21 +114,23 @@ class DataPipeAlertData(NotificationContent):
     def _checks(self) -> list[str]:
         checks = []
         if self.type_value_threshold == FilterTypeValueThreshold.MIN:
-            checks.append(f"< {self.threshold_min:g}")
+            checks.append(f">= {self.threshold_min:g}")
         elif self.type_value_threshold == FilterTypeValueThreshold.MAX:
-            checks.append(f"> {self.threshold_max:g}")
+            checks.append(f"<= {self.threshold_max:g}")
         elif self.type_value_threshold == FilterTypeValueThreshold.RANGE:
             checks.append(
-                f"∉ [{self.threshold_min:g}, {self.threshold_max:g}]"
+                f"∈ [{self.threshold_min:g}, {self.threshold_max:g}]"
             )
         if self.type_value_filtering is not None:
             values = self._listed(self.filtering_values)
             if self.type_value_filtering == FilterTypeValueFiltering.WHITELIST:
-                checks.append(f"not is {values}")
+                checks.append(f"is {values}")
             elif (
                 self.type_value_filtering == FilterTypeValueFiltering.BLACKLIST
             ):
-                checks.append(f"is {values}")
+                checks.append(f"not is {values}")
+        if not checks:
+            checks.append("any")
         return checks
 
     def _shown_value(self) -> str:

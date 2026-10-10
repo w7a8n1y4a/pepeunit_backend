@@ -105,6 +105,7 @@ async def test_check_data_pipe_alerts_config(regular_user_token, database, cc) -
     for valid_yml in (
         "tests/data/yaml/integra/data_pipe_alerts.yaml",
         "tests/data/yaml/integra/data_pipe_alerts_text.yaml",
+        "tests/data/yaml/integra/data_pipe_alerts_any.yaml",
     ):
         data = await service.check_data_pipe_config(
             (await create_upload_file_from_path(valid_yml))

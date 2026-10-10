@@ -11,10 +11,11 @@ filters:
 processing_policy:
   policy_type: "LastValue"
 
-# The unit emulator publishes a counter from 0, every value is below the
-# threshold so the second message in a row raises the alert
+# The unit emulator publishes a counter from 0. Min matches a value at or
+# above threshold_min, so every counter value matches and the second message
+# in a row raises the alert
 alerts:
   type_value_threshold: "Min"
-  threshold_min: 1000
+  threshold_min: 0
   consecutive_count: 2
   max_frequency: 10
