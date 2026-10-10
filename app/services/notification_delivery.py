@@ -225,8 +225,8 @@ class NotificationDelivery:
         try:
             redis = await anext(session)
             for notification, user, _settings_row in pending:
-                body = NotificationRead(
-                    **notification.dict()
+                body = NotificationRead.model_validate(
+                    notification, from_attributes=True
                 ).model_dump_json()
                 await redis.xadd(
                     self.stream_name(user.uuid),
