@@ -108,7 +108,11 @@ class RestClient:
         )
         httpx.patch(
             update_repo_link,
-            json={"default_branch": target_registry["branches"][0]},
+            json={
+                "default_branch": target_registry["branches"][0],
+                "is_auto_update_repo": True,
+                "is_only_tag_update": False,
+            },
             headers=self.headers,
             timeout=settings.http_timeout(),
         )
