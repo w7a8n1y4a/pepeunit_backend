@@ -61,7 +61,7 @@ class UserService:
         user_count = self.user_repository.get_all_count()
         user.role = UserRole.USER if user_count > 0 else UserRole.ADMIN
 
-        user.status = UserStatus.UNVERIFIED
+        user.status = UserStatus.ACTIVE
         user.create_datetime = datetime.datetime.now(datetime.UTC)
 
         user.cipher_dynamic_salt, user.hashed_password = password_to_hash(
@@ -148,7 +148,6 @@ class UserService:
             telegram_chat_id, user.uuid
         )
 
-        user.status = UserStatus.VERIFIED
         user.telegram_chat_id = telegram_chat_id
         return self.user_repository.update(user.uuid, user)
 
@@ -169,12 +168,7 @@ class UserService:
         user = self.user_repository.get(User(uuid=uuid))
         is_valid_object(user)
 
-        user.status = (
-            UserStatus.VERIFIED
-            if user.telegram_chat_id
-            else UserStatus.UNVERIFIED
-        )
-
+        user.status = UserStatus.ACTIVE
         self.user_repository.update(user.uuid, user)
 
     def list(

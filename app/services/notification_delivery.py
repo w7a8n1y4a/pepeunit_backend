@@ -209,7 +209,10 @@ class NotificationDelivery:
         pending: list[tuple[Notification, User, NotificationSettings]],
     ) -> None:
         for notification, user, settings_row in pending:
-            if not settings_row.is_telegram_alert_enable:
+            if (
+                not settings_row.is_telegram_alert_enable
+                or not user.telegram_chat_id
+            ):
                 continue
             self.telegram.enqueue(
                 user.telegram_chat_id,

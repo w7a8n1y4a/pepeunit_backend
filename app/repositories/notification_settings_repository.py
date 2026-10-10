@@ -40,7 +40,7 @@ class NotificationSettingsRepository(BaseRepository[NotificationSettings]):
                 NotificationSettings.is_scheduled_alert_enable.is_(True),
                 NotificationSettings.scheduled_notification_time
                 == scheduled_notification_time,
-                User.status == UserStatus.VERIFIED.value,
+                User.status != UserStatus.BLOCKED.value,
             )
             .all()
         )

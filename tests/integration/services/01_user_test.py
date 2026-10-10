@@ -83,8 +83,11 @@ async def test_verification_user(
     await service.verification(telegram_chat_id(configured=True), code)
 
     redis = await anext(get_redis_session())
+    linked = service.get(regular_user.uuid)
     assert await redis.get(code) is None
-    assert service.get(regular_user.uuid).grafana_org_name == org_name
+    assert linked.grafana_org_name == org_name
+    assert linked.status == UserStatus.ACTIVE
+    assert linked.telegram_chat_id
 
 
 def test_block_unblock_user(
@@ -103,10 +106,7 @@ def test_block_unblock_user(
 
         service.unblock(user.uuid)
         refreshed = repository.get(User(uuid=user.uuid))
-        expected = (
-            UserStatus.VERIFIED if refreshed.telegram_chat_id else UserStatus.UNVERIFIED
-        )
-        assert refreshed.status == expected
+        assert refreshed.status == UserStatus.ACTIVE
         assert refreshed.grafana_org_name == org_name
 
 

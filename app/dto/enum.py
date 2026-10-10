@@ -45,8 +45,7 @@ class UserStatus(str, enum.Enum):
     Status User in Pepeunit
     """
 
-    UNVERIFIED = "Unverified"
-    VERIFIED = "Verified"
+    ACTIVE = "Active"
     BLOCKED = "Blocked"
 
 
@@ -67,9 +66,11 @@ class AgentType(str, enum.Enum):
 @strawberry.enum
 class AgentStatus(str, enum.Enum):
     """
-    Status User in Pepeunit
+    Status of an agent. Users are Active or Blocked. Other agents stay
+    Verified while they are allowed to act.
     """
 
+    ACTIVE = "Active"
     UNVERIFIED = "Unverified"
     VERIFIED = "Verified"
     BLOCKED = "Blocked"

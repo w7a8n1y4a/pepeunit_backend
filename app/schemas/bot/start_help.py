@@ -36,10 +36,10 @@ async def start_help_resolver(message: types.Message):
                     await user_service.verification(str(message.chat.id), code)
                     db.close()
 
-                    text = "You have been successfully verified"
+                    text = "Your Telegram is linked"
                 except HTTPException as e:
                     if e.status_code == 422:
-                        text = "You are already verified"
+                        text = "This Telegram account is already linked"
                     else:
                         text = "There is no such code"
 

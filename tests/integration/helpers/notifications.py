@@ -6,9 +6,7 @@ from contextlib import contextmanager, suppress
 from app import settings
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
-from app.dto.enum import UserStatus
 from app.repositories.notification_repository import NotificationRepository
-from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.notification import NotificationSettingsUpdate
 from tests.integration.helpers.services import notification_service
 
@@ -25,25 +23,14 @@ def settings_update_of(
 
 
 @contextmanager
-def as_recipient(database, cc, user, token) -> Iterator:
-    """Verified user whose notification settings are restored afterwards.
-
-    Scheduled and data pipe alerts go to verified users only, the session
-    users are verified through the telegram bot which the tests may not have.
-    """
-    repository = UserRepository(db=database)
-    previous_status = user.status
-    user.status = UserStatus.VERIFIED
-    repository.update(user.uuid, user)
-
+def as_recipient(database, cc, _user, token) -> Iterator:
+    """User whose notification settings are restored afterwards."""
     service = notification_service(database, cc, token)
     saved = settings_update_of(service.get_settings())
     try:
         yield service
     finally:
         service.update_settings(saved)
-        user.status = previous_status
-        repository.update(user.uuid, user)
 
 
 def latest_notification(database, user_uuid) -> Notification | None:

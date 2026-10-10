@@ -23,14 +23,14 @@ def mock_repos():
 def test_decode_user_token_success(mock_repos):
     user_repo, unit_repo = mock_repos
     user_uuid = uuid_pkg.uuid4()
-    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.ACTIVE)
     user_repo.get.return_value = user
 
     agent = AgentUser(
         uuid=user_uuid,
         name="test_user",
         type=AgentType.USER,
-        status=AgentStatus.VERIFIED,
+        status=AgentStatus.ACTIVE,
     )
     token = agent.generate_agent_token()
 
@@ -40,20 +40,20 @@ def test_decode_user_token_success(mock_repos):
     assert isinstance(current_agent, AgentUser)
     assert current_agent.uuid == user_uuid
     assert current_agent.name == "test_user"
-    assert current_agent.status == AgentStatus.VERIFIED
+    assert current_agent.status == AgentStatus.ACTIVE
 
 
 def test_decode_expired_token(mock_repos):
     user_repo, unit_repo = mock_repos
     user_uuid = uuid_pkg.uuid4()
-    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.ACTIVE)
     user_repo.get.return_value = user
 
     agent = AgentUser(
         uuid=user_uuid,
         name="test_user",
         type=AgentType.USER,
-        status=AgentStatus.VERIFIED,
+        status=AgentStatus.ACTIVE,
     )
     token = agent.generate_agent_token(10000)
 
@@ -188,7 +188,7 @@ def test_init_with_telegram_chat_id(mock_repos):
     user_repo, unit_repo = mock_repos
     telegram_chat_id = "12345"
     user_uuid = uuid_pkg.uuid4()
-    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.ACTIVE)
     user_repo.get_user_by_credentials.return_value = user
 
     auth_service = TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
@@ -233,11 +233,11 @@ def test_get_current_agent(mock_repos):
     user_repo, unit_repo = mock_repos
     telegram_chat_id = "12345"
     user_uuid = uuid_pkg.uuid4()
-    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.VERIFIED)
+    user = User(uuid=user_uuid, login="test_user", status=AgentStatus.ACTIVE)
     user_repo.get_user_by_credentials.return_value = user
     auth_service = TgBotAuthService(user_repo, unit_repo, telegram_chat_id)
 
     current_agent = auth_service.get_current_agent()
 
     assert isinstance(current_agent, AgentUser)
-    assert current_agent.status == AgentStatus.VERIFIED
+    assert current_agent.status == AgentStatus.ACTIVE

@@ -282,7 +282,7 @@ class NotificationService:
                 )
             else:
                 if (
-                    user.status == UserStatus.VERIFIED.value
+                    user.status != UserStatus.BLOCKED.value
                     and settings_row.allows(notification.type)
                 ):
                     ready.append((notification, user, settings_row))

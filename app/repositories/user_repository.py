@@ -113,5 +113,5 @@ class UserRepository(BaseRepository):
         if (uuid is None and user_uuid) or (
             uuid and user_uuid != uuid and user_uuid is not None
         ):
-            msg = "This Telegram User is already verified"
+            msg = "This Telegram account is already linked"
             raise UserError(msg)
