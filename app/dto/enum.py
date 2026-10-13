@@ -1,21 +1,16 @@
 import enum
 
-import strawberry
 
-
-@strawberry.enum
 class OrderByDate(str, enum.Enum):
     asc = "asc"
     desc = "desc"
 
 
-@strawberry.enum
 class OrderByText(str, enum.Enum):
     asc = "asc"
     desc = "desc"
 
 
-@strawberry.enum
 class VisibilityLevel(str, enum.Enum):
     """
     Visibility level for all entities
@@ -29,7 +24,6 @@ class VisibilityLevel(str, enum.Enum):
     PRIVATE = "Private"
 
 
-@strawberry.enum
 class UserRole(str, enum.Enum):
     """
     Role User in Pepeunit
@@ -39,7 +33,6 @@ class UserRole(str, enum.Enum):
     ADMIN = "Admin"
 
 
-@strawberry.enum
 class UserStatus(str, enum.Enum):
     """
     Status User in Pepeunit
@@ -49,7 +42,6 @@ class UserStatus(str, enum.Enum):
     BLOCKED = "Blocked"
 
 
-@strawberry.enum
 class AgentType(str, enum.Enum):
     """
     Agent type in the Pepeunit system
@@ -63,7 +55,6 @@ class AgentType(str, enum.Enum):
     GRAFANA_UNIT_NODE = "GrafanaUnitNode"
 
 
-@strawberry.enum
 class AgentStatus(str, enum.Enum):
     """
     Status of an agent. Users are Active or Blocked. Other agents stay
@@ -76,7 +67,6 @@ class AgentStatus(str, enum.Enum):
     BLOCKED = "Blocked"
 
 
-@strawberry.enum
 class OwnershipType(str, enum.Enum):
     """
     Ownership rules type
@@ -87,7 +77,6 @@ class OwnershipType(str, enum.Enum):
     UNIT_TO_INPUT_NODE = "UnitToInputNode"
 
 
-@strawberry.enum
 class UnitNodeTypeEnum(str, enum.Enum):
     """
     UnitNode types for database
@@ -97,7 +86,6 @@ class UnitNodeTypeEnum(str, enum.Enum):
     INPUT = "Input"
 
 
-@strawberry.enum
 class UnitFirmwareUpdateStatus(str, enum.Enum):
     """
     Unit update status
@@ -108,7 +96,6 @@ class UnitFirmwareUpdateStatus(str, enum.Enum):
     SUCCESS = "Success"
 
 
-@strawberry.enum
 class ReservedOutputBaseTopic(str, enum.Enum):
     """
     Booked output topics at Unit
@@ -118,7 +105,6 @@ class ReservedOutputBaseTopic(str, enum.Enum):
     LOG = "log"
 
 
-@strawberry.enum
 class BackendTopicCommand(str, enum.Enum):
     """
     Booked input topics at Unit
@@ -131,7 +117,6 @@ class BackendTopicCommand(str, enum.Enum):
     RESET = "Reset"
 
 
-@strawberry.enum
 class ReservedInputBaseTopic(str, enum.Enum):
     """
     Booked input topics at Unit
@@ -144,7 +129,6 @@ class ReservedInputBaseTopic(str, enum.Enum):
     RESET = "reset"
 
 
-@strawberry.enum
 class DestinationTopicType(str, enum.Enum):
     """
     Allowed types of mqtt topic destinations
@@ -156,7 +140,6 @@ class DestinationTopicType(str, enum.Enum):
     OUTPUT_TOPIC = "output_topic"
 
 
-@strawberry.enum
 class GlobalPrefixTopic(str, enum.Enum):
     """
     Global topic prefixes
@@ -167,7 +150,6 @@ class GlobalPrefixTopic(str, enum.Enum):
     )
 
 
-@strawberry.enum
 class StaticRepoFileName(str, enum.Enum):
     """
     Static files
@@ -179,7 +161,6 @@ class StaticRepoFileName(str, enum.Enum):
     ENV = "env.json"
 
 
-@strawberry.enum
 class ReservedStateKey(str, enum.Enum):
     """
     Reserved state Unit keys
@@ -194,7 +175,6 @@ class ReservedStateKey(str, enum.Enum):
     PU_COMMIT_VERSION = "pu_commit_version"
 
 
-@strawberry.enum
 class ReservedEnvVariableName(str, enum.Enum):
     """
     Reserved environment variable names in Unit
@@ -217,7 +197,6 @@ class ReservedEnvVariableName(str, enum.Enum):
     PU_COMMIT_VERSION = "PU_COMMIT_VERSION"
 
 
-@strawberry.enum
 class CommandNames(str, enum.Enum):
     """
     Commands supported by the bot
@@ -236,7 +215,6 @@ class CommandNames(str, enum.Enum):
     CONTROL = "control"
 
 
-@strawberry.enum
 class EntityNames(str, enum.Enum):
     """
     Commands supported by the bot
@@ -253,7 +231,6 @@ class EntityNames(str, enum.Enum):
     CONTROL = "Control"
 
 
-@strawberry.enum
 class DecreesNames(str, enum.Enum):
     """
     Commands supported by the bot
@@ -272,7 +249,6 @@ class DecreesNames(str, enum.Enum):
     ZIP = "Zip"
 
 
-@strawberry.enum
 class PermissionEntities(str, enum.Enum):
     """
     Types of entities to which accesses are assigned
@@ -284,7 +260,6 @@ class PermissionEntities(str, enum.Enum):
     UNIT_NODE = "UnitNode"
 
 
-@strawberry.enum
 class GitPlatform(str, enum.Enum):
     """
     Types git platforms
@@ -294,7 +269,6 @@ class GitPlatform(str, enum.Enum):
     GITHUB = "Github"
 
 
-@strawberry.enum
 class LogLevel(str, enum.Enum):
     """
     Types of log levels
@@ -307,7 +281,6 @@ class LogLevel(str, enum.Enum):
     CRITICAL = "Critical"
 
 
-@strawberry.enum
 class DataPipeStatus(str, enum.Enum):
     """
     Types of state data pipeline
@@ -318,7 +291,6 @@ class DataPipeStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-@strawberry.enum
 class DataPipeStage(str, enum.Enum):
     """
     Stages data pipeline
@@ -331,7 +303,6 @@ class DataPipeStage(str, enum.Enum):
     ALERTS = "Alerts"
 
 
-@strawberry.enum
 class ActivePeriodType(str, enum.Enum):
     PERMANENT = "Permanent"
     FROM_DATE = "FromDate"
@@ -339,26 +310,22 @@ class ActivePeriodType(str, enum.Enum):
     DATE_RANGE = "DateRange"
 
 
-@strawberry.enum
 class TypeInputValue(str, enum.Enum):
     TEXT = "Text"
     NUMBER = "Number"
 
 
-@strawberry.enum
 class FilterTypeValueFiltering(str, enum.Enum):
     WHITELIST = "WhiteList"
     BLACKLIST = "BlackList"
 
 
-@strawberry.enum
 class FilterTypeValueThreshold(str, enum.Enum):
     MIN = "Min"
     MAX = "Max"
     RANGE = "Range"
 
 
-@strawberry.enum
 class ProcessingPolicyType(str, enum.Enum):
     LAST_VALUE = "LastValue"
     N_RECORDS = "NRecords"
@@ -366,7 +333,6 @@ class ProcessingPolicyType(str, enum.Enum):
     AGGREGATION = "Aggregation"
 
 
-@strawberry.enum
 class AggregationFunctions(str, enum.Enum):
     AVG = "Avg"
     MIN = "Min"
@@ -374,12 +340,10 @@ class AggregationFunctions(str, enum.Enum):
     SUM = "Sum"
 
 
-@strawberry.enum
 class DatasourceFormat(str, enum.Enum):
     TIME_SERIES = "timeseries"
 
 
-@strawberry.enum
 class RepositoryRegistryStatus(str, enum.Enum):
     """
     Types of state RepositoryRegistry
@@ -390,7 +354,6 @@ class RepositoryRegistryStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-@strawberry.enum
 class CredentialStatus(str, enum.Enum):
     """
     Types of state CredentialStatus
@@ -401,7 +364,6 @@ class CredentialStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-@strawberry.enum
 class RepositoryRegistryType(str, enum.Enum):
     """
     Types of log levels
@@ -411,7 +373,6 @@ class RepositoryRegistryType(str, enum.Enum):
     PUBLIC = "Public"
 
 
-@strawberry.enum
 class GrafanaUserRole(str, enum.Enum):
     """
     Role User for Grafana
@@ -422,7 +383,6 @@ class GrafanaUserRole(str, enum.Enum):
     ADMIN = "Admin"
 
 
-@strawberry.enum
 class CookieName(str, enum.Enum):
     """
     All Cookies names
@@ -431,7 +391,6 @@ class CookieName(str, enum.Enum):
     PEPEUNIT_GRAFANA = "PepeunitGrafana"
 
 
-@strawberry.enum
 class DashboardPanelTypeEnum(str, enum.Enum):
     """
     All dashboard panel types
@@ -491,7 +450,6 @@ class DashboardPanelTypeEnum(str, enum.Enum):
     XY_CHART = "xychart"
 
 
-@strawberry.enum
 class DashboardStatus(str, enum.Enum):
     """
     Types of state Dashboard sync
@@ -502,14 +460,12 @@ class DashboardStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-@strawberry.enum
 class InstanceTrustStatus(str, enum.Enum):
     TRUST = "Trust"
     PENDING = "Pending"
     BLOCKING = "Blocking"
 
 
-@strawberry.enum
 class InstanceCollectionStatus(str, enum.Enum):
     SUCCESS = "Success"
     TIMEOUT = "Timeout"
@@ -517,14 +473,12 @@ class InstanceCollectionStatus(str, enum.Enum):
     BLOCKING = "Blocking"
 
 
-@strawberry.enum
 class OperationTaskStatus(str, enum.Enum):
     RUNNING = "Running"
     SUCCESS = "Success"
     ERROR = "Error"
 
 
-@strawberry.enum
 class OperationTaskType(str, enum.Enum):
     INTEGRATION_TESTS = "IntegrationTests"
     SCAN_ALL_INSTANCES = "ScanAllInstances"
@@ -535,7 +489,6 @@ class OperationTaskType(str, enum.Enum):
     UPDATE_ALL_UNITS_FIRMWARE = "UpdateAllUnitsFirmware"
 
 
-@strawberry.enum
 class IntegrationTestsStatus(str, enum.Enum):
     SUCCESS = "Success"
     RUNNING = "Running"
@@ -548,7 +501,6 @@ class CacheKey(str, enum.Enum):
     INSTANCE_METRICS_PUBLIC = "InstanceMetricsPublic"
 
 
-@strawberry.enum
 class NotificationType(str, enum.Enum):
     """
     What a notification shows

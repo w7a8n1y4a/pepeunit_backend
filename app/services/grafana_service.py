@@ -27,22 +27,10 @@ from app.repositories.panels_unit_nodes_repository import (
 )
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.grafana import (
-    DashboardCreateInput,
-    DashboardFilterInput,
-    DashboardPanelCreateInput,
-    LinkUnitNodeToPanelInput,
-)
-from app.schemas.gql.types.grafana import (
-    DashboardPanelType,
-    UnitNodeForPanelType,
-)
-from app.schemas.gql.types.shared import UnitNodeType
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
     DashboardPanelCreate,
-    DashboardPanelRead,
     DashboardPanelsResult,
     DatasourceFilter,
     DatasourceTimeSeriesData,
@@ -122,9 +110,7 @@ class GrafanaService:
             unit_node_panel,
         )
 
-    def create_dashboard(
-        self, data: DashboardCreate | DashboardCreateInput
-    ) -> Dashboard:
+    def create_dashboard(self, data: DashboardCreate) -> Dashboard:
         self.access_service.authorization.check_access([AgentType.USER])
 
         if not is_valid_string_with_rules(data.name):
@@ -140,7 +126,7 @@ class GrafanaService:
         return self.dashboard_repository.create(dashboard)
 
     def create_dashboard_panel(
-        self, data: DashboardPanelCreate | DashboardPanelCreateInput
+        self, data: DashboardPanelCreate
     ) -> DashboardPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -167,7 +153,7 @@ class GrafanaService:
         return self.dashboard_panel_repository.create(dashboard_panel)
 
     def link_unit_node_to_panel(
-        self, data: LinkUnitNodeToPanel | LinkUnitNodeToPanelInput
+        self, data: LinkUnitNodeToPanel
     ) -> UnitNodeForPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -224,7 +210,7 @@ class GrafanaService:
         return dashboard
 
     def list_dashboards(
-        self, filters: DashboardFilter | DashboardFilterInput
+        self, filters: DashboardFilter
     ) -> tuple[int, list[Dashboard]]:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -336,31 +322,6 @@ class GrafanaService:
         )
 
         self.panels_unit_nodes_repository.delete(unit_node, dashboard_panel)
-
-    @staticmethod
-    def mapper_unit_nodes_to_type(
-        unit_node: UnitNodeForPanel,
-    ) -> UnitNodeForPanelType:
-        unit_node_dict = unit_node.dict()
-        unit_node = unit_node_dict.pop("unit_node")
-
-        return UnitNodeForPanelType(
-            unit_node=UnitNodeType(**unit_node), **unit_node_dict
-        )
-
-    def mapper_panel_to_type(
-        self, panel: DashboardPanelRead
-    ) -> DashboardPanelType:
-        panel_dict = panel.dict()
-        nodes = panel_dict.pop("unit_nodes_for_panel")
-
-        return DashboardPanelType(
-            unit_nodes_for_panel=[
-                self.mapper_unit_nodes_to_type(UnitNodeForPanel(**node))
-                for node in nodes
-            ],
-            **panel_dict,
-        )
 
     def check_unique_unit_node_for_panel(
         self, dashboard_panel: Dashboard, unit_node: UnitNode

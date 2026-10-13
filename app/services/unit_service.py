@@ -41,14 +41,6 @@ from app.repositories.repository_registry_repository import (
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.unit import (
-    UnitCreateInput,
-    UnitFilterInput,
-    UnitLogFilterInput,
-    UnitUpdateInput,
-)
-from app.schemas.gql.types.shared import UnitNodeType
-from app.schemas.gql.types.unit import UnitStateType, UnitType
 from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import UnitNodeRead
@@ -100,7 +92,7 @@ class UnitService:
         self.permission_service = permission_service
         self.unit_node_service = unit_node_service
 
-    def create(self, data: UnitCreate | UnitCreateInput) -> Unit:
+    def create(self, data: UnitCreate) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
         self.unit_repository.is_valid_name(data.name)
 
@@ -174,9 +166,7 @@ class UnitService:
         self.access_service.authorization.check_visibility(unit)
         return unit
 
-    def update(
-        self, uuid: uuid_pkg.UUID, data: UnitUpdate | UnitUpdateInput
-    ) -> Unit:
+    def update(self, uuid: uuid_pkg.UUID, data: UnitUpdate) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
@@ -657,7 +647,7 @@ class UnitService:
 
     def list(
         self,
-        filters: UnitFilter | UnitFilterInput,
+        filters: UnitFilter,
         is_include_output_unit_nodes: bool = False,
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
         self.access_service.authorization.check_access(
@@ -679,7 +669,7 @@ class UnitService:
         )
 
     def log_list(
-        self, filters: UnitLogFilter | UnitLogFilterInput
+        self, filters: UnitLogFilter
     ) -> tuple[int, builtins.list[UnitLog]]:
         self.access_service.authorization.check_access(
             [AgentType.USER, AgentType.UNIT]
@@ -894,22 +884,6 @@ class UnitService:
         return UnitRead(
             **unit[0].to_dict(),
             unit_nodes=[UnitNodeRead(**item) for item in unit[1]],
-        )
-
-    @staticmethod
-    def mapper_unit_to_unit_type(
-        unit: tuple[Unit, builtins.list[dict]],
-    ) -> UnitType:
-        unit_dict = unit[0].to_dict()
-        unit_state = unit_dict["unit_state"]
-        del unit_dict["unit_state"]
-
-        return UnitType(
-            **unit_dict,
-            unit_nodes=[
-                UnitNodeType(**UnitNodeRead(**item).dict()) for item in unit[1]
-            ],
-            unit_state=UnitStateType(**unit_state) if unit_state else None,
         )
 
     @staticmethod

@@ -145,7 +145,6 @@ class CurrentInstanceSchemaV1(BaseModel):
     description: str = settings.description
     license: str = settings.license
     swagger: str = f"{settings.pu_link_prefix}/docs"
-    graphql: str = f"{settings.pu_link_prefix}/graphql"
     grafana: str = f"{settings.pu_link}/grafana/"
     telegram_bot: str = settings.pu_telegram_bot_link
     feature_flags: FeatureFlags = FeatureFlags()

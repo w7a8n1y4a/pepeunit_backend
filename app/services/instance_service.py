@@ -46,19 +46,6 @@ from app.repositories.operation_task_repository import OperationTaskRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
-from app.schemas.gql.inputs.instance import (
-    InstanceCreateInput,
-    InstanceFilterInput,
-    InstanceUpdateInput,
-)
-from app.schemas.gql.types.instance import (
-    CurrentInstanceContactsType,
-    CurrentInstanceMetricsType,
-    CurrentInstanceSettingsType,
-    CurrentInstanceStateType,
-    CurrentInstanceType,
-    FeatureFlagsType,
-)
 from app.schemas.pydantic.instance import (
     CurrentInstanceMetricsV1,
     CurrentInstanceSchemaV1,
@@ -118,7 +105,7 @@ class InstanceService:
         self.operation_task_service = operation_task_service
         self.access_service = access_service
 
-    def create(self, data: InstanceCreate | InstanceCreateInput) -> Instance:
+    def create(self, data: InstanceCreate) -> Instance:
         self.access_service.authorization.check_access(
             [AgentType.USER],
             [UserRole.ADMIN],
@@ -142,9 +129,7 @@ class InstanceService:
         self.access_service.authorization.check_access([AgentType.USER])
         return self.get_instance(uuid)
 
-    def list(
-        self, filters: InstanceFilter | InstanceFilterInput
-    ) -> tuple[int, list[Instance]]:
+    def list(self, filters: InstanceFilter) -> tuple[int, list[Instance]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER]
         )
@@ -153,7 +138,7 @@ class InstanceService:
     def update(
         self,
         uuid: uuid_pkg.UUID,
-        data: InstanceUpdate | InstanceUpdateInput,
+        data: InstanceUpdate,
     ) -> Instance:
         self.access_service.authorization.check_access(
             [AgentType.USER],
@@ -190,18 +175,14 @@ class InstanceService:
     def get_cached_current(self) -> CurrentInstanceSchemaV1:
         return self.instance_cache_repository.get_current()
 
-    def get_cached_instances(
-        self, filters: InstanceFilter | InstanceFilterInput
-    ) -> InstancesPage:
+    def get_cached_instances(self, filters: InstanceFilter) -> InstancesPage:
         return self.instance_cache_repository.get_instances(filters)
 
-    def get_cached_urls(
-        self, filters: InstanceFilter | InstanceFilterInput
-    ) -> InstanceUrlsPage:
+    def get_cached_urls(self, filters: InstanceFilter) -> InstanceUrlsPage:
         return self.instance_cache_repository.get_urls(filters)
 
     def get_cached_registries(
-        self, filters: InstanceFilter | InstanceFilterInput
+        self, filters: InstanceFilter
     ) -> InstanceRegistriesPage:
         return self.instance_cache_repository.get_registries(filters)
 
@@ -656,25 +637,4 @@ class InstanceService:
         return InstancePublicRegistry(
             url=registry.repository_url,
             platform=GitPlatform(registry.platform),
-        )
-
-    @staticmethod
-    def mapper_current_to_current_instance_type(
-        current: CurrentInstanceSchemaV1,
-    ) -> CurrentInstanceType:
-        current_dict = current.dict()
-
-        return CurrentInstanceType(
-            feature_flags=FeatureFlagsType(
-                **current_dict.pop("feature_flags")
-            ),
-            settings=CurrentInstanceSettingsType(
-                **current_dict.pop("settings")
-            ),
-            state=CurrentInstanceStateType(**current_dict.pop("state")),
-            metrics=CurrentInstanceMetricsType(**current_dict.pop("metrics")),
-            contacts=CurrentInstanceContactsType(
-                **current_dict.pop("contacts")
-            ),
-            **current_dict,
         )

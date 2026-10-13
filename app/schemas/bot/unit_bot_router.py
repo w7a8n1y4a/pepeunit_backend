@@ -259,7 +259,7 @@ class UnitBotRouter(BaseBotRouter):
                 db, cc, str(callback.from_user.id)
             )
 
-            unit = unit_service.mapper_unit_to_unit_type(
+            unit = unit_service.mapper_unit_to_unit_read(
                 (unit_service.get(unit_uuid), [])
             )
             repo = repo_service.get(unit.repo_uuid)

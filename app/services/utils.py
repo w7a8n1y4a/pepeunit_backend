@@ -57,9 +57,6 @@ async def yml_file_to_dict(yml_file) -> dict:
     content = ""
     if isinstance(yml_file, StarletteUploadFile):
         content = await yml_file.read()
-    elif hasattr(yml_file, "read"):
-        # Handle Upload type from strawberry
-        content = await yml_file.read()
 
     if isinstance(content, bytes):
         content = content.decode("utf-8")
@@ -406,9 +403,6 @@ def toml_to_md(data: dict) -> str:
 async def toml_file_to_md(toml_file) -> str:
     content: str | bytes = ""
     if isinstance(toml_file, StarletteUploadFile):
-        content = await toml_file.read()
-    elif hasattr(toml_file, "read"):
-        # Handle Upload type from strawberry
         content = await toml_file.read()
 
     if isinstance(content, bytes):

@@ -11,12 +11,9 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-from strawberry import Schema
-from strawberry.fastapi import GraphQLRouter
 
 from app import BackendLogLevel, settings
 from app.configs.errors import CustomException
-from app.configs.gql import get_graphql_context
 from app.configs.logging_config import setup_logging
 from app.configs.utils import recreate_directory
 from app.routers.v1.endpoints import api_router
@@ -35,8 +32,6 @@ from app.schemas.bot.unit_bot_router import UnitBotRouter
 from app.schemas.bot.unit_log_bot_router import UnitLogBotRouter
 from app.schemas.bot.unit_node_bot_router import UnitNodeBotRouter
 from app.schemas.bot.utils import build_telegram_bot
-from app.schemas.gql.mutation import Mutation
-from app.schemas.gql.query import Query
 from app.schemas.mqtt.topic import mqtt
 from app.services.startup_service import StartupService
 
@@ -82,21 +77,6 @@ app = FastAPI(
 )
 
 app.add_middleware(CustomExceptionMiddleware)
-
-schema = Schema(query=Query, mutation=Mutation)
-graphql = GraphQLRouter(
-    schema,
-    graphql_ide="graphiql",
-    context_getter=get_graphql_context,
-    multipart_uploads_enabled=True,
-)
-
-
-app.include_router(
-    graphql,
-    prefix=f"{settings.pu_app_prefix}/graphql",
-    include_in_schema=False,
-)
 
 
 def custom_json_dumps(obj: dict, **kwargs):

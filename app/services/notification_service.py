@@ -25,20 +25,12 @@ from app.repositories.notification_settings_repository import (
 )
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.notification import (
-    NotificationFilterInput,
-    NotificationSettingsUpdateInput,
-)
-from app.schemas.gql.types.notification import (
-    NotificationType as NotificationTypeGql,
-)
 from app.schemas.pydantic.notification import (
     OPERATION_TASK_ALERTS,
     DataPipeAlertData,
     InstanceDailyStateData,
     InstanceError,
     NotificationFilter,
-    NotificationRead,
     NotificationSettingsUpdate,
     UnitDailySummaryData,
     UnitErrorCount,
@@ -91,7 +83,7 @@ class NotificationService:
             raise FeatureFlagError()
 
     def list(
-        self, filters: NotificationFilter | NotificationFilterInput
+        self, filters: NotificationFilter
     ) -> tuple[int, list[Notification]]:
         self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
@@ -139,14 +131,6 @@ class NotificationService:
             is_visible=True,
         )
 
-    @staticmethod
-    def mapper_notification_to_notification_type(
-        notification: Notification,
-    ) -> NotificationTypeGql:
-        return NotificationTypeGql(
-            **NotificationRead(**notification.dict()).dict()
-        )
-
     def get_settings(self) -> NotificationSettings:
         self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])
@@ -156,7 +140,7 @@ class NotificationService:
 
     def update_settings(
         self,
-        data: (NotificationSettingsUpdateInput | NotificationSettingsUpdate),
+        data: NotificationSettingsUpdate,
     ) -> NotificationSettings:
         self.is_notification_enable()
         self.access_service.authorization.check_access([AgentType.USER])

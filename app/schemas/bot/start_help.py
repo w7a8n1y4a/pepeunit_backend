@@ -81,7 +81,6 @@ async def start_help_resolver(message: types.Message):
 
     buttons = [
         InlineKeyboardButton(text="Swagger", url=root_data.swagger),
-        InlineKeyboardButton(text="Graphql", url=root_data.graphql),
         InlineKeyboardButton(text="Grafana", url=root_data.grafana),
     ]
 

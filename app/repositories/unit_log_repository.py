@@ -10,7 +10,6 @@ from app.configs.clickhouse import get_clickhouse_client
 from app.dto.clickhouse.log import UnitErrorCount, UnitLog
 from app.dto.clickhouse.orm import ClickhouseOrm
 from app.repositories.utils import get_offset_and_limit_clause
-from app.schemas.gql.inputs.unit import UnitLogFilterInput
 from app.schemas.pydantic.unit import UnitLogFilter
 from app.services.validators import is_valid_uuid
 from app.utils.utils import naive_utc
@@ -42,9 +41,7 @@ class UnitLogRepository:
         query = "delete from unit_logs where unit_uuid = %(uuid)s"
         self.client.execute(query, {"uuid": uuid})
 
-    def list(
-        self, filters: UnitLogFilter | UnitLogFilterInput
-    ) -> tuple[int, list[UnitLog]]:
+    def list(self, filters: UnitLogFilter) -> tuple[int, list[UnitLog]]:
         query = f"select {UnitLog.get_keys()} from unit_logs where unit_uuid = %(uuid)s"
         count_query = (
             "select count() as count from unit_logs where unit_uuid = %(uuid)s"

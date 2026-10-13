@@ -22,11 +22,6 @@ from app.dto.enum import (
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.repo import (
-    RepoCreateInput,
-    RepoFilterInput,
-    RepoUpdateInput,
-)
 from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.repo import (
     RepoCreate,
@@ -73,7 +68,7 @@ class RepoService:
         self.operation_task_service = operation_task_service
         self.access_service = access_service
 
-    def create(self, data: RepoCreate | RepoCreateInput) -> Repo:
+    def create(self, data: RepoCreate) -> Repo:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repository_registry = self.repository_registry_service.repository_registry_repository.get(
@@ -173,9 +168,7 @@ class RepoService:
 
         return self.repo_repository.get_versions(repo)
 
-    def update(
-        self, uuid: uuid_pkg.UUID, data: RepoUpdate | RepoUpdateInput
-    ) -> Repo:
+    def update(self, uuid: uuid_pkg.UUID, data: RepoUpdate) -> Repo:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
@@ -239,8 +232,8 @@ class RepoService:
         return repo
 
     def update_units_firmware(self, uuid: uuid_pkg.UUID) -> str:
-        count_success_update, count_error_update = (
-            self._update_units_firmware(uuid)
+        count_success_update, count_error_update = self._update_units_firmware(
+            uuid
         )
         summary = self._units_firmware_summary(
             count_success_update, count_error_update
@@ -389,9 +382,7 @@ class RepoService:
 
         self.repo_repository.delete(repo)
 
-    def list(
-        self, filters: RepoFilter | RepoFilterInput
-    ) -> tuple[int, list[Repo]]:
+    def list(self, filters: RepoFilter) -> tuple[int, list[Repo]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER]
         )

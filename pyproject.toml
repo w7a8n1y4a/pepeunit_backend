@@ -26,7 +26,6 @@ dependencies = [
     "pyaes>=1.6.1",
     "gitpython>=3.1.40",
     "fastapi-mqtt>=1.2.0",
-    "strawberry-graphql>=0.220.0",
     "gunicorn>=21.2.0",
     "aiogram>=3.6.0",
     "aiohttp-socks>=0.10.1",
@@ -164,7 +163,7 @@ ignore = [
     "T201",    # print deletion without except
     "S104",    # 0.0.0.0 host issue
     "SLF001",  # _method access
-    "UP042",   # replace str enum (invasive for strawberry enums)
+    "UP042",   # keep str enums as (str, Enum)
     "TC001",   # typing-only first-party import
     "TC002",   # typing-only third-party import
     "TC003",   # typing-only stdlib import

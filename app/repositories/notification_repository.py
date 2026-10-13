@@ -11,7 +11,6 @@ from app.domain.notification_settings_model import NotificationSettings
 from app.domain.user_model import User
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_enums, apply_offset_and_limit
-from app.schemas.gql.inputs.notification import NotificationFilterInput
 from app.schemas.pydantic.notification import NotificationFilter
 
 
@@ -35,7 +34,7 @@ class NotificationRepository(BaseRepository[Notification]):
     def list(
         self,
         user_uuid: uuid_pkg.UUID,
-        filters: NotificationFilter | NotificationFilterInput,
+        filters: NotificationFilter,
         is_visible: bool = False,
     ) -> tuple[int, list[Notification]]:
         query = self.db.query(Notification).filter(

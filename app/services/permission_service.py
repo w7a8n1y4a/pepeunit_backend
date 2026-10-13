@@ -10,10 +10,6 @@ from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import AgentType, OwnershipType
 from app.repositories.permission_repository import PermissionRepository
-from app.schemas.gql.inputs.permission import (
-    PermissionCreateInput,
-    PermissionFilterInput,
-)
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object, is_valid_uuid
@@ -30,7 +26,7 @@ class PermissionService:
 
     def create(
         self,
-        data: PermissionCreate | PermissionCreateInput | PermissionBaseType,
+        data: PermissionCreate | PermissionBaseType,
         is_api: bool = True,
     ) -> PermissionBaseType:
         is_valid_uuid(data.agent_uuid)
@@ -77,7 +73,7 @@ class PermissionService:
         return self.create(new_permission, is_api=False)
 
     def get_resource_agents(
-        self, filters: PermissionFilter | PermissionFilterInput
+        self, filters: PermissionFilter
     ) -> tuple[int, list[PermissionBaseType]]:
         is_valid_uuid(filters.resource_uuid)
 

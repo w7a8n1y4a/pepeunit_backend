@@ -51,13 +51,6 @@ from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
-from app.schemas.gql.inputs.unit_node import (
-    DataPipeFilterInput,
-    UnitNodeEdgeCreateInput,
-    UnitNodeFilterInput,
-    UnitNodeSetStateInput,
-    UnitNodeUpdateInput,
-)
 from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_node import (
     DataPipeFilter,
@@ -269,7 +262,7 @@ class UnitNodeService:
         self.unit_node_repository.bulk_save(update_list)
 
     async def update(
-        self, uuid: uuid_pkg.UUID, data: UnitNodeUpdate | UnitNodeUpdateInput
+        self, uuid: uuid_pkg.UUID, data: UnitNodeUpdate
     ) -> UnitNode:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -333,7 +326,7 @@ class UnitNodeService:
     def set_state_input(
         self,
         uuid: uuid_pkg.UUID,
-        data: UnitNodeSetState | UnitNodeSetStateInput,
+        data: UnitNodeSetState,
     ) -> UnitNode:
         self.access_service.authorization.check_access(
             [AgentType.USER, AgentType.UNIT]
@@ -475,9 +468,7 @@ class UnitNodeService:
 
         return message_dict
 
-    def create_node_edge(
-        self, data: UnitNodeEdgeCreate | UnitNodeEdgeCreateInput
-    ) -> UnitNodeEdge:
+    def create_node_edge(self, data: UnitNodeEdgeCreate) -> UnitNodeEdge:
         data.node_input_uuid = is_valid_uuid(data.node_input_uuid)
         data.node_output_uuid = is_valid_uuid(data.node_output_uuid)
 
@@ -655,7 +646,7 @@ class UnitNodeService:
         self.data_pipe_repository.bulk_delete([unit_node.uuid])
 
     def get_data_pipe_data(
-        self, filters: DataPipeFilter | DataPipeFilterInput
+        self, filters: DataPipeFilter
     ) -> tuple[int, list[NRecords | TimeWindow | Aggregation | LastValue]]:
         if not settings.pu_ff_datapipe_enable:
             raise FeatureFlagError()
@@ -791,9 +782,7 @@ class UnitNodeService:
                 is_auto_update=True,
             )
 
-    def list(
-        self, filters: UnitNodeFilter | UnitNodeFilterInput
-    ) -> tuple[int, list[UnitNode]]:
+    def list(self, filters: UnitNodeFilter) -> tuple[int, list[UnitNode]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER, AgentType.UNIT]
         )

@@ -303,7 +303,6 @@ def logo_to_console():
        Federated IoT Platform
        Front: {settings.pu_link}
        REST:  {settings.pu_link_prefix}/docs
-       GQL:   {settings.pu_link_prefix}/graphql
        TG:    {settings.pu_telegram_bot_link}
        Docs:  https://pepeunit.com
               """
