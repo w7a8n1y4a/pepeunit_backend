@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import aiogram.exceptions
 import httpx
 from aiogram import Bot, Dispatcher
+from aiogram.types import WebhookInfo
 from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
@@ -209,13 +210,16 @@ class StartupService:
             logging.error(f"Error in polling bot: {e}")
             raise
 
-    async def _run_webhook_bot(self) -> None:
-        webhook_url = f"{settings.pu_link_prefix_and_v1}/bot"
+    def _webhook_is_current(
+        self, webhook_info: WebhookInfo, webhook_url: str
+    ) -> bool:
+        if webhook_info.url != webhook_url:
+            return False
+        expected_updates = set(self.dp.resolve_used_update_types())
+        current_updates = set(webhook_info.allowed_updates or [])
+        return current_updates == expected_updates
 
-        if settings.pu_telegram_del_old_webhook:
-            logging.info("Delete webhook before set new webhook")
-            await self.bot.delete_webhook()
-
+    async def _wait_webhook_route(self) -> None:
         inc = 0
         while True:
             result = httpx.post(
@@ -224,22 +228,39 @@ class StartupService:
                 timeout=settings.http_timeout(),
             )
             if result.status_code == 422:
-                break
+                return
             await asyncio.sleep(2)
             if inc > 10:
                 msg = "Webhook route not valid"
                 raise Exception(msg)
             inc += 1
 
+    async def _install_webhook(self, webhook_url: str) -> None:
+        webhook_info = await self.bot.get_webhook_info()
+        if self._webhook_is_current(webhook_info, webhook_url):
+            logging.info("Telegram webhook already matches this backend")
+            return
+
+        if webhook_info.url and webhook_info.url != webhook_url:
+            logging.info(
+                f"Delete old webhook {webhook_info.url} before set new webhook"
+            )
+            await self.bot.delete_webhook()
+
+        await self._wait_webhook_route()
         try:
             await self.bot.set_webhook(
                 url=webhook_url,
-                drop_pending_updates=True,
+                drop_pending_updates=webhook_info.url != webhook_url,
                 allowed_updates=self.dp.resolve_used_update_types(),
             )
             logging.info("Success set TG bot webhook url")
         except aiogram.exceptions.TelegramBadRequest:
             logging.info("Error set TG bot webhook url")
+
+    async def _run_webhook_bot(self) -> None:
+        webhook_url = f"{settings.pu_link_prefix_and_v1}/bot"
+        await self._install_webhook(webhook_url)
 
         try:
             while True:

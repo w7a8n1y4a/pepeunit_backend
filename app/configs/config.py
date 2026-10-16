@@ -185,6 +185,12 @@ class AppSettings(SettingsValidationMixin, BaseModel):
         43200,
         86400,
     ]
+    pu_available_topic_symbols: ClassVar[str] = (
+        string.ascii_letters + string.digits + "/_-"
+    )
+    pu_available_name_entity_symbols: ClassVar[str] = (
+        string.ascii_letters + string.digits + "_-."
+    )
 
     pu_app_prefix: str = Field(default="/pepeunit", max_length=128)
     pu_api_v1_prefix: str = Field(default="/api/v1", max_length=128)
@@ -219,14 +225,6 @@ class AppSettings(SettingsValidationMixin, BaseModel):
 
     pu_max_pagination_size: int = Field(default=100, ge=1, le=500)
 
-    pu_available_topic_symbols: str = Field(
-        default=string.ascii_letters + string.digits + "/_-",
-        max_length=128,
-    )
-    pu_available_name_entity_symbols: str = Field(
-        default=string.ascii_letters + string.digits + "_-.",
-        max_length=128,
-    )
     pu_available_password_symbols: str = Field(
         default=string.ascii_letters + string.digits + string.punctuation,
         max_length=128,
@@ -391,7 +389,6 @@ class TelegramSettings(SettingsValidationMixin, BaseModel):
     )
 
     pu_telegram_bot_mode: Literal["webhook", "pooling"] = "webhook"
-    pu_telegram_del_old_webhook: bool = True
     pu_telegram_token: str = Field(default="", max_length=128)
     pu_telegram_bot_link: str = Field(default="", max_length=512)
     pu_telegram_items_per_page: int = Field(default=7, ge=1, le=20)
