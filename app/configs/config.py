@@ -18,6 +18,10 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.configs.utc_json import UtcJson
+
+UtcJson.install()
+
 with open("pyproject.toml") as f:
     data = toml.loads(f.read())
 

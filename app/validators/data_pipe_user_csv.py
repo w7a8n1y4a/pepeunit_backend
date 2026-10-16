@@ -324,12 +324,16 @@ class StreamingCSVValidator:
                     msg = f"Row {self.current_row}: state is not a valid python float"
                     raise DataPipeError(msg) from err
 
-    @staticmethod
-    def _parse_datetime(datetime_str: str) -> datetime:
-        if "." in datetime_str:
-            return datetime.strptime(
-                datetime_str, "%Y-%m-%d %H:%M:%S.%f"
-            ).replace(tzinfo=UTC)
-        return datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S").replace(
-            tzinfo=UTC
-        )
+    def _parse_datetime(self, datetime_str: str) -> datetime:
+        text = datetime_str.strip()
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError as err:
+            msg = (
+                f"Row {self.current_row}: datetime must be ISO 8601, "
+                f"got {text!r}"
+            )
+            raise DataPipeError(msg) from err
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=UTC)
+        return parsed

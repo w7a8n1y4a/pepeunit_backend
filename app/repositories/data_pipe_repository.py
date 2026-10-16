@@ -15,6 +15,7 @@ from sqlmodel import Session
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.configs.errors import DataPipeError
+from app.configs.utc_json import UtcJson
 from app.domain.unit_node_model import UnitNode
 from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.last_value import LastValue
@@ -262,7 +263,12 @@ class DataPipeRepository:
         writer = csv.writer(csv_data)
         writer.writerow(data[0].dict().keys())
         for item in data:
-            writer.writerow(item.dict().values())
+            writer.writerow(
+                UtcJson.format_datetime(value)
+                if isinstance(value, datetime)
+                else value
+                for value in item.dict().values()
+            )
 
         result = csv_data.getvalue()
 

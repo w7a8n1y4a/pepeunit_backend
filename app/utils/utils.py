@@ -19,6 +19,7 @@ from pathspec.patterns import GitWildMatchPattern
 
 from app import settings
 from app.configs.errors import CipherError
+from app.configs.utc_json import UtcJson
 
 
 def aes_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
@@ -185,7 +186,7 @@ def snake_to_camel(snake_str: str) -> str:
 
 def obj_serializer(obj):
     if isinstance(obj, datetime.datetime):
-        return obj.isoformat()
+        return UtcJson.format_datetime(obj)
     if isinstance(obj, uuid.UUID):
         return str(obj)
     msg = f"Type {type(obj)} not serializable"

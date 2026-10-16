@@ -5,8 +5,10 @@ import os
 import re
 import uuid as uuid_pkg
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 
 import pytest
+from starlette.datastructures import UploadFile
 
 from app import settings
 from app.configs.clickhouse import get_clickhouse_client
@@ -581,12 +583,8 @@ def test_download_unit_logs(
 async def test_convert_toml_file_to_md(regular_user_token, database, cc) -> None:
     service = unit_service(database, cc, regular_user_token)
 
-    class DummyUploadFile:
-        def __init__(self, content: bytes):
-            self._content = content
-
-        async def read(self):
-            return self._content
+    def upload(content: bytes, name: str) -> UploadFile:
+        return UploadFile(file=BytesIO(content), filename=name)
 
     tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     base_toml_dir = os.path.join(tests_dir, "data", "toml")
@@ -594,7 +592,7 @@ async def test_convert_toml_file_to_md(regular_user_token, database, cc) -> None
     toml_path = os.path.join(base_toml_dir, "pepeunit.toml")
     with open(toml_path, "rb") as handle:
         content = handle.read()
-    md = await service.convert_toml_file_to_md(DummyUploadFile(content))
+    md = await service.convert_toml_file_to_md(upload(content, "pepeunit.toml"))
     assert isinstance(md, str)
     assert md.strip() != ""
     assert md.lstrip().startswith("# WiFi Temp Sensor ds18b20")
@@ -611,7 +609,7 @@ async def test_convert_toml_file_to_md(regular_user_token, database, cc) -> None
         with open(os.path.join(base_toml_dir, bad_name), "rb") as handle:
             bad_content = handle.read()
         with pytest.raises(ReadmeGenerationError):
-            await service.convert_toml_file_to_md(DummyUploadFile(bad_content))
+            await service.convert_toml_file_to_md(upload(bad_content, bad_name))
 
 
 def test_get_current_schema(
