@@ -17,7 +17,6 @@ from app.repositories.utils import (
     apply_offset_and_limit,
     apply_orders_by,
 )
-from app.schemas.gql.inputs.user import UserFilterInput
 from app.schemas.pydantic.user import UserFilter
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
@@ -48,9 +47,7 @@ class UserRepository(BaseRepository):
             .order_by(User.create_datetime)
         ).first()
 
-    def list(
-        self, filters: UserFilter | UserFilterInput
-    ) -> tuple[int, list[User]]:
+    def list(self, filters: UserFilter) -> tuple[int, list[User]]:
         query = self.db.query(User)
 
         filters.uuids = (

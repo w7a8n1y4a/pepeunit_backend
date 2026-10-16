@@ -1,8 +1,11 @@
 import uuid as uuid_pkg
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
-from app.configs.rest import get_user_service
+from app import settings
+from app.configs.errors import FeatureFlagError
+from app.configs.rest import ServiceFactory, get_user_service
+from app.dto.enum import CookieName
 from app.repositories.user_repository import UserFilter
 from app.schemas.pydantic.user import (
     AccessToken,
@@ -15,6 +18,36 @@ from app.schemas.pydantic.user import (
 from app.services.user_service import UserService
 
 router = APIRouter()
+
+
+def _set_grafana_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=CookieName.PEPEUNIT_GRAFANA.value,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=settings.pu_secure,
+    )
+
+
+def _clear_grafana_cookie(response: Response) -> None:
+    response.delete_cookie(
+        CookieName.PEPEUNIT_GRAFANA.value,
+        httponly=True,
+        samesite="lax",
+        secure=settings.pu_secure,
+    )
+
+
+def _user_service_for_token(
+    user_service: UserService, token: str
+) -> UserService:
+    data_pipe = user_service.data_pipe_repository.data_pipe_repository
+    return ServiceFactory(
+        db=user_service.user_repository.db,
+        client=None if data_pipe is None else data_pipe.client,
+        jwt_token=token,
+    ).get_user_service()
 
 
 @router.post(
@@ -37,9 +70,33 @@ def get(
 
 @router.post("/auth", response_model=AccessToken)
 def get_token(
-    data: UserAuth, user_service: UserService = Depends(get_user_service)
+    data: UserAuth,
+    response: Response,
+    user_service: UserService = Depends(get_user_service),
 ):
-    return AccessToken(token=user_service.get_token(data))
+    token = user_service.get_token(data)
+    if settings.pu_ff_grafana_integration_enable:
+        grafana_token = _user_service_for_token(
+            user_service, token
+        ).get_grafana_token()
+        _set_grafana_cookie(response, grafana_token)
+    return AccessToken(token=token)
+
+
+@router.post("/grafana_cookie", status_code=status.HTTP_204_NO_CONTENT)
+def set_grafana_cookie(
+    response: Response,
+    user_service: UserService = Depends(get_user_service),
+):
+    if not settings.pu_ff_grafana_integration_enable:
+        raise FeatureFlagError()
+
+    _set_grafana_cookie(response, user_service.get_grafana_token())
+
+
+@router.delete("/grafana_cookie", status_code=status.HTTP_204_NO_CONTENT)
+def delete_grafana_cookie(response: Response) -> None:
+    _clear_grafana_cookie(response)
 
 
 @router.patch("/{uuid}", response_model=UserRead)

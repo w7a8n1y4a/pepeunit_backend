@@ -4,7 +4,6 @@ from typing import Any
 
 from app.configs.errors import InstanceError
 from app.repositories.utils import resolve_query_default
-from app.schemas.gql.inputs.instance import InstanceFilterInput
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
     InstanceFilter,
@@ -46,9 +45,7 @@ class InstanceCacheRepository:
     def get_current(self) -> CurrentInstanceSchemaV1:
         return self.get().current
 
-    def get_instances(
-        self, filters: InstanceFilter | InstanceFilterInput
-    ) -> InstancesPage:
+    def get_instances(self, filters: InstanceFilter) -> InstancesPage:
         trust_status = resolve_query_default(filters.trust_status) or []
         instances = tuple(
             instance
@@ -59,14 +56,12 @@ class InstanceCacheRepository:
         count, page = self.apply_offset_and_limit(instances, filters)
         return InstancesPage(total_count=count, instances=page)
 
-    def get_urls(
-        self, filters: InstanceFilter | InstanceFilterInput
-    ) -> InstanceUrlsPage:
+    def get_urls(self, filters: InstanceFilter) -> InstanceUrlsPage:
         count, page = self.apply_offset_and_limit(self.get().urls, filters)
         return InstanceUrlsPage(total_count=count, urls=page)
 
     def get_registries(
-        self, filters: InstanceFilter | InstanceFilterInput
+        self, filters: InstanceFilter
     ) -> InstanceRegistriesPage:
         count, page = self.apply_offset_and_limit(
             self.get().registries, filters
@@ -76,7 +71,7 @@ class InstanceCacheRepository:
     @staticmethod
     def apply_offset_and_limit(
         items: tuple[Any, ...],
-        filters: InstanceFilter | InstanceFilterInput,
+        filters: InstanceFilter,
     ) -> tuple[int, list]:
         if filters.limit == NO_PAGINATION:
             return len(items), list(items)

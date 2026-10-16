@@ -34,12 +34,6 @@ from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
 from app.repositories.user_repository import UserRepository
-from app.schemas.gql.inputs.repository_registry import (
-    CommitFilterInput,
-    CredentialsInput,
-    RepositoryRegistryCreateInput,
-    RepositoryRegistryFilterInput,
-)
 from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.repository_registry import (
@@ -131,7 +125,7 @@ class RepositoryRegistryService:
 
     def create(
         self,
-        data: RepositoryRegistryCreate | RepositoryRegistryCreateInput,
+        data: RepositoryRegistryCreate,
         is_api: bool = False,
     ) -> RepositoryRegistry:
         if is_api:
@@ -201,7 +195,7 @@ class RepositoryRegistryService:
         return repository_registry
 
     def get_branch_commits(
-        self, uuid: uuid_pkg.UUID, filters: CommitFilter | CommitFilterInput
+        self, uuid: uuid_pkg.UUID, filters: CommitFilter
     ) -> list[CommitRead]:
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -252,9 +246,7 @@ class RepositoryRegistryService:
 
         return user_credentials
 
-    def set_credentials(
-        self, uuid: uuid_pkg.UUID, data: Credentials | CredentialsInput
-    ) -> None:
+    def set_credentials(self, uuid: uuid_pkg.UUID, data: Credentials) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repository_registry = self.repository_registry_repository.get(
@@ -290,7 +282,7 @@ class RepositoryRegistryService:
         )
 
     def list(
-        self, filters: RepositoryRegistryFilter | RepositoryRegistryFilterInput
+        self, filters: RepositoryRegistryFilter
     ) -> tuple[int, list[RepositoryRegistry]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER]

@@ -16,12 +16,6 @@ from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
 from app.repositories.user_repository import UserRepository
-from app.schemas.gql.inputs.user import (
-    UserAuthInput,
-    UserCreateInput,
-    UserFilterInput,
-    UserUpdateInput,
-)
 from app.schemas.pydantic.user import (
     UserAuth,
     UserCreate,
@@ -50,7 +44,7 @@ class UserService:
             notification_settings_repository
         )
 
-    def create(self, data: UserCreate | UserCreateInput) -> User:
+    def create(self, data: UserCreate) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])
         self.user_repository.is_valid_login(data.login)
         self.user_repository.is_valid_password(data.password)
@@ -84,7 +78,7 @@ class UserService:
         is_valid_object(user)
         return user
 
-    def get_token(self, data: UserAuth | UserAuthInput) -> str:
+    def get_token(self, data: UserAuth) -> str:
         self.access_service.authorization.check_access([AgentType.BOT])
 
         user = self.user_repository.get_user_by_credentials(data.credentials)
@@ -101,7 +95,7 @@ class UserService:
             uuid=current_user.uuid, name=current_user.login
         ).generate_agent_token()
 
-    def update(self, data: UserUpdate | UserUpdateInput) -> User:
+    def update(self, data: UserUpdate) -> User:
         self.access_service.authorization.check_access([AgentType.USER])
         user = self.user_repository.get(
             User(uuid=self.access_service.current_agent.uuid)
@@ -171,9 +165,7 @@ class UserService:
         user.status = UserStatus.ACTIVE
         self.user_repository.update(user.uuid, user)
 
-    def list(
-        self, filters: UserFilter | UserFilterInput
-    ) -> tuple[int, list[User]]:
+    def list(self, filters: UserFilter) -> tuple[int, list[User]]:
         self.access_service.authorization.check_access([AgentType.USER])
         return self.user_repository.list(filters)
 
