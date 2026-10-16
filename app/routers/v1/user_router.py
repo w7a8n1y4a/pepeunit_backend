@@ -113,6 +113,20 @@ async def get_verification(
     return await user_service.generate_verification_link()
 
 
+@router.patch("/grant_admin/{uuid}", response_model=UserRead)
+def grant_admin(
+    uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)
+):
+    return UserRead(**user_service.grant_admin(uuid).dict())
+
+
+@router.patch("/revoke_admin/{uuid}", response_model=UserRead)
+def revoke_admin(
+    uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)
+):
+    return UserRead(**user_service.revoke_admin(uuid).dict())
+
+
 @router.patch("/block/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def block(
     uuid: uuid_pkg.UUID, user_service: UserService = Depends(get_user_service)

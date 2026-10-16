@@ -27,7 +27,11 @@ class AuthorizationService:
     def check_access(
         self,
         allowed_agent_types: list[AgentType],
-        allowed_roles: list[UserRole] = (UserRole.USER, UserRole.ADMIN),
+        allowed_roles: list[UserRole] = (
+            UserRole.USER,
+            UserRole.ADMIN,
+            UserRole.OWNER,
+        ),
     ) -> None:
         if self.current_agent.type not in allowed_agent_types:
             msg = f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_agent_types}"
@@ -35,10 +39,24 @@ class AuthorizationService:
 
         if (
             self.current_agent.type == AgentType.USER
-            and self.current_agent.role not in allowed_roles
+            and not self._role_is_allowed(allowed_roles)
         ):
             msg = f"{self.current_agent.__class__.__name__} access not allowed, only for {allowed_roles}"
             raise NoAccessError(msg)
+
+    def _role_is_allowed(self, allowed_roles: list[UserRole]) -> bool:
+        order = (UserRole.USER, UserRole.ADMIN, UserRole.OWNER)
+        try:
+            level = order.index(self.current_agent.role)
+        except ValueError:
+            return False
+
+        required = [
+            order.index(role) for role in allowed_roles if role in order
+        ]
+        if not required:
+            return False
+        return level >= min(required)
 
     def check_ownership(
         self, entity, ownership_types: list[OwnershipType]

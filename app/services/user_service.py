@@ -50,11 +50,7 @@ class UserService:
         self.user_repository.is_valid_password(data.password)
 
         user = User(**data.dict())
-
-        # first user is Admin
-        user_count = self.user_repository.get_all_count()
-        user.role = UserRole.USER if user_count > 0 else UserRole.ADMIN
-
+        user.role = UserRole.USER
         user.status = UserStatus.ACTIVE
         user.create_datetime = datetime.datetime.now(datetime.UTC)
 
@@ -143,6 +139,24 @@ class UserService:
         )
 
         user.telegram_chat_id = telegram_chat_id
+        return self.user_repository.update(user.uuid, user)
+
+    def grant_admin(self, uuid: uuid_pkg.UUID) -> User:
+        self.access_service.authorization.check_access(
+            [AgentType.USER], [UserRole.OWNER]
+        )
+        user = self.user_repository.get(User(uuid=uuid))
+        is_valid_object(user)
+        user.role = UserRole.ADMIN
+        return self.user_repository.update(user.uuid, user)
+
+    def revoke_admin(self, uuid: uuid_pkg.UUID) -> User:
+        self.access_service.authorization.check_access(
+            [AgentType.USER], [UserRole.OWNER]
+        )
+        user = self.user_repository.get(User(uuid=uuid))
+        is_valid_object(user)
+        user.role = UserRole.USER
         return self.user_repository.update(user.uuid, user)
 
     def block(self, uuid: uuid_pkg.UUID) -> None:

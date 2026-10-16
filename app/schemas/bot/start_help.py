@@ -64,7 +64,7 @@ async def start_help_resolver(message: types.Message):
     ]
     with get_hand_session() as db:
         user = UserRepository(db).get_user_by_telegram_id(str(message.chat.id))
-        if user and user.role == UserRole.ADMIN.value:
+        if user and user.role in {UserRole.ADMIN, UserRole.OWNER}:
             table.append(["/control", "Admin global operations"])
     text += make_monospace_table_with_title(
         table, f"Backend Version - {root_data.version}", [10, 28]

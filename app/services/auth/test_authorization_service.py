@@ -58,6 +58,39 @@ def test_check_access_disallowed_role(authorization_service, mock_agent):
         authorization_service.check_access([AgentType.USER], [UserRole.ADMIN])
 
 
+def test_check_access_owner_has_admin_access(
+    authorization_service, mock_agent
+):
+    mock_agent.type = AgentType.USER
+    mock_agent.role = UserRole.OWNER
+    authorization_service.check_access([AgentType.USER], [UserRole.ADMIN])
+
+
+def test_check_access_owner_default_access(authorization_service, mock_agent):
+    mock_agent.type = AgentType.USER
+    mock_agent.role = UserRole.OWNER
+    authorization_service.check_access([AgentType.USER])
+
+
+def test_check_access_admin_has_user_access(authorization_service, mock_agent):
+    mock_agent.type = AgentType.USER
+    mock_agent.role = UserRole.ADMIN
+    authorization_service.check_access([AgentType.USER], [UserRole.USER])
+
+
+def test_check_access_owner_has_user_access(authorization_service, mock_agent):
+    mock_agent.type = AgentType.USER
+    mock_agent.role = UserRole.OWNER
+    authorization_service.check_access([AgentType.USER], [UserRole.USER])
+
+
+def test_check_access_admin_is_not_owner(authorization_service, mock_agent):
+    mock_agent.type = AgentType.USER
+    mock_agent.role = UserRole.ADMIN
+    with pytest.raises(NoAccessError):
+        authorization_service.check_access([AgentType.USER], [UserRole.OWNER])
+
+
 def test_check_ownership_creator(authorization_service, mock_agent):
     mock_agent.type = AgentType.USER
     mock_agent.uuid = uuid.uuid4()

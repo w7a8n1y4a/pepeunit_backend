@@ -129,9 +129,9 @@ class RepositoryRegistryService:
         is_api: bool = False,
     ) -> RepositoryRegistry:
         if is_api:
-            admin = self.user_repository.get_first_admin()
-            is_valid_object(admin)
-            creator_uuid = admin.uuid
+            owner = self.user_repository.get_owner()
+            is_valid_object(owner)
+            creator_uuid = owner.uuid
         else:
             self.access_service.authorization.check_access([AgentType.USER])
             creator_uuid = self.access_service.current_agent.uuid

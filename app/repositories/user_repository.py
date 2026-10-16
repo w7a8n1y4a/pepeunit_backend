@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 from fastapi.params import Query
-from sqlalchemy import or_
+from sqlalchemy import or_, update
 from sqlmodel import Session, select
 
 from app import settings
@@ -40,12 +40,33 @@ class UserRepository(BaseRepository):
             select(User).where(User.telegram_chat_id == telegram_chat_id)
         ).first()
 
-    def get_first_admin(self) -> User | None:
+    def get_owner(self) -> User | None:
         return self.db.exec(
-            select(User)
-            .where(User.role == UserRole.ADMIN.value)
-            .order_by(User.create_datetime)
+            select(User).where(User.role == UserRole.OWNER.value)
         ).first()
+
+    def set_single_owner(self, user_uuid: uuid_pkg.UUID) -> User:
+        self.db.execute(
+            update(User)
+            .where(
+                User.role == UserRole.OWNER.value,
+                User.uuid != user_uuid,
+            )
+            .values(role=UserRole.USER.value)
+        )
+        result = self.db.execute(
+            update(User)
+            .where(User.uuid == user_uuid)
+            .values(role=UserRole.OWNER.value)
+        )
+        if not result.rowcount:
+            self.db.rollback()
+            msg = "User does not exist"
+            raise UserError(msg)
+
+        self.db.commit()
+        self.db.expire_all()
+        return self.get(User(uuid=user_uuid))
 
     def list(self, filters: UserFilter) -> tuple[int, list[User]]:
         query = self.db.query(User)

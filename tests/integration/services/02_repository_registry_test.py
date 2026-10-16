@@ -16,7 +16,9 @@ from app.dto.enum import (
     OperationTaskStatus,
     OperationTaskType,
     RepositoryRegistryStatus,
+    UserRole,
 )
+from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
     Credentials,
@@ -245,16 +247,24 @@ def test_create_repository_registry_by_api_duplicate(
     github_public_registry, admin_user, database
 ) -> None:
     """A registry discovered on another instance is created without an agent token"""
-    service = registry_service(database, None)
-    with pytest.raises(RepositoryRegistryError):
-        service.create(
-            RepositoryRegistryCreate(
-                repository_url=github_public_registry.repository_url,
-                is_public_repository=True,
-                platform=github_public_registry.platform,
-            ),
-            is_api=True,
-        )
+    repository = UserRepository(db=database)
+    previous_role = admin_user.role
+    admin_user.role = UserRole.OWNER
+    repository.update(admin_user.uuid, admin_user)
+    try:
+        service = registry_service(database, None)
+        with pytest.raises(RepositoryRegistryError):
+            service.create(
+                RepositoryRegistryCreate(
+                    repository_url=github_public_registry.repository_url,
+                    is_public_repository=True,
+                    platform=github_public_registry.platform,
+                ),
+                is_api=True,
+            )
+    finally:
+        admin_user.role = previous_role
+        repository.update(admin_user.uuid, admin_user)
 
 
 def test_schedule_update_registry(

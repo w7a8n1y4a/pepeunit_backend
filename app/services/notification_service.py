@@ -175,7 +175,11 @@ class NotificationService:
     def _instance_daily_state(
         self, users: list[User], moment: datetime
     ) -> list[Notification]:
-        admins = [user for user in users if user.role == UserRole.ADMIN]
+        admins = [
+            user
+            for user in users
+            if user.role in {UserRole.ADMIN, UserRole.OWNER}
+        ]
         if not admins:
             return []
 
