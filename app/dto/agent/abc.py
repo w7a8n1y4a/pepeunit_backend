@@ -23,7 +23,7 @@ class Agent(ABC, BaseModel):
     def generate_agent_token(self, access_token_exp: int | None = None) -> str:
         if not access_token_exp:
             access_token_exp = datetime.now(UTC) + timedelta(
-                seconds=runtime.get().pu_user_auth_token_expiration
+                seconds=runtime.get().pu_instance_user_auth_token_expiration
             )
 
         if self.type == AgentType.USER:

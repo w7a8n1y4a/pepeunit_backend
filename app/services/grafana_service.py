@@ -333,7 +333,7 @@ class GrafanaService:
             raise GrafanaError(msg)
 
     def is_valid_unit_node_in_panel_count(self, uuid: uuid_pkg.UUID):
-        limit = runtime.get().pu_grafana_limit_unit_node_per_one_panel
+        limit = runtime.get().pu_datapipe_limit_unit_node_per_one_panel
         if (
             self.dashboard_panel_repository.get_count_unit_for_panel(uuid)
             >= limit

@@ -247,7 +247,8 @@ class NotificationDelivery:
         """
         session = get_redis_session(
             socket_timeout=max(
-                runtime.get().pu_http_timeout, self.SOCKET_TIMEOUT_FLOOR
+                runtime.get().pu_instance_http_timeout,
+                self.SOCKET_TIMEOUT_FLOOR,
             )
         )
         try:

@@ -330,7 +330,7 @@ def test_update_local_repository_sync_error(
         database,
         extra_user,
         extra_user_token,
-        "pu_registry_max_size",
+        "pu_instance_registry_max_size",
         0,
     ):
         with pytest.raises(RepositoryRegistryError):

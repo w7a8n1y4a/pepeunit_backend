@@ -11,7 +11,7 @@ MARKER_ENABLED: dict[str, Callable[[], bool]] = {
     "datapipe": lambda: runtime.get().pu_ff_datapipe_enable,
     "last_value": lambda: (
         runtime.get().pu_ff_datapipe_enable
-        and runtime.get().pu_ff_datapipe_default_last_value_enable
+        and runtime.get().pu_datapipe_default_last_value_enable
     ),
     "prometheus": lambda: runtime.get().pu_ff_prometheus_enable,
     "federation": lambda: runtime.get().pu_ff_federation_enable,

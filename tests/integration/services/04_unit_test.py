@@ -504,7 +504,7 @@ def test_download_unit_logs(
     first_datetime = datetime(2026, 9, 6, 3, 15, 58, 214000)
     second_datetime = first_datetime + timedelta(seconds=1)
     expiration = datetime.now(UTC) + timedelta(
-        seconds=runtime.get().pu_unit_log_expiration
+        seconds=runtime.get().pu_instance_unit_log_expiration
     )
     first_text = (
         "uvicorn.access - 192.168.0.10:48422 - "

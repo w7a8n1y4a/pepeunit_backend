@@ -194,7 +194,7 @@ class UserService:
         return self.user_repository.list(filters)
 
     def _check_user_count(self) -> None:
-        limit = int(runtime.get().pu_user_max_count)
+        limit = int(runtime.get().pu_instance_user_max_count)
         count = self.user_repository.get_all_count()
         if count < limit:
             return
@@ -205,7 +205,7 @@ class UserService:
         if user.last_update_datetime is None:
             return
 
-        rate = int(runtime.get().pu_user_max_update_rate)
+        rate = int(runtime.get().pu_instance_user_max_update_rate)
         delta = (
             datetime.datetime.now(datetime.UTC)
             - ensure_timezone_aware(user.last_update_datetime)

@@ -40,7 +40,7 @@ def test_settings_are_owner_only(
         instance_settings_service(database, extra_user_token).get()
     with pytest.raises(NoAccessError):
         instance_settings_service(database, admin_user_token).update(
-            InstanceSettingsUpdate(pu_user_max_group=8)
+            InstanceSettingsUpdate(pu_instance_user_max_group=8)
         )
 
     repository, previous = _as_owner(database, extra_user)
@@ -59,13 +59,13 @@ def test_settings_are_owner_only(
 def test_user_count_limit(database, cc, extra_user, extra_user_token) -> None:
     repository, previous = _as_owner(database, extra_user)
     settings_service = instance_settings_service(database, extra_user_token)
-    current = settings_service.get().pu_user_max_count
+    current = settings_service.get().pu_instance_user_max_count
     limit = UserRepository(database).get_all_count()
     try:
         settings_service.update(
-            InstanceSettingsUpdate(pu_user_max_count=limit)
+            InstanceSettingsUpdate(pu_instance_user_max_count=limit)
         )
-        wait_runtime("pu_user_max_count", limit)
+        wait_runtime("pu_instance_user_max_count", limit)
         with pytest.raises(UserError):
             user_service(database, cc, None).create(
                 UserCreate(
@@ -75,9 +75,9 @@ def test_user_count_limit(database, cc, extra_user, extra_user_token) -> None:
             )
     finally:
         settings_service.update(
-            InstanceSettingsUpdate(pu_user_max_count=current)
+            InstanceSettingsUpdate(pu_instance_user_max_count=current)
         )
-        wait_runtime("pu_user_max_count", current)
+        wait_runtime("pu_instance_user_max_count", current)
         _restore_owner(database, repository, extra_user, previous)
 
 

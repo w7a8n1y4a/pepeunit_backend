@@ -88,8 +88,12 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
+bot = None
+dp = None
 if runtime.get().pu_ff_telegram_bot_enable:
     bot = build_telegram_bot()
+
+if bot is not None:
     storage = RedisStorage.from_url(
         settings.pu_redis_url,
         key_builder=DefaultKeyBuilder(with_destiny=True),

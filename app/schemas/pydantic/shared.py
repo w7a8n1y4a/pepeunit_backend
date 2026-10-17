@@ -8,7 +8,7 @@ from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 
 
 class FeatureFlags(BaseModel):
-    pu_ff_datapipe_default_last_value_enable: bool
+    pu_datapipe_default_last_value_enable: bool
     pu_ff_datapipe_enable: bool
     pu_ff_federation_enable: bool
     pu_ff_grafana_integration_enable: bool
@@ -19,8 +19,8 @@ class FeatureFlags(BaseModel):
     @classmethod
     def current(cls) -> FeatureFlags:
         return cls(
-            pu_ff_datapipe_default_last_value_enable=(
-                runtime.get().pu_ff_datapipe_default_last_value_enable
+            pu_datapipe_default_last_value_enable=(
+                runtime.get().pu_datapipe_default_last_value_enable
             ),
             pu_ff_datapipe_enable=runtime.get().pu_ff_datapipe_enable,
             pu_ff_federation_enable=runtime.get().pu_ff_federation_enable,

@@ -60,7 +60,7 @@ class GitRepoRepository:
     def clone(url: str, repo_save_path: str):
         shutil.rmtree(repo_save_path, ignore_errors=True)
 
-        timeout = str(int(float(runtime.get().pu_http_timeout)))
+        timeout = str(int(float(runtime.get().pu_instance_http_timeout)))
         git_env = {
             "GIT_TERMINAL_PROMPT": "0",
             "GIT_HTTP_LOW_SPEED_LIMIT": "1000",

@@ -12,7 +12,7 @@ def _make_client() -> Client:
         user=settings.pu_clickhouse_connection.user,
         password=settings.pu_clickhouse_connection.password,
         database=settings.pu_clickhouse_connection.database,
-        connect_timeout=runtime.get().pu_http_connect_timeout,
+        connect_timeout=runtime.get().pu_instance_http_connect_timeout,
     )
 
 

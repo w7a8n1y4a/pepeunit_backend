@@ -640,7 +640,7 @@ def test_create_scheduled_unit_summary(
                 minutes=1
             )
             expiration = datetime.now(UTC) + timedelta(
-                seconds=runtime.get().pu_unit_log_expiration
+                seconds=runtime.get().pu_instance_unit_log_expiration
             )
             UnitLogRepository(cc).bulk_create(
                 [

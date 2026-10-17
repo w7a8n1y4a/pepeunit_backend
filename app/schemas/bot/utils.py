@@ -7,16 +7,20 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from app import runtime
 
 
-def build_telegram_bot() -> Bot:
-    session_kwargs: dict = {"timeout": runtime.get().pu_http_timeout}
+def build_telegram_bot() -> Bot | None:
+    session_kwargs: dict = {"timeout": runtime.get().pu_instance_http_timeout}
     if runtime.get().pu_telegram_proxy_url:
         logging.info("Telegram bot will use proxy")
         session_kwargs["proxy"] = runtime.get().pu_telegram_proxy_url
 
-    return Bot(
-        token=runtime.get().pu_telegram_token,
-        session=AiohttpSession(**session_kwargs),
-    )
+    try:
+        return Bot(
+            token=runtime.get().pu_telegram_token,
+            session=AiohttpSession(**session_kwargs),
+        )
+    except Exception:
+        logging.exception("Telegram bot failed to start")
+        return None
 
 
 def format_datetime(value: datetime | None) -> str | None:

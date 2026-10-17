@@ -245,7 +245,7 @@ def test_panel_unit_node_limit(
             )
         )
         nodes.extend(unit_nodes)
-    limit = runtime.get().pu_grafana_limit_unit_node_per_one_panel
+    limit = runtime.get().pu_datapipe_limit_unit_node_per_one_panel
     assert len(nodes) > limit
     try:
         for node in nodes[:limit]:

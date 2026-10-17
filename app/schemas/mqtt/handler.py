@@ -132,7 +132,9 @@ class MqttMessageHandler:
                                 datetime.UTC
                             )
                             + datetime.timedelta(
-                                seconds=runtime.get().pu_unit_log_expiration
+                                seconds=(
+                                    runtime.get().pu_instance_unit_log_expiration
+                                )
                             ),
                         )
                         for inc, item in enumerate(log_data)

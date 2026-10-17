@@ -40,10 +40,11 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_datapipe_buffer_flush_interval: int = Field(ge=1, le=3600)
     pu_datapipe_buffer_max_size: int = Field(ge=1, le=1_000_000)
     pu_datapipe_config_sync_interval: int = Field(ge=1, le=86_400)
+    pu_datapipe_default_last_value_enable: bool
+    pu_datapipe_limit_unit_node_per_one_panel: int = Field(ge=1, le=32)
     pu_datapipe_mqtt_keepalive: int = Field(ge=0, le=600)
     pu_datapipe_nrecords_cleanup_interval: int = Field(ge=1, le=604_800)
 
-    pu_ff_datapipe_default_last_value_enable: bool
     pu_ff_datapipe_enable: bool
     pu_ff_federation_enable: bool
     pu_ff_grafana_integration_enable: bool
@@ -51,15 +52,11 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_ff_prometheus_enable: bool
     pu_ff_telegram_bot_enable: bool
 
-    pu_github_token_name: str = Field(max_length=128)
-    pu_github_token_pat: str = Field(max_length=128)
-
-    pu_grafana_limit_unit_node_per_one_panel: int = Field(ge=1, le=32)
-
-    pu_http_connect_timeout: float = Field(ge=0, le=60)
-    pu_http_timeout: float = Field(ge=0, le=120)
-
     pu_instance_cipher_max_length: int = Field(ge=0, le=5_000_000)
+    pu_instance_github_token_name: str = Field(max_length=128)
+    pu_instance_github_token_pat: str = Field(max_length=128)
+    pu_instance_http_connect_timeout: float = Field(ge=1, le=60)
+    pu_instance_http_timeout: float = Field(ge=1, le=120)
     pu_instance_lat: float | None = Field(default=None, ge=-90, le=90)
     pu_instance_log_format: LogFormat
     pu_instance_log_min_level: BackendLogLevel
@@ -68,7 +65,14 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_instance_max_state_size: int = Field(ge=4096, le=65536)
     pu_instance_owner_email: str = Field(max_length=128)
     pu_instance_owner_tg: str = Field(max_length=128)
+    pu_instance_registry_max_size: int = Field(ge=0, le=1024)
+    pu_instance_registry_min_interval_sync: int = Field(ge=1, le=1800)
     pu_instance_retention_days: int = Field(ge=1, le=120)
+    pu_instance_unit_log_expiration: int = Field(ge=60, le=604_800)
+    pu_instance_user_auth_token_expiration: int = Field(ge=600, le=11_059_200)
+    pu_instance_user_max_count: int = Field(ge=1, le=1_000_000)
+    pu_instance_user_max_group: int = Field(ge=1, le=1024)
+    pu_instance_user_max_update_rate: int = Field(ge=600, le=7200)
 
     pu_mqtt_client_max_bytes_rate: str = Field(max_length=64)
     pu_mqtt_client_max_messages_rate: str = Field(max_length=64)
@@ -89,9 +93,6 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_notification_telegram_instance_rate: int = Field(ge=1, le=30)
     pu_notification_telegram_user_interval_seconds: float = Field(ge=1, le=60)
 
-    pu_registry_max_size: int = Field(ge=0, le=1024)
-    pu_registry_min_interval_sync: int = Field(ge=1, le=1800)
-
     pu_state_send_interval: int = Field(ge=1, le=600)
 
     pu_telegram_bot_link: str = Field(max_length=512)
@@ -101,13 +102,6 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_telegram_items_per_page: int = Field(ge=1, le=20)
     pu_telegram_proxy_url: str = Field(max_length=512)
     pu_telegram_token: str = Field(max_length=128)
-
-    pu_unit_log_expiration: int = Field(ge=60, le=604_800)
-
-    pu_user_auth_token_expiration: int = Field(ge=600, le=11_059_200)
-    pu_user_max_count: int = Field(ge=1, le=1_000_000)
-    pu_user_max_group: int = Field(ge=1, le=1024)
-    pu_user_max_update_rate: int = Field(ge=600, le=7200)
 
     @staticmethod
     def _enum_text(value) -> str:
@@ -131,6 +125,16 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     def validate_owner_email(cls, value: str) -> str:
         if value and not cls._EMAIL_RE.fullmatch(value):
             msg = "pu_instance_owner_email must be a valid email or empty"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("pu_telegram_token")
+    @classmethod
+    def validate_telegram_token(cls, value: str) -> str:
+        if value and not cls._TELEGRAM_TOKEN_RE.fullmatch(value):
+            msg = (
+                "pu_telegram_token must look like '123456:ABC-def' or be empty"
+            )
             raise ValueError(msg)
         return value
 
@@ -169,10 +173,6 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
                 raise ValueError(msg)
 
         if self.pu_ff_telegram_bot_enable:
-            self.require_non_empty(self.pu_telegram_token, "pu_telegram_token")
-            if not self._TELEGRAM_TOKEN_RE.fullmatch(self.pu_telegram_token):
-                msg = "pu_telegram_token must look like '123456:ABC-def'"
-                raise ValueError(msg)
             self.require_http_url(
                 self.pu_telegram_bot_link, "pu_telegram_bot_link"
             )
@@ -188,10 +188,12 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
             self.pu_instance_max_pagination_size,
         )
 
-        if bool(self.pu_github_token_name) != bool(self.pu_github_token_pat):
+        if bool(self.pu_instance_github_token_name) != bool(
+            self.pu_instance_github_token_pat
+        ):
             msg = (
-                "pu_github_token_name and pu_github_token_pat "
-                "must be set together"
+                "pu_instance_github_token_name and "
+                "pu_instance_github_token_pat must be set together"
             )
             raise ValueError(msg)
         return self
@@ -204,15 +206,14 @@ class InstanceSettingsRead(InstanceSettingsData):
 class InstanceSettingsUpdate(BaseModel):
     """Partial owner update. Omitted fields stay as they are."""
 
-    icon_uuid: uuid_pkg.UUID | None = None
-
     pu_datapipe_buffer_flush_interval: int | None = None
     pu_datapipe_buffer_max_size: int | None = None
     pu_datapipe_config_sync_interval: int | None = None
+    pu_datapipe_default_last_value_enable: bool | None = None
+    pu_datapipe_limit_unit_node_per_one_panel: int | None = None
     pu_datapipe_mqtt_keepalive: int | None = None
     pu_datapipe_nrecords_cleanup_interval: int | None = None
 
-    pu_ff_datapipe_default_last_value_enable: bool | None = None
     pu_ff_datapipe_enable: bool | None = None
     pu_ff_federation_enable: bool | None = None
     pu_ff_grafana_integration_enable: bool | None = None
@@ -220,15 +221,11 @@ class InstanceSettingsUpdate(BaseModel):
     pu_ff_prometheus_enable: bool | None = None
     pu_ff_telegram_bot_enable: bool | None = None
 
-    pu_github_token_name: str | None = None
-    pu_github_token_pat: str | None = None
-
-    pu_grafana_limit_unit_node_per_one_panel: int | None = None
-
-    pu_http_connect_timeout: float | None = None
-    pu_http_timeout: float | None = None
-
     pu_instance_cipher_max_length: int | None = None
+    pu_instance_github_token_name: str | None = None
+    pu_instance_github_token_pat: str | None = None
+    pu_instance_http_connect_timeout: float | None = None
+    pu_instance_http_timeout: float | None = None
     pu_instance_lat: float | None = None
     pu_instance_log_format: LogFormat | None = None
     pu_instance_log_min_level: BackendLogLevel | None = None
@@ -237,7 +234,14 @@ class InstanceSettingsUpdate(BaseModel):
     pu_instance_max_state_size: int | None = None
     pu_instance_owner_email: str | None = None
     pu_instance_owner_tg: str | None = None
+    pu_instance_registry_max_size: int | None = None
+    pu_instance_registry_min_interval_sync: int | None = None
     pu_instance_retention_days: int | None = None
+    pu_instance_unit_log_expiration: int | None = None
+    pu_instance_user_auth_token_expiration: int | None = None
+    pu_instance_user_max_count: int | None = None
+    pu_instance_user_max_group: int | None = None
+    pu_instance_user_max_update_rate: int | None = None
 
     pu_mqtt_client_max_bytes_rate: str | None = None
     pu_mqtt_client_max_messages_rate: str | None = None
@@ -258,9 +262,6 @@ class InstanceSettingsUpdate(BaseModel):
     pu_notification_telegram_instance_rate: int | None = None
     pu_notification_telegram_user_interval_seconds: float | None = None
 
-    pu_registry_max_size: int | None = None
-    pu_registry_min_interval_sync: int | None = None
-
     pu_state_send_interval: int | None = None
 
     pu_telegram_bot_link: str | None = None
@@ -270,10 +271,3 @@ class InstanceSettingsUpdate(BaseModel):
     pu_telegram_items_per_page: int | None = None
     pu_telegram_proxy_url: str | None = None
     pu_telegram_token: str | None = None
-
-    pu_unit_log_expiration: int | None = None
-
-    pu_user_auth_token_expiration: int | None = None
-    pu_user_max_count: int | None = None
-    pu_user_max_group: int | None = None
-    pu_user_max_update_rate: int | None = None

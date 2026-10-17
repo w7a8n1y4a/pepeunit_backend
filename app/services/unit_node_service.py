@@ -157,7 +157,7 @@ class UnitNodeService:
                 )
 
                 if (
-                    runtime.get().pu_ff_datapipe_default_last_value_enable
+                    runtime.get().pu_datapipe_default_last_value_enable
                     and topic.endswith(
                         GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
                     )
