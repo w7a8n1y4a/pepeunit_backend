@@ -783,7 +783,9 @@ class UnitService:
             ).decode("utf-8"),
             ReservedEnvVariableName.PU_MQTT_PING_INTERVAL: 20,
             ReservedEnvVariableName.PU_MQTT_KEEPALIVE: runtime.get().pu_mqtt_keepalive,
-            ReservedEnvVariableName.PU_STATE_SEND_INTERVAL: runtime.get().pu_state_send_interval,
+            ReservedEnvVariableName.PU_STATE_SEND_INTERVAL: (
+                runtime.get().pu_instance_unit_state_send_interval
+            ),
             ReservedEnvVariableName.PU_MIN_LOG_LEVEL: LogLevel.DEBUG.value,
             ReservedEnvVariableName.PU_MAX_LOG_LENGTH: 64,
         }

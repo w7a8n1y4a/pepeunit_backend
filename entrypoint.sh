@@ -31,14 +31,24 @@ echo "Run migration..."
 alembic upgrade head
 
 echo "Del old lock files"
-rm -rf tmp/*.lock
+rm -f tmp/instance_restart
+rm -f tmp/*.lock
 
 export PROMETHEUS_MULTIPROC_DIR="${PU_PROMETHEUS_MULTIPROC_DIR:-./prometheus_metrics}"
 
-gunicorn app.main:app \
-    --bind 0.0.0.0:5000 \
-    --config gunicorn_conf.py \
-    --timeout 300 \
-    --workers=$PU_WORKER_COUNT \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --worker-tmp-dir=/dev/shm \
+while true; do
+  gunicorn app.main:app \
+      --bind 0.0.0.0:5000 \
+      --config gunicorn_conf.py \
+      --timeout 300 \
+      --workers=$PU_WORKER_COUNT \
+      --worker-class uvicorn.workers.UvicornWorker \
+      --worker-tmp-dir=/dev/shm
+  status=$?
+  if [ ! -f tmp/instance_restart ]; then
+    exit "$status"
+  fi
+  echo "Restart instance..."
+  rm -f tmp/instance_restart
+  rm -f tmp/*.lock
+done

@@ -1,3 +1,6 @@
+import signal
+import time
+
 import pytest
 
 from app.configs.errors import NoAccessError, UserError
@@ -98,6 +101,52 @@ def test_user_update_rate(database, cc, extra_user, extra_user_token) -> None:
         user = repository.get(User(uuid=extra_user.uuid))
         user.last_update_datetime = None
         repository.update(user.uuid, user)
+
+
+def test_rescue_kills_workers_when_master_stays(monkeypatch, tmp_path) -> None:
+    from app.configs.restart import ServerRestart
+
+    flag = tmp_path / "instance_restart"
+    flag.write_text("1")
+    killed: list[tuple[int, int]] = []
+    clock = {"now": 0.0}
+    restarter = ServerRestart()
+    restarter.flag = flag
+    monkeypatch.setattr(time, "monotonic", lambda: clock["now"])
+
+    def _sleep(_seconds: float) -> None:
+        clock["now"] += 1
+
+    monkeypatch.setattr(time, "sleep", _sleep)
+    monkeypatch.setattr(ServerRestart, "_alive", lambda _self, _pid: True)
+    monkeypatch.setattr(ServerRestart, "_child_pids", lambda _self, _pid: [2, 3])
+    monkeypatch.setattr(ServerRestart, "_cwd", lambda _self, _pid: "")
+
+    def _kill(_self, pid: int, sig: int) -> None:
+        killed.append((pid, sig))
+        flag.unlink(missing_ok=True)
+
+    monkeypatch.setattr(ServerRestart, "_kill", _kill)
+
+    restarter.rescue(10)
+
+    assert killed == [(2, signal.SIGKILL), (3, signal.SIGKILL)]
+
+
+def test_reboot_stops_the_master(monkeypatch) -> None:
+    requested: list[str] = []
+    monkeypatch.setattr(
+        "app.services.instance_settings_service.time.sleep",
+        lambda _seconds: None,
+    )
+    monkeypatch.setattr(
+        "app.services.instance_settings_service.restart.request",
+        lambda: requested.append("restart"),
+    )
+
+    InstanceSettingsService._restart_after_response()
+
+    assert requested == ["restart"]
 
 
 def test_reboot_is_marked_on_start(

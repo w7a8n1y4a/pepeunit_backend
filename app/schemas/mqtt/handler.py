@@ -149,7 +149,7 @@ class MqttMessageHandler:
 
     def _state_send_interval(self, unit: Unit) -> int:
         """Old units keep the interval stored in their env."""
-        fallback = int(runtime.get().pu_state_send_interval)
+        fallback = int(runtime.get().pu_instance_unit_state_send_interval)
         if not unit.cipher_env_dict:
             return fallback
         try:

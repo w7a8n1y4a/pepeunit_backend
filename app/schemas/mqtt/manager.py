@@ -86,6 +86,12 @@ class MqttManager:
         if self._watchdog_task is None or self._watchdog_task.done():
             self._watchdog_task = loop.create_task(self._watchdog())
 
+    def release_subscription_lock(self) -> None:
+        lock_fd = self._subscription_lock_fd
+        self._subscription_lock_fd = None
+        if lock_fd is not None:
+            lock_fd.close()
+
     def on_disconnect(self, _client, _packet) -> None:
         self._connected = False
         logging.info(

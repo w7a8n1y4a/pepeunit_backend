@@ -84,6 +84,7 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_instance_registry_min_interval_sync: int
     pu_instance_retention_days: int
     pu_instance_unit_log_expiration: int
+    pu_instance_unit_state_send_interval: int
     pu_instance_user_auth_token_expiration: int
 
     pu_mqtt_client_max_bytes_rate: str
@@ -100,8 +101,6 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_mqtt_max_topic_levels: int
     pu_mqtt_port: int
     pu_mqtt_secure: bool
-
-    pu_state_send_interval: int
 
     pu_time_window_sizes: list[int]
 
@@ -136,6 +135,9 @@ class CurrentInstanceSettingsV1(BaseModel):
             pu_instance_unit_log_expiration=(
                 runtime.get().pu_instance_unit_log_expiration
             ),
+            pu_instance_unit_state_send_interval=(
+                runtime.get().pu_instance_unit_state_send_interval
+            ),
             pu_instance_user_auth_token_expiration=(
                 runtime.get().pu_instance_user_auth_token_expiration
             ),
@@ -161,7 +163,6 @@ class CurrentInstanceSettingsV1(BaseModel):
             pu_mqtt_max_topic_levels=runtime.get().pu_mqtt_max_topic_levels,
             pu_mqtt_port=settings.pu_mqtt_port,
             pu_mqtt_secure=settings.pu_mqtt_secure,
-            pu_state_send_interval=runtime.get().pu_state_send_interval,
             pu_time_window_sizes=list(settings.pu_time_window_sizes),
         )
 

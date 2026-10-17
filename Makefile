@@ -1,4 +1,4 @@
-.PHONY: help install install-all update-deps test-module test-integration test-load-rest test-load-mqtt lint migrate migrate-rollback uvi gun clean
+.PHONY: help install install-all update-deps test-module test-integration test-load-rest test-load-mqtt lint migrate migrate-rollback start clean
 
 help:
 	@echo "Pepeunit Backend - Commands:"
@@ -6,8 +6,7 @@ help:
 	@echo "install:          Install main project dependencies"
 	@echo "install-all:      Install all dependencies including dev and load tests"
 	@echo "update-deps:      Update all project dependencies with UV"
-	@echo "uvi:              Run development server with uvicorn on port 5291 with 2 workers"
-	@echo "gun:              Run production server with gunicorn on port 5291 with 2 workers"
+	@echo "start:            Run the server on port 5291 with 2 workers"
 	@echo "clean:            Clean temporary files and stop processes on port 5291"
 	@echo "lint:             Check and fix code with Ruff"
 	@echo "migrate:          Apply all database migrations"
@@ -57,19 +56,9 @@ migrate-rollback:
 	@echo "Rollback one migration with alembic..."
 	uv run alembic downgrade head-1
 
-uvi:
-	@echo "Run uvicorn server..."
+start:
+	@echo "Run server..."
 	uv run python -m uvicorn_conf
-
-gun:
-	@echo "Run gunicorn server..."
-	uv run gunicorn app.main:app \
-		--bind 0.0.0.0:5291 \
-		--config gunicorn_conf.py \
-		--timeout 300 \
-		--workers=2 \
-		--worker-class uvicorn.workers.UvicornWorker \
-		--worker-tmp-dir=/dev/shm
 
 clean:
 	@echo "Clean lock files and kill processes on port 5291..."

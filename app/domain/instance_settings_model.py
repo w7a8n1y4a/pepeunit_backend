@@ -84,6 +84,10 @@ class InstanceSettings(SQLModel, table=True):
     pu_instance_unit_log_expiration: int = Field(
         nullable=False, default=86_400
     )
+    # Devices still read this as PU_STATE_SEND_INTERVAL in env.
+    pu_instance_unit_state_send_interval: int = Field(
+        nullable=False, default=60
+    )
     pu_instance_user_auth_token_expiration: int = Field(
         nullable=False, default=2_678_400
     )
@@ -126,8 +130,6 @@ class InstanceSettings(SQLModel, table=True):
     pu_notification_telegram_user_interval_seconds: float = Field(
         nullable=False, default=2
     )
-
-    pu_state_send_interval: int = Field(nullable=False, default=60)
 
     pu_telegram_bot_link: str = Field(
         nullable=False, default="", max_length=512

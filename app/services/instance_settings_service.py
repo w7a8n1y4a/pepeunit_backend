@@ -1,11 +1,10 @@
-import os
-import signal
 import threading
 import time
 
 from fastapi import Depends
 from sqlmodel import Session
 
+from app.configs.restart import restart
 from app.domain.instance_settings_model import InstanceSettings
 from app.dto.enum import (
     AgentType,
@@ -98,6 +97,6 @@ class InstanceSettingsService:
 
     @staticmethod
     def _restart_after_response() -> None:
-        # The response leaves before the master reloads the workers.
+        # The response leaves before the master stops every worker.
         time.sleep(1)
-        os.kill(os.getppid(), signal.SIGHUP)
+        restart.request()

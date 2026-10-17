@@ -58,17 +58,24 @@ class StartupService:
         self._start_singleton()
 
     async def stop(self) -> None:
-        await self._cancel_tasks(self._bot_tasks, "Telegram bot")
-        if self._mqtt_task and not self._mqtt_task.done():
-            logging.info("Stopping MQTT task...")
-            self._mqtt_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._mqtt_task
-        await self._cancel_tasks(self._instance_tasks, "instance")
-        await self._cancel_tasks(self._singleton_tasks, "singleton")
-        if self._init_lock:
+        try:
+            await self._cancel_tasks(self._bot_tasks, "Telegram bot")
+            if self._mqtt_task and not self._mqtt_task.done():
+                logging.info("Stopping MQTT task...")
+                self._mqtt_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._mqtt_task
+            await self._cancel_tasks(self._instance_tasks, "instance")
+            await self._cancel_tasks(self._singleton_tasks, "singleton")
+            await self.mqtt.mqtt_shutdown()
+        finally:
+            self._release_locks()
+
+    def _release_locks(self) -> None:
+        if self._init_lock is not None:
             self._init_lock.close()
-        await self.mqtt.mqtt_shutdown()
+            self._init_lock = None
+        mqtt_manager.release_subscription_lock()
 
     async def _start_once(self) -> None:
         mqtt_run_lock = acquire_file_lock(FileLock.MQTT_RUN)

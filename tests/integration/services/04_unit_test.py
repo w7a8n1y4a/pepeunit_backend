@@ -288,7 +288,7 @@ def test_hand_update_firmware_unit(
 
     wait_until(
         all_updated,
-        timeout=runtime.get().pu_state_send_interval * 2 + 10,
+        timeout=runtime.get().pu_instance_unit_state_send_interval * 2 + 10,
         message="hand firmware update did not reach target commit",
         session=database,
     )
@@ -347,7 +347,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         lambda: service.get(target_units[0].uuid).current_commit_version == target_version,
-        timeout=runtime.get().pu_state_send_interval * 2 + 10,
+        timeout=runtime.get().pu_instance_unit_state_send_interval * 2 + 10,
         message="hand repo update did not reach unit commit",
         session=database,
     )
@@ -378,7 +378,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         bulk_reached,
-        timeout=runtime.get().pu_state_send_interval * 2 + 10,
+        timeout=runtime.get().pu_instance_unit_state_send_interval * 2 + 10,
         interval=2,
         message="bulk repo update did not reach chain units",
         session=database,

@@ -23,7 +23,7 @@ make help
    ```
 1. Запустите приложение командой:
    ```bash
-   make uvi
+   make start
    ```
 
 ## Важно

@@ -69,6 +69,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_instance_registry_min_interval_sync: int = Field(ge=1, le=1800)
     pu_instance_retention_days: int = Field(ge=1, le=120)
     pu_instance_unit_log_expiration: int = Field(ge=60, le=604_800)
+    pu_instance_unit_state_send_interval: int = Field(ge=1, le=600)
     pu_instance_user_auth_token_expiration: int = Field(ge=600, le=11_059_200)
     pu_instance_user_max_count: int = Field(ge=1, le=1_000_000)
     pu_instance_user_max_group: int = Field(ge=1, le=1024)
@@ -92,8 +93,6 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_notification_telegram_alert_text_limit: int = Field(ge=1, le=4096)
     pu_notification_telegram_instance_rate: int = Field(ge=1, le=30)
     pu_notification_telegram_user_interval_seconds: float = Field(ge=1, le=60)
-
-    pu_state_send_interval: int = Field(ge=1, le=600)
 
     pu_telegram_bot_link: str = Field(max_length=512)
     pu_telegram_bot_mode: Literal["webhook", "pooling"]
@@ -238,6 +237,7 @@ class InstanceSettingsUpdate(BaseModel):
     pu_instance_registry_min_interval_sync: int | None = None
     pu_instance_retention_days: int | None = None
     pu_instance_unit_log_expiration: int | None = None
+    pu_instance_unit_state_send_interval: int | None = None
     pu_instance_user_auth_token_expiration: int | None = None
     pu_instance_user_max_count: int | None = None
     pu_instance_user_max_group: int | None = None
@@ -261,8 +261,6 @@ class InstanceSettingsUpdate(BaseModel):
     pu_notification_telegram_alert_text_limit: int | None = None
     pu_notification_telegram_instance_rate: int | None = None
     pu_notification_telegram_user_interval_seconds: float | None = None
-
-    pu_state_send_interval: int | None = None
 
     pu_telegram_bot_link: str | None = None
     pu_telegram_bot_mode: Literal["webhook", "pooling"] | None = None

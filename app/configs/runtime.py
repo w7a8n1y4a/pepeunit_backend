@@ -30,6 +30,11 @@ class Runtime:
             self._loaded_at = time.monotonic()
             return self._row
 
+    def invalidate(self) -> None:
+        with self._lock:
+            self._row = None
+            self._loaded_at = 0.0
+
     @staticmethod
     def _read() -> InstanceSettings:
         from app.configs.db import get_hand_session
