@@ -9,7 +9,7 @@ import httpx
 import pytest
 from pydantic import ValidationError as SchemaValidationError
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import NoAccessError
 from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
@@ -640,7 +640,7 @@ def test_create_scheduled_unit_summary(
                 minutes=1
             )
             expiration = datetime.now(UTC) + timedelta(
-                seconds=settings.pu_unit_log_expiration
+                seconds=runtime.get().pu_unit_log_expiration
             )
             UnitLogRepository(cc).bulk_create(
                 [

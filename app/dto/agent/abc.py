@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from pydantic import BaseModel, Field
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import NoAccessError
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
@@ -23,7 +23,7 @@ class Agent(ABC, BaseModel):
     def generate_agent_token(self, access_token_exp: int | None = None) -> str:
         if not access_token_exp:
             access_token_exp = datetime.now(UTC) + timedelta(
-                seconds=settings.pu_auth_token_expiration
+                seconds=runtime.get().pu_user_auth_token_expiration
             )
 
         if self.type == AgentType.USER:

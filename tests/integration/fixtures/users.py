@@ -3,7 +3,7 @@ import random
 
 import pytest
 
-from app import settings
+from app import runtime, settings
 from app.domain.user_model import User
 from app.dto.enum import UserRole
 from app.repositories.user_repository import UserRepository
@@ -41,13 +41,13 @@ def telegram_chat_id(*, configured: bool = False) -> str:
 def _maybe_verify(
     database, cc, token: str, *, configured: bool = False
 ) -> None:
-    if not settings.pu_ff_telegram_bot_enable:
+    if not runtime.get().pu_ff_telegram_bot_enable:
         return
 
     async def _verify() -> None:
         service = user_service(database, cc, token)
         link = await service.generate_verification_link()
-        code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
+        code = link.replace(f"{runtime.get().pu_telegram_bot_link}?start=", "")
         await service.verification(
             telegram_chat_id(configured=configured), code
         )

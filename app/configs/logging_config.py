@@ -5,7 +5,8 @@ from typing import Final
 
 from pythonjsonlogger import jsonlogger
 
-from app import LogFormat, settings
+from app.configs.config import LogFormat
+from app.configs.runtime import runtime
 
 
 class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
@@ -120,8 +121,8 @@ class GmqttPacketIdMaskFilter(logging.Filter):
         return True
 
 
-def _build_formatters() -> dict:
-    if settings.pu_log_format == LogFormat.PLAIN:
+def _build_formatters(log_format: str) -> dict:
+    if log_format == LogFormat.PLAIN.value:
         plain_format = "%(levelname)s - %(asctime)s - %(name)s - %(message)s"
         return {
             LogFormat.PLAIN.value: {
@@ -139,14 +140,16 @@ def _build_formatters() -> dict:
     }
 
 
-def _get_default_formatter_name() -> str:
-    return settings.pu_log_format.value
+def _build_logging_config(
+    raw_level: str | None = None,
+    log_format: str | None = None,
+) -> dict:
+    if raw_level is None:
+        raw_level = runtime.get().pu_instance_log_min_level
+    if log_format is None:
+        log_format = runtime.get().pu_instance_log_format
 
-
-def _build_logging_config() -> dict:
-    raw_level = settings.pu_min_log_level.value
-
-    formatter_name = _get_default_formatter_name()
+    formatter_name = log_format
 
     return {
         "version": 1,
@@ -156,7 +159,7 @@ def _build_logging_config() -> dict:
                 "()": "app.configs.logging_config.GmqttPacketIdMaskFilter",
             }
         },
-        "formatters": _build_formatters(),
+        "formatters": _build_formatters(log_format),
         "handlers": {
             "stdout": {
                 "class": "logging.StreamHandler",
@@ -213,9 +216,13 @@ def _build_logging_config() -> dict:
     }
 
 
+def apply_logging(level: str, log_format: str) -> None:
+    dictConfig(_build_logging_config(level, log_format))
+
+
 LOGGING_CONFIG: Final = _build_logging_config()
 
 
 def setup_logging() -> None:
-    dictConfig(LOGGING_CONFIG)
+    dictConfig(_build_logging_config())
     logging.getLogger(__name__)

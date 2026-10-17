@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app import settings
+from app import runtime
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
@@ -79,7 +79,7 @@ class ControlBotRouter(BaseBotRouter):
         actions = [
             (DecreesNames.INTEGRATION_TESTS, "Integration Tests"),
         ]
-        if settings.pu_ff_federation_enable:
+        if runtime.get().pu_ff_federation_enable:
             actions.append((DecreesNames.SCAN_ALL, "Scan All Instances"))
         actions.extend(
             [

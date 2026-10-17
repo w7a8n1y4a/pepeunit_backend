@@ -37,3 +37,5 @@ class User(SQLModel, table=True):
     grafana_org_id: str = Field(nullable=True)
 
     create_datetime: datetime = Field(nullable=False)
+    # Last login or password change. Empty until the first profile update.
+    last_update_datetime: datetime | None = Field(default=None, nullable=True)

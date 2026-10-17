@@ -6,7 +6,7 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import (
     CustomException,
     CustomPermissionError,
@@ -157,7 +157,7 @@ class UnitNodeService:
                 )
 
                 if (
-                    settings.pu_ff_datapipe_default_last_value_enable
+                    runtime.get().pu_ff_datapipe_default_last_value_enable
                     and topic.endswith(
                         GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
                     )
@@ -308,7 +308,7 @@ class UnitNodeService:
         )
 
         if (
-            settings.pu_ff_datapipe_enable
+            runtime.get().pu_ff_datapipe_enable
             and data.is_data_pipe_active is not None
             and unit_node.topic_name.endswith(
                 GlobalPrefixTopic.BACKEND_SUB_PREFIX.value
@@ -568,7 +568,7 @@ class UnitNodeService:
     async def check_data_pipe_config(
         self, data_pipe
     ) -> list[DataPipeValidationErrorRead]:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access(
@@ -584,7 +584,7 @@ class UnitNodeService:
     async def set_data_pipe_config(
         self, uuid: uuid_pkg.UUID, data_pipe
     ) -> None:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -613,7 +613,7 @@ class UnitNodeService:
         )
 
     def get_data_pipe_config(self, uuid: uuid_pkg.UUID) -> str:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -631,7 +631,7 @@ class UnitNodeService:
         )
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -648,7 +648,7 @@ class UnitNodeService:
     def get_data_pipe_data(
         self, filters: DataPipeFilter
     ) -> tuple[int, list[NRecords | TimeWindow | Aggregation | LastValue]]:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access(
@@ -665,7 +665,7 @@ class UnitNodeService:
         return self.data_pipe_repository.list(filters=filters)
 
     def get_data_pipe_data_csv(self, uuid: uuid_pkg.UUID) -> str:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access(
@@ -700,7 +700,7 @@ class UnitNodeService:
     async def set_data_pipe_data_csv(
         self, uuid: uuid_pkg.UUID, data_csv
     ) -> None:
-        if not settings.pu_ff_datapipe_enable:
+        if not runtime.get().pu_ff_datapipe_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])

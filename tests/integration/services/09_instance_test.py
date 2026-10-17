@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 
 import pytest
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import (
     FeatureFlagError,
     InstanceError,
@@ -17,13 +17,21 @@ from app.dto.enum import (
     OperationTaskStatus,
     OperationTaskType,
 )
+from app.domain.instance_settings_model import InstanceSettings
+from app.repositories.instance_settings_repository import (
+    InstanceSettingsRepository,
+)
 from app.schemas.pydantic.instance import (
     InstanceCreate,
     InstanceFilter,
     InstanceUpdate,
 )
-from app.services.instance_service import InstanceService
 from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
+from app.services.instance_service import InstanceService
+from tests.integration.helpers.instance_settings import (
+    owner_setting,
+    wait_runtime,
+)
 from tests.integration.helpers.names import unique_instance_url
 from tests.integration.helpers.services import (
     instance_service,
@@ -93,7 +101,7 @@ def test_get_many_instance(
         InstanceFilter(
             trust_status=[InstanceTrustStatus.TRUST.value],
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert all(
@@ -252,13 +260,20 @@ async def test_collect_response_size_limit(
     own_instance, admin_user_token, database
 ) -> None:
     service = instance_service(database, admin_user_token)
-    original_size = settings.pu_instance_max_state_size
-
-    settings.pu_instance_max_state_size = 1
+    repository = InstanceSettingsRepository(database)
+    row = repository.get(InstanceSettings(uuid=InstanceSettings.ROW_UUID))
+    original_size = row.pu_instance_max_state_size
+    row.pu_instance_max_state_size = 1
+    repository.update(row.uuid, row)
+    wait_runtime("pu_instance_max_state_size", 1)
     try:
         instance = await service.collect(own_instance.uuid)
     finally:
-        settings.pu_instance_max_state_size = original_size
+        database.expire_all()
+        row = repository.get(InstanceSettings(uuid=InstanceSettings.ROW_UUID))
+        row.pu_instance_max_state_size = original_size
+        repository.update(row.uuid, row)
+        wait_runtime("pu_instance_max_state_size", original_size)
 
     assert (
         instance.last_collection_status == InstanceCollectionStatus.ERROR.value
@@ -289,18 +304,21 @@ async def test_collect_all(
 
 
 @pytest.mark.federation
-async def test_federation_disabled(admin_user_token, database) -> None:
+async def test_federation_disabled(
+    admin_user_token, database, extra_user, extra_user_token
+) -> None:
     service = instance_service(database, admin_user_token)
-    original_flag = settings.pu_ff_federation_enable
-
-    settings.pu_ff_federation_enable = False
-    try:
+    with owner_setting(
+        database,
+        extra_user,
+        extra_user_token,
+        "pu_ff_federation_enable",
+        False,
+    ):
         with pytest.raises(FeatureFlagError):
             service.scan_all()
         with pytest.raises(FeatureFlagError):
             await service.collect(uuid_pkg.uuid4())
-    finally:
-        settings.pu_ff_federation_enable = original_flag
 
 
 @pytest.mark.federation

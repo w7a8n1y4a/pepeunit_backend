@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from app import settings
+from app import runtime
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
     InstancePublicRegistry,
@@ -60,7 +60,7 @@ class InstanceExternalRepository:
                 url,
                 httpx.QueryParams(
                     offset=len(items),
-                    limit=settings.pu_max_pagination_size,
+                    limit=runtime.get().pu_instance_max_pagination_size,
                 ),
             )
             page = page_model.model_validate_json(response.content)
@@ -77,7 +77,7 @@ class InstanceExternalRepository:
     ) -> httpx.Response:
         async with httpx.AsyncClient(
             follow_redirects=False,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         ) as client:
             response = await client.get(url, params=params)
 
@@ -87,6 +87,6 @@ class InstanceExternalRepository:
 
     @staticmethod
     def is_valid_response_size(response: httpx.Response) -> None:
-        if len(response.content) > settings.pu_instance_max_state_size:
-            msg = f"Instance response {len(response.content)} B exceeds the limit {settings.pu_instance_max_state_size} B"
+        if len(response.content) > runtime.get().pu_instance_max_state_size:
+            msg = f"Instance response {len(response.content)} B exceeds the limit {runtime.get().pu_instance_max_state_size} B"
             raise ValueError(msg)

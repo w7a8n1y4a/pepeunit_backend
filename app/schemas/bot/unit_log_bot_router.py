@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app import settings
+from app import runtime
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_bot_unit_service
@@ -92,16 +92,16 @@ class UnitLogBotRouter(BaseBotRouter):
             count, unit_logs = unit_service.log_list(
                 UnitLogFilter(
                     offset=(filters.page - 1)
-                    * settings.pu_telegram_items_per_page,
-                    limit=settings.pu_telegram_items_per_page,
+                    * runtime.get().pu_telegram_items_per_page,
+                    limit=runtime.get().pu_telegram_items_per_page,
                     level=filters.log_levels or [],
                     uuid=filters.unit_uuid,
                 )
             )
 
             total_pages = (
-                count + settings.pu_telegram_items_per_page - 1
-            ) // settings.pu_telegram_items_per_page
+                count + runtime.get().pu_telegram_items_per_page - 1
+            ) // runtime.get().pu_telegram_items_per_page
 
         return unit_logs, total_pages
 

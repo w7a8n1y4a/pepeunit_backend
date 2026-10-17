@@ -6,6 +6,7 @@ from app.configs.config import (
     LogFormat,
     Settings,
 )
+from app.configs.runtime import runtime
 
 load_dotenv()
 
@@ -15,5 +16,6 @@ __all__ = [
     "BackendLogLevel",
     "ClickHouseConnectionParams",
     "LogFormat",
+    "runtime",
     "settings",
 ]

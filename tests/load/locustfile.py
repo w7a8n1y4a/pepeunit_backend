@@ -2,7 +2,7 @@ import random
 
 from locust import HttpUser, between, task
 
-from app import settings
+from app import runtime, settings
 from app.dto.enum import InstanceTrustStatus
 
 REST_INSTANCES = f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/instances"
@@ -16,7 +16,7 @@ def _random_pagination() -> dict:
         filters["offset"] = random.randint(0, 30)
     if random.choice((True, False)):
         filters["limit"] = random.randint(
-            1, min(100, settings.pu_max_pagination_size)
+            1, min(100, runtime.get().pu_instance_max_pagination_size)
         )
     return filters
 

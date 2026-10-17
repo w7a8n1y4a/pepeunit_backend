@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from app import settings
+from app import runtime, settings
 from app.schemas.pydantic.grafana import DashboardFilter
 from tests.integration.helpers.data_pipe import seed_pipe_node
 from tests.integration.helpers.names import (
@@ -40,7 +40,7 @@ def preserve_demo_dashboard(database, cc) -> None:
     """
     if settings.pu_test_integration_clear_data:
         return
-    if not settings.pu_ff_grafana_integration_enable:
+    if not runtime.get().pu_ff_grafana_integration_enable:
         return
 
     try:

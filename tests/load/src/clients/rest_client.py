@@ -4,7 +4,7 @@ import logging
 
 import httpx
 
-from app import settings
+from app import runtime
 from app.dto.enum import GitPlatform, ProcessingPolicyType
 from tests.load.src.dto.config import LoadTestConfig
 
@@ -27,7 +27,7 @@ class RestClient:
             create_user_link,
             json=user,
             headers=self.headers,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
 
         user["credentials"] = user.pop("login")
@@ -37,7 +37,7 @@ class RestClient:
             auth_link,
             json=user,
             headers=self.headers,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         ).json()["token"]
         self.headers["x-auth-token"] = self.token
 
@@ -50,7 +50,7 @@ class RestClient:
         target_registry = httpx.get(
             registry_link,
             headers=self.headers,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
 
         target_registry = target_registry.json()
@@ -70,7 +70,7 @@ class RestClient:
                 registry_create_link,
                 json=registry,
                 headers=self.headers,
-                timeout=settings.http_timeout(),
+                timeout=runtime.get().http_timeout(),
             ).json()
         else:
             target_registry = target_registry["repositories_registry"][0]
@@ -89,7 +89,7 @@ class RestClient:
             repo_link,
             json=repo,
             headers=self.headers,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
 
         if response.status_code == 422:
@@ -97,7 +97,7 @@ class RestClient:
             response = httpx.get(
                 repo_link,
                 headers=self.headers,
-                timeout=settings.http_timeout(),
+                timeout=runtime.get().http_timeout(),
             )
 
         response = response.json()
@@ -114,7 +114,7 @@ class RestClient:
                 "is_only_tag_update": False,
             },
             headers=self.headers,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
 
         return target_repo
@@ -125,7 +125,7 @@ class RestClient:
 
         if units:
             async with httpx.AsyncClient(
-                timeout=settings.http_timeout()
+                timeout=runtime.get().http_timeout()
             ) as client:
                 unit_uuids = [unit["uuid"] for unit in units]
                 await self.run_tasks_with_semaphore(
@@ -140,7 +140,7 @@ class RestClient:
         responses = []
 
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             units = [
                 {
@@ -164,14 +164,14 @@ class RestClient:
         logging.warning("Fetch all Units")
         get_units = f"{self.config.url}/pepeunit/api/v1/units?is_include_output_unit_nodes=true&search_string={self.config.test_hash}"
 
-        limit = settings.pu_max_pagination_size
+        limit = runtime.get().pu_instance_max_pagination_size
 
         units = []
         while True:
             page = httpx.get(
                 f"{get_units}&offset={len(units)}&limit={limit}",
                 headers=self.headers,
-                timeout=settings.http_timeout(),
+                timeout=runtime.get().http_timeout(),
             ).json()
             units.extend(page["units"])
 
@@ -182,7 +182,7 @@ class RestClient:
         logging.warning("Run create env Units")
 
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             await self.run_tasks_with_semaphore(
                 client, target_units, self.patch_unit_env
@@ -200,7 +200,7 @@ class RestClient:
                     target_unit_nodes.append(node)
 
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             await self.run_tasks_with_semaphore(
                 client, target_unit_nodes, self.patch_unit_data_pipe
@@ -212,7 +212,7 @@ class RestClient:
         logging.warning("Fetch env Units")
 
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             updated_units = await self.run_tasks_with_semaphore(
                 client, target_units, self.get_unit_env

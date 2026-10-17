@@ -1,24 +1,36 @@
 import uuid as uuid_pkg
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app import settings
+from app import runtime, settings
 from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
 
 
 class FeatureFlags(BaseModel):
-    pu_ff_telegram_bot_enable: bool = settings.pu_ff_telegram_bot_enable
-    pu_ff_grafana_integration_enable: bool = (
-        settings.pu_ff_grafana_integration_enable
-    )
-    pu_ff_datapipe_enable: bool = settings.pu_ff_datapipe_enable
-    pu_ff_datapipe_default_last_value_enable: bool = (
-        settings.pu_ff_datapipe_default_last_value_enable
-    )
-    pu_ff_prometheus_enable: bool = settings.pu_ff_prometheus_enable
-    pu_ff_federation_enable: bool = settings.pu_ff_federation_enable
-    pu_ff_notification_enable: bool = settings.pu_ff_notification_enable
+    pu_ff_datapipe_default_last_value_enable: bool
+    pu_ff_datapipe_enable: bool
+    pu_ff_federation_enable: bool
+    pu_ff_grafana_integration_enable: bool
+    pu_ff_notification_enable: bool
+    pu_ff_prometheus_enable: bool
+    pu_ff_telegram_bot_enable: bool
+
+    @classmethod
+    def current(cls) -> FeatureFlags:
+        return cls(
+            pu_ff_datapipe_default_last_value_enable=(
+                runtime.get().pu_ff_datapipe_default_last_value_enable
+            ),
+            pu_ff_datapipe_enable=runtime.get().pu_ff_datapipe_enable,
+            pu_ff_federation_enable=runtime.get().pu_ff_federation_enable,
+            pu_ff_grafana_integration_enable=(
+                runtime.get().pu_ff_grafana_integration_enable
+            ),
+            pu_ff_notification_enable=runtime.get().pu_ff_notification_enable,
+            pu_ff_prometheus_enable=runtime.get().pu_ff_prometheus_enable,
+            pu_ff_telegram_bot_enable=runtime.get().pu_ff_telegram_bot_enable,
+        )
 
 
 class Root(BaseModel):
@@ -29,8 +41,10 @@ class Root(BaseModel):
     authors: list = settings.authors
     swagger: str = f"{settings.pu_link_prefix}/docs"
     grafana: str = f"{settings.pu_link}/grafana/"
-    telegram_bot: str = settings.pu_telegram_bot_link
-    feature_flags: FeatureFlags = FeatureFlags()
+    telegram_bot: str = Field(
+        default_factory=lambda: runtime.get().pu_telegram_bot_link
+    )
+    feature_flags: FeatureFlags = Field(default_factory=FeatureFlags.current)
 
 
 class MqttRead(BaseModel):

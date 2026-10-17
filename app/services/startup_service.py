@@ -12,7 +12,7 @@ from clickhouse_migrations.clickhouse_cluster import ClickhouseCluster
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
 
-from app import settings
+from app import runtime, settings
 from app.configs.emqx import ControlEmqx
 from app.configs.redis import get_redis_session
 from app.configs.utils import acquire_file_lock, wait_for_file_unlock
@@ -74,7 +74,7 @@ class StartupService:
         mqtt_run_lock = acquire_file_lock(FileLock.MQTT_RUN)
         await self._init_clickhouse()
         await ControlEmqx().init()
-        if settings.pu_ff_grafana_integration_enable:
+        if runtime.get().pu_ff_grafana_integration_enable:
             asyncio.get_running_loop().run_in_executor(
                 None,
                 GrafanaRepository.configure_admin_dashboard_permissions,
@@ -83,6 +83,7 @@ class StartupService:
         self._start_telegram_bot()
         self._sync_local_repository()
         mqtt_run_lock.close()
+        self._mark_instance_started()
         logo_to_console()
 
     async def _start_every_worker(self) -> None:
@@ -99,7 +100,7 @@ class StartupService:
         )
 
     def _start_singleton(self) -> None:
-        if settings.pu_ff_federation_enable:
+        if runtime.get().pu_ff_federation_enable:
             self._singleton_tasks.append(
                 asyncio.create_task(
                     self._run_instance_collection_loop(),
@@ -126,7 +127,7 @@ class StartupService:
                 name="automatic_update_registry",
             )
         )
-        if settings.pu_ff_notification_enable:
+        if runtime.get().pu_ff_notification_enable:
             self._singleton_tasks.append(
                 asyncio.create_task(
                     self._run_scheduled_notifications(),
@@ -177,18 +178,18 @@ class StartupService:
 
     def _start_telegram_bot(self) -> None:
         if (
-            not settings.pu_ff_telegram_bot_enable
+            not runtime.get().pu_ff_telegram_bot_enable
             or not self.bot
             or not self.dp
         ):
             return
-        if settings.pu_telegram_bot_mode == "pooling":
+        if runtime.get().pu_telegram_bot_mode == "pooling":
             self._bot_tasks.append(
                 asyncio.create_task(
                     self._run_polling_bot(), name="run_polling_bot"
                 )
             )
-        elif settings.pu_telegram_bot_mode == "webhook":
+        elif runtime.get().pu_telegram_bot_mode == "webhook":
             self._bot_tasks.append(
                 asyncio.create_task(
                     self._run_webhook_bot(), name="run_webhook_bot"
@@ -225,7 +226,7 @@ class StartupService:
             result = httpx.post(
                 f"{settings.pu_link_prefix_and_v1}/bot",
                 headers={"Content-Type": "application/json"},
-                timeout=settings.http_timeout(),
+                timeout=runtime.get().http_timeout(),
             )
             if result.status_code == 422:
                 return
@@ -300,6 +301,8 @@ class StartupService:
     async def _run_instance_collection_loop(self) -> None:
         while True:
             await asyncio.sleep(self._seconds_until(minute=0))
+            if not runtime.get().pu_ff_federation_enable:
+                continue
             lock = acquire_file_lock(FileLock.COLLECT_INSTANCES)
             if lock is None:
                 continue
@@ -345,8 +348,8 @@ class StartupService:
 
     async def _start_telegram_alert_queue(self) -> None:
         if (
-            not settings.pu_ff_notification_enable
-            or not settings.pu_ff_telegram_bot_enable
+            not runtime.get().pu_ff_notification_enable
+            or not runtime.get().pu_ff_telegram_bot_enable
             or not self.bot
         ):
             return
@@ -362,6 +365,8 @@ class StartupService:
         # The write is synchronous and must not stall the processing loop.
         while True:
             await asyncio.sleep(self._seconds_until_next_minute())
+            if not runtime.get().pu_ff_notification_enable:
+                continue
             lock = acquire_file_lock(FileLock.NOTIFICATION_SCHEDULE)
             if lock is None:
                 continue
@@ -379,6 +384,9 @@ class StartupService:
     async def _run_notifications(self) -> None:
         # One worker processes the table, the others retry the lock
         while True:
+            if not runtime.get().pu_ff_notification_enable:
+                await asyncio.sleep(self.NOTIFICATION_POLL_SECONDS)
+                continue
             lock = acquire_file_lock(FileLock.NOTIFICATION_PROCESS)
             if lock is None:
                 await asyncio.sleep(self.NOTIFICATION_POLL_SECONDS)
@@ -399,8 +407,17 @@ class StartupService:
                 handled = (
                     await services.get_notification_service().process_pending()
                 )
-            if handled < settings.pu_notification_data_pipe_alert_batch:
+            if handled < runtime.get().pu_notification_data_pipe_alert_batch:
                 await asyncio.sleep(self.NOTIFICATION_POLL_SECONDS)
+
+    def _mark_instance_started(self) -> None:
+        from app.configs.db import get_hand_session
+        from app.services.instance_settings_service import (
+            InstanceSettingsService,
+        )
+
+        with get_hand_session() as db:
+            InstanceSettingsService.mark_started(db)
 
     def _seconds_until_next_minute(self) -> float:
         now = datetime.now(UTC)

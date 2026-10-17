@@ -4,7 +4,7 @@ import logging
 import time
 import uuid
 
-from app import BackendLogLevel, settings
+from app import BackendLogLevel, runtime, settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.errors import MqttError
@@ -14,6 +14,7 @@ from app.domain.unit_model import Unit
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     DestinationTopicType,
+    ReservedEnvVariableName,
     ReservedOutputBaseTopic,
     ReservedStateKey,
     UnitFirmwareUpdateStatus,
@@ -31,7 +32,7 @@ from app.services.validators import (
     is_valid_object,
     is_valid_uuid,
 )
-from app.utils.utils import ensure_timezone_aware
+from app.utils.utils import aes_gcm_decode, ensure_timezone_aware
 
 
 class MqttMessageHandler:
@@ -40,10 +41,10 @@ class MqttMessageHandler:
 
     async def handle(self, topic: str, payload: bytes) -> None:
         payload_size = len(payload.decode())
-        if payload_size > settings.pu_mqtt_max_payload_size * 1024:
+        if payload_size > runtime.get().pu_mqtt_max_payload_size * 1024:
             msg = (
                 f"Payload size is {payload_size}, "
-                f"limit is {settings.pu_mqtt_max_payload_size} KB"
+                f"limit is {runtime.get().pu_mqtt_max_payload_size} KB"
             )
             raise MqttError(msg)
 
@@ -84,10 +85,11 @@ class MqttMessageHandler:
                 == UnitFirmwareUpdateStatus.REQUEST_SENT
             )
             same_commit = new_commit == unit.current_commit_version
-            too_frequent = self._is_state_rate_limited(topic)
+            interval = self._state_send_interval(unit)
+            too_frequent = self._is_state_rate_limited(topic, interval)
 
             if same_commit and not waiting_firmware and too_frequent:
-                self._reject_rate_limited_state(topic)
+                self._reject_rate_limited_state(topic, interval)
                 return
 
             self.last_state_times[topic] = time.time()
@@ -95,7 +97,7 @@ class MqttMessageHandler:
             unit.current_commit_version = new_commit
             unit.last_update_datetime = datetime.datetime.now(datetime.UTC)
 
-            self._sync_firmware_update_status(db, unit)
+            self._sync_firmware_update_status(db, unit, interval)
             unit_repository.update(unit_uuid, unit)
 
     async def handle_log(self, unit_uuid, payload: bytes) -> None:
@@ -130,7 +132,7 @@ class MqttMessageHandler:
                                 datetime.UTC
                             )
                             + datetime.timedelta(
-                                seconds=settings.pu_unit_log_expiration
+                                seconds=runtime.get().pu_unit_log_expiration
                             ),
                         )
                         for inc, item in enumerate(log_data)
@@ -143,9 +145,27 @@ class MqttMessageHandler:
             except Exception as e:
                 logging.error(e)
 
-    def _is_state_rate_limited(self, topic: str) -> bool:
+    def _state_send_interval(self, unit: Unit) -> int:
+        """Old units keep the interval stored in their env."""
+        fallback = int(runtime.get().pu_state_send_interval)
+        if not unit.cipher_env_dict:
+            return fallback
+        try:
+            env = json.loads(aes_gcm_decode(unit.cipher_env_dict))
+            raw = env.get(ReservedEnvVariableName.PU_STATE_SEND_INTERVAL.value)
+            if raw is None:
+                return fallback
+            return int(raw)
+        except Exception:
+            logging.warning(
+                "Unit %s env has no state interval, the instance value is used",
+                unit.uuid,
+            )
+            return fallback
+
+    def _is_state_rate_limited(self, topic: str, interval: int) -> bool:
         last_time = self.last_state_times.get(topic, 0)
-        return time.time() - last_time < settings.pu_state_send_interval
+        return time.time() - last_time < interval
 
     @staticmethod
     def _get_commit_version(unit_state_dict: dict) -> str:
@@ -156,19 +176,18 @@ class MqttMessageHandler:
         return commit
 
     @staticmethod
-    def _reject_rate_limited_state(topic: str) -> None:
-        if settings.pu_min_log_level != BackendLogLevel.DEBUG:
+    def _reject_rate_limited_state(topic: str, interval: int) -> None:
+        if runtime.get().pu_instance_log_min_level != BackendLogLevel.DEBUG:
             return
 
         msg = (
             f"Exceeding the message sending rate for the {topic} topic, "
-            f"you need to send values no more often than "
-            f"{settings.pu_state_send_interval}"
+            f"you need to send values no more often than {interval}"
         )
         raise MqttError(msg)
 
     @staticmethod
-    def _sync_firmware_update_status(db, unit: Unit) -> None:
+    def _sync_firmware_update_status(db, unit: Unit, interval: int) -> None:
         if (
             unit.firmware_update_status
             != UnitFirmwareUpdateStatus.REQUEST_SENT
@@ -194,12 +213,12 @@ class MqttMessageHandler:
             unit.firmware_update_status = UnitFirmwareUpdateStatus.SUCCESS
             return
 
-        if elapsed <= settings.pu_state_send_interval * 2:
+        if elapsed <= interval * 2:
             return
 
         unit.firmware_update_error = (
             f"Device firmware update time is twice as fast as "
-            f"{settings.pu_state_send_interval}s times"
+            f"{interval}s times"
         )
         unit.last_firmware_update_datetime = None
         unit.firmware_update_status = UnitFirmwareUpdateStatus.ERROR

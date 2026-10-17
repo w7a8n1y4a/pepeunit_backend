@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app import settings
+from app import runtime, settings
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
 from app.configs.rest import get_bot_repository_registry_service
@@ -79,8 +79,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             count, repositories_registry = repository_registry_service.list(
                 RepositoryRegistryFilter(
                     offset=(filters.page - 1)
-                    * settings.pu_telegram_items_per_page,
-                    limit=settings.pu_telegram_items_per_page,
+                    * runtime.get().pu_telegram_items_per_page,
+                    limit=runtime.get().pu_telegram_items_per_page,
                     is_public_repository=self.registry_type_to_bool(
                         filters.repository_types
                     ),
@@ -94,8 +94,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             )
 
             total_pages = (
-                count + settings.pu_telegram_items_per_page - 1
-            ) // settings.pu_telegram_items_per_page
+                count + runtime.get().pu_telegram_items_per_page - 1
+            ) // runtime.get().pu_telegram_items_per_page
 
         return repositories_registry, total_pages
 

@@ -4,7 +4,7 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
-from app import settings
+from app import runtime
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
@@ -333,7 +333,7 @@ class GrafanaService:
             raise GrafanaError(msg)
 
     def is_valid_unit_node_in_panel_count(self, uuid: uuid_pkg.UUID):
-        limit = settings.pu_grafana_limit_unit_node_per_one_panel
+        limit = runtime.get().pu_grafana_limit_unit_node_per_one_panel
         if (
             self.dashboard_panel_repository.get_count_unit_for_panel(uuid)
             >= limit

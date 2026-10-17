@@ -3,8 +3,8 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
-from app import settings
-from app.configs.errors import FeatureFlagError
+from app import runtime
+from app.configs.errors import FeatureFlagError, UserError
 from app.configs.redis import get_redis_session
 from app.domain.notification_settings_model import NotificationSettings
 from app.domain.user_model import User
@@ -24,7 +24,11 @@ from app.schemas.pydantic.user import (
 )
 from app.services.access_service import AccessService
 from app.services.validators import is_valid_object, is_valid_password
-from app.utils.utils import generate_random_string, password_to_hash
+from app.utils.utils import (
+    ensure_timezone_aware,
+    generate_random_string,
+    password_to_hash,
+)
 
 
 class UserService:
@@ -48,6 +52,7 @@ class UserService:
         self.access_service.authorization.check_access([AgentType.BOT])
         self.user_repository.is_valid_login(data.login)
         self.user_repository.is_valid_password(data.password)
+        self._check_user_count()
 
         user = User(**data.dict())
         user.role = UserRole.USER
@@ -97,6 +102,10 @@ class UserService:
             User(uuid=self.access_service.current_agent.uuid)
         )
         is_valid_object(user)
+        if not data.login and not data.password:
+            return user
+
+        self._check_update_rate(user)
 
         if data.login:
             self.user_repository.is_valid_login(data.login, user.uuid)
@@ -108,10 +117,11 @@ class UserService:
                 data.password
             )
 
+        user.last_update_datetime = datetime.datetime.now(datetime.UTC)
         return self.user_repository.update(user.uuid, user)
 
     async def generate_verification_link(self) -> str:
-        if not settings.pu_ff_telegram_bot_enable:
+        if not runtime.get().pu_ff_telegram_bot_enable:
             raise FeatureFlagError()
 
         self.access_service.authorization.check_access([AgentType.USER])
@@ -122,7 +132,7 @@ class UserService:
             code, str(self.access_service.current_agent.uuid), ex=60
         )
 
-        return f"{settings.pu_telegram_bot_link}?start={code}"
+        return f"{runtime.get().pu_telegram_bot_link}?start={code}"
 
     async def verification(
         self, telegram_chat_id: str, verification_code: str
@@ -183,8 +193,34 @@ class UserService:
         self.access_service.authorization.check_access([AgentType.USER])
         return self.user_repository.list(filters)
 
+    def _check_user_count(self) -> None:
+        limit = int(runtime.get().pu_user_max_count)
+        count = self.user_repository.get_all_count()
+        if count < limit:
+            return
+        msg = f"User count is {count}, the limit is {limit}"
+        raise UserError(msg)
+
+    def _check_update_rate(self, user: User) -> None:
+        if user.last_update_datetime is None:
+            return
+
+        rate = int(runtime.get().pu_user_max_update_rate)
+        delta = (
+            datetime.datetime.now(datetime.UTC)
+            - ensure_timezone_aware(user.last_update_datetime)
+        ).total_seconds()
+        if delta >= rate:
+            return
+
+        msg = (
+            f"User data can be updated once every {rate} s, "
+            f"last update was {round(delta)} s ago"
+        )
+        raise UserError(msg)
+
     def create_org_if_not_exists(self, uuid: uuid_pkg.UUID) -> None:
-        if not settings.pu_ff_grafana_integration_enable:
+        if not runtime.get().pu_ff_grafana_integration_enable:
             return
 
         user = self.user_repository.get(User(uuid=uuid))

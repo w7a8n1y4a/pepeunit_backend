@@ -5,7 +5,7 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, field_validator
 
-from app import settings
+from app import runtime, settings
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,7 @@ class LokiRepository:
         response = httpx.get(
             f"{settings.pu_notification_loki_url.rstrip('/')}/loki/api/v1/query",
             params={"query": query},
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
         response.raise_for_status()
         payload = _LokiQuery.model_validate_json(response.content)

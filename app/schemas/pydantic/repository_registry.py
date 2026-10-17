@@ -4,9 +4,9 @@ from datetime import datetime
 
 from fastapi import Query
 from fastapi_filter.contrib.sqlalchemy import Filter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from app import settings
+from app import runtime
 from app.dto.enum import (
     CredentialStatus,
     GitPlatform,
@@ -92,7 +92,16 @@ class CommitFilter(Filter):
 
     offset: int = Field(default=0, ge=0)
     limit: int = Field(
-        default=settings.pu_max_pagination_size,
+        default_factory=lambda: runtime.get().pu_instance_max_pagination_size,
         ge=0,
-        le=settings.pu_max_pagination_size,
+        le=500,
     )
+
+    @field_validator("limit")
+    @classmethod
+    def limit_within_instance_max(cls, value: int) -> int:
+        maximum = runtime.get().pu_instance_max_pagination_size
+        if value > maximum:
+            msg = f"limit must be <= {maximum}"
+            raise ValueError(msg)
+        return value

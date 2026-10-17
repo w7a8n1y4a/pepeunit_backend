@@ -2,20 +2,20 @@ from collections.abc import Callable
 
 import pytest
 
-from app import settings
+from app import runtime, settings
 from tests.integration.helpers.private_repos import load_private_repo_specs
 
 MARKER_ENABLED: dict[str, Callable[[], bool]] = {
-    "telegram": lambda: settings.pu_ff_telegram_bot_enable,
-    "grafana": lambda: settings.pu_ff_grafana_integration_enable,
-    "datapipe": lambda: settings.pu_ff_datapipe_enable,
+    "telegram": lambda: runtime.get().pu_ff_telegram_bot_enable,
+    "grafana": lambda: runtime.get().pu_ff_grafana_integration_enable,
+    "datapipe": lambda: runtime.get().pu_ff_datapipe_enable,
     "last_value": lambda: (
-        settings.pu_ff_datapipe_enable
-        and settings.pu_ff_datapipe_default_last_value_enable
+        runtime.get().pu_ff_datapipe_enable
+        and runtime.get().pu_ff_datapipe_default_last_value_enable
     ),
-    "prometheus": lambda: settings.pu_ff_prometheus_enable,
-    "federation": lambda: settings.pu_ff_federation_enable,
-    "notification": lambda: settings.pu_ff_notification_enable,
+    "prometheus": lambda: runtime.get().pu_ff_prometheus_enable,
+    "federation": lambda: runtime.get().pu_ff_federation_enable,
+    "notification": lambda: runtime.get().pu_ff_notification_enable,
     "private_repo": lambda: (
         settings.pu_test_integration_private_repo_enable
         and bool(load_private_repo_specs())

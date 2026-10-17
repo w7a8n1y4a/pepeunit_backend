@@ -7,7 +7,7 @@ from aiogram.types import InlineKeyboardMarkup
 from fastapi import Query
 from pydantic import BaseModel, field_validator
 
-from app import settings
+from app import runtime
 from app.dto.enum import (
     EntityNames,
     LogLevel,
@@ -273,12 +273,14 @@ class BaseBotRouter(ABC):
 
     @staticmethod
     def header_name_limit(data: str) -> str:
-        return data[: settings.pu_telegram_header_entity_length]
+        return data[: runtime.get().pu_telegram_header_entity_length]
 
     @staticmethod
     def registry_name_limit(data: str, coefficient: float = 1) -> str:
         return data[
-            -int(settings.pu_telegram_header_entity_length * coefficient) :
+            -int(
+                runtime.get().pu_telegram_header_entity_length * coefficient
+            ) :
         ]
 
     @staticmethod
@@ -306,7 +308,7 @@ class BaseBotRouter(ABC):
 
     @staticmethod
     def git_hash_limit(data: str) -> str:
-        return data[: settings.pu_telegram_git_hash_length]
+        return data[: runtime.get().pu_telegram_git_hash_length]
 
     @staticmethod
     async def telegram_response(

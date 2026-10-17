@@ -8,7 +8,7 @@ from collections import Counter
 from git import Repo as GitRepo
 from git.exc import GitCommandError
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import GitRepoError
 from app.configs.utils import get_directory_size
 from app.domain.repo_model import Repo
@@ -60,7 +60,12 @@ class GitRepoRepository:
     def clone(url: str, repo_save_path: str):
         shutil.rmtree(repo_save_path, ignore_errors=True)
 
-        git_env = settings.git_http_env()
+        timeout = str(int(float(runtime.get().pu_http_timeout)))
+        git_env = {
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_HTTP_LOW_SPEED_LIMIT": "1000",
+            "GIT_HTTP_LOW_SPEED_TIME": timeout,
+        }
 
         try:
             git_repo = GitRepo.clone_from(

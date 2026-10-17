@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import httpx
 
-from app import settings
+from app import runtime
 from app.configs.errors import GitPlatformClientError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.schemas.pydantic.repository_registry import Credentials
@@ -65,7 +65,7 @@ class GitPlatformClientABC(ABC):
                 url=url,
                 headers=headers,
                 params=params,
-                timeout=settings.http_timeout(),
+                timeout=runtime.get().http_timeout(),
                 follow_redirects=True,
             )
         except httpx.TimeoutException as err:
@@ -197,7 +197,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
                 headers=headers,
             )
             result_data.json()["id"]
-        except (KeyError, GitPlatformClientError):
+        except KeyError, GitPlatformClientError:
             return False
 
         return True
@@ -219,10 +219,10 @@ class GithubPlatformClient(GitPlatformClientABC):
                 f"{self.credentials.username}:{self.credentials.pat_token}@"
             )
         elif (
-            len(settings.pu_github_token_name) > 0
-            and len(settings.pu_github_token_pat) > 0
+            len(runtime.get().pu_github_token_name) > 0
+            and len(runtime.get().pu_github_token_pat) > 0
         ):
-            credentials = f"{settings.pu_github_token_name}:{settings.pu_github_token_pat}@"
+            credentials = f"{runtime.get().pu_github_token_name}:{runtime.get().pu_github_token_pat}@"
 
         return f"https://{credentials}api.github.com/repos/"
 
@@ -274,7 +274,7 @@ class GithubPlatformClient(GitPlatformClientABC):
                 headers=headers,
             )
             repo_data.json()["id"]
-        except (KeyError, GitPlatformClientError):
+        except KeyError, GitPlatformClientError:
             return False
 
         return True

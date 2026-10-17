@@ -1,7 +1,8 @@
-from app import settings
+from app import runtime
 from app.configs.rest import (
     get_grafana_service,
     get_instance_service,
+    get_instance_settings_service,
     get_metrics_service,
     get_notification_service,
     get_operation_task_service,
@@ -49,6 +50,10 @@ def instance_service(database, token=None):
     return get_instance_service(database, token)
 
 
+def instance_settings_service(database, token=None):
+    return get_instance_settings_service(database, token)
+
+
 def operation_task_service(database, token=None):
     return get_operation_task_service(database, token)
 
@@ -90,12 +95,12 @@ def _collect_commits(service, registry_uuid, branch, only_tag, count):
                 repo_branch=branch,
                 only_tag=only_tag,
                 offset=len(commits),
-                limit=settings.pu_max_pagination_size,
+                limit=runtime.get().pu_instance_max_pagination_size,
             ),
         )
         commits.extend(page)
 
-        if len(page) < settings.pu_max_pagination_size:
+        if len(page) < runtime.get().pu_instance_max_pagination_size:
             break
 
     return commits

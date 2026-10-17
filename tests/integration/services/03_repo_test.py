@@ -2,8 +2,13 @@ import logging
 
 import pytest
 
-from app import settings
-from app.configs.errors import GitRepoError, NoAccessError, RepoError, ValidationError
+from app import runtime
+from app.configs.errors import (
+    GitRepoError,
+    NoAccessError,
+    RepoError,
+    ValidationError,
+)
 from app.dto.enum import (
     OperationTaskStatus,
     OperationTaskType,
@@ -202,7 +207,7 @@ def test_get_many_repo(
             search_string=test_hash,
             is_auto_update_repo=True,
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert count >= 3

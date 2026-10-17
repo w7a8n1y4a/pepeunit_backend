@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app import settings
+from app import runtime
 from app.configs.errors import (
     GitRepoError,
     NoAccessError,
@@ -25,12 +25,18 @@ from app.schemas.pydantic.repository_registry import (
     RepositoryRegistryCreate,
     RepositoryRegistryFilter,
 )
+from tests.integration.helpers.instance_settings import owner_setting
 from tests.integration.helpers.names import UNIVERSAL_FIRST_COMMIT
-from tests.integration.helpers.services import all_branch_commits, registry_service
+from tests.integration.helpers.services import (
+    all_branch_commits,
+    registry_service,
+)
 from tests.integration.helpers.wait import wait_task_finish
 
 
-def test_create_repository_registry(public_registries, regular_user_token, database) -> None:
+def test_create_repository_registry(
+    public_registries, regular_user_token, database
+) -> None:
     service = registry_service(database, regular_user_token)
     for registry in public_registries:
         logging.info(registry.repository_url)
@@ -67,20 +73,28 @@ def test_create_repository_registry_bad_link(
         )
 
 
-def test_get_commits_repository(universal_registry, regular_user_token, database) -> None:
+def test_get_commits_repository(
+    universal_registry, regular_user_token, database
+) -> None:
     service = registry_service(database, regular_user_token)
     logging.info(universal_registry.uuid)
-    target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
+    target_branch = service.git_repo_repository.get_branches(
+        universal_registry
+    )[0]
 
     branch_commits = all_branch_commits(
         database, regular_user_token, universal_registry.uuid, target_branch
     )
-    assert UNIVERSAL_FIRST_COMMIT == branch_commits[-1].commit
+    assert branch_commits[-1].commit == UNIVERSAL_FIRST_COMMIT
 
 
-def test_get_commits_bad_branch(universal_registry, regular_user_token, database) -> None:
+def test_get_commits_bad_branch(
+    universal_registry, regular_user_token, database
+) -> None:
     service = registry_service(database, regular_user_token)
-    target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
+    target_branch = service.git_repo_repository.get_branches(
+        universal_registry
+    )[0]
 
     with pytest.raises(GitRepoError):
         service.get_branch_commits(
@@ -113,8 +127,14 @@ def test_get_set_credentials_private(
             pat_token=credentials.credentials.pat_token,
         ),
     )
-    assert two_service.get_credentials(private_registry.uuid).status == CredentialStatus.VALID.value
-    assert service.get_credentials(private_registry.uuid).status == CredentialStatus.VALID.value
+    assert (
+        two_service.get_credentials(private_registry.uuid).status
+        == CredentialStatus.VALID.value
+    )
+    assert (
+        service.get_credentials(private_registry.uuid).status
+        == CredentialStatus.VALID.value
+    )
 
 
 def test_get_set_credentials_public_fails(
@@ -173,7 +193,7 @@ def test_get_many_repository(
             search_string=".git",
             is_public_repository=True,
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert count >= 3
@@ -183,7 +203,7 @@ def test_get_many_repository(
         RepositoryRegistryFilter(
             search_string=".git",
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert all(item.is_public_repository for item in repositories)
@@ -198,14 +218,18 @@ def test_update_local_repository(
     )
     service.update_local_repository(github_public_registry.uuid)
     repository_registry_api = service.get(github_public_registry.uuid)
-    assert repository_registry_api.sync_status == RepositoryRegistryStatus.UPDATED
+    assert (
+        repository_registry_api.sync_status == RepositoryRegistryStatus.UPDATED
+    )
 
 
 def test_get_commits_only_tag(
     universal_registry, regular_user_token, database
 ) -> None:
     service = registry_service(database, regular_user_token)
-    target_branch = service.git_repo_repository.get_branches(universal_registry)[0]
+    target_branch = service.git_repo_repository.get_branches(
+        universal_registry
+    )[0]
     commits = service.get_branch_commits(
         universal_registry.uuid,
         CommitFilter(repo_branch=target_branch, only_tag=True),
@@ -295,17 +319,22 @@ def test_schedule_update_registry_without_credentials(
 
 
 def test_update_local_repository_sync_error(
-    github_public_registry, regular_user_token, database
+    github_public_registry,
+    regular_user_token,
+    database,
+    extra_user,
+    extra_user_token,
 ) -> None:
     service = registry_service(database, regular_user_token)
-    original_size = settings.pu_max_external_repo_size
-
-    settings.pu_max_external_repo_size = 0
-    try:
+    with owner_setting(
+        database,
+        extra_user,
+        extra_user_token,
+        "pu_registry_max_size",
+        0,
+    ):
         with pytest.raises(RepositoryRegistryError):
             service.update_local_repository(github_public_registry.uuid)
-    finally:
-        settings.pu_max_external_repo_size = original_size
 
     registry = service.get(github_public_registry.uuid)
     assert registry.sync_status == RepositoryRegistryStatus.ERROR

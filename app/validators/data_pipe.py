@@ -3,7 +3,7 @@ from numbers import Real
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import DataPipeError
 from app.dto.enum import (
     ActivePeriodType,
@@ -111,7 +111,7 @@ class FiltersConfig(BaseModel):
 
     def _validate_max_size(self):
         """Validate max_size against MQTT payload limit."""
-        max_allowed_size = settings.pu_mqtt_max_payload_size * 1024
+        max_allowed_size = runtime.get().pu_mqtt_max_payload_size * 1024
         if self.max_size > max_allowed_size:
             msg = f"max_size must be <= {max_allowed_size}"
             raise ValueError(msg)

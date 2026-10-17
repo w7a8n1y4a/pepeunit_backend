@@ -10,7 +10,7 @@ from contextlib import suppress
 from aiogram import Bot
 from starlette.requests import Request
 
-from app import settings
+from app import runtime
 from app.configs.redis import get_redis_session
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
@@ -33,12 +33,12 @@ class TelegramAlertQueue:
         instance_rate: int | None = None,
     ) -> None:
         self.user_interval = (
-            settings.pu_notification_telegram_user_interval_seconds
+            runtime.get().pu_notification_telegram_user_interval_seconds
             if user_interval is None
             else user_interval
         )
         self.instance_rate = (
-            settings.pu_notification_telegram_instance_rate
+            runtime.get().pu_notification_telegram_instance_rate
             if instance_rate is None
             else instance_rate
         )
@@ -65,7 +65,7 @@ class TelegramAlertQueue:
         if not self.ready.is_set():
             return
 
-        limit = settings.pu_notification_telegram_alert_text_limit
+        limit = runtime.get().pu_notification_telegram_alert_text_limit
         line = self.plain(text)[:limit]
         waiting = self._lines.get(chat_id)
         if waiting is None:
@@ -231,7 +231,7 @@ class NotificationDelivery:
                 await redis.xadd(
                     self.stream_name(user.uuid),
                     {self.EVENT: body},
-                    maxlen=settings.pu_notification_stream_maxlen,
+                    maxlen=runtime.get().pu_notification_stream_maxlen,
                     approximate=True,
                 )
         finally:
@@ -247,7 +247,7 @@ class NotificationDelivery:
         """
         session = get_redis_session(
             socket_timeout=max(
-                settings.pu_http_timeout, self.SOCKET_TIMEOUT_FLOOR
+                runtime.get().pu_http_timeout, self.SOCKET_TIMEOUT_FLOOR
             )
         )
         try:

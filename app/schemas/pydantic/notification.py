@@ -7,7 +7,7 @@ from typing import ClassVar
 from fastapi import Query
 from pydantic import BaseModel, field_validator
 
-from app import settings
+from app import runtime
 from app.dto.enum import (
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -25,7 +25,7 @@ from app.schemas.pydantic.pagination import BasePaginationRestMixin
 
 def short_line(value: str) -> str:
     """One line, cut to the configured list length. The rest stays in the table."""
-    limit = settings.pu_notification_small_text_limit
+    limit = runtime.get().pu_notification_small_text_limit
     return " ".join(value.split())[:limit]
 
 
@@ -262,6 +262,10 @@ class UpdateAllUnitsFirmwareAlertData(OperationTaskAlertData):
     )
 
 
+class RebootInstanceAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.REBOOT_INSTANCE
+
+
 OPERATION_TASK_ALERTS: dict[NotificationType, type[OperationTaskAlertData]] = {
     NotificationType.INTEGRATION_TESTS: IntegrationTestsAlertData,
     NotificationType.SCAN_ALL_INSTANCES: ScanAllInstancesAlertData,
@@ -272,6 +276,7 @@ OPERATION_TASK_ALERTS: dict[NotificationType, type[OperationTaskAlertData]] = {
     NotificationType.UPDATE_ALL_UNITS_FIRMWARE: (
         UpdateAllUnitsFirmwareAlertData
     ),
+    NotificationType.REBOOT_INSTANCE: RebootInstanceAlertData,
 }
 
 

@@ -6,7 +6,7 @@ import time
 
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import MqttError
 from app.configs.utils import acquire_file_lock
 from app.dto.agent.abc import AgentBackend
@@ -18,7 +18,7 @@ class MqttManager:
         mqtt_config = MQTTConfig(
             host=settings.pu_mqtt_host,
             port=settings.pu_mqtt_port,
-            keepalive=settings.pu_mqtt_keepalive,
+            keepalive=runtime.get().pu_mqtt_keepalive,
             username=AgentBackend(
                 name=settings.pu_domain
             ).generate_agent_token(),

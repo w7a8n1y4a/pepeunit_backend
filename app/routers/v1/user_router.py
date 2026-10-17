@@ -2,7 +2,7 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, Response, status
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import FeatureFlagError
 from app.configs.rest import ServiceFactory, get_user_service
 from app.dto.enum import CookieName
@@ -75,7 +75,7 @@ def get_token(
     user_service: UserService = Depends(get_user_service),
 ):
     token = user_service.get_token(data)
-    if settings.pu_ff_grafana_integration_enable:
+    if runtime.get().pu_ff_grafana_integration_enable:
         grafana_token = _user_service_for_token(
             user_service, token
         ).get_grafana_token()
@@ -88,7 +88,7 @@ def set_grafana_cookie(
     response: Response,
     user_service: UserService = Depends(get_user_service),
 ):
-    if not settings.pu_ff_grafana_integration_enable:
+    if not runtime.get().pu_ff_grafana_integration_enable:
         raise FeatureFlagError()
 
     _set_grafana_cookie(response, user_service.get_grafana_token())

@@ -12,7 +12,7 @@ import httpx
 from fastapi import Depends
 from pydantic import ValidationError as PydanticValidationError
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import (
     CustomException,
     FeatureFlagError,
@@ -220,8 +220,14 @@ class InstanceService:
             public_only=True,
         )
 
+        state = self.get_integration_tests_state()
+        reboot = self.operation_task_repository.get_latest_by_type(
+            OperationTaskType.REBOOT_INSTANCE
+        )
+        if reboot and reboot.status == OperationTaskStatus.SUCCESS.value:
+            state.last_successful_start_datetime = reboot.finish_datetime
         return CurrentInstanceSchemaV1(
-            state=self.get_integration_tests_state(),
+            state=state,
             metrics=CurrentInstanceMetricsV1(**metrics.dict()),
         )
 
@@ -435,7 +441,7 @@ class InstanceService:
         self.is_federation_enable()
 
         threshold = datetime.now(UTC) - timedelta(
-            days=settings.pu_instance_retention_days
+            days=runtime.get().pu_instance_retention_days
         )
         # pending is a quarantine for discovered instances, it is not deleted automatically
         count, instances = self.instance_repository.list(
@@ -561,7 +567,7 @@ class InstanceService:
 
     @staticmethod
     def is_federation_enable() -> None:
-        if not settings.pu_ff_federation_enable:
+        if not runtime.get().pu_ff_federation_enable:
             raise FeatureFlagError()
 
     @staticmethod

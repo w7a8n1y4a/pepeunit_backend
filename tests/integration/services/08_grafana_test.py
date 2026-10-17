@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from app import settings
+from app import runtime
 from app.configs.errors import GrafanaError, NoAccessError
 from app.dto.agent.abc import AgentGrafanaUnitNode
 from app.dto.enum import (
@@ -245,7 +245,7 @@ def test_panel_unit_node_limit(
             )
         )
         nodes.extend(unit_nodes)
-    limit = settings.pu_grafana_limit_unit_node_per_one_panel
+    limit = runtime.get().pu_grafana_limit_unit_node_per_one_panel
     assert len(nodes) > limit
     try:
         for node in nodes[:limit]:
@@ -294,7 +294,7 @@ def test_list_dashboards(grafana_dashboards, regular_user_token, database, cc) -
         DashboardFilter(
             search_string="test",
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert count >= 2

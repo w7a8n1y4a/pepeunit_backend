@@ -3,20 +3,27 @@ import uuid
 
 import pytest
 
-from app import settings
+from app import runtime
 from app.configs.errors import NoAccessError, UserError, ValidationError
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.dto.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
-from app.schemas.pydantic.user import UserAuth, UserCreate, UserFilter, UserUpdate
+from app.schemas.pydantic.user import (
+    UserAuth,
+    UserCreate,
+    UserFilter,
+    UserUpdate,
+)
+from tests.integration.fixtures.users import telegram_chat_id
 from tests.integration.helpers.names import (
     ADMIN_USER_PASSWORD,
     REGULAR_USER_PASSWORD,
-    test_password as password_for,
     unique_name,
 )
-from tests.integration.fixtures.users import telegram_chat_id
+from tests.integration.helpers.names import (
+    test_password as password_for,
+)
 from tests.integration.helpers.services import user_service
 
 
@@ -66,7 +73,7 @@ async def test_verification_invalid_code(
     service = user_service(database, cc, regular_user_token)
     with pytest.raises(ValidationError):
         link = await service.generate_verification_link()
-        code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
+        code = link.replace(f"{runtime.get().pu_telegram_bot_link}?start=", "")
         await service.verification(str(1_000_000), code[:-2])
 
 
@@ -79,7 +86,7 @@ async def test_verification_user(
     org_name = service.get(regular_user.uuid).grafana_org_name
 
     link = await service.generate_verification_link()
-    code = link.replace(f"{settings.pu_telegram_bot_link}?start=", "")
+    code = link.replace(f"{runtime.get().pu_telegram_bot_link}?start=", "")
     logging.info(code)
 
     await service.verification(telegram_chat_id(configured=True), code)

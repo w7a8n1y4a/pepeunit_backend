@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from app import BackendLogLevel, settings
+from app import BackendLogLevel, runtime, settings
 from app.configs.errors import CustomException
 from app.configs.logging_config import setup_logging
 from app.configs.utils import recreate_directory
@@ -38,21 +38,21 @@ from app.services.startup_service import StartupService
 setup_logging()
 
 
-if settings.pu_ff_prometheus_enable:
+if runtime.get().pu_ff_prometheus_enable:
     recreate_directory(settings.pu_prometheus_multiproc_dir)
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    runtime = StartupService(
+    startup = StartupService(
         _app,
         mqtt,
-        bot if settings.pu_ff_telegram_bot_enable else None,
-        dp if settings.pu_ff_telegram_bot_enable else None,
+        bot if runtime.get().pu_ff_telegram_bot_enable else None,
+        dp if runtime.get().pu_ff_telegram_bot_enable else None,
     )
-    await runtime.start()
+    await startup.start()
     yield
-    await runtime.stop()
+    await startup.stop()
 
 
 class CustomExceptionMiddleware(BaseHTTPMiddleware):
@@ -72,7 +72,7 @@ app = FastAPI(
     version=settings.version,
     openapi_url=f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/openapi.json",
     docs_url=f"{settings.pu_app_prefix}/docs",
-    debug=settings.pu_min_log_level == BackendLogLevel.DEBUG,
+    debug=runtime.get().pu_instance_log_min_level == BackendLogLevel.DEBUG,
     lifespan=_lifespan,
 )
 
@@ -88,7 +88,7 @@ def custom_json_dumps(obj: dict, **kwargs):
     return json.dumps(obj, **kwargs)
 
 
-if settings.pu_ff_telegram_bot_enable:
+if runtime.get().pu_ff_telegram_bot_enable:
     bot = build_telegram_bot()
     storage = RedisStorage.from_url(
         settings.pu_redis_url,
@@ -107,12 +107,14 @@ if settings.pu_ff_telegram_bot_enable:
     dp.include_router(UnitBotRouter().router)
     dp.include_router(UnitNodeBotRouter().router)
     dp.include_router(UnitLogBotRouter().router)
-    if settings.pu_ff_grafana_integration_enable:
+    if runtime.get().pu_ff_grafana_integration_enable:
         dp.include_router(DashboardBotRouter().router)
     dp.include_router(error_router)
 
     @app.post(f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/bot")
     async def bot_webhook(update: dict):
+        if not runtime.get().pu_ff_telegram_bot_enable:
+            return {"status": "disabled"}
         try:
             telegram_update = types.Update(**update)
             await dp.feed_update(bot=bot, update=telegram_update)
@@ -122,7 +124,7 @@ if settings.pu_ff_telegram_bot_enable:
             return {"status": "error", "message": str(e)}
 
 
-if settings.pu_ff_prometheus_enable:
+if runtime.get().pu_ff_prometheus_enable:
     Instrumentator().instrument(app).expose(
         app, endpoint=f"{settings.pu_app_prefix}/metrics"
     )

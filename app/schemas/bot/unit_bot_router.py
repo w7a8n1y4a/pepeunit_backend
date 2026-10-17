@@ -14,7 +14,7 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app import settings
+from app import runtime, settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import (
@@ -110,8 +110,8 @@ class UnitBotRouter(BaseBotRouter):
             count, units = unit_service.list(
                 UnitFilter(
                     offset=(filters.page - 1)
-                    * settings.pu_telegram_items_per_page,
-                    limit=settings.pu_telegram_items_per_page,
+                    * runtime.get().pu_telegram_items_per_page,
+                    limit=runtime.get().pu_telegram_items_per_page,
                     visibility_level=filters.visibility_levels or [],
                     creator_uuid=(
                         unit_service.access_service.current_agent.uuid
@@ -124,8 +124,8 @@ class UnitBotRouter(BaseBotRouter):
             )
 
             total_pages = (
-                count + settings.pu_telegram_items_per_page - 1
-            ) // settings.pu_telegram_items_per_page
+                count + runtime.get().pu_telegram_items_per_page - 1
+            ) // runtime.get().pu_telegram_items_per_page
 
         return units, total_pages
 

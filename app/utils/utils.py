@@ -17,7 +17,7 @@ from fastapi import UploadFile
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import CipherError
 from app.configs.utc_json import UtcJson
 
@@ -30,8 +30,8 @@ def aes_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
     """
 
     len_content = len(data)
-    if len_content > settings.pu_max_cipher_length:
-        msg = f"The encryption content is {len_content} long, although only <= {settings.pu_max_cipher_length} is allowed"
+    if len_content > runtime.get().pu_instance_cipher_max_length:
+        msg = f"The encryption content is {len_content} long, although only <= {runtime.get().pu_instance_cipher_max_length} is allowed"
         raise CipherError(msg)
 
     key = base64.b64decode(key.encode())
@@ -71,8 +71,8 @@ def aes_gcm_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
     return: (base64 str - nonce).(base64 str - encrypted data).(base64 str - tag)
     """
     len_content = len(data)
-    if len_content > settings.pu_max_cipher_length:
-        msg = f"The encryption content is {len_content} long, although only <= {settings.pu_max_cipher_length} is allowed"
+    if len_content > runtime.get().pu_instance_cipher_max_length:
+        msg = f"The encryption content is {len_content} long, although only <= {runtime.get().pu_instance_cipher_max_length} is allowed"
         raise CipherError(msg)
 
     key = base64.b64decode(key.encode())
@@ -304,7 +304,7 @@ def logo_to_console():
        Federated IoT Platform
        Front: {settings.pu_link}
        REST:  {settings.pu_link_prefix}/docs
-       TG:    {settings.pu_telegram_bot_link}
+       TG:    {runtime.get().pu_telegram_bot_link}
        Docs:  https://pepeunit.com
               """
     )

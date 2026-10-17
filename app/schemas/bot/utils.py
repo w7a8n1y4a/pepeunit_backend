@@ -4,17 +4,17 @@ from datetime import UTC, datetime
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
 
-from app import settings
+from app import runtime
 
 
 def build_telegram_bot() -> Bot:
-    session_kwargs: dict = {"timeout": settings.pu_http_timeout}
-    if settings.pu_telegram_proxy_url:
+    session_kwargs: dict = {"timeout": runtime.get().pu_http_timeout}
+    if runtime.get().pu_telegram_proxy_url:
         logging.info("Telegram bot will use proxy")
-        session_kwargs["proxy"] = settings.pu_telegram_proxy_url
+        session_kwargs["proxy"] = runtime.get().pu_telegram_proxy_url
 
     return Bot(
-        token=settings.pu_telegram_token,
+        token=runtime.get().pu_telegram_token,
         session=AiohttpSession(**session_kwargs),
     )
 

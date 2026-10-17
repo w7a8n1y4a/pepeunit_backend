@@ -80,7 +80,7 @@ class Unit(SQLModel, table=True):
         if self.unit_state_dict:
             try:
                 return json.loads(self.unit_state_dict)
-            except (json.JSONDecodeError, TypeError, ValueError):
+            except json.JSONDecodeError, TypeError, ValueError:
                 pass
         return None
 

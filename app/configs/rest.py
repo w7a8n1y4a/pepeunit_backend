@@ -2,7 +2,7 @@ from clickhouse_driver import Client
 from fastapi import Depends
 from sqlmodel import Session
 
-from app import settings
+from app import runtime
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.configs.errors import FeatureFlagError
@@ -15,6 +15,9 @@ from app.repositories.instance_external_repository import (
     InstanceExternalRepository,
 )
 from app.repositories.instance_repository import InstanceRepository
+from app.repositories.instance_settings_repository import (
+    InstanceSettingsRepository,
+)
 from app.repositories.loki_repository import LokiRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.notification_settings_repository import (
@@ -37,6 +40,7 @@ from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
 from app.services.grafana_service import GrafanaService
 from app.services.instance_service import InstanceService
+from app.services.instance_settings_service import InstanceSettingsService
 from app.services.metrics_service import MetricsService
 from app.services.notification_service import NotificationService
 from app.services.operation_task_service import OperationTaskService
@@ -69,6 +73,7 @@ class ServiceFactory:
         self.repo_repository = RepoRepository(db)
         self.repository_registry_repository = RepositoryRegistryRepository(db)
         self.instance_repository = InstanceRepository(db)
+        self.instance_settings_repository = InstanceSettingsRepository(db)
         self.instance_external_repository = InstanceExternalRepository()
         self.loki_repository = LokiRepository()
         self.operation_task_repository = OperationTaskRepository(db)
@@ -110,6 +115,13 @@ class ServiceFactory:
             notification_settings_repository=(
                 self.notification_settings_repository
             ),
+        )
+
+    def get_instance_settings_service(self) -> InstanceSettingsService:
+        return InstanceSettingsService(
+            instance_settings_repository=self.instance_settings_repository,
+            operation_task_service=self.get_operation_task_service(),
+            access_service=self.access_service,
         )
 
     def get_instance_service(self) -> InstanceService:
@@ -185,7 +197,7 @@ class ServiceFactory:
         )
 
     def get_grafana_service(self) -> GrafanaService:
-        if not settings.pu_ff_grafana_integration_enable:
+        if not runtime.get().pu_ff_grafana_integration_enable:
             raise FeatureFlagError()
         return GrafanaService(
             dashboard_repository=self.dashboard_repository,
@@ -247,6 +259,15 @@ def get_instance_service(
     jwt_token: str | None = Depends(token_depends),
 ) -> InstanceService:
     return create_service_factory(db, None, jwt_token).get_instance_service()
+
+
+def get_instance_settings_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> InstanceSettingsService:
+    return create_service_factory(
+        db, None, jwt_token
+    ).get_instance_settings_service()
 
 
 def get_operation_task_service(

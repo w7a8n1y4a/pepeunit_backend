@@ -488,6 +488,7 @@ class OperationTaskType(str, enum.Enum):
     UPDATE_REGISTRY = "UpdateRegistry"
     UPDATE_UNITS_FIRMWARE = "UpdateUnitsFirmware"
     UPDATE_ALL_UNITS_FIRMWARE = "UpdateAllUnitsFirmware"
+    REBOOT_INSTANCE = "RebootInstance"
 
 
 class IntegrationTestsStatus(str, enum.Enum):
@@ -519,6 +520,7 @@ class NotificationType(str, enum.Enum):
     UPDATE_ALL_UNITS_FIRMWARE = (
         OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE.value
     )
+    REBOOT_INSTANCE = OperationTaskType.REBOOT_INSTANCE.value
 
 
 class FileLock(str, enum.Enum):

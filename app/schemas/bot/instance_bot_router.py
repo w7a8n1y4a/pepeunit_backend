@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app import settings
+from app import runtime
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
 from app.configs.rest import get_bot_instance_service
@@ -74,14 +74,14 @@ class InstanceBotRouter(BaseBotRouter):
             count, instances = instance_service.list(
                 InstanceFilter(
                     offset=(filters.page - 1)
-                    * settings.pu_telegram_items_per_page,
-                    limit=settings.pu_telegram_items_per_page,
+                    * runtime.get().pu_telegram_items_per_page,
+                    limit=runtime.get().pu_telegram_items_per_page,
                 )
             )
 
             total_pages = (
-                count + settings.pu_telegram_items_per_page - 1
-            ) // settings.pu_telegram_items_per_page
+                count + runtime.get().pu_telegram_items_per_page - 1
+            ) // runtime.get().pu_telegram_items_per_page
 
         return instances, total_pages
 
@@ -163,7 +163,7 @@ class InstanceBotRouter(BaseBotRouter):
         text += "```"
 
         keyboard = []
-        if settings.pu_ff_federation_enable:
+        if runtime.get().pu_ff_federation_enable:
             keyboard.append(
                 [
                     InlineKeyboardButton(

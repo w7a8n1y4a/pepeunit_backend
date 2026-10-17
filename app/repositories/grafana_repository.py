@@ -8,7 +8,7 @@ import time
 import httpx
 from fastapi import Depends
 
-from app import settings
+from app import runtime, settings
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
@@ -55,7 +55,7 @@ class GrafanaRepository:
 
     @classmethod
     def _http_client(cls) -> httpx.Client:
-        return httpx.Client(timeout=settings.http_timeout())
+        return httpx.Client(timeout=runtime.get().http_timeout())
 
     @classmethod
     def _request(

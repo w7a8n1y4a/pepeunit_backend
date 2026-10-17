@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 
 from redis.asyncio import Redis, from_url
 
-from app import settings
+from app import runtime, settings
 from app.utils.utils import obj_serializer
 
 
@@ -16,14 +16,14 @@ class DataPipeConfigAction(str, enum.Enum):
 async def get_redis_session(
     socket_timeout: float | None = None,
 ) -> AsyncIterator[Redis]:
-    timeout = settings.pu_http_timeout
+    timeout = runtime.get().pu_http_timeout
     if socket_timeout is not None:
         timeout = socket_timeout
     session = from_url(
         settings.pu_redis_url,
         encoding="utf-8",
         decode_responses=True,
-        socket_connect_timeout=settings.pu_http_connect_timeout,
+        socket_connect_timeout=runtime.get().pu_http_connect_timeout,
         socket_timeout=timeout,
     )
     yield session

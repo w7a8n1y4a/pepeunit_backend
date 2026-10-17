@@ -1,12 +1,10 @@
 import base64
 import enum
 import json
-import re
 import string
 from typing import ClassVar, Literal
 from urllib.parse import urlparse
 
-import httpx
 import toml
 from pydantic import (
     BaseModel,
@@ -119,16 +117,6 @@ class ClickHouseConnectionParams(SettingsValidationMixin, BaseModel):
         )
 
 
-class FeatureFlagSettings(BaseModel):
-    pu_ff_telegram_bot_enable: bool = True
-    pu_ff_grafana_integration_enable: bool = True
-    pu_ff_datapipe_enable: bool = True
-    pu_ff_datapipe_default_last_value_enable: bool = True
-    pu_ff_prometheus_enable: bool = True
-    pu_ff_federation_enable: bool = True
-    pu_ff_notification_enable: bool = True
-
-
 class ProjectSettings(BaseModel):
     project_name: str = data["project"]["name"]
     version: str = data["project"]["version"]
@@ -150,26 +138,8 @@ class BackendLogLevel(str, enum.Enum):
     CRITICAL = "CRITICAL"
 
 
-class LoggingSettings(BaseModel):
-    pu_log_format: LogFormat = LogFormat.JSON.value
-    pu_min_log_level: BackendLogLevel = BackendLogLevel.INFO.value
-
-    @field_validator("pu_log_format", mode="before")
-    @classmethod
-    def normalize_log_format(cls, value: str) -> str:
-        return str(value).lower()
-
-    @field_validator("pu_min_log_level", mode="before")
-    @classmethod
-    def normalize_log_level(cls, value: str) -> str:
-        return str(value).upper()
-
-
 class AppSettings(SettingsValidationMixin, BaseModel):
-    _EMAIL_RE: ClassVar[re.Pattern[str]] = re.compile(
-        r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-    )
-    _DEFAULT_TIME_WINDOW_SIZES: ClassVar[list[int]] = [
+    pu_time_window_sizes: ClassVar[list[int]] = [
         60,
         300,
         600,
@@ -200,30 +170,10 @@ class AppSettings(SettingsValidationMixin, BaseModel):
     pu_domain: str = Field(max_length=128)
     pu_secure: bool = True
 
-    pu_auth_token_expiration: int = Field(
-        default=2_678_400, ge=600, le=11_059_200
-    )
     pu_save_repo_path: str = Field(default="repo_cache", max_length=128)
     pu_prometheus_multiproc_dir: str = Field(
         default="./prometheus_metrics", max_length=128
     )
-
-    pu_min_interval_sync_repository: int = Field(default=10, ge=1, le=1800)
-
-    pu_state_send_interval: int = Field(default=60, ge=1, le=600)
-    pu_max_external_repo_size: int = Field(default=50, ge=0, le=1024)
-    pu_max_cipher_length: int = Field(default=1_000_000, ge=0, le=1_000_000)
-    pu_http_timeout: float = Field(default=30.0, ge=0, le=120)
-    pu_http_connect_timeout: float = Field(default=15.0, ge=0, le=60)
-    pu_instance_max_state_size: int = Field(default=4096, ge=4096, le=65536)
-    pu_instance_retention_days: int = Field(default=60, ge=1, le=120)
-
-    pu_admin_email: str = Field(default="", max_length=128)
-    pu_admin_tg: str = Field(default="", max_length=128)
-
-    pu_unit_log_expiration: int = Field(default=86_400, ge=60, le=604_800)
-
-    pu_max_pagination_size: int = Field(default=100, ge=1, le=500)
 
     pu_available_password_symbols: str = Field(
         default=string.ascii_letters + string.digits + string.punctuation,
@@ -234,7 +184,6 @@ class AppSettings(SettingsValidationMixin, BaseModel):
     pu_link: str = ""
     pu_link_prefix: str = ""
     pu_link_prefix_and_v1: str = ""
-    pu_time_window_sizes: list[int] | None = None
 
     @field_validator("pu_domain")
     @classmethod
@@ -246,14 +195,6 @@ class AppSettings(SettingsValidationMixin, BaseModel):
     def validate_path_prefix(cls, value: str, info: ValidationInfo) -> str:
         return cls.require_path_prefix(value, cls.env_name(info))
 
-    @field_validator("pu_admin_email")
-    @classmethod
-    def validate_admin_email(cls, value: str) -> str:
-        if value and not cls._EMAIL_RE.fullmatch(value):
-            msg = "PU_ADMIN_EMAIL must be a valid email or empty"
-            raise ValueError(msg)
-        return value
-
     @model_validator(mode="after")
     def compute_app_links(self):
         self.pu_http_type = "https" if self.pu_secure else "http"
@@ -262,21 +203,7 @@ class AppSettings(SettingsValidationMixin, BaseModel):
         self.pu_link_prefix_and_v1 = (
             self.pu_link_prefix + self.pu_api_v1_prefix
         )
-        self.pu_time_window_sizes = list(self._DEFAULT_TIME_WINDOW_SIZES)
         return self
-
-    def http_timeout(self) -> httpx.Timeout:
-        return httpx.Timeout(
-            self.pu_http_timeout,
-            connect=self.pu_http_connect_timeout,
-        )
-
-    def git_http_env(self) -> dict[str, str]:
-        return {
-            "GIT_TERMINAL_PROMPT": "0",
-            "GIT_HTTP_LOW_SPEED_LIMIT": "1000",
-            "GIT_HTTP_LOW_SPEED_TIME": str(int(self.pu_http_timeout)),
-        }
 
 
 class SecuritySettings(SettingsValidationMixin, BaseModel):
@@ -358,24 +285,6 @@ class NotificationSettings(SettingsValidationMixin, BaseModel):
     pu_notification_loki_url: str = Field(
         default="http://loki:3100", max_length=512
     )
-    # One chat, the Telegram private-chat limit
-    pu_notification_telegram_user_interval_seconds: float = Field(
-        default=2, ge=1, le=60
-    )
-    # Whole instance, under the free broadcast limit of about 30 per second
-    pu_notification_telegram_instance_rate: int = Field(
-        default=20, ge=1, le=30
-    )
-    pu_notification_telegram_alert_text_limit: int = Field(
-        default=4000, ge=1, le=4096
-    )
-    # One list line. The column stores up to 96, so this can move either way.
-    pu_notification_small_text_limit: int = Field(default=48, ge=1, le=96)
-    # How many unprocessed notifications one processing pass locks
-    pu_notification_data_pipe_alert_batch: int = Field(
-        default=100, ge=1, le=1_000
-    )
-    pu_notification_stream_maxlen: int = Field(default=100, ge=1, le=10_000)
 
     @field_validator("pu_notification_loki_url")
     @classmethod
@@ -383,58 +292,11 @@ class NotificationSettings(SettingsValidationMixin, BaseModel):
         return cls.require_http_url(value, "PU_NOTIFICATION_LOKI_URL")
 
 
-class TelegramSettings(SettingsValidationMixin, BaseModel):
-    _TELEGRAM_TOKEN_RE: ClassVar[re.Pattern[str]] = re.compile(
-        r"^\d+:[A-Za-z0-9_-]+$"
-    )
-
-    pu_telegram_bot_mode: Literal["webhook", "pooling"] = "webhook"
-    pu_telegram_token: str = Field(default="", max_length=128)
-    pu_telegram_bot_link: str = Field(default="", max_length=512)
-    pu_telegram_items_per_page: int = Field(default=7, ge=1, le=20)
-    pu_telegram_header_entity_length: int = Field(default=15, ge=1, le=64)
-    pu_telegram_git_hash_length: int = Field(default=8, ge=1, le=16)
-    pu_telegram_proxy_url: str = Field(default="", max_length=512)
-
-    @model_validator(mode="after")
-    def validate_telegram(self):
-        if self.pu_ff_telegram_bot_enable:
-            self.require_non_empty(self.pu_telegram_token, "PU_TELEGRAM_TOKEN")
-            if not self._TELEGRAM_TOKEN_RE.fullmatch(self.pu_telegram_token):
-                msg = "PU_TELEGRAM_TOKEN must look like '123456:ABC-def'"
-                raise ValueError(msg)
-            self.require_http_url(
-                self.pu_telegram_bot_link,
-                "PU_TELEGRAM_BOT_LINK",
-            )
-            if self.pu_telegram_proxy_url:
-                self.require_url(
-                    self.pu_telegram_proxy_url,
-                    ("http", "https", "socks5", "socks5h"),
-                    "PU_TELEGRAM_PROXY_URL",
-                )
-
-        self.pu_telegram_items_per_page = min(
-            self.pu_telegram_items_per_page,
-            self.pu_max_pagination_size,
-        )
-        return self
-
-
 class MqttSettings(SettingsValidationMixin, BaseModel):
-    _COUNT_RATE_RE: ClassVar[re.Pattern[str]] = re.compile(
-        r"^[1-9]\d*(/[smh])?$"
-    )
-    _BYTES_RATE_RE: ClassVar[re.Pattern[str]] = re.compile(
-        r"^[1-9]\d*(?:\.\d+)?(?:KB|MB|GB|B)/[smh]$",
-        re.IGNORECASE,
-    )
-
     pu_mqtt_host: str = Field(max_length=128)
     pu_mqtt_secure: bool = True
     pu_mqtt_port: int = Field(default=1883, ge=1, le=65535)
     pu_mqtt_api_port: int = Field(default=18083, ge=1, le=65535)
-    pu_mqtt_keepalive: int = Field(default=60, ge=0, le=600)
 
     pu_mqtt_username: str = Field(max_length=128)
     pu_mqtt_password: str = Field(max_length=128)
@@ -442,23 +304,6 @@ class MqttSettings(SettingsValidationMixin, BaseModel):
     pu_mqtt_redis_auth_url: str = Field(
         default="redis://redis:6379/0", max_length=512
     )
-
-    pu_mqtt_max_clients: int = Field(default=1024, ge=1, le=1024)
-    pu_mqtt_max_client_connection_rate: str = Field(
-        default="20/s", max_length=64
-    )
-    pu_mqtt_max_client_id_len: int = Field(default=512, ge=1, le=1024)
-
-    pu_mqtt_client_max_messages_rate: str = Field(
-        default="30/s", max_length=64
-    )
-    pu_mqtt_client_max_bytes_rate: str = Field(default="1MB/s", max_length=64)
-
-    pu_mqtt_max_payload_size: int = Field(default=256, ge=1, le=4096)
-    pu_mqtt_max_qos: int = Field(default=2, ge=0, le=2)
-    pu_mqtt_max_topic_levels: int = Field(default=5, ge=5, le=32)
-    pu_mqtt_max_len_message_queue: int = Field(default=128, ge=1, le=1024)
-    pu_mqtt_max_topic_alias: int = Field(default=128, ge=0, le=256)
 
     pu_mqtt_http_type: str = "https"
 
@@ -481,65 +326,15 @@ class MqttSettings(SettingsValidationMixin, BaseModel):
             "PU_MQTT_REDIS_AUTH_URL",
         )
 
-    @field_validator(
-        "pu_mqtt_max_client_connection_rate",
-        "pu_mqtt_client_max_messages_rate",
-    )
-    @classmethod
-    def validate_count_rate(cls, value: str, info: ValidationInfo) -> str:
-        if not cls._COUNT_RATE_RE.fullmatch(value):
-            msg = f"{cls.env_name(info)} must look like '20/s' or '20/m'"
-            raise ValueError(msg)
-        return value
-
-    @field_validator("pu_mqtt_client_max_bytes_rate")
-    @classmethod
-    def validate_bytes_rate(cls, value: str) -> str:
-        if not cls._BYTES_RATE_RE.fullmatch(value):
-            msg = "PU_MQTT_CLIENT_MAX_BYTES_RATE must look like '1MB/s'"
-            raise ValueError(msg)
-        return value
-
     @model_validator(mode="after")
     def compute_mqtt_http_type(self):
         self.pu_mqtt_http_type = "https" if self.pu_mqtt_secure else "http"
         return self
 
 
-class GrafanaSettings(SettingsValidationMixin, BaseModel):
+class GrafanaSettings(BaseModel):
     pu_grafana_admin_user: str = Field(default="", max_length=128)
     pu_grafana_admin_password: str = Field(default="", max_length=128)
-    pu_grafana_limit_unit_node_per_one_panel: int = Field(
-        default=10, ge=1, le=32
-    )
-
-    @model_validator(mode="after")
-    def validate_grafana(self):
-        if self.pu_ff_grafana_integration_enable:
-            self.require_non_empty(
-                self.pu_grafana_admin_user,
-                "PU_GRAFANA_ADMIN_USER",
-            )
-            self.require_non_empty(
-                self.pu_grafana_admin_password,
-                "PU_GRAFANA_ADMIN_PASSWORD",
-            )
-        return self
-
-
-class GithubSettings(BaseModel):
-    pu_github_token_name: str = Field(default="", max_length=128)
-    pu_github_token_pat: str = Field(default="", max_length=128)
-
-    @model_validator(mode="after")
-    def validate_github_tokens(self):
-        if bool(self.pu_github_token_name) != bool(self.pu_github_token_pat):
-            msg = (
-                "PU_GITHUB_TOKEN_NAME and PU_GITHUB_TOKEN_PAT "
-                "must be set together"
-            )
-            raise ValueError(msg)
-        return self
 
 
 class IntegrationTestSettings(SettingsValidationMixin, BaseModel):
@@ -618,16 +413,12 @@ class LoadTestSettings(BaseModel):
 class Settings(
     BaseSettings,
     ProjectSettings,
-    FeatureFlagSettings,
-    LoggingSettings,
     AppSettings,
     SecuritySettings,
     DatabaseSettings,
     NotificationSettings,
-    TelegramSettings,
     MqttSettings,
     GrafanaSettings,
-    GithubSettings,
     IntegrationTestSettings,
     LoadTestSettings,
 ):

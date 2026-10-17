@@ -5,7 +5,7 @@ from operator import attrgetter
 
 from fastapi import Depends
 
-from app import settings
+from app import runtime
 from app.configs.errors import FeatureFlagError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
@@ -79,7 +79,7 @@ class NotificationService:
 
     @staticmethod
     def is_notification_enable() -> None:
-        if not settings.pu_ff_notification_enable:
+        if not runtime.get().pu_ff_notification_enable:
             raise FeatureFlagError()
 
     def list(
@@ -253,7 +253,7 @@ class NotificationService:
 
     async def process_pending(self) -> int:
         pending = self.notification_repository.lock_unprocessed(
-            settings.pu_notification_data_pipe_alert_batch
+            runtime.get().pu_notification_data_pipe_alert_batch
         )
         ready = []
         for notification, user, settings_row in pending:

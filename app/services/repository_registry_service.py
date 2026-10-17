@@ -6,7 +6,7 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
-from app import settings
+from app import runtime
 from app.configs.errors import (
     CustomException,
     GitRepoError,
@@ -540,8 +540,8 @@ class RepositoryRegistryService:
             delta = (
                 datetime.datetime.now(datetime.UTC) - last_update_datetime
             ).total_seconds()
-            if delta <= settings.pu_min_interval_sync_repository:
-                msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {settings.pu_min_interval_sync_repository} s"
+            if delta <= runtime.get().pu_registry_min_interval_sync:
+                msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {runtime.get().pu_registry_min_interval_sync} s"
                 raise RepositoryRegistryError(msg)
 
     @staticmethod
@@ -550,12 +550,12 @@ class RepositoryRegistryService:
     ) -> None:
         if (
             repo_size < 0
-            or repo_size > settings.pu_max_external_repo_size * 2**20
+            or repo_size > runtime.get().pu_registry_max_size * 2**20
         ):
             if delete_path:
                 shutil.rmtree(delete_path, ignore_errors=True)
 
-            msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {settings.pu_max_external_repo_size} MB"
+            msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {runtime.get().pu_registry_max_size} MB"
             raise GitRepoError(msg)
 
     def mapper_registry_to_registry_read(

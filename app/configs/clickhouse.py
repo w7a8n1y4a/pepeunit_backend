@@ -2,7 +2,7 @@ from contextlib import contextmanager
 
 from clickhouse_driver import Client
 
-from app import settings
+from app import runtime, settings
 
 
 def _make_client() -> Client:
@@ -12,7 +12,7 @@ def _make_client() -> Client:
         user=settings.pu_clickhouse_connection.user,
         password=settings.pu_clickhouse_connection.password,
         database=settings.pu_clickhouse_connection.database,
-        connect_timeout=settings.pu_http_connect_timeout,
+        connect_timeout=runtime.get().pu_http_connect_timeout,
     )
 
 

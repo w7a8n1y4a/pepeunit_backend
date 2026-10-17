@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import Depends
 from sqlmodel import Session
 
-from app import settings
+from app import runtime
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException, OperationTaskError
 from app.domain.notification_model import Notification
@@ -155,7 +155,7 @@ class OperationTaskService:
 
     @staticmethod
     def _record_alert(db: Session, task: OperationTask) -> None:
-        if not settings.pu_ff_notification_enable:
+        if not runtime.get().pu_ff_notification_enable:
             return
 
         kind = NotificationType(task.task_type)

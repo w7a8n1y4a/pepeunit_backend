@@ -1,12 +1,11 @@
 import json
-import logging
 import os
 import time
 import uuid as uuid_pkg
 
 import pytest
 
-from app import settings
+from app import runtime
 from app.configs.errors import DataPipeError, UnitNodeError, ValidationError
 from app.dto.enum import (
     DataPipeStage,
@@ -23,7 +22,10 @@ from app.schemas.pydantic.unit_node import (
 )
 from app.utils.utils import create_upload_file_from_path
 from tests.integration.helpers.data_pipe import upload_pipe_csv
-from tests.integration.helpers.http import patch_input_state, post_schema_update
+from tests.integration.helpers.http import (
+    patch_input_state,
+    post_schema_update,
+)
 from tests.integration.helpers.services import (
     repo_service,
     unit_node_service,
@@ -88,12 +90,12 @@ async def test_set_data_pipe(piped_units, regular_user_token, database, cc) -> N
 
     bad_yml = "tests/data/yaml/integra/data_pipe_bad.yaml"
     data = await service.check_data_pipe_config(
-        (await create_upload_file_from_path(bad_yml))
+        await create_upload_file_from_path(bad_yml)
     )
     assert len(data) == 2
 
     data = await service.check_data_pipe_config(
-        (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_aggregation.yaml"))
+        await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_aggregation.yaml")
     )
     assert len(data) == 0
 
@@ -108,19 +110,19 @@ async def test_check_data_pipe_alerts_config(regular_user_token, database, cc) -
         "tests/data/yaml/integra/data_pipe_alerts_any.yaml",
     ):
         data = await service.check_data_pipe_config(
-            (await create_upload_file_from_path(valid_yml))
+            await create_upload_file_from_path(valid_yml)
         )
         assert len(data) == 0
 
     data = await service.check_data_pipe_config(
-        (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_bad.yaml"))
+        await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_bad.yaml")
     )
     assert len(data) == 2
     assert all(error.stage == DataPipeStage.ALERTS for error in data)
 
     # filtering values do not fit filters.type_input_value
     data = await service.check_data_pipe_config(
-        (await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_mismatch.yaml"))
+        await create_upload_file_from_path("tests/data/yaml/integra/data_pipe_alerts_mismatch.yaml")
     )
     assert len(data) == 1
     assert data[0].stage == DataPipeStage.ALERTS
@@ -337,11 +339,11 @@ def test_get_many_unit_node(live_units, regular_user_token, database, cc) -> Non
             search_string="input",
             type=[UnitNodeTypeEnum.INPUT],
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert count >= 8
-    assert len(units_nodes) == min(count, settings.pu_max_pagination_size)
+    assert len(units_nodes) == min(count, runtime.get().pu_instance_max_pagination_size)
 
 
 async def test_data_pipe_requires_pepeunit_suffix(

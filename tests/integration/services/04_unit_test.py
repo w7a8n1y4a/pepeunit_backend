@@ -10,7 +10,7 @@ from io import BytesIO
 import pytest
 from starlette.datastructures import UploadFile
 
-from app import settings
+from app import runtime, settings
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.errors import (
     CipherError,
@@ -38,7 +38,12 @@ from app.dto.enum import (
 )
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.schemas.pydantic.repo import RepoUpdate
-from app.schemas.pydantic.unit import UnitCreate, UnitFilter, UnitLogFilter, UnitUpdate
+from app.schemas.pydantic.unit import (
+    UnitCreate,
+    UnitFilter,
+    UnitLogFilter,
+    UnitUpdate,
+)
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.utils import get_topic_name
 from app.utils.utils import aes_gcm_encode
@@ -237,7 +242,7 @@ def test_state_storage(universal_auto_unit, regular_user_token, database, cc) ->
 
     with pytest.raises(CipherError):
         service.set_state_storage(
-            universal_auto_unit.uuid, "t" * (settings.pu_max_cipher_length + 1)
+            universal_auto_unit.uuid, "t" * (runtime.get().pu_instance_cipher_max_length + 1)
         )
 
 
@@ -283,7 +288,7 @@ def test_hand_update_firmware_unit(
 
     wait_until(
         all_updated,
-        timeout=settings.pu_state_send_interval * 2 + 10,
+        timeout=runtime.get().pu_state_send_interval * 2 + 10,
         message="hand firmware update did not reach target commit",
         session=database,
     )
@@ -342,7 +347,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         lambda: service.get(target_units[0].uuid).current_commit_version == target_version,
-        timeout=settings.pu_state_send_interval * 2 + 10,
+        timeout=runtime.get().pu_state_send_interval * 2 + 10,
         message="hand repo update did not reach unit commit",
         session=database,
     )
@@ -373,7 +378,7 @@ def test_repo_update_firmware_unit(
 
     wait_until(
         bulk_reached,
-        timeout=settings.pu_state_send_interval * 2 + 10,
+        timeout=runtime.get().pu_state_send_interval * 2 + 10,
         interval=2,
         message="bulk repo update did not reach chain units",
         session=database,
@@ -483,7 +488,7 @@ def test_get_unit_logs(
         UnitLogFilter(
             uuid=chain_middle_unit.uuid,
             offset=0,
-            limit=settings.pu_max_pagination_size,
+            limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
     assert len(logs) > 0
@@ -499,7 +504,7 @@ def test_download_unit_logs(
     first_datetime = datetime(2026, 9, 6, 3, 15, 58, 214000)
     second_datetime = first_datetime + timedelta(seconds=1)
     expiration = datetime.now(UTC) + timedelta(
-        seconds=settings.pu_unit_log_expiration
+        seconds=runtime.get().pu_unit_log_expiration
     )
     first_text = (
         "uvicorn.access - 192.168.0.10:48422 - "

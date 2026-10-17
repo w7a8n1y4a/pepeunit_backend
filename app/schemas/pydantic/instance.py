@@ -6,7 +6,7 @@ from typing import Literal
 from fastapi import Query
 from pydantic import BaseModel, Field, JsonValue
 
-from app import settings
+from app import runtime, settings
 from app.dto.enum import (
     GitPlatform,
     InstanceCollectionStatus,
@@ -70,51 +70,103 @@ class InstanceRegistriesPage(BaseModel):
 
 
 class CurrentInstanceSettingsV1(BaseModel):
-    pu_auth_token_expiration: int = settings.pu_auth_token_expiration
-    pu_min_interval_sync_repository: int = (
-        settings.pu_min_interval_sync_repository
-    )
-    pu_state_send_interval: int = settings.pu_state_send_interval
-    pu_max_external_repo_size: int = settings.pu_max_external_repo_size
-    pu_max_cipher_length: int = settings.pu_max_cipher_length
-    pu_http_timeout: float = settings.pu_http_timeout
-    pu_http_connect_timeout: float = settings.pu_http_connect_timeout
-    pu_instance_max_state_size: int = settings.pu_instance_max_state_size
-    pu_instance_retention_days: int = settings.pu_instance_retention_days
-    pu_unit_log_expiration: int = settings.pu_unit_log_expiration
-    pu_max_pagination_size: int = settings.pu_max_pagination_size
-    pu_available_topic_symbols: str = settings.pu_available_topic_symbols
-    pu_available_name_entity_symbols: str = (
-        settings.pu_available_name_entity_symbols
-    )
-    pu_time_window_sizes: list[int] = settings.pu_time_window_sizes or []
+    pu_available_name_entity_symbols: str
+    pu_available_topic_symbols: str
 
-    pu_mqtt_host: str = settings.pu_mqtt_host
-    pu_mqtt_secure: bool = settings.pu_mqtt_secure
-    pu_mqtt_port: int = settings.pu_mqtt_port
-    pu_mqtt_keepalive: int = settings.pu_mqtt_keepalive
-    pu_mqtt_max_clients: int = settings.pu_mqtt_max_clients
-    pu_mqtt_max_client_connection_rate: str = (
-        settings.pu_mqtt_max_client_connection_rate
-    )
-    pu_mqtt_max_client_id_len: int = settings.pu_mqtt_max_client_id_len
-    pu_mqtt_client_max_messages_rate: str = (
-        settings.pu_mqtt_client_max_messages_rate
-    )
-    pu_mqtt_client_max_bytes_rate: str = settings.pu_mqtt_client_max_bytes_rate
-    pu_mqtt_max_payload_size: int = settings.pu_mqtt_max_payload_size
-    pu_mqtt_max_qos: int = settings.pu_mqtt_max_qos
-    pu_mqtt_max_topic_levels: int = settings.pu_mqtt_max_topic_levels
-    pu_mqtt_max_len_message_queue: int = settings.pu_mqtt_max_len_message_queue
-    pu_mqtt_max_topic_alias: int = settings.pu_mqtt_max_topic_alias
+    pu_grafana_limit_unit_node_per_one_panel: int
 
-    pu_grafana_limit_unit_node_per_one_panel: int = (
-        settings.pu_grafana_limit_unit_node_per_one_panel
-    )
+    pu_http_connect_timeout: float
+    pu_http_timeout: float
+
+    pu_instance_cipher_max_length: int
+    pu_instance_max_pagination_size: int
+    pu_instance_max_state_size: int
+    pu_instance_retention_days: int
+
+    pu_mqtt_client_max_bytes_rate: str
+    pu_mqtt_client_max_messages_rate: str
+    pu_mqtt_host: str
+    pu_mqtt_keepalive: int
+    pu_mqtt_max_client_connection_rate: str
+    pu_mqtt_max_client_id_len: int
+    pu_mqtt_max_clients: int
+    pu_mqtt_max_len_message_queue: int
+    pu_mqtt_max_payload_size: int
+    pu_mqtt_max_qos: int
+    pu_mqtt_max_topic_alias: int
+    pu_mqtt_max_topic_levels: int
+    pu_mqtt_port: int
+    pu_mqtt_secure: bool
+
+    pu_registry_max_size: int
+    pu_registry_min_interval_sync: int
+
+    pu_state_send_interval: int
+
+    pu_time_window_sizes: list[int]
+
+    pu_unit_log_expiration: int
+
+    pu_user_auth_token_expiration: int
+
+    @classmethod
+    def current(cls) -> CurrentInstanceSettingsV1:
+        return cls(
+            pu_available_name_entity_symbols=(
+                settings.pu_available_name_entity_symbols
+            ),
+            pu_available_topic_symbols=settings.pu_available_topic_symbols,
+            pu_grafana_limit_unit_node_per_one_panel=(
+                runtime.get().pu_grafana_limit_unit_node_per_one_panel
+            ),
+            pu_http_connect_timeout=runtime.get().pu_http_connect_timeout,
+            pu_http_timeout=runtime.get().pu_http_timeout,
+            pu_instance_cipher_max_length=(
+                runtime.get().pu_instance_cipher_max_length
+            ),
+            pu_instance_max_pagination_size=(
+                runtime.get().pu_instance_max_pagination_size
+            ),
+            pu_instance_max_state_size=runtime.get().pu_instance_max_state_size,
+            pu_instance_retention_days=runtime.get().pu_instance_retention_days,
+            pu_mqtt_client_max_bytes_rate=(
+                runtime.get().pu_mqtt_client_max_bytes_rate
+            ),
+            pu_mqtt_client_max_messages_rate=(
+                runtime.get().pu_mqtt_client_max_messages_rate
+            ),
+            pu_mqtt_host=settings.pu_mqtt_host,
+            pu_mqtt_keepalive=runtime.get().pu_mqtt_keepalive,
+            pu_mqtt_max_client_connection_rate=(
+                runtime.get().pu_mqtt_max_client_connection_rate
+            ),
+            pu_mqtt_max_client_id_len=runtime.get().pu_mqtt_max_client_id_len,
+            pu_mqtt_max_clients=runtime.get().pu_mqtt_max_clients,
+            pu_mqtt_max_len_message_queue=(
+                runtime.get().pu_mqtt_max_len_message_queue
+            ),
+            pu_mqtt_max_payload_size=runtime.get().pu_mqtt_max_payload_size,
+            pu_mqtt_max_qos=runtime.get().pu_mqtt_max_qos,
+            pu_mqtt_max_topic_alias=runtime.get().pu_mqtt_max_topic_alias,
+            pu_mqtt_max_topic_levels=runtime.get().pu_mqtt_max_topic_levels,
+            pu_mqtt_port=settings.pu_mqtt_port,
+            pu_mqtt_secure=settings.pu_mqtt_secure,
+            pu_registry_max_size=runtime.get().pu_registry_max_size,
+            pu_registry_min_interval_sync=(
+                runtime.get().pu_registry_min_interval_sync
+            ),
+            pu_state_send_interval=runtime.get().pu_state_send_interval,
+            pu_time_window_sizes=list(settings.pu_time_window_sizes),
+            pu_unit_log_expiration=runtime.get().pu_unit_log_expiration,
+            pu_user_auth_token_expiration=(
+                runtime.get().pu_user_auth_token_expiration
+            ),
+        )
 
 
 class CurrentInstanceStateV1(BaseModel):
     instance_datetime: datetime
+    last_successful_start_datetime: datetime | None = None
     integration_tests_datetime: datetime | None = None
     integration_tests_status: IntegrationTestsStatus | None = None
     integration_tests_success_percentage: float | None = Field(
@@ -134,8 +186,15 @@ class CurrentInstanceMetricsV1(BaseModel):
 
 
 class CurrentInstanceContactsV1(BaseModel):
-    email: str = settings.pu_admin_email
-    telegram: str = settings.pu_admin_tg
+    email: str
+    telegram: str
+
+    @classmethod
+    def current(cls) -> CurrentInstanceContactsV1:
+        return cls(
+            email=runtime.get().pu_instance_owner_email,
+            telegram=runtime.get().pu_instance_owner_tg,
+        )
 
 
 class CurrentInstanceSchemaV1(BaseModel):
@@ -146,9 +205,24 @@ class CurrentInstanceSchemaV1(BaseModel):
     license: str = settings.license
     swagger: str = f"{settings.pu_link_prefix}/docs"
     grafana: str = f"{settings.pu_link}/grafana/"
-    telegram_bot: str = settings.pu_telegram_bot_link
-    feature_flags: FeatureFlags = FeatureFlags()
-    settings: CurrentInstanceSettingsV1 = CurrentInstanceSettingsV1()
+    telegram_bot: str = Field(
+        default_factory=lambda: runtime.get().pu_telegram_bot_link
+    )
+    feature_flags: FeatureFlags = Field(default_factory=FeatureFlags.current)
+    settings: CurrentInstanceSettingsV1 = Field(
+        default_factory=CurrentInstanceSettingsV1.current
+    )
     state: CurrentInstanceStateV1
     metrics: CurrentInstanceMetricsV1
-    contacts: CurrentInstanceContactsV1 = CurrentInstanceContactsV1()
+    contacts: CurrentInstanceContactsV1 = Field(
+        default_factory=CurrentInstanceContactsV1.current
+    )
+    icon_uuid: uuid_pkg.UUID | None = Field(
+        default_factory=lambda: runtime.get().icon_uuid
+    )
+    latitude: float | None = Field(
+        default_factory=lambda: runtime.get().pu_instance_lat
+    )
+    longitude: float | None = Field(
+        default_factory=lambda: runtime.get().pu_instance_lon
+    )

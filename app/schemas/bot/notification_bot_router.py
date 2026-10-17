@@ -9,7 +9,7 @@ from aiogram.fsm.state import StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app import settings
+from app import runtime
 from app.configs.db import get_hand_session
 from app.configs.rest import get_bot_notification_service
 from app.domain.notification_model import Notification
@@ -66,14 +66,14 @@ class NotificationBotRouter(BaseBotRouter):
             count, notifications = notification_service.list(
                 NotificationFilter(
                     offset=(filters.page - 1)
-                    * settings.pu_telegram_items_per_page,
-                    limit=settings.pu_telegram_items_per_page,
+                    * runtime.get().pu_telegram_items_per_page,
+                    limit=runtime.get().pu_telegram_items_per_page,
                     type=filters.notification_types,
                 )
             )
             total_pages = (
-                count + settings.pu_telegram_items_per_page - 1
-            ) // settings.pu_telegram_items_per_page
+                count + runtime.get().pu_telegram_items_per_page - 1
+            ) // runtime.get().pu_telegram_items_per_page
         return notifications, total_pages
 
     def build_entities_keyboard(
@@ -160,7 +160,7 @@ class NotificationBotRouter(BaseBotRouter):
             notification = notification_service.mark_read(notification_uuid)
 
         rendered = TelegramAlertQueue.text(notification.table_text)
-        limit = settings.pu_notification_telegram_alert_text_limit
+        limit = runtime.get().pu_notification_telegram_alert_text_limit
         text = f"*Alert* - `{notification.type}`{rendered[:limit]}"
 
         keyboard = []
@@ -207,7 +207,7 @@ class NotificationBotRouter(BaseBotRouter):
             return
 
         rendered = TelegramAlertQueue.text(notification.big_text)
-        limit = settings.pu_notification_telegram_alert_text_limit
+        limit = runtime.get().pu_notification_telegram_alert_text_limit
         text = f"*Alert log* - `{notification.type}`{rendered[:limit]}"
         keyboard = [
             [

@@ -3,7 +3,7 @@ import time
 
 import httpx
 
-from app import settings
+from app import runtime, settings
 
 
 class ControlEmqx:
@@ -60,7 +60,7 @@ class ControlEmqx:
     def check_state(self) -> int:
         response = httpx.get(
             f"{self.current_link}/api-docs/swagger.json",
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
         return response.status_code
 
@@ -82,7 +82,7 @@ class ControlEmqx:
             f"{self.current_link}/api/v5/login",
             json=data,
             headers=headers,
-            timeout=settings.http_timeout(),
+            timeout=runtime.get().http_timeout(),
         )
         self._log_response(response)
 
@@ -92,7 +92,7 @@ class ControlEmqx:
         for source in ["file", "http", "redis"]:
             logging.info(f"Del {source} auth hook MQTT Broker")
             async with httpx.AsyncClient(
-                timeout=settings.http_timeout()
+                timeout=runtime.get().http_timeout()
             ) as client:
                 response = await client.delete(
                     f"{self.current_link}/api/v5/authorization/sources/{source}",
@@ -109,7 +109,7 @@ class ControlEmqx:
 
         logging.info("Set ACL file auth hook MQTT Broker")
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             response = await client.post(
                 f"{self.current_link}/api/v5/authorization/sources",
@@ -146,7 +146,7 @@ class ControlEmqx:
 
         logging.info("Set redis auth hook MQTT Broker")
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             response = await client.post(
                 f"{self.current_link}/api/v5/authorization/sources",
@@ -181,7 +181,7 @@ class ControlEmqx:
 
         logging.info("Set http auth hook MQTT Broker")
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             response = await client.post(
                 f"{self.current_link}/api/v5/authorization/sources",
@@ -205,7 +205,7 @@ class ControlEmqx:
         logging.info("Set cache settings auth hook MQTT Broker")
 
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             response = await client.put(
                 f"{self.current_link}/api/v5/authorization/settings",
@@ -216,7 +216,7 @@ class ControlEmqx:
 
     async def disable_default_listeners(self) -> None:
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             for source in ["ssl", "ws", "wss"]:
                 logging.info(f"Disable {source} listener MQTT Broker")
@@ -231,13 +231,13 @@ class ControlEmqx:
             "acceptors": 16,
             "access_rules": ["allow all"],
             "bind": "0.0.0.0:1883",
-            "bytes_rate": settings.pu_mqtt_client_max_bytes_rate,
+            "bytes_rate": runtime.get().pu_mqtt_client_max_bytes_rate,
             "enable": True,
             "enable_authn": True,
             "id": "tcp:default",
-            "max_conn_rate": settings.pu_mqtt_max_client_connection_rate,
-            "max_connections": settings.pu_mqtt_max_clients,
-            "messages_rate": settings.pu_mqtt_client_max_messages_rate,
+            "max_conn_rate": runtime.get().pu_mqtt_max_client_connection_rate,
+            "max_connections": runtime.get().pu_mqtt_max_clients,
+            "messages_rate": runtime.get().pu_mqtt_client_max_messages_rate,
             "mountpoint": "",
             "proxy_protocol": False,
             "proxy_protocol_timeout": "3s",
@@ -260,7 +260,7 @@ class ControlEmqx:
 
         logging.info("Set settings for tcp listener")
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             response = await client.put(
                 f"{self.current_link}/api/v5/listeners/tcp:default",
@@ -297,12 +297,12 @@ class ControlEmqx:
                 "max_mailbox_size": 1000,
             },
             "mqtt": {
-                "max_clientid_len": settings.pu_mqtt_max_client_id_len,
-                "max_topic_alias": settings.pu_mqtt_max_topic_alias,
-                "max_qos_allowed": settings.pu_mqtt_max_qos,
-                "max_mqueue_len": settings.pu_mqtt_max_len_message_queue,
-                "max_topic_levels": settings.pu_mqtt_max_topic_levels,
-                "max_packet_size": f"{settings.pu_mqtt_max_payload_size}KB",
+                "max_clientid_len": runtime.get().pu_mqtt_max_client_id_len,
+                "max_topic_alias": runtime.get().pu_mqtt_max_topic_alias,
+                "max_qos_allowed": runtime.get().pu_mqtt_max_qos,
+                "max_mqueue_len": runtime.get().pu_mqtt_max_len_message_queue,
+                "max_topic_levels": runtime.get().pu_mqtt_max_topic_levels,
+                "max_packet_size": f"{runtime.get().pu_mqtt_max_payload_size}KB",
                 "session_expiry_interval": "2h",
                 "max_subscriptions": "infinity",
                 "exclusive_subscription": False,
@@ -337,7 +337,7 @@ class ControlEmqx:
 
         logging.info("Set global mqtt settings")
         async with httpx.AsyncClient(
-            timeout=settings.http_timeout()
+            timeout=runtime.get().http_timeout()
         ) as client:
             response = await client.put(
                 f"{self.current_link}/api/v5/configs/global_zone",

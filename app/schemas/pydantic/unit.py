@@ -35,7 +35,7 @@ class UnitStateRead(BaseModel):
                 try:
                     value = float(value)
                     values[field] = value
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     value = None
                     values[field] = value
 
