@@ -95,8 +95,6 @@ class InstanceSettings(SQLModel, table=True):
     pu_instance_user_max_count: int = Field(nullable=False, default=1024)
     # How many groups one account may own.
     pu_instance_user_max_group: int = Field(nullable=False, default=16)
-    # Seconds before the same user may update login or password again.
-    pu_instance_user_max_update_rate: int = Field(nullable=False, default=900)
 
     pu_mqtt_client_max_bytes_rate: str = Field(
         nullable=False, default="1MB/s", max_length=64

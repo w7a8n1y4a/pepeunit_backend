@@ -9,7 +9,9 @@ from app.dto.enum import CookieName
 from app.repositories.user_repository import UserFilter
 from app.schemas.pydantic.user import (
     AccessToken,
-    UserAuth,
+    AuthChallengeCreate,
+    AuthChallengeRead,
+    AuthTokenCreate,
     UserCreate,
     UserRead,
     UsersResult,
@@ -68,13 +70,23 @@ def get(
     return UserRead(**user_service.get(uuid).dict())
 
 
+@router.post("/auth/challenge", response_model=AuthChallengeRead)
+async def create_challenge(
+    data: AuthChallengeCreate,
+    user_service: UserService = Depends(get_user_service),
+):
+    return AuthChallengeRead(
+        challenge=await user_service.create_challenge(data)
+    )
+
+
 @router.post("/auth", response_model=AccessToken)
-def get_token(
-    data: UserAuth,
+async def get_token(
+    data: AuthTokenCreate,
     response: Response,
     user_service: UserService = Depends(get_user_service),
 ):
-    token = user_service.get_token(data)
+    token = await user_service.get_token(data)
     if runtime.get().pu_ff_grafana_integration_enable:
         grafana_token = _user_service_for_token(
             user_service, token

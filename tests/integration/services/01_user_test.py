@@ -10,21 +10,15 @@ from app.domain.user_model import User
 from app.dto.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import (
-    UserAuth,
+    AuthChallengeCreate,
+    AuthTokenCreate,
     UserCreate,
     UserFilter,
     UserUpdate,
 )
 from tests.integration.fixtures.users import telegram_chat_id
-from tests.integration.helpers.names import (
-    ADMIN_USER_PASSWORD,
-    REGULAR_USER_PASSWORD,
-    unique_name,
-)
-from tests.integration.helpers.names import (
-    test_password as password_for,
-)
-from tests.integration.helpers.services import user_service
+from tests.integration.helpers.keys import REGULAR_USER_KEY, fresh_key
+from tests.integration.helpers.services import token_for, user_service
 
 
 def test_create_user(regular_user, admin_user) -> None:
@@ -34,11 +28,21 @@ def test_create_user(regular_user, admin_user) -> None:
     assert admin_user.role == UserRole.ADMIN
 
 
-def test_create_user_duplicate(database, cc, regular_user) -> None:
+def test_create_user_without_login(database, cc) -> None:
+    service = user_service(database, cc, None)
+    created = service.create(UserCreate(public_key=fresh_key().public_key))
+    try:
+        assert created.login is None
+    finally:
+        UserRepository(db=database).delete(User(uuid=created.uuid))
+
+
+def test_create_user_duplicate_public_key(database, cc, regular_user) -> None:
+    assert regular_user.public_key == REGULAR_USER_KEY.public_key
     service = user_service(database, cc, None)
     with pytest.raises(UserError):
         service.create(
-            UserCreate(login=regular_user.login, password=REGULAR_USER_PASSWORD)
+            UserCreate(public_key=REGULAR_USER_KEY.public_key)
         )
 
 
@@ -47,22 +51,48 @@ def test_get_auth_token_user(regular_user_token, admin_user_token) -> None:
     assert admin_user_token
 
 
-def test_get_auth_token_invalid_password(database, cc, regular_user) -> None:
+async def test_get_auth_token_invalid_signature(
+    database, cc, regular_user
+) -> None:
     service = user_service(database, cc, None)
+    challenge = await service.create_challenge(
+        AuthChallengeCreate(
+            hash_public_key=regular_user._test_key.hash_public_key
+        )
+    )
     with pytest.raises(NoAccessError):
-        service.get_token(
-            UserAuth(credentials=regular_user.login, password="invalid password")
+        await service.get_token(
+            AuthTokenCreate(
+                challenge=challenge,
+                signature=fresh_key().sign(challenge),
+            )
         )
 
 
-def test_get_auth_token_invalid_login(database, cc, admin_user) -> None:
+async def test_get_auth_token_reuses_challenge(
+    database, cc, regular_user
+) -> None:
+    service = user_service(database, cc, None)
+    challenge = await service.create_challenge(
+        AuthChallengeCreate(
+            hash_public_key=regular_user._test_key.hash_public_key
+        )
+    )
+    signature = regular_user._test_key.sign(challenge)
+    assert await service.get_token(
+        AuthTokenCreate(challenge=challenge, signature=signature)
+    )
+    with pytest.raises(NoAccessError):
+        await service.get_token(
+            AuthTokenCreate(challenge=challenge, signature=signature)
+        )
+
+
+async def test_get_auth_challenge_unknown_key(database, cc) -> None:
     service = user_service(database, cc, None)
     with pytest.raises(ValidationError):
-        service.get_token(
-            UserAuth(
-                credentials=admin_user.login + "invalid",
-                password=ADMIN_USER_PASSWORD,
-            )
+        await service.create_challenge(
+            AuthChallengeCreate(hash_public_key="a" * 64)
         )
 
 
@@ -132,43 +162,24 @@ def test_unblock_without_admin(database, cc, regular_user, regular_user_token) -
 
 
 def test_update_user_login(database, cc, extra_user) -> None:
-    token = user_service(database, cc, None).get_token(
-        UserAuth(credentials=extra_user.login, password=extra_user._test_password)
-    )
+    token = token_for(database, cc, extra_user._test_key)
     service = user_service(database, cc, token)
     new_login = extra_user.login[:-1] + "x"
     service.update(UserUpdate(login=new_login))
-    extra_user.login = new_login
-    logging.info(new_login)
+    renamed = extra_user.login[:-1] + "y"
+    service.update(UserUpdate(login=renamed))
+    extra_user.login = renamed
+    logging.info(renamed)
 
 
-def test_update_user_login_exists(
-    database, cc, extra_user, regular_user, admin_user_token
+def test_update_user_login_can_match_another(
+    database, cc, extra_user, regular_user
 ) -> None:
-    token = user_service(database, cc, None).get_token(
-        UserAuth(credentials=extra_user.login, password=extra_user._test_password)
-    )
+    token = token_for(database, cc, extra_user._test_key)
     service = user_service(database, cc, token)
-    with pytest.raises(UserError):
-        service.update(UserUpdate(login=regular_user.login))
-
-
-def test_update_user_password(database, cc, extra_user) -> None:
-    old_password = extra_user._test_password
-    token = user_service(database, cc, None).get_token(
-        UserAuth(credentials=extra_user.login, password=old_password)
-    )
-    service = user_service(database, cc, token)
-    service.update(UserUpdate(password="password1"))
-
-    new_token = user_service(database, cc, None).get_token(
-        UserAuth(credentials=extra_user.login, password="password1")
-    )
-    assert new_token
-    with pytest.raises(NoAccessError):
-        user_service(database, cc, None).get_token(
-            UserAuth(credentials=extra_user.login, password=old_password)
-        )
+    updated = service.update(UserUpdate(login=regular_user.login))
+    assert updated.login == regular_user.login
+    assert updated.uuid != regular_user.uuid
 
 
 def test_get_user(database, cc, regular_user, regular_user_token) -> None:
@@ -178,10 +189,12 @@ def test_get_user(database, cc, regular_user, regular_user_token) -> None:
     assert fetched.login == regular_user.login
 
 
-def test_create_user_invalid_password(database, cc) -> None:
+def test_create_user_invalid_public_key(database, cc) -> None:
     service = user_service(database, cc, None)
     with pytest.raises(UserError):
-        service.create(UserCreate(login=unique_name("badpw"), password="short"))
+        service.create(
+            UserCreate(public_key="not-a-key")
+        )
 
 
 def test_created_user_is_regular_user(extra_user) -> None:
@@ -229,7 +242,7 @@ def test_assign_owner_replaces_previous(database, cc, extra_user) -> None:
 
     repository = UserRepository(db=database)
     previous = user_service(database, cc, None).create(
-        UserCreate(login=unique_name("prev"), password=password_for("testtest2"))
+        UserCreate(public_key=fresh_key().public_key)
     )
     try:
         repository.set_single_owner(previous.uuid)
@@ -251,18 +264,10 @@ def test_owner_grants_and_revokes_admin(database, cc, extra_user) -> None:
     repository.set_single_owner(extra_user.uuid)
     target = None
     try:
-        token = user_service(database, cc, None).get_token(
-            UserAuth(
-                credentials=extra_user.login,
-                password=extra_user._test_password,
-            )
-        )
+        token = token_for(database, cc, extra_user._test_key)
         service = user_service(database, cc, token)
         target = user_service(database, cc, None).create(
-            UserCreate(
-                login=unique_name("adm"),
-                password=password_for("testtest3"),
-            )
+            UserCreate(public_key=fresh_key().public_key)
         )
 
         granted = service.grant_admin(target.uuid)

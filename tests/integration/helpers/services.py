@@ -1,3 +1,5 @@
+import asyncio
+
 from app import runtime
 from app.configs.rest import (
     get_grafana_service,
@@ -15,7 +17,7 @@ from app.configs.rest import (
 )
 from app.schemas.pydantic.repo import RepoCreate
 from app.schemas.pydantic.repository_registry import CommitFilter
-from app.schemas.pydantic.user import UserAuth
+from app.schemas.pydantic.user import AuthChallengeCreate, AuthTokenCreate
 
 
 def user_service(database, cc, token=None):
@@ -124,7 +126,17 @@ def all_branch_commits(database, token, registry_uuid, branch, *, only_tag: bool
     )
 
 
-def token_for(database, cc, login: str, password: str) -> str:
-    return user_service(database, cc, None).get_token(
-        UserAuth(credentials=login, password=password)
-    )
+def token_for(database, cc, key) -> str:
+    service = user_service(database, cc, None)
+
+    async def _issue() -> str:
+        challenge = await service.create_challenge(
+            AuthChallengeCreate(hash_public_key=key.hash_public_key)
+        )
+        return await service.get_token(
+            AuthTokenCreate(
+                challenge=challenge, signature=key.sign(challenge)
+            )
+        )
+
+    return asyncio.run(_issue())

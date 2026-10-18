@@ -4,14 +4,8 @@ from collections.abc import Sequence
 from json import JSONDecodeError
 
 from app import settings
-from app.configs.errors import (
-    CustomJSONDecodeError,
-    NoAccessError,
-    ValidationError,
-)
-from app.domain.user_model import User
+from app.configs.errors import CustomJSONDecodeError, ValidationError
 from app.services.utils import get_visibility_level_priority
-from app.utils.utils import check_password
 
 
 def is_valid_object(obj: any) -> None:
@@ -26,14 +20,6 @@ def is_emtpy_sequence(obj: Sequence):
             "The array was expected to be empty, but it turned out to be full"
         )
         raise ValidationError(msg)
-
-
-def is_valid_password(password: str, user: User) -> None:
-    if not check_password(
-        password, user.hashed_password, user.cipher_dynamic_salt
-    ):
-        msg = "Password hash mismatched"
-        raise NoAccessError(msg)
 
 
 def is_valid_json(json_str: str, name: str) -> dict:

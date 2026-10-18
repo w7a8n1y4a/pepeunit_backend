@@ -73,7 +73,6 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_instance_user_auth_token_expiration: int = Field(ge=600, le=11_059_200)
     pu_instance_user_max_count: int = Field(ge=1, le=1_000_000)
     pu_instance_user_max_group: int = Field(ge=1, le=1024)
-    pu_instance_user_max_update_rate: int = Field(ge=600, le=7200)
 
     pu_mqtt_client_max_bytes_rate: str = Field(max_length=64)
     pu_mqtt_client_max_messages_rate: str = Field(max_length=64)
@@ -241,7 +240,6 @@ class InstanceSettingsUpdate(BaseModel):
     pu_instance_user_auth_token_expiration: int | None = None
     pu_instance_user_max_count: int | None = None
     pu_instance_user_max_group: int | None = None
-    pu_instance_user_max_update_rate: int | None = None
 
     pu_mqtt_client_max_bytes_rate: str | None = None
     pu_mqtt_client_max_messages_rate: str | None = None

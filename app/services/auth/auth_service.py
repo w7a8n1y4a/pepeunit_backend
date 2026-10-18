@@ -121,7 +121,7 @@ class TgBotAuthService(AuthService):
             self.current_agent = AgentBot()
 
     def _get_agent_by_chat_id(self):
-        user = self.user_repo.get_user_by_credentials(self.telegram_chat_id)
+        user = self.user_repo.get_user_by_telegram_id(self.telegram_chat_id)
 
         if user:
             agent = AgentUser(**user.dict())

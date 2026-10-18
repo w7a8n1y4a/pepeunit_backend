@@ -13,7 +13,9 @@ class UserRead(BaseModel):
     uuid: uuid_pkg.UUID
     role: UserRole
     status: UserStatus
-    login: str
+    login: str | None = None
+    public_key: str
+    hash_public_key: str
     grafana_org_name: uuid_pkg.UUID
     grafana_org_id: str | None = None
     create_datetime: datetime
@@ -25,18 +27,24 @@ class UsersResult(BaseModel):
 
 
 class UserCreate(BaseModel):
-    login: str
-    password: str
+    public_key: str
 
 
 class UserUpdate(BaseModel):
     login: str | None = None
-    password: str | None = None
 
 
-class UserAuth(BaseModel):
-    credentials: str
-    password: str
+class AuthChallengeCreate(BaseModel):
+    hash_public_key: str
+
+
+class AuthChallengeRead(BaseModel):
+    challenge: str
+
+
+class AuthTokenCreate(BaseModel):
+    challenge: str
+    signature: str
 
 
 class AccessToken(BaseModel):

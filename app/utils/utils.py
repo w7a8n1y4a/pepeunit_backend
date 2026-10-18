@@ -1,6 +1,5 @@
 import base64
 import datetime
-import hashlib
 import logging
 import os
 import shutil
@@ -98,38 +97,6 @@ def aes_gcm_decode(data: str, key: str = settings.pu_encrypt_key) -> str:
     aesgcm = AESGCM(key)
 
     return aesgcm.decrypt(nonce, cipher, None).decode("utf-8")
-
-
-def password_to_hash(password: str) -> (str, str):
-    dynamic_salt = base64.b64encode(os.urandom(16)).decode("utf-8")
-
-    hashed_password = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        (dynamic_salt + settings.pu_static_salt).encode("utf-8"),
-        100000,
-    )
-
-    return aes_gcm_encode(dynamic_salt), base64.b64encode(
-        hashed_password
-    ).decode("utf-8")
-
-
-def check_password(
-    password: str, hashed_password_db: str, cipher_dynamic_salt: str
-) -> bool:
-    dynamic_salt = aes_gcm_decode(cipher_dynamic_salt)
-
-    hashed_password = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        (dynamic_salt + settings.pu_static_salt).encode("utf-8"),
-        100000,
-    )
-
-    return hashed_password_db == base64.b64encode(hashed_password).decode(
-        "utf-8"
-    )
 
 
 def generate_random_string(length=6):

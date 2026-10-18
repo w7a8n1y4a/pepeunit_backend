@@ -17,18 +17,16 @@ from app.repositories.notification_settings_repository import (
 )
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import (
-    UserAuth,
+    AuthChallengeCreate,
+    AuthTokenCreate,
     UserCreate,
     UserFilter,
     UserUpdate,
 )
 from app.services.access_service import AccessService
-from app.services.validators import is_valid_object, is_valid_password
-from app.utils.utils import (
-    ensure_timezone_aware,
-    generate_random_string,
-    password_to_hash,
-)
+from app.services.auth.challenge import ChallengeService
+from app.services.validators import is_valid_object
+from app.utils.utils import generate_random_string
 
 
 class UserService:
@@ -42,6 +40,7 @@ class UserService:
         ) = Depends(),
     ) -> None:
         self.user_repository = user_repository
+        self.challenge_service = ChallengeService(user_repository)
         self.data_pipe_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
         self.notification_settings_repository = (
@@ -50,17 +49,17 @@ class UserService:
 
     def create(self, data: UserCreate) -> User:
         self.access_service.authorization.check_access([AgentType.BOT])
-        self.user_repository.is_valid_login(data.login)
-        self.user_repository.is_valid_password(data.password)
+        public_key, hash_public_key = (
+            self.challenge_service.canonical_public_key(data.public_key)
+        )
         self._check_user_count()
 
-        user = User(**data.dict())
-        user.role = UserRole.USER
-        user.status = UserStatus.ACTIVE
-        user.create_datetime = datetime.datetime.now(datetime.UTC)
-
-        user.cipher_dynamic_salt, user.hashed_password = password_to_hash(
-            data.password
+        user = User(
+            public_key=public_key,
+            hash_public_key=hash_public_key,
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE,
+            create_datetime=datetime.datetime.now(datetime.UTC),
         )
 
         user = self.user_repository.create(user)
@@ -79,13 +78,20 @@ class UserService:
         is_valid_object(user)
         return user
 
-    def get_token(self, data: UserAuth) -> str:
+    async def create_challenge(self, data: AuthChallengeCreate) -> str:
         self.access_service.authorization.check_access([AgentType.BOT])
-
-        user = self.user_repository.get_user_by_credentials(data.credentials)
+        digest = self.challenge_service.normalize_public_key_hash(
+            data.hash_public_key
+        )
+        user = self.user_repository.get_user_by_hash_public_key(digest)
         is_valid_object(user)
-        is_valid_password(data.password, user)
+        return await self.challenge_service.issue(user)
 
+    async def get_token(self, data: AuthTokenCreate) -> str:
+        self.access_service.authorization.check_access([AgentType.BOT])
+        user = await self.challenge_service.accept(
+            data.challenge, data.signature
+        )
         return AgentUser(**user.dict()).generate_agent_token()
 
     def get_grafana_token(self) -> str:
@@ -93,7 +99,8 @@ class UserService:
 
         current_user = self.access_service.current_agent
         return AgentGrafana(
-            uuid=current_user.uuid, name=current_user.login
+            uuid=current_user.uuid,
+            name=current_user.login or str(current_user.uuid),
         ).generate_agent_token()
 
     def update(self, data: UserUpdate) -> User:
@@ -102,22 +109,11 @@ class UserService:
             User(uuid=self.access_service.current_agent.uuid)
         )
         is_valid_object(user)
-        if not data.login and not data.password:
+        if not data.login:
             return user
 
-        self._check_update_rate(user)
-
-        if data.login:
-            self.user_repository.is_valid_login(data.login, user.uuid)
-            user.login = data.login
-
-        if data.password:
-            self.user_repository.is_valid_password(data.password)
-            user.cipher_dynamic_salt, user.hashed_password = password_to_hash(
-                data.password
-            )
-
-        user.last_update_datetime = datetime.datetime.now(datetime.UTC)
+        self.user_repository.is_valid_login(data.login)
+        user.login = data.login
         return self.user_repository.update(user.uuid, user)
 
     async def generate_verification_link(self) -> str:
@@ -199,24 +195,6 @@ class UserService:
         if count < limit:
             return
         msg = f"User count is {count}, the limit is {limit}"
-        raise UserError(msg)
-
-    def _check_update_rate(self, user: User) -> None:
-        if user.last_update_datetime is None:
-            return
-
-        rate = int(runtime.get().pu_instance_user_max_update_rate)
-        delta = (
-            datetime.datetime.now(datetime.UTC)
-            - ensure_timezone_aware(user.last_update_datetime)
-        ).total_seconds()
-        if delta >= rate:
-            return
-
-        msg = (
-            f"User data can be updated once every {rate} s, "
-            f"last update was {round(delta)} s ago"
-        )
         raise UserError(msg)
 
     def create_org_if_not_exists(self, uuid: uuid_pkg.UUID) -> None:

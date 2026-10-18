@@ -175,11 +175,6 @@ class AppSettings(SettingsValidationMixin, BaseModel):
         default="./prometheus_metrics", max_length=128
     )
 
-    pu_available_password_symbols: str = Field(
-        default=string.ascii_letters + string.digits + string.punctuation,
-        max_length=128,
-    )
-
     pu_http_type: str = "https"
     pu_link: str = ""
     pu_link_prefix: str = ""
@@ -211,7 +206,6 @@ class SecuritySettings(SettingsValidationMixin, BaseModel):
 
     pu_secret_key: str = Field(max_length=128)
     pu_encrypt_key: str = Field(max_length=128)
-    pu_static_salt: str = Field(max_length=128)
 
     @field_validator("pu_secret_key")
     @classmethod
@@ -235,11 +229,6 @@ class SecuritySettings(SettingsValidationMixin, BaseModel):
             msg = "PU_ENCRYPT_KEY must decode to 16, 24 or 32 bytes"
             raise ValueError(msg)
         return value
-
-    @field_validator("pu_static_salt")
-    @classmethod
-    def validate_static_salt(cls, value: str) -> str:
-        return cls.require_non_empty(value, "PU_STATIC_SALT")
 
 
 class DatabaseSettings(SettingsValidationMixin, BaseModel):

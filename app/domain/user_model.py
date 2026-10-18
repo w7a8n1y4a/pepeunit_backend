@@ -21,13 +21,14 @@ class User(SQLModel, table=True):
     # User status on this Instance
     status: str = Field(nullable=False)
 
-    # Unique User login on this Instance
-    login: str = Field(nullable=False, unique=True)
+    # Optional display name. Empty until the user sets it.
+    login: str | None = Field(default=None, nullable=True)
     # chat_id in Telegram bot
     telegram_chat_id: str = Field(nullable=True, unique=True)
-    hashed_password: str = Field(nullable=False)
-    # cipher dynamic salt for hashed password
-    cipher_dynamic_salt: str = Field(nullable=False)
+    # ML-DSA-87 public key, standard base64 of the raw 2592-byte key.
+    public_key: str = Field(nullable=False, unique=True, max_length=4096)
+    # SHA-256 hex of the raw public key. Challenge lookup uses this.
+    hash_public_key: str = Field(nullable=False, unique=True, max_length=64)
 
     # uuid name in grafana organisation, unique for all users
     grafana_org_name: uuid_pkg.UUID = Field(
@@ -37,5 +38,3 @@ class User(SQLModel, table=True):
     grafana_org_id: str = Field(nullable=True)
 
     create_datetime: datetime = Field(nullable=False)
-    # Last login or password change. Empty until the first profile update.
-    last_update_datetime: datetime | None = Field(default=None, nullable=True)

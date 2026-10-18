@@ -7,27 +7,26 @@ from app import runtime, settings
 from app.domain.user_model import User
 from app.dto.enum import UserRole
 from app.repositories.user_repository import UserRepository
-from app.schemas.pydantic.user import UserAuth, UserCreate
-from tests.integration.helpers.names import (
-    ADMIN_USER_PASSWORD,
-    REGULAR_USER_PASSWORD,
-    entity_name,
-    test_password,
-    unique_name,
+from app.schemas.pydantic.user import UserCreate
+from tests.integration.helpers.keys import (
+    ADMIN_USER_KEY,
+    REGULAR_USER_KEY,
+    UserKey,
+    fresh_key,
 )
-from tests.integration.helpers.services import user_service
+from tests.integration.helpers.names import entity_name, unique_name
+from tests.integration.helpers.services import token_for, user_service
 
 
-def _create_user(database, cc, login: str, password: str) -> User:
-    return user_service(database, cc, None).create(
-        UserCreate(login=login, password=password)
+def _create_user(database, cc, login: str, key: UserKey) -> User:
+    user = user_service(database, cc, None).create(
+        UserCreate(public_key=key.public_key)
     )
-
-
-def _token_for(database, cc, login: str, password: str) -> str:
-    return user_service(database, cc, None).get_token(
-        UserAuth(credentials=login, password=password)
-    )
+    user.login = login
+    user._test_key = key
+    stored = UserRepository(db=database).update(user.uuid, user)
+    stored._test_key = key
+    return stored
 
 
 def telegram_chat_id(*, configured: bool = False) -> str:
@@ -57,44 +56,43 @@ def _maybe_verify(
 
 @pytest.fixture(scope="session")
 def regular_user(clean_leftovers, database, cc) -> User:
-    user = _create_user(
-        database, cc, entity_name("regular"), REGULAR_USER_PASSWORD
-    )
+    user = _create_user(database, cc, entity_name("regular"), REGULAR_USER_KEY)
     user.role = UserRole.USER
-    return UserRepository(db=database).update(user.uuid, user)
+    stored = UserRepository(db=database).update(user.uuid, user)
+    stored._test_key = REGULAR_USER_KEY
+    return stored
 
 
 @pytest.fixture(scope="session")
 def regular_user_token(database, cc, regular_user) -> str:
-    token = _token_for(database, cc, regular_user.login, REGULAR_USER_PASSWORD)
+    token = token_for(database, cc, regular_user._test_key)
     _maybe_verify(database, cc, token, configured=True)
     return token
 
 
 @pytest.fixture(scope="session")
 def admin_user(database, cc, regular_user) -> User:
-    user = _create_user(database, cc, entity_name("admin"), ADMIN_USER_PASSWORD)
+    user = _create_user(database, cc, entity_name("admin"), ADMIN_USER_KEY)
     user.role = UserRole.ADMIN
-    return UserRepository(db=database).update(user.uuid, user)
+    stored = UserRepository(db=database).update(user.uuid, user)
+    stored._test_key = ADMIN_USER_KEY
+    return stored
 
 
 @pytest.fixture(scope="session")
 def admin_user_token(database, cc, admin_user) -> str:
-    token = _token_for(database, cc, admin_user.login, ADMIN_USER_PASSWORD)
+    token = token_for(database, cc, admin_user._test_key)
     _maybe_verify(database, cc, token)
     return token
 
 
 @pytest.fixture
 def extra_user(database, cc) -> User:
-    login = unique_name("extra")
-    password = test_password("testtestx")
-    user = _create_user(database, cc, login, password)
-    user._test_password = password
+    user = _create_user(database, cc, unique_name("extra"), fresh_key())
     yield user
     UserRepository(db=database).delete(User(uuid=user.uuid))
 
 
 @pytest.fixture
 def extra_user_token(database, cc, extra_user) -> str:
-    return _token_for(database, cc, extra_user.login, extra_user._test_password)
+    return token_for(database, cc, extra_user._test_key)

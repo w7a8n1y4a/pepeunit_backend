@@ -166,6 +166,7 @@ async def authorize(
     redis = await anext(get_redis_session())
 
     code = str(uuid_pkg.uuid4())
+    account = current_user.login or str(current_user.uuid)
     await redis.set(
         f"grafana:{code}",
         json.dumps(
@@ -176,8 +177,8 @@ async def authorize(
                 "issued_at": time.time(),
                 "user": {
                     "sub": str(current_user.uuid),
-                    "name": current_user.login,
-                    "email": current_user.login,
+                    "name": account,
+                    "email": account,
                     "role": GrafanaUserRole.EDITOR.value,
                     "organization": str(current_user.grafana_org_name),
                 },

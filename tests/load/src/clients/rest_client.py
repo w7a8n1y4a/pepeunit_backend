@@ -1,8 +1,13 @@
 import asyncio
+import base64
+import hashlib
 import json
 import logging
 
 import httpx
+from cryptography.hazmat.primitives.asymmetric.mldsa import (
+    MLDSA87PrivateKey,
+)
 
 from app import runtime
 from app.dto.enum import GitPlatform, ProcessingPolicyType
@@ -17,25 +22,36 @@ class RestClient:
             "Content-Type": "application/json",
         }
 
-        user = {
-            "login": f"test_{self.config.test_hash}",
-            "password": self.config.test_hash + "/",
-        }
+        private_key = MLDSA87PrivateKey.generate()
+        raw_public_key = private_key.public_key().public_bytes_raw()
+        public_key = base64.b64encode(raw_public_key).decode("ascii")
+        hash_public_key = hashlib.sha256(raw_public_key).hexdigest()
 
         create_user_link = f"{self.config.url}/pepeunit/api/v1/users"
         httpx.post(
             create_user_link,
-            json=user,
+            json={"public_key": public_key},
             headers=self.headers,
             timeout=runtime.get().http_timeout(),
         )
 
-        user["credentials"] = user.pop("login")
+        challenge_link = (
+            f"{self.config.url}/pepeunit/api/v1/users/auth/challenge"
+        )
+        challenge = httpx.post(
+            challenge_link,
+            json={"hash_public_key": hash_public_key},
+            headers=self.headers,
+            timeout=runtime.get().http_timeout(),
+        ).json()["challenge"]
+        signature = base64.b64encode(
+            private_key.sign(challenge.encode("utf-8"))
+        ).decode("ascii")
 
         auth_link = f"{self.config.url}/pepeunit/api/v1/users/auth"
         self.token = httpx.post(
             auth_link,
-            json=user,
+            json={"challenge": challenge, "signature": signature},
             headers=self.headers,
             timeout=runtime.get().http_timeout(),
         ).json()["token"]

@@ -15,14 +15,13 @@ from app.dto.enum import (
     VisibilityLevel,
 )
 from app.schemas.pydantic.repo import RepoFilter, RepoUpdate
-from app.schemas.pydantic.user import UserAuth
 from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     registry_read,
     registry_service,
     repo_create_payload,
     repo_service,
-    user_service,
+    token_for,
 )
 from tests.integration.helpers.wait import wait_task_finish
 
@@ -44,9 +43,7 @@ def test_create_repo_duplicate_name(
 def test_create_repo_without_credentials(
     private_repo, extra_user, regular_user_token, database, cc
 ) -> None:
-    token = user_service(database, cc, None).get_token(
-        UserAuth(credentials=extra_user.login, password=extra_user._test_password)
-    )
+    token = token_for(database, cc, extra_user._test_key)
     existing = repo_service(database, cc, regular_user_token).get(private_repo.uuid)
     payload = repo_create_payload(existing)
     payload.name = unique_name("nopat")

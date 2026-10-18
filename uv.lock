@@ -1246,7 +1246,7 @@ requires-dist = [
     { name = "cachetools", specifier = ">=5.5.2" },
     { name = "clickhouse-driver", specifier = ">=0.2.9" },
     { name = "clickhouse-migrations", specifier = ">=0.8.1" },
-    { name = "cryptography", specifier = ">=44.0.0" },
+    { name = "cryptography", specifier = ">=47.0.0" },
     { name = "dill", specifier = ">=0.3.8" },
     { name = "fastapi", specifier = ">=0.95.0" },
     { name = "fastapi-filter", specifier = ">=0.6.0" },

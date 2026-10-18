@@ -10,11 +10,10 @@ from app.dto.enum import OperationTaskStatus, OperationTaskType, UserRole
 from app.repositories.operation_task_repository import OperationTaskRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.instance_settings import InstanceSettingsUpdate
-from app.schemas.pydantic.user import UserCreate, UserUpdate
+from app.schemas.pydantic.user import UserCreate
 from app.services.instance_settings_service import InstanceSettingsService
 from tests.integration.helpers.instance_settings import wait_runtime
-from tests.integration.helpers.names import test_password as password_for
-from tests.integration.helpers.names import unique_name
+from tests.integration.helpers.keys import fresh_key
 from tests.integration.helpers.services import (
     instance_settings_service,
     user_service,
@@ -65,10 +64,7 @@ def test_user_count_limit(database, cc, extra_user, extra_user_token) -> None:
         wait_runtime("pu_instance_user_max_count", limit)
         with pytest.raises(UserError):
             user_service(database, cc, None).create(
-                UserCreate(
-                    login=unique_name("over"),
-                    password=password_for("testtest9"),
-                )
+                UserCreate(public_key=fresh_key().public_key)
             )
     finally:
         settings_service.update(
@@ -76,25 +72,6 @@ def test_user_count_limit(database, cc, extra_user, extra_user_token) -> None:
         )
         wait_runtime("pu_instance_user_max_count", current)
         _restore_owner(database, repository, extra_user, previous)
-
-
-def test_user_update_rate(database, cc, extra_user, extra_user_token) -> None:
-    repository = UserRepository(database)
-    database.expire_all()
-    user = repository.get(User(uuid=extra_user.uuid))
-    user.last_update_datetime = None
-    repository.update(user.uuid, user)
-
-    service = user_service(database, cc, extra_user_token)
-    try:
-        service.update(UserUpdate(password="password1"))
-        with pytest.raises(UserError):
-            service.update(UserUpdate(password="password2"))
-    finally:
-        database.expire_all()
-        user = repository.get(User(uuid=extra_user.uuid))
-        user.last_update_datetime = None
-        repository.update(user.uuid, user)
 
 
 def test_rescue_kills_workers_when_master_stays(monkeypatch, tmp_path) -> None:

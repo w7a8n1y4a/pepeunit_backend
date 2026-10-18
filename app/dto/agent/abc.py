@@ -80,7 +80,7 @@ class AgentUser(Agent, User):
 
     def __init__(self, **data):
         super().__init__(**data)
-        self.name = self.login
+        self.name = self.login or str(self.uuid)
 
 
 class AgentUnit(Agent, Unit):

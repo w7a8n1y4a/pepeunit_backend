@@ -426,15 +426,16 @@ class GrafanaRepository:
             else:
                 org_id = target_org["id"]
 
+            account = user.login or str(user.uuid)
             resp = self._request(
                 client,
                 "POST",
                 f"{settings.pu_link}/grafana/api/admin/users",
                 headers=self.headers,
                 json={
-                    "name": user.login,
-                    "email": user.login,
-                    "login": user.login,
+                    "name": account,
+                    "email": account,
+                    "login": account,
                     "password": generate_random_string(16),
                 },
             )
@@ -448,7 +449,7 @@ class GrafanaRepository:
                 f"{settings.pu_link}/grafana/api/orgs/{org_id}/users",
                 headers=self.headers,
                 json={
-                    "loginOrEmail": user.login,
+                    "loginOrEmail": account,
                     "role": GrafanaUserRole.EDITOR.value,
                 },
             )

@@ -4,10 +4,8 @@ import logging
 from app import runtime, settings
 from app.schemas.pydantic.grafana import DashboardFilter
 from tests.integration.helpers.data_pipe import seed_pipe_node
-from tests.integration.helpers.names import (
-    REGULAR_USER_PASSWORD,
-    entity_name,
-)
+from tests.integration.helpers.keys import REGULAR_USER_KEY
+from tests.integration.helpers.names import entity_name
 from tests.integration.helpers.services import (
     grafana_service,
     token_for,
@@ -44,9 +42,7 @@ def preserve_demo_dashboard(database, cc) -> None:
         return
 
     try:
-        token = token_for(
-            database, cc, entity_name("regular"), REGULAR_USER_PASSWORD
-        )
+        token = token_for(database, cc, REGULAR_USER_KEY)
     except Exception:
         return
 
