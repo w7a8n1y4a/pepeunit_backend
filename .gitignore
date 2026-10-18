@@ -12,3 +12,4 @@ tmp
 connections.json
 .nvim
 prometheus_metrics
+bin/

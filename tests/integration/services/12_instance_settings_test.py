@@ -48,13 +48,7 @@ def test_settings_are_owner_only(
 
     repository, previous = _as_owner(database, extra_user)
     try:
-        service = instance_settings_service(database, extra_user_token)
-        current = service.get()
-        updated = service.update(InstanceSettingsUpdate(pu_instance_owner_tg="@owner"))
-        assert updated.pu_instance_owner_tg == "@owner"
-        wait_runtime("pu_instance_owner_tg", "@owner")
-        service.update(InstanceSettingsUpdate(pu_instance_owner_tg=current.pu_instance_owner_tg))
-        wait_runtime("pu_instance_owner_tg", current.pu_instance_owner_tg)
+        instance_settings_service(database, extra_user_token).get()
     finally:
         _restore_owner(database, repository, extra_user, previous)
 

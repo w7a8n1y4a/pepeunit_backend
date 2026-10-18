@@ -165,6 +165,7 @@ class StartupService:
     async def _setup_backend_acl(self) -> None:
         backend_topics = (
             f"{settings.pu_domain}/+/+/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}",
+            f"{settings.pu_domain}/+{GlobalPrefixTopic.BACKEND_SUB_PREFIX.value}",
         )
 
         async def hset_emqx_auth_keys(topic: str) -> None:

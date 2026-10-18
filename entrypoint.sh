@@ -33,10 +33,30 @@ alembic upgrade head
 echo "Del old lock files"
 rm -f tmp/instance_restart
 rm -f tmp/*.lock
+rm -f tmp/data_pipe.supervisor.pid
 
 export PROMETHEUS_MULTIPROC_DIR="${PU_PROMETHEUS_MULTIPROC_DIR:-./prometheus_metrics}"
 
+DATA_PIPE_PID=""
+
+stop_data_pipe() {
+  if [ -z "${DATA_PIPE_PID}" ]; then
+    return
+  fi
+  if kill -0 "$DATA_PIPE_PID" 2>/dev/null; then
+    kill -TERM -"$DATA_PIPE_PID" 2>/dev/null \
+      || kill -TERM "$DATA_PIPE_PID" 2>/dev/null \
+      || true
+    wait "$DATA_PIPE_PID" 2>/dev/null || true
+  fi
+  DATA_PIPE_PID=""
+}
+
+trap stop_data_pipe EXIT
+
 while true; do
+  python -m app.configs.datapipe_process &
+  DATA_PIPE_PID=$!
   gunicorn app.main:app \
       --bind 0.0.0.0:5000 \
       --config gunicorn_conf.py \
@@ -45,6 +65,7 @@ while true; do
       --worker-class uvicorn.workers.UvicornWorker \
       --worker-tmp-dir=/dev/shm
   status=$?
+  stop_data_pipe
   if [ ! -f tmp/instance_restart ]; then
     exit "$status"
   fi
