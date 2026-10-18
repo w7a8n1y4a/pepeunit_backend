@@ -271,20 +271,23 @@ class ControlEmqx:
 
     async def set_global_mqtt_settings(self) -> None:
         data = {
+            # EMQX 6.3 requires shared_subs and dropped the 5.x session GC fields.
             "durable_sessions": {
                 "enable": False,
                 "batch_size": 100,
-                "heartbeat_interval": "5000ms",
-                "idle_poll_interval": "10s",
+                "checkpoint_interval": "15s",
                 "message_retention_period": "1d",
-                "session_gc_batch_size": 100,
-                "session_gc_interval": "10m",
+                "shared_subs": {
+                    "checkpoint_interval": "15s",
+                    "realloc_interval": "100ms",
+                    "revocation_timeout": "10s",
+                },
             },
+            # Flat enable/window_time/max_count/ban_time were removed in 6.3.
             "flapping_detect": {
-                "enable": False,
-                "ban_time": "5m",
-                "max_count": 15,
-                "window_time": "1m",
+                "by_clientid": "none",
+                "by_username": "none",
+                "by_peerhost": "none",
             },
             "force_gc": {
                 "enable": True,
