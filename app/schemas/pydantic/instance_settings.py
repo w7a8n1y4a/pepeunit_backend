@@ -35,7 +35,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
         re.IGNORECASE,
     )
 
-    icon_uuid: uuid_pkg.UUID | None = None
+    icon_uuid: uuid_pkg.UUID
 
     pu_datapipe_buffer_flush_interval: int = Field(ge=1, le=3600)
     pu_datapipe_buffer_max_size: int = Field(ge=1, le=1_000_000)

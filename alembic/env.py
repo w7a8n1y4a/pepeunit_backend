@@ -15,6 +15,7 @@ sys.path.append(BASE_DIR)
 
 MODEL_MODULES = (
     "dashboard_model",
+    "icon_model",
     "dashboard_panel_model",
     "instance_model",
     "instance_settings_model",

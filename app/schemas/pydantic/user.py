@@ -11,6 +11,7 @@ from app.schemas.pydantic.pagination import BasePaginationRestMixin
 
 class UserRead(BaseModel):
     uuid: uuid_pkg.UUID
+    icon_uuid: uuid_pkg.UUID
     role: UserRole
     status: UserStatus
     login: str | None = None

@@ -2,7 +2,11 @@ import uuid as uuid_pkg
 from typing import ClassVar
 
 import httpx
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
+
+from app.domain.icon_model import Icon
 
 
 class InstanceSettings(SQLModel, table=True):
@@ -20,8 +24,19 @@ class InstanceSettings(SQLModel, table=True):
         default=ROW_UUID,
     )
 
-    # Picture of this instance. No file table, the owner stores the uuid.
-    icon_uuid: uuid_pkg.UUID | None = Field(default=None, nullable=True)
+    # Default picture is generated from the instance domain.
+    icon_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey(
+                Icon.__table__.c.uuid,
+                name="instance_settings_icon_uuid_fkey",
+                ondelete="RESTRICT",
+            ),
+            nullable=False,
+            index=True,
+        )
+    )
 
     # Datapipe reads these from Postgres. The backend only stores them.
     pu_datapipe_buffer_flush_interval: int = Field(nullable=False, default=5)

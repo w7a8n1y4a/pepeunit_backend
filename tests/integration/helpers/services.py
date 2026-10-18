@@ -3,6 +3,7 @@ import asyncio
 from app import runtime
 from app.configs.rest import (
     get_grafana_service,
+    get_icon_service,
     get_instance_service,
     get_instance_settings_service,
     get_metrics_service,
@@ -22,6 +23,10 @@ from app.schemas.pydantic.user import AuthChallengeCreate, AuthTokenCreate
 
 def user_service(database, cc, token=None):
     return get_user_service(database, cc, token)
+
+
+def icon_service(database, token=None):
+    return get_icon_service(database, token)
 
 
 def registry_service(database, token=None):

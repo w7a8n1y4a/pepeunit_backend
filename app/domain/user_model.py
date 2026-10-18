@@ -1,7 +1,11 @@
 import uuid as uuid_pkg
 from datetime import datetime
 
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
+
+from app.domain.icon_model import Icon
 
 
 class User(SQLModel, table=True):
@@ -14,6 +18,20 @@ class User(SQLModel, table=True):
         nullable=False,
         index=True,
         default_factory=uuid_pkg.uuid4,
+    )
+
+    # Default picture is generated from the public key.
+    icon_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey(
+                Icon.__table__.c.uuid,
+                name="users_icon_uuid_fkey",
+                ondelete="RESTRICT",
+            ),
+            nullable=False,
+            index=True,
+        )
     )
 
     # User role on this Instance

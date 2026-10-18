@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.routers.v1.grafana import router as grafana_router
+from app.routers.v1.icon_router import router as icon_router
 from app.routers.v1.instance_router import router as instance_router
 from app.routers.v1.notification_router import router as notification_router
 from app.routers.v1.permission_router import router as permission_router
@@ -18,6 +19,7 @@ include_api = api_router.include_router
 
 routers = (
     (user_router, "users", "users"),
+    (icon_router, "icons", "icons"),
     (repository_registry_router, "repository_registry", "repository_registry"),
     (repo_router, "repos", "repos"),
     (unit_router, "units", "units"),

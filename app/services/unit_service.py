@@ -34,6 +34,7 @@ from app.dto.enum import (
     UnitNodeTypeEnum,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.icon_repository import IconRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
@@ -53,6 +54,7 @@ from app.schemas.pydantic.unit import (
 )
 from app.schemas.pydantic.unit_node import UnitNodeFilter
 from app.services.access_service import AccessService
+from app.services.icon_image import IconImage
 from app.services.permission_service import PermissionService
 from app.services.unit_node_service import UnitNodeService
 from app.services.utils import (
@@ -74,6 +76,7 @@ class UnitService:
     def __init__(
         self,
         unit_repository: UnitRepository = Depends(),
+        icon_repository: IconRepository = Depends(),
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         unit_node_repository: UnitNodeRepository = Depends(),
@@ -83,6 +86,7 @@ class UnitService:
         unit_node_service: UnitNodeService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
+        self.icon_repository = icon_repository
         self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
@@ -142,6 +146,9 @@ class UnitService:
 
         unit.create_datetime = datetime.datetime.now(datetime.UTC)
         unit.last_update_datetime = unit.create_datetime
+        unit.icon_uuid = self.icon_repository.stage(
+            IconImage.generate(str(unit.uuid))
+        ).uuid
         unit = self.unit_repository.create(unit)
         unit_deepcopy = copy.deepcopy(unit)
 

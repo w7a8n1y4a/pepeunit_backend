@@ -11,6 +11,7 @@ from app.repositories.dashboard_panel_repository import (
 )
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
+from app.repositories.icon_repository import IconRepository
 from app.repositories.instance_external_repository import (
     InstanceExternalRepository,
 )
@@ -39,6 +40,7 @@ from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
 from app.services.grafana_service import GrafanaService
+from app.services.icon_service import IconService
 from app.services.instance_service import InstanceService
 from app.services.instance_settings_service import InstanceSettingsService
 from app.services.metrics_service import MetricsService
@@ -68,6 +70,7 @@ class ServiceFactory:
 
         # Initialize repositories
         self.user_repository = UserRepository(db)
+        self.icon_repository = IconRepository(db)
         self.unit_repository = UnitRepository(db)
         self.permission_repository = PermissionRepository(db)
         self.repo_repository = RepoRepository(db)
@@ -110,6 +113,7 @@ class ServiceFactory:
     def get_user_service(self) -> UserService:
         return UserService(
             user_repository=self.user_repository,
+            icon_repository=self.icon_repository,
             access_service=self.access_service,
             data_pipe_repository=self.data_pipe_repository,
             notification_settings_repository=(
@@ -121,6 +125,15 @@ class ServiceFactory:
         return InstanceSettingsService(
             instance_settings_repository=self.instance_settings_repository,
             operation_task_service=self.get_operation_task_service(),
+            access_service=self.access_service,
+        )
+
+    def get_icon_service(self) -> IconService:
+        return IconService(
+            icon_repository=self.icon_repository,
+            user_repository=self.user_repository,
+            unit_repository=self.unit_repository,
+            instance_settings_repository=self.instance_settings_repository,
             access_service=self.access_service,
         )
 
@@ -160,6 +173,7 @@ class ServiceFactory:
             unit_service=UnitService(
                 repo_repository=self.repo_repository,
                 unit_repository=self.unit_repository,
+                icon_repository=self.icon_repository,
                 unit_node_repository=self.unit_node_repository,
                 unit_log_repository=self.unit_log_repository,
                 access_service=self.access_service,
@@ -176,6 +190,7 @@ class ServiceFactory:
             repository_registry_repository=self.repository_registry_repository,
             repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
+            icon_repository=self.icon_repository,
             unit_node_repository=self.unit_node_repository,
             unit_log_repository=self.unit_log_repository,
             access_service=self.access_service,
@@ -244,6 +259,13 @@ def create_service_factory(
     jwt_token: str | None = Depends(token_depends),
 ) -> ServiceFactory:
     return ServiceFactory(db, client, jwt_token, False)
+
+
+def get_icon_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> IconService:
+    return create_service_factory(db, None, jwt_token).get_icon_service()
 
 
 def get_user_service(

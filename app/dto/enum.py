@@ -56,6 +56,14 @@ class AgentType(str, enum.Enum):
     GRAFANA_UNIT_NODE = "GrafanaUnitNode"
 
 
+class IconEntityType(str, enum.Enum):
+    """Entity that an icon is linked to."""
+
+    USER = "User"
+    UNIT = "Unit"
+    INSTANCE = "Instance"
+
+
 class AgentStatus(str, enum.Enum):
     """
     Status of an agent. Users are Active or Blocked. Other agents stay

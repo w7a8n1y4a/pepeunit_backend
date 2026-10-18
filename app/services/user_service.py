@@ -12,6 +12,7 @@ from app.dto.agent.abc import AgentGrafana, AgentUser
 from app.dto.enum import AgentType, UserRole, UserStatus
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.grafana_repository import GrafanaRepository
+from app.repositories.icon_repository import IconRepository
 from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
@@ -25,6 +26,7 @@ from app.schemas.pydantic.user import (
 )
 from app.services.access_service import AccessService
 from app.services.auth.challenge import ChallengeService
+from app.services.icon_image import IconImage
 from app.services.validators import is_valid_object
 from app.utils.utils import generate_random_string
 
@@ -33,6 +35,7 @@ class UserService:
     def __init__(
         self,
         user_repository: UserRepository = Depends(),
+        icon_repository: IconRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
         access_service: AccessService = Depends(),
         notification_settings_repository: (
@@ -40,6 +43,7 @@ class UserService:
         ) = Depends(),
     ) -> None:
         self.user_repository = user_repository
+        self.icon_repository = icon_repository
         self.challenge_service = ChallengeService(user_repository)
         self.data_pipe_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
@@ -61,6 +65,9 @@ class UserService:
             status=UserStatus.ACTIVE,
             create_datetime=datetime.datetime.now(datetime.UTC),
         )
+        user.icon_uuid = self.icon_repository.stage(
+            IconImage.generate(public_key)
+        ).uuid
 
         user = self.user_repository.create(user)
         self.notification_settings_repository.create(

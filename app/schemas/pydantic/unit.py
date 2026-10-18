@@ -46,6 +46,7 @@ class UnitStateRead(BaseModel):
 
 class UnitRead(BaseModel):
     uuid: uuid_pkg.UUID
+    icon_uuid: uuid_pkg.UUID
     visibility_level: VisibilityLevel
 
     name: str

@@ -220,7 +220,7 @@ class CurrentInstanceSchemaV1(BaseModel):
     contacts: CurrentInstanceContactsV1 = Field(
         default_factory=CurrentInstanceContactsV1.current
     )
-    icon_uuid: uuid_pkg.UUID | None = Field(
+    icon_uuid: uuid_pkg.UUID = Field(
         default_factory=lambda: runtime.get().icon_uuid
     )
     latitude: float | None = Field(
