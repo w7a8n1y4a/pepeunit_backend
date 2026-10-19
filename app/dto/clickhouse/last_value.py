@@ -5,6 +5,6 @@ from pydantic import BaseModel
 
 
 class LastValue(BaseModel):
-    unit_node_uuid: uuid_pkg.UUID
+    unit_io_uuid: uuid_pkg.UUID
     state: str
     last_update_datetime: datetime

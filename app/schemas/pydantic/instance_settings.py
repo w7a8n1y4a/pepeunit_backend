@@ -41,7 +41,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_datapipe_buffer_max_size: int = Field(ge=1, le=1_000_000)
     pu_datapipe_config_sync_interval: int = Field(ge=1, le=86_400)
     pu_datapipe_default_last_value_enable: bool
-    pu_datapipe_limit_unit_node_per_one_panel: int = Field(ge=1, le=32)
+    pu_datapipe_limit_unit_io_per_one_panel: int = Field(ge=1, le=32)
     pu_datapipe_mqtt_keepalive: int = Field(ge=0, le=600)
     pu_datapipe_nrecords_cleanup_interval: int = Field(ge=1, le=604_800)
 
@@ -208,7 +208,7 @@ class InstanceSettingsUpdate(BaseModel):
     pu_datapipe_buffer_max_size: int | None = None
     pu_datapipe_config_sync_interval: int | None = None
     pu_datapipe_default_last_value_enable: bool | None = None
-    pu_datapipe_limit_unit_node_per_one_panel: int | None = None
+    pu_datapipe_limit_unit_io_per_one_panel: int | None = None
     pu_datapipe_mqtt_keepalive: int | None = None
     pu_datapipe_nrecords_cleanup_interval: int | None = None
 

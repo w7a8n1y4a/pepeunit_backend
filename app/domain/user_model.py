@@ -1,7 +1,7 @@
 import uuid as uuid_pkg
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, Index, literal_column
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
@@ -12,6 +12,13 @@ class User(SQLModel, table=True):
     """Instance user"""
 
     __tablename__ = "users"
+    __table_args__ = (
+        Index(
+            "users_public_key_key",
+            literal_column("md5(public_key::text)"),
+            unique=True,
+        ),
+    )
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -44,7 +51,8 @@ class User(SQLModel, table=True):
     # chat_id in Telegram bot
     telegram_chat_id: str = Field(nullable=True, unique=True)
     # ML-DSA-87 public key, standard base64 of the raw 2592-byte key.
-    public_key: str = Field(nullable=False, unique=True, max_length=4096)
+    # The key is larger than a btree entry, so uniqueness is the md5 index.
+    public_key: str = Field(nullable=False, max_length=4096)
     # SHA-256 hex of the raw public key. Challenge lookup uses this.
     hash_public_key: str = Field(nullable=False, unique=True, max_length=64)
 

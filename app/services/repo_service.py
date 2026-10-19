@@ -270,10 +270,10 @@ class RepoService:
             logging.info(f"Run update unit {unit.uuid}")
 
             try:
-                self.unit_service.sync_state_unit_nodes_for_version(
+                self.unit_service.sync_state_unit_ios_for_version(
                     repo, unit, repository_registry, target_version
                 )
-                self.unit_service.unit_node_service.command_to_input_base_topic(
+                self.unit_service.unit_io_service.command_to_input_base_topic(
                     uuid=unit.uuid,
                     command=BackendTopicCommand.UPDATE,
                     is_auto_update=True,

@@ -9,13 +9,13 @@ from tests.integration.helpers.names import entity_name
 from tests.integration.helpers.services import (
     grafana_service,
     token_for,
-    unit_node_service,
+    unit_io_service,
 )
 
 
 async def _refill_and_sync_demo_dashboard(database, cc, token) -> None:
     grafana = grafana_service(database, cc, token)
-    node_svc = unit_node_service(database, cc, token)
+    node_svc = unit_io_service(database, cc, token)
     _, dashboards = grafana.list_dashboards(
         DashboardFilter(search_string=entity_name("test0"))
     )
@@ -25,8 +25,8 @@ async def _refill_and_sync_demo_dashboard(database, cc, token) -> None:
     dashboard = dashboards[0]
     panels = grafana.get_dashboard_panels(dashboard.uuid)
     for panel in panels.panels:
-        for linked in panel.unit_nodes_for_panel:
-            node = node_svc.get(uuid=linked.unit_node.uuid)
+        for linked in panel.unit_ios_for_panel:
+            node = node_svc.get(uuid=linked.unit_io.uuid)
             await seed_pipe_node(node_svc, node, force=False)
 
     await grafana.sync_dashboard(dashboard.uuid)

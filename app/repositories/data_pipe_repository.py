@@ -16,7 +16,7 @@ from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
 from app.configs.errors import DataPipeError
 from app.configs.utc_json import UtcJson
-from app.domain.unit_node_model import UnitNode
+from app.domain.unit_io_model import UnitIO
 from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
@@ -24,7 +24,7 @@ from app.dto.clickhouse.orm import ClickhouseOrm
 from app.dto.clickhouse.time_window import TimeWindow
 from app.dto.enum import ProcessingPolicyType
 from app.repositories.utils import get_offset_and_limit_clause
-from app.schemas.pydantic.unit_node import DataPipeFilter
+from app.schemas.pydantic.unit_io import DataPipeFilter
 
 
 class DataPipeRepository:
@@ -67,19 +67,17 @@ class DataPipeRepository:
     def list_postgres(
         self, filters: DataPipeFilter
     ) -> tuple[int, list[LastValue]]:
-        unit_node = (
-            self.db.query(UnitNode)
-            .filter(UnitNode.uuid == filters.uuid)
-            .first()
+        unit_io = (
+            self.db.query(UnitIO).filter(UnitIO.uuid == filters.uuid).first()
         )
 
-        if not unit_node:
+        if not unit_io:
             return 0, []
         return 1, [
             LastValue(
-                unit_node_uuid=unit_node.uuid,
-                state=unit_node.state,
-                last_update_datetime=unit_node.last_update_datetime,
+                unit_io_uuid=unit_io.uuid,
+                state=unit_io.state,
+                last_update_datetime=unit_io.last_update_datetime,
             )
         ]
 
@@ -98,20 +96,20 @@ class DataPipeRepository:
                     (
                         SELECT
                             *,
-                            row_number() OVER (PARTITION BY unit_node_uuid ORDER BY create_datetime ASC) AS id
+                            row_number() OVER (PARTITION BY unit_io_uuid ORDER BY create_datetime ASC) AS id
                         FROM
                             n_last_entry
                         WHERE
-                            unit_node_uuid = %(uuid)s
+                            unit_io_uuid = %(uuid)s
                     ) AS numbered_entries
                     WHERE
-                        unit_node_uuid = %(uuid)s
+                        unit_io_uuid = %(uuid)s
                 """
 
             case ProcessingPolicyType.TIME_WINDOW:
-                query = f"select {TimeWindow.get_keys()} from window_entry where unit_node_uuid = %(uuid)s"
+                query = f"select {TimeWindow.get_keys()} from window_entry where unit_io_uuid = %(uuid)s"
             case ProcessingPolicyType.AGGREGATION:
-                query = f"select {Aggregation.get_keys()} from aggregation_entry where unit_node_uuid = %(uuid)s"
+                query = f"select {Aggregation.get_keys()} from aggregation_entry where unit_io_uuid = %(uuid)s"
 
         if filters.type == ProcessingPolicyType.AGGREGATION:
             filters.aggregation_type = (
@@ -248,7 +246,7 @@ class DataPipeRepository:
         tables = ["n_last_entry", "window_entry", "aggregation_entry"]
         uuid_list = ", ".join([f"'{uuid}'" for uuid in uuids])
         for table_name in tables:
-            query = f"ALTER TABLE {table_name} DELETE WHERE unit_node_uuid IN ({uuid_list})"
+            query = f"ALTER TABLE {table_name} DELETE WHERE unit_io_uuid IN ({uuid_list})"
             self.client.execute(query)
 
     @staticmethod

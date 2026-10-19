@@ -11,7 +11,7 @@ from app.dto.enum import (
     OrderByDate,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
-from app.schemas.pydantic.shared import UnitNodeRead
+from app.schemas.pydantic.shared import UnitIORead
 from app.utils.utils import parse_interval
 
 
@@ -77,8 +77,8 @@ class DashboardPanelCreate(BaseModel):
     type: DashboardPanelTypeEnum
 
 
-class LinkUnitNodeToPanel(BaseModel):
-    unit_node_uuid: uuid_pkg.UUID
+class LinkUnitIOToPanel(BaseModel):
+    unit_io_uuid: uuid_pkg.UUID
     dashboard_panels_uuid: uuid_pkg.UUID
     is_last_data: bool
     is_forced_to_json: bool
@@ -106,11 +106,11 @@ class DashboardsResult(BaseModel):
     dashboards: list[DashboardRead]
 
 
-class UnitNodeForPanel(BaseModel):
-    unit_node: UnitNodeRead
+class UnitIOForPanel(BaseModel):
+    unit_io: UnitIORead
     is_last_data: bool
     is_forced_to_json: bool
-    unit_with_unit_node_name: str
+    unit_with_unit_io_name: str
 
 
 class DashboardPanelRead(BaseModel):
@@ -124,7 +124,7 @@ class DashboardPanelRead(BaseModel):
     creator_uuid: uuid_pkg.UUID
     dashboard_uuid: uuid_pkg.UUID
 
-    unit_nodes_for_panel: list[UnitNodeForPanel]
+    unit_ios_for_panel: list[UnitIOForPanel]
 
 
 class DashboardPanelsResult(BaseModel):

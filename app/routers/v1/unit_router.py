@@ -158,7 +158,7 @@ def send_command_to_input_base_topic(
     command: BackendTopicCommand,
     unit_service: UnitService = Depends(get_unit_service),
 ):
-    return unit_service.unit_node_service.command_to_input_base_topic(
+    return unit_service.unit_io_service.command_to_input_base_topic(
         uuid, command
     )
 
@@ -189,10 +189,10 @@ def delete(
 @router.get("", response_model=UnitsResult)
 def get_units(
     filters: UnitFilter = Depends(UnitFilter),
-    is_include_output_unit_nodes: bool = False,
+    is_include_output_unit_ios: bool = False,
     unit_service: UnitService = Depends(get_unit_service),
 ):
-    count, units = unit_service.list(filters, is_include_output_unit_nodes)
+    count, units = unit_service.list(filters, is_include_output_unit_ios)
     return UnitsResult(
         count=count,
         units=[unit_service.mapper_unit_to_unit_read(unit) for unit in units],

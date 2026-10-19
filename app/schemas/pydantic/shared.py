@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app import runtime, settings
-from app.dto.enum import UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import UnitIOTypeEnum, VisibilityLevel
 
 
 class FeatureFlags(BaseModel):
@@ -51,10 +51,10 @@ class MqttRead(BaseModel):
     result: str
 
 
-class UnitNodeRead(BaseModel):
+class UnitIORead(BaseModel):
     uuid: uuid_pkg.UUID
 
-    type: UnitNodeTypeEnum
+    type: UnitIOTypeEnum
     visibility_level: VisibilityLevel
 
     is_rewritable_input: bool
@@ -76,6 +76,6 @@ class UnitNodeRead(BaseModel):
     creator_uuid: uuid_pkg.UUID
 
 
-class UnitNodesResult(BaseModel):
+class UnitIOsResult(BaseModel):
     count: int
-    unit_nodes: list[UnitNodeRead]
+    unit_ios: list[UnitIORead]

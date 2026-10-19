@@ -94,38 +94,38 @@ func (p *Processor) Stop() {
 }
 
 // getNodeState returns or creates a NodeState for the given node
-func (p *Processor) getNodeState(nodeUUID string) *NodeState {
+func (p *Processor) getNodeState(ioUUID string) *NodeState {
 	p.statesMu.Lock()
 	defer p.statesMu.Unlock()
 
-	state, exists := p.nodeStates[nodeUUID]
+	state, exists := p.nodeStates[ioUUID]
 	if !exists {
 		state = &NodeState{}
-		p.nodeStates[nodeUUID] = state
+		p.nodeStates[ioUUID] = state
 	}
 	return state
 }
 
 // ProcessMessage processes a message from a topic
 func (p *Processor) ProcessMessage(ctx context.Context, topic string, payload []byte) error {
-	// Extract node UUID from topic
-	nodeUUID := extractNodeUUID(topic)
-	if nodeUUID == "" {
+	// Extract the IO UUID from the topic
+	ioUUID := extractIOUUID(topic)
+	if ioUUID == "" {
 		return fmt.Errorf("invalid topic format: %s", topic)
 	}
 
-	config, target, exists := p.configs.Get(nodeUUID)
+	config, target, exists := p.configs.Get(ioUUID)
 	if !exists {
 		return nil
 	}
 
 	currentTime := time.Now()
 	if !active_period.IsActive(&config.ActivePeriod, currentTime) {
-		logging.Infof("Node %s is not active at %v", nodeUUID, currentTime)
+		logging.Infof("Node %s is not active at %v", ioUUID, currentTime)
 		return nil
 	}
 
-	nodeState := p.getNodeState(nodeUUID)
+	nodeState := p.getNodeState(ioUUID)
 	shouldProcess := filters.ApplyFilters(string(payload), config.Filters, nodeState.LastMessageTime, nodeState.LastValue)
 	if !shouldProcess {
 		return nil
@@ -137,13 +137,13 @@ func (p *Processor) ProcessMessage(ctx context.Context, topic string, payload []
 		var err error
 		transformedValue, err = transformations.ApplyTransformations(string(payload), config.Transformations, &config.Filters)
 		if err != nil {
-			logging.Errorf("Failed to apply transformations for node %s: %v", nodeUUID, err)
+			logging.Errorf("Failed to apply transformations for node %s: %v", ioUUID, err)
 			return nil
 		}
 	}
 
 	// Apply processing policy
-	uuid, err := uuid.Parse(nodeUUID)
+	uuid, err := uuid.Parse(ioUUID)
 	if err != nil {
 		return fmt.Errorf("invalid node UUID: %w", err)
 	}
@@ -153,7 +153,7 @@ func (p *Processor) ProcessMessage(ctx context.Context, topic string, payload []
 	ctxWithConfig = context.WithValue(ctxWithConfig, "filters", config.Filters)
 
 	if err := p.policy.ApplyProcessingPolicy(ctxWithConfig, uuid, transformedValue, currentTime, config.ProcessingPolicy); err != nil {
-		logging.Errorf("Failed to apply processing policy for node %s: %v", nodeUUID, err)
+		logging.Errorf("Failed to apply processing policy for node %s: %v", ioUUID, err)
 		return fmt.Errorf("failed to apply processing policy: %w", err)
 	}
 
@@ -170,27 +170,27 @@ func (p *Processor) ProcessMessage(ctx context.Context, topic string, payload []
 	nodeState.mu.Unlock()
 
 	if violation.Any() {
-		row, err := alerts.Build(nodeUUID, alerts.Target{
+		row, err := alerts.Build(ioUUID, alerts.Target{
 			UnitUUID:    target.UnitUUID.String(),
 			CreatorUUID: target.CreatorUUID.String(),
 			TopicName:   target.TopicName,
 			UnitName:    target.UnitName,
 		}, transformedValue, config.Alerts, violation)
 		if err != nil {
-			logging.Errorf("Failed to build data pipe alert for node %s: %v", nodeUUID, err)
+			logging.Errorf("Failed to build data pipe alert for node %s: %v", ioUUID, err)
 			return nil
 		}
 		if err := p.alertBuffer.Add(ctx, row); err != nil {
-			logging.Errorf("Failed to buffer data pipe alert for node %s: %v", nodeUUID, err)
+			logging.Errorf("Failed to buffer data pipe alert for node %s: %v", ioUUID, err)
 		}
 	}
 
 	return nil
 }
 
-// extractNodeUUID extracts the node UUID from a topic
-func extractNodeUUID(topic string) string {
-	// Topic format: pu_dp_domain/node_uuid
+// extractIOUUID extracts the IO UUID from a topic
+func extractIOUUID(topic string) string {
+	// Topic format: pu_dp_domain/io_uuid
 	parts := strings.Split(topic, "/")
 	if len(parts) != 3 {
 		return ""

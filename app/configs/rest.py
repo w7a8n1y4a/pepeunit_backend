@@ -25,8 +25,8 @@ from app.repositories.notification_settings_repository import (
     NotificationSettingsRepository,
 )
 from app.repositories.operation_task_repository import OperationTaskRepository
-from app.repositories.panels_unit_nodes_repository import (
-    PanelsUnitNodesRepository,
+from app.repositories.panels_unit_ios_repository import (
+    PanelsUnitIOsRepository,
 )
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import RepoRepository
@@ -37,9 +37,9 @@ from app.repositories.unit_group_repository import UnitGroupRepository
 from app.repositories.unit_group_unit_repository import (
     UnitGroupUnitRepository,
 )
+from app.repositories.unit_io_edge_repository import UnitIOEdgeRepository
+from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_log_repository import UnitLogRepository
-from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
@@ -54,7 +54,7 @@ from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
 from app.services.repository_registry_service import RepositoryRegistryService
 from app.services.unit_group_service import UnitGroupService
-from app.services.unit_node_service import UnitNodeService
+from app.services.unit_io_service import UnitIOService
 from app.services.unit_service import UnitService
 from app.services.user_service import UserService
 from app.services.utils import token_depends
@@ -91,8 +91,8 @@ class ServiceFactory:
         self.notification_settings_repository = NotificationSettingsRepository(
             db
         )
-        self.unit_node_repository = UnitNodeRepository(db)
-        self.unit_node_edge_repository = UnitNodeEdgeRepository(db)
+        self.unit_io_repository = UnitIORepository(db)
+        self.unit_io_edge_repository = UnitIOEdgeRepository(db)
         self.unit_log_repository = (
             UnitLogRepository(client) if client else None
         )
@@ -101,7 +101,7 @@ class ServiceFactory:
         )
         self.dashboard_repository = DashboardRepository(db)
         self.dashboard_panel_repository = DashboardPanelRepository(db)
-        self.panels_unit_nodes_repository = PanelsUnitNodesRepository(db)
+        self.panels_unit_ios_repository = PanelsUnitIOsRepository(db)
 
         # Initialize services
         self.access_service = AccessService(
@@ -192,11 +192,11 @@ class ServiceFactory:
                 repo_repository=self.repo_repository,
                 unit_repository=self.unit_repository,
                 icon_repository=self.icon_repository,
-                unit_node_repository=self.unit_node_repository,
+                unit_io_repository=self.unit_io_repository,
                 unit_log_repository=self.unit_log_repository,
                 access_service=self.access_service,
                 permission_service=self.permission_service,
-                unit_node_service=self.get_unit_node_service(),
+                unit_io_service=self.get_unit_io_service(),
             ),
             permission_service=self.permission_service,
             operation_task_service=self.get_operation_task_service(),
@@ -209,20 +209,20 @@ class ServiceFactory:
             repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
             icon_repository=self.icon_repository,
-            unit_node_repository=self.unit_node_repository,
+            unit_io_repository=self.unit_io_repository,
             unit_log_repository=self.unit_log_repository,
             access_service=self.access_service,
             permission_service=self.permission_service,
-            unit_node_service=self.get_unit_node_service(),
+            unit_io_service=self.get_unit_io_service(),
         )
 
-    def get_unit_node_service(self) -> UnitNodeService:
-        return UnitNodeService(
+    def get_unit_io_service(self) -> UnitIOService:
+        return UnitIOService(
             unit_repository=self.unit_repository,
             repository_registry_repository=self.repository_registry_repository,
             repo_repository=self.repo_repository,
-            unit_node_repository=self.unit_node_repository,
-            unit_node_edge_repository=self.unit_node_edge_repository,
+            unit_io_repository=self.unit_io_repository,
+            unit_io_edge_repository=self.unit_io_edge_repository,
             unit_log_repository=self.unit_log_repository,
             data_pipe_repository=self.data_pipe_repository,
             permission_service=self.permission_service,
@@ -235,13 +235,13 @@ class ServiceFactory:
         return GrafanaService(
             dashboard_repository=self.dashboard_repository,
             dashboard_panel_repository=self.dashboard_panel_repository,
-            panels_unit_nodes_repository=self.panels_unit_nodes_repository,
+            panels_unit_ios_repository=self.panels_unit_ios_repository,
             unit_repository=self.unit_repository,
-            unit_node_repository=self.unit_node_repository,
+            unit_io_repository=self.unit_io_repository,
             data_pipe_repository=self.data_pipe_repository,
             access_service=self.access_service,
             user_service=self.get_user_service(),
-            unit_node_service=self.get_unit_node_service(),
+            unit_io_service=self.get_unit_io_service(),
         )
 
     def get_metrics_service(self) -> MetricsService:
@@ -249,8 +249,8 @@ class ServiceFactory:
             repository_registry_repository=self.repository_registry_repository,
             repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
-            unit_node_repository=self.unit_node_repository,
-            unit_node_edge_repository=self.unit_node_edge_repository,
+            unit_io_repository=self.unit_io_repository,
+            unit_io_edge_repository=self.unit_io_edge_repository,
             user_repository=self.user_repository,
             access_service=self.access_service,
         )
@@ -353,14 +353,12 @@ def get_unit_service(
     return create_service_factory(db, client, jwt_token).get_unit_service()
 
 
-def get_unit_node_service(
+def get_unit_io_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: str | None = Depends(token_depends),
-) -> UnitNodeService:
-    return create_service_factory(
-        db, client, jwt_token
-    ).get_unit_node_service()
+) -> UnitIOService:
+    return create_service_factory(db, client, jwt_token).get_unit_io_service()
 
 
 def get_grafana_service(
@@ -436,14 +434,14 @@ def get_bot_unit_service(
     return create_bot_service_factory(db, client, jwt_token).get_unit_service()
 
 
-def get_bot_unit_node_service(
+def get_bot_unit_io_service(
     db: Session = Depends(get_session),
     client: Client = Depends(get_clickhouse_client),
     jwt_token: str | None = Depends(token_depends),
-) -> UnitNodeService:
+) -> UnitIOService:
     return create_bot_service_factory(
         db, client, jwt_token
-    ).get_unit_node_service()
+    ).get_unit_io_service()
 
 
 def get_bot_grafana_service(

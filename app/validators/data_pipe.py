@@ -14,7 +14,7 @@ from app.dto.enum import (
     ProcessingPolicyType,
     TypeInputValue,
 )
-from app.schemas.pydantic.unit_node import DataPipeValidationErrorRead
+from app.schemas.pydantic.unit_io import DataPipeValidationErrorRead
 from app.utils.utils import snake_to_camel
 
 

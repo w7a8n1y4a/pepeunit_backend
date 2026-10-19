@@ -2,10 +2,10 @@ import asyncio
 
 import pytest
 
-from app.dto.enum import UnitNodeTypeEnum
-from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
+from app.dto.enum import UnitIOTypeEnum
+from app.schemas.pydantic.unit_io import UnitIOFilter, UnitIOUpdate
 from app.utils.utils import create_upload_file_from_path
-from tests.integration.helpers.services import unit_node_service
+from tests.integration.helpers.services import unit_io_service
 
 PIPE_YAMLS = {
     "universal_manual_unit": "tests/data/yaml/integra/data_pipe_aggregation.yaml",
@@ -16,11 +16,11 @@ PIPE_YAMLS = {
 
 
 async def _activate_and_set_pipe(service, unit, yaml_path: str | None) -> None:
-    for node_type in (UnitNodeTypeEnum.OUTPUT, UnitNodeTypeEnum.INPUT):
+    for node_type in (UnitIOTypeEnum.OUTPUT, UnitIOTypeEnum.INPUT):
         _, nodes = service.list(
-            UnitNodeFilter.unlimited(unit_uuid=unit.uuid, type=[node_type])
+            UnitIOFilter.unlimited(unit_uuid=unit.uuid, type=[node_type])
         )
-        await service.update(nodes[0].uuid, UnitNodeUpdate(is_data_pipe_active=True))
+        await service.update(nodes[0].uuid, UnitIOUpdate(is_data_pipe_active=True))
         if yaml_path:
             await service.set_data_pipe_config(
                 nodes[0].uuid, (await create_upload_file_from_path(yaml_path))
@@ -29,7 +29,7 @@ async def _activate_and_set_pipe(service, unit, yaml_path: str | None) -> None:
 
 @pytest.fixture(scope="session")
 def piped_units(running_units, regular_user_token, database, cc):
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
 
     async def _setup() -> None:
         mapping = [

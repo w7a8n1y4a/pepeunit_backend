@@ -46,7 +46,7 @@ class MQTTClient:
             topic_parts = msg.topic.split("/")
 
             if len(topic_parts) == 3:
-                domain, unit_node_uuid, _ = topic_parts
+                domain, unit_io_uuid, _ = topic_parts
 
                 topic_name = client.schema.find_topic_by_unit_node(
                     msg.topic, SearchTopicType.FULL_NAME, SearchScope.INPUT

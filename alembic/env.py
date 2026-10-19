@@ -22,15 +22,15 @@ MODEL_MODULES = (
     "notification_model",
     "notification_settings_model",
     "operation_task_model",
-    "panels_unit_nodes_model",
+    "panels_unit_ios_model",
     "permission_model",
     "repo_model",
     "repository_registry_model",
     "unit_group_model",
     "unit_group_unit_model",
     "unit_model",
-    "unit_node_edge_model",
-    "unit_node_model",
+    "unit_io_edge_model",
+    "unit_io_model",
     "user_model",
 )
 

@@ -89,12 +89,12 @@ class UnitError(CustomException):
         )
 
 
-class UnitNodeError(CustomException):
+class UnitIOError(CustomException):
     def __init__(self, message):
         super().__init__(
             message,
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="UnitNode Validation Error: {}",
+            message_template="UnitIO Validation Error: {}",
             error_code=8,
         )
 

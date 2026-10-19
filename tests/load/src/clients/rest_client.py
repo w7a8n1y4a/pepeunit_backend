@@ -178,7 +178,7 @@ class RestClient:
 
     def get_units(self):
         logging.warning("Fetch all Units")
-        get_units = f"{self.config.url}/pepeunit/api/v1/units?is_include_output_unit_nodes=true&search_string={self.config.test_hash}"
+        get_units = f"{self.config.url}/pepeunit/api/v1/units?is_include_output_unit_ios=true&search_string={self.config.test_hash}"
 
         limit = runtime.get().pu_instance_max_pagination_size
 
@@ -209,20 +209,20 @@ class RestClient:
     async def set_data_pipe(self, target_units: list[dict]):
         logging.warning("Run set data pipe")
 
-        target_unit_nodes = []
+        target_unit_ios = []
         for unit in target_units:
-            for node in unit["unit_nodes"]:
+            for node in unit["unit_ios"]:
                 if node["type"] == "Output" and node["topic_name"] == "output/pepeunit":
-                    target_unit_nodes.append(node)
+                    target_unit_ios.append(node)
 
         async with httpx.AsyncClient(
             timeout=runtime.get().http_timeout()
         ) as client:
             await self.run_tasks_with_semaphore(
-                client, target_unit_nodes, self.patch_unit_data_pipe
+                client, target_unit_ios, self.patch_unit_data_pipe
             )
 
-        logging.warning(f"Set {len(target_unit_nodes)} data pipe")
+        logging.warning(f"Set {len(target_unit_ios)} data pipe")
 
     async def get_units_env(self, target_units: list[dict]):
         logging.warning("Fetch env Units")
@@ -270,15 +270,15 @@ class RestClient:
         payload = {"env_json_string": '{"PU_MQTT_PING_INTERVAL": 30}'}
         return await client.patch(unit_env_link, json=payload, headers=self.headers)
 
-    async def patch_unit_data_pipe(self, client, unit_node):
-        unit_nodes_update_link = (
-            f"{self.config.url}/pepeunit/api/v1/unit_nodes/{unit_node['uuid']}"
+    async def patch_unit_data_pipe(self, client, unit_io):
+        unit_ios_update_link = (
+            f"{self.config.url}/pepeunit/api/v1/unit_ios/{unit_io['uuid']}"
         )
         payload = {"is_data_pipe_active": True}
 
-        await client.patch(unit_nodes_update_link, json=payload, headers=self.headers)
+        await client.patch(unit_ios_update_link, json=payload, headers=self.headers)
 
-        set_data_pipe_config = f"{self.config.url}/pepeunit/api/v1/unit_nodes/set_data_pipe_config?uuid={unit_node['uuid']}&is_bot_auth=false"
+        set_data_pipe_config = f"{self.config.url}/pepeunit/api/v1/unit_ios/set_data_pipe_config?uuid={unit_io['uuid']}&is_bot_auth=false"
 
         data_pipe_policy = {
             ProcessingPolicyType.AGGREGATION.value: "tests/data/yaml/load/data_pipe_aggregation.yaml",

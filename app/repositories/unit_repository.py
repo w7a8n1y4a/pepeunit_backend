@@ -9,9 +9,9 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.configs.errors import UnitError
 from app.domain.unit_group_unit_model import UnitGroupUnit
+from app.domain.unit_io_edge_model import UnitIOEdge
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_edge_model import UnitNodeEdge
-from app.domain.unit_node_model import UnitNode
 from app.dto.enum import VisibilityLevel
 from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
@@ -34,79 +34,72 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
         self,
         filters: UnitFilter,
         restriction: list[str] = None,
-        is_include_output_unit_nodes: bool = False,
+        is_include_output_unit_ios: bool = False,
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
-        unit_node_edge_alias = aliased(UnitNodeEdge)
-        unit_node_alias = aliased(UnitNode, name="unit_node_alias")
+        unit_io_edge_alias = aliased(UnitIOEdge)
+        unit_io_alias = aliased(UnitIO, name="unit_io_alias")
 
-        if is_include_output_unit_nodes:
-            if filters.unit_node_input_uuid:
-                unit_node_by_input_subquery = (
+        if is_include_output_unit_ios:
+            if filters.unit_io_input_uuid:
+                unit_io_by_input_subquery = (
                     self.db.query(
-                        func.json_agg(text("unit_node_alias")).label(
-                            "unit_nodes"
-                        )
+                        func.json_agg(text("unit_io_alias")).label("unit_ios")
                     )
-                    .select_from(unit_node_alias)
+                    .select_from(unit_io_alias)
                     .join(
-                        unit_node_edge_alias,
-                        unit_node_edge_alias.node_output_uuid
-                        == unit_node_alias.uuid,
+                        unit_io_edge_alias,
+                        unit_io_edge_alias.output_uuid == unit_io_alias.uuid,
                     )
                     .filter(
-                        unit_node_edge_alias.node_input_uuid
-                        == is_valid_uuid(filters.unit_node_input_uuid),
-                        unit_node_alias.unit_uuid == Unit.uuid,
+                        unit_io_edge_alias.input_uuid
+                        == is_valid_uuid(filters.unit_io_input_uuid),
+                        unit_io_alias.unit_uuid == Unit.uuid,
                     )
                 )
 
                 query = (
                     self.db.query(
-                        Unit, unit_node_by_input_subquery.label("output_nodes")
+                        Unit, unit_io_by_input_subquery.label("output_nodes")
                     )
                     .select_from(Unit)
-                    .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
+                    .join(UnitIO, Unit.uuid == UnitIO.unit_uuid)
                     .join(
-                        UnitNodeEdge,
-                        UnitNode.uuid == UnitNodeEdge.node_output_uuid,
+                        UnitIOEdge,
+                        UnitIO.uuid == UnitIOEdge.output_uuid,
                     )
                     .filter(
-                        UnitNodeEdge.node_input_uuid
-                        == is_valid_uuid(filters.unit_node_input_uuid)
+                        UnitIOEdge.input_uuid
+                        == is_valid_uuid(filters.unit_io_input_uuid)
                     )
                     .group_by(Unit.uuid)
                 )
             else:
-                unit_node_subquery = (
+                unit_io_subquery = (
                     self.db.query(
-                        func.json_agg(text("unit_node_alias")).label(
-                            "unit_nodes"
-                        )
+                        func.json_agg(text("unit_io_alias")).label("unit_ios")
                     )
-                    .select_from(unit_node_alias)
+                    .select_from(unit_io_alias)
                     .filter(
-                        unit_node_alias.type.in_(filters.unit_node_type),
-                        unit_node_alias.unit_uuid == Unit.uuid,
+                        unit_io_alias.type.in_(filters.unit_io_type),
+                        unit_io_alias.unit_uuid == Unit.uuid,
                     )
                 )
 
-                if filters.unit_node_uuids:
-                    unit_node_subquery = unit_node_subquery.filter(
-                        unit_node_alias.uuid.in_(filters.unit_node_uuids)
+                if filters.unit_io_uuids:
+                    unit_io_subquery = unit_io_subquery.filter(
+                        unit_io_alias.uuid.in_(filters.unit_io_uuids)
                     )
 
                 query = (
-                    self.db.query(
-                        Unit, unit_node_subquery.label("output_nodes")
-                    )
+                    self.db.query(Unit, unit_io_subquery.label("output_nodes"))
                     .select_from(Unit)
-                    .join(UnitNode, Unit.uuid == UnitNode.unit_uuid)
+                    .join(UnitIO, Unit.uuid == UnitIO.unit_uuid)
                     .group_by(Unit.uuid)
                 )
 
-                if filters.unit_node_uuids:
+                if filters.unit_io_uuids:
                     query = query.filter(
-                        UnitNode.uuid.in_(filters.unit_node_uuids)
+                        UnitIO.uuid.in_(filters.unit_io_uuids)
                     )
 
         else:
@@ -167,7 +160,7 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
 
         return count, (
             [(item[0], item[1] if item[1] else []) for item in query.all()]
-            if is_include_output_unit_nodes
+            if is_include_output_unit_ios
             else [(item, []) for item in query.all()]
         )
 

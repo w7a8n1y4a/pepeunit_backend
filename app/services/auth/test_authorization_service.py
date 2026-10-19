@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.configs.errors import NoAccessError
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.dto.agent.abc import Agent
 from app.dto.enum import (
     AgentType,
@@ -128,7 +128,7 @@ def test_check_ownership_not_unit(authorization_service, mock_agent):
 
 def test_check_ownership_unit_to_input_node(authorization_service, mock_agent):
     mock_agent.type = AgentType.UNIT
-    entity = MagicMock(spec=UnitNode)
+    entity = MagicMock(spec=UnitIO)
     entity.is_rewritable_input = True
     authorization_service.check_ownership(
         entity, [OwnershipType.UNIT_TO_INPUT_NODE]
@@ -139,7 +139,7 @@ def test_check_ownership_not_unit_to_input_node(
     authorization_service, mock_agent
 ):
     mock_agent.type = AgentType.UNIT
-    entity = MagicMock(spec=UnitNode)
+    entity = MagicMock(spec=UnitIO)
     entity.is_rewritable_input = False
     with pytest.raises(NoAccessError):
         authorization_service.check_ownership(

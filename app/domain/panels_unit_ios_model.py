@@ -6,12 +6,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 
-class PanelsUnitNodes(SQLModel, table=True):
+class PanelsUnitIOs(SQLModel, table=True):
     """
-    MtM between panels and UnitNode
+    MtM between panels and UnitIO
     """
 
-    __tablename__ = "mtm_panels_unit_nodes"
+    __tablename__ = "mtm_panels_unit_ios"
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -33,10 +33,10 @@ class PanelsUnitNodes(SQLModel, table=True):
             UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
         )
     )
-    unit_node_uuid: uuid_pkg.UUID = Field(
+    unit_io_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("units_nodes.uuid", ondelete="CASCADE"),
+            ForeignKey("units_io.uuid", ondelete="CASCADE"),
         )
     )
     dashboard_panels_uuid: uuid_pkg.UUID = Field(

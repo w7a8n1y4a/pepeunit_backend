@@ -5,8 +5,8 @@ from fastapi import Depends
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import AgentType, OwnershipType
 from app.repositories.permission_repository import PermissionRepository
@@ -58,7 +58,7 @@ class PermissionService:
         return self.permission_repository.create(new_permission)
 
     def create_by_domains(
-        self, agent: User | Unit, resource: Repo | Unit | UnitNode
+        self, agent: User | Unit, resource: Repo | Unit | UnitIO
     ) -> PermissionBaseType:
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
@@ -138,10 +138,10 @@ class PermissionService:
 
         if (
             isinstance(agent, Unit)
-            and isinstance(resource, UnitNode)
+            and isinstance(resource, UnitIO)
             and resource.unit_uuid == agent.uuid
         ):
-            msg = "You cannot remove a Unit's access to its child UnitNodes"
+            msg = "You cannot remove a Unit's access to its child UnitIOs"
             raise CustomPermissionError(msg)
 
         return self.permission_repository.delete(permission)

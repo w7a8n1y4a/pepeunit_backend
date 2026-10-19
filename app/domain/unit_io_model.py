@@ -8,12 +8,12 @@ from sqlmodel import Field, SQLModel
 from app.dto.enum import DataPipeStatus, VisibilityLevel
 
 
-class UnitNode(SQLModel, table=True):
+class UnitIO(SQLModel, table=True):
     """
     Representation of the state of an input or output Unit topic
     """
 
-    __tablename__ = "units_nodes"
+    __tablename__ = "units_io"
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -28,7 +28,7 @@ class UnitNode(SQLModel, table=True):
     visibility_level: str = Field(
         nullable=False, default=VisibilityLevel.PUBLIC
     )
-    # if is_rewritable_input = False - no Unit can set a value for this UnitNode
+    # if is_rewritable_input = False - no Unit can set a value for this UnitIO
     is_rewritable_input: bool = Field(nullable=False, default=False)
 
     # maximum number of edge connections

@@ -71,7 +71,7 @@ class MQTTLoadTest:
         return next(
             (
                 item
-                for item in unit["unit_nodes"]
+                for item in unit["unit_ios"]
                 if item.get("topic_name") == topic_name
             ),
             None,

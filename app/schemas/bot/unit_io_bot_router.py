@@ -12,22 +12,22 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import runtime, settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
-from app.configs.rest import get_bot_unit_node_service, get_bot_unit_service
-from app.dto.enum import EntityNames, UnitNodeTypeEnum, VisibilityLevel
+from app.configs.rest import get_bot_unit_io_service, get_bot_unit_service
+from app.dto.enum import EntityNames, UnitIOTypeEnum, VisibilityLevel
 from app.schemas.bot.base_bot_router import (
     BaseBotFilters,
     BaseBotRouter,
-    UnitNodeStates,
+    UnitIOStates,
 )
 from app.schemas.bot.utils import make_monospace_table_with_title
-from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.schemas.pydantic.unit_io import UnitIOFilter
 from app.services.validators import is_valid_json
 
 
-class UnitNodeBotRouter(BaseBotRouter):
+class UnitIOBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.UNIT_NODE.value
-        super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
+        entity_name = EntityNames.UNIT_IO.value
+        super().__init__(entity_name=entity_name, states_group=UnitIOStates)
         self.router.callback_query(
             F.data.startswith(f"{self.entity_name}_unit_")
         )(self.handle_by_unit)
@@ -58,7 +58,7 @@ class UnitNodeBotRouter(BaseBotRouter):
         )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
-        text = "*UnitNodes*"
+        text = "*UnitIOs*"
         if filters.unit_uuid:
             with get_hand_session() as db, get_hand_clickhouse_client() as cc:
                 unit_service = get_bot_unit_service(db, cc, str(chat_id))
@@ -75,10 +75,10 @@ class UnitNodeBotRouter(BaseBotRouter):
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
         with get_hand_session() as db, get_hand_clickhouse_client() as cc:
-            unit_node_service = get_bot_unit_node_service(db, cc, str(chat_id))
+            unit_io_service = get_bot_unit_io_service(db, cc, str(chat_id))
 
-            count, unit_nodes = unit_node_service.list(
-                UnitNodeFilter(
+            count, unit_ios = unit_io_service.list(
+                UnitIOFilter(
                     offset=(filters.page - 1)
                     * runtime.get().pu_telegram_items_per_page,
                     limit=runtime.get().pu_telegram_items_per_page,
@@ -93,7 +93,7 @@ class UnitNodeBotRouter(BaseBotRouter):
                 count + runtime.get().pu_telegram_items_per_page - 1
             ) // runtime.get().pu_telegram_items_per_page
 
-        return unit_nodes, total_pages
+        return unit_ios, total_pages
 
     def build_entities_keyboard(
         self, entities: list, filters: BaseBotFilters, total_pages: int
@@ -113,7 +113,7 @@ class UnitNodeBotRouter(BaseBotRouter):
                 + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
-            for item in UnitNodeTypeEnum
+            for item in UnitIOTypeEnum
         ]
         builder.row(*filter_unit_types_buttons)
 
@@ -129,11 +129,11 @@ class UnitNodeBotRouter(BaseBotRouter):
         ]
         builder.row(*filter_visibility_buttons)
         if entities:
-            for unit_node in entities:
+            for unit_io in entities:
                 builder.row(
                     InlineKeyboardButton(
-                        text=f"{self.header_name_limit(unit_node.topic_name)} - {unit_node.type} - {unit_node.visibility_level}",
-                        callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+                        text=f"{self.header_name_limit(unit_io.topic_name)} - {unit_io.type} - {unit_io.visibility_level}",
+                        callback_data=f"{self.entity_name}_uuid_{unit_io.uuid}_{filters.page}",
                     )
                 )
         else:
@@ -183,7 +183,7 @@ class UnitNodeBotRouter(BaseBotRouter):
             else BaseBotFilters()
         )
 
-        unit_node_uuid = UUID(callback.data.split("_")[-2])
+        unit_io_uuid = UUID(callback.data.split("_")[-2])
         current_page = int(callback.data.split("_")[-1])
 
         if not filters.previous_filters:
@@ -192,38 +192,38 @@ class UnitNodeBotRouter(BaseBotRouter):
             await state.update_data(current_filters=new_filters)
 
         with get_hand_session() as db, get_hand_clickhouse_client() as cc:
-            unit_node_service = get_bot_unit_node_service(
+            unit_io_service = get_bot_unit_io_service(
                 db, cc, str(callback.from_user.id)
             )
-            unit_node = unit_node_service.get(unit_node_uuid)
+            unit_io = unit_io_service.get(unit_io_uuid)
 
-        text = f"*UnitNode* - `{self.header_name_limit(unit_node.topic_name)}`"
+        text = f"*UnitIO* - `{self.header_name_limit(unit_io.topic_name)}`"
 
         text += "\n```text\n"
 
         table = [
-            ["Type", unit_node.type],
-            ["Visibility", unit_node.visibility_level],
+            ["Type", unit_io.type],
+            ["Visibility", unit_io.visibility_level],
             [
                 "Last Update",
-                unit_node.last_update_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                unit_io.last_update_datetime.strftime("%Y-%m-%d %H:%M:%S"),
             ],
         ]
 
-        if unit_node.type == UnitNodeTypeEnum.INPUT:
-            table.append(["Rewritable?", unit_node.is_rewritable_input])
+        if unit_io.type == UnitIOTypeEnum.INPUT:
+            table.append(["Rewritable?", unit_io.is_rewritable_input])
 
         text += make_monospace_table_with_title(table, "Base Info")
 
-        if unit_node.state:
+        if unit_io.state:
             text += "\nState:\n\n"
 
             try:
-                unit_state = is_valid_json(unit_node.state, "UnitNode state")
+                unit_state = is_valid_json(unit_io.state, "UnitIO state")
                 text += json.dumps(unit_state, indent=4)
 
             except JSONDecodeError:
-                text += unit_node.state
+                text += unit_io.state
 
         text += "```"
 
@@ -234,11 +234,11 @@ class UnitNodeBotRouter(BaseBotRouter):
                 ),
                 InlineKeyboardButton(
                     text="↻ Refresh",
-                    callback_data=f"{self.entity_name}_uuid_{unit_node.uuid}_{filters.page}",
+                    callback_data=f"{self.entity_name}_uuid_{unit_io.uuid}_{filters.page}",
                 ),
                 InlineKeyboardButton(
                     text="Browser",
-                    url=f"{settings.pu_link}/unit-node/{unit_node.uuid}",
+                    url=f"{settings.pu_link}/unit-io/{unit_io.uuid}",
                 ),
             ],
         ]

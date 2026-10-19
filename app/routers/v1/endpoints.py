@@ -10,7 +10,7 @@ from app.routers.v1.repository_registry_router import (
     router as repository_registry_router,
 )
 from app.routers.v1.unit_group_router import router as unit_group_router
-from app.routers.v1.unit_node_router import router as unit_node_router
+from app.routers.v1.unit_io_router import router as unit_io_router
 from app.routers.v1.unit_router import router as unit_router
 from app.routers.v1.user_router import router as user_router
 
@@ -25,7 +25,7 @@ routers = (
     (repo_router, "repos", "repos"),
     (unit_router, "units", "units"),
     (unit_group_router, "unit_groups", "unit_groups"),
-    (unit_node_router, "unit_nodes", "unit_nodes"),
+    (unit_io_router, "unit_ios", "unit_ios"),
     (permission_router, "permission", "permission"),
     (grafana_router, "grafana", "grafana"),
     (instance_router, "instances", "instances"),

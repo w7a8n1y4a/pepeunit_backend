@@ -11,7 +11,7 @@ from app.dto.agent.abc import (
     AgentBackend,
     AgentBot,
     AgentGrafana,
-    AgentGrafanaUnitNode,
+    AgentGrafanaUnitIO,
     AgentUnit,
     AgentUser,
 )
@@ -84,8 +84,8 @@ class JwtAuthService(AuthService):
         elif data.get("type") == AgentType.GRAFANA:
             agent = AgentGrafana(uuid=data["uuid"], name="grafana")
 
-        elif data.get("type") == AgentType.GRAFANA_UNIT_NODE:
-            agent = AgentGrafanaUnitNode(
+        elif data.get("type") == AgentType.GRAFANA_UNIT_IO:
+            agent = AgentGrafanaUnitIO(
                 uuid=data["uuid"],
                 name="grafana",
                 panel_uuid=data["panel_uuid"],

@@ -8,8 +8,8 @@ from app.configs.db import get_session
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.repo_model import Repo
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.enum import PermissionEntities
 from app.repositories.base_repository import BaseRepository
@@ -32,7 +32,7 @@ class PermissionRepository(BaseRepository):
                 or_(
                     Permission.resource_repo_uuid == resource_uuid,
                     Permission.resource_unit_uuid == resource_uuid,
-                    Permission.resource_unit_node_uuid == resource_uuid,
+                    Permission.resource_unit_io_uuid == resource_uuid,
                 ),
             )
             .first()
@@ -66,8 +66,8 @@ class PermissionRepository(BaseRepository):
             permission.resource_repo_uuid = base_permission.resource_uuid
         elif resource_type is Unit:
             permission.resource_unit_uuid = base_permission.resource_uuid
-        elif resource_type is UnitNode:
-            permission.resource_unit_node_uuid = base_permission.resource_uuid
+        elif resource_type is UnitIO:
+            permission.resource_unit_io_uuid = base_permission.resource_uuid
 
         return permission
 
@@ -92,8 +92,8 @@ class PermissionRepository(BaseRepository):
             base_permission.resource_uuid = permission.resource_repo_uuid
         elif resource_type is Unit:
             base_permission.resource_uuid = permission.resource_unit_uuid
-        elif resource_type is UnitNode:
-            base_permission.resource_uuid = permission.resource_unit_node_uuid
+        elif resource_type is UnitIO:
+            base_permission.resource_uuid = permission.resource_unit_io_uuid
 
         return base_permission
 
@@ -133,7 +133,7 @@ class PermissionRepository(BaseRepository):
         entities_dict = {
             PermissionEntities.REPO: Permission.resource_repo_uuid,
             PermissionEntities.UNIT: Permission.resource_unit_uuid,
-            PermissionEntities.UNIT_NODE: Permission.resource_unit_node_uuid,
+            PermissionEntities.UNIT_IO: Permission.resource_unit_io_uuid,
         }
         return entities_dict[fld_type]
 
@@ -192,7 +192,7 @@ class PermissionRepository(BaseRepository):
     def is_valid_agent_type(permission: Permission) -> None:
         entities = [item.value for item in PermissionEntities]
         entities.remove(PermissionEntities.REPO)
-        entities.remove(PermissionEntities.UNIT_NODE)
+        entities.remove(PermissionEntities.UNIT_IO)
 
         if permission.agent_type not in entities:
             msg = "Agent type {} is invalid, available: {}".format(

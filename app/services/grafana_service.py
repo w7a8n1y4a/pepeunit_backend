@@ -8,9 +8,9 @@ from app import runtime
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
-from app.domain.panels_unit_nodes_model import PanelsUnitNodes
+from app.domain.panels_unit_ios_model import PanelsUnitIOs
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.dto.enum import (
     AgentType,
     DashboardStatus,
@@ -22,10 +22,10 @@ from app.repositories.dashboard_panel_repository import (
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.grafana_repository import GrafanaRepository
-from app.repositories.panels_unit_nodes_repository import (
-    PanelsUnitNodesRepository,
+from app.repositories.panels_unit_ios_repository import (
+    PanelsUnitIOsRepository,
 )
-from app.repositories.unit_node_repository import UnitNodeRepository
+from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
@@ -34,15 +34,15 @@ from app.schemas.pydantic.grafana import (
     DashboardPanelsResult,
     DatasourceFilter,
     DatasourceTimeSeriesData,
-    LinkUnitNodeToPanel,
-    UnitNodeForPanel,
+    LinkUnitIOToPanel,
+    UnitIOForPanel,
 )
-from app.schemas.pydantic.shared import UnitNodeRead
-from app.schemas.pydantic.unit_node import (
+from app.schemas.pydantic.shared import UnitIORead
+from app.schemas.pydantic.unit_io import (
     DataPipeFilter,
 )
 from app.services.access_service import AccessService
-from app.services.unit_node_service import UnitNodeService
+from app.services.unit_io_service import UnitIOService
 from app.services.user_service import UserService
 from app.services.validators import is_valid_object, is_valid_string_with_rules
 from app.validators.data_pipe import is_valid_data_pipe_config
@@ -53,46 +53,46 @@ class GrafanaService:
         self,
         dashboard_repository: DashboardRepository = Depends(),
         dashboard_panel_repository: DashboardPanelRepository = Depends(),
-        panels_unit_nodes_repository: PanelsUnitNodesRepository = Depends(),
+        panels_unit_ios_repository: PanelsUnitIOsRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
+        unit_io_repository: UnitIORepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
         access_service: AccessService = Depends(),
         user_service: UserService = Depends(),
-        unit_node_service: UnitNodeService = Depends(),
+        unit_io_service: UnitIOService = Depends(),
     ) -> None:
         self.dashboard_repository = dashboard_repository
         self.dashboard_panel_repository = dashboard_panel_repository
-        self.panels_unit_nodes_repository = panels_unit_nodes_repository
+        self.panels_unit_ios_repository = panels_unit_ios_repository
         self.unit_repository = unit_repository
-        self.unit_node_repository = unit_node_repository
+        self.unit_io_repository = unit_io_repository
         self.data_pipe_repository = data_pipe_repository
         self.grafana_repository = GrafanaRepository(data_pipe_repository)
         self.access_service = access_service
         self.user_service = user_service
-        self.unit_node_service = unit_node_service
+        self.unit_io_service = unit_io_service
 
     def get_datasource_data(
         self, filters: DatasourceFilter
     ) -> list[DatasourceTimeSeriesData]:
         self.access_service.authorization.check_access(
-            [AgentType.GRAFANA_UNIT_NODE]
+            [AgentType.GRAFANA_UNIT_IO]
         )
 
-        unit_node = self.unit_node_repository.get(
-            UnitNode(uuid=self.access_service.current_agent.uuid)
+        unit_io = self.unit_io_repository.get(
+            UnitIO(uuid=self.access_service.current_agent.uuid)
         )
-        is_valid_object(unit_node)
+        is_valid_object(unit_io)
 
-        unit_node_panel = self.panels_unit_nodes_repository.get_by_parent(
-            unit_node,
+        unit_io_panel = self.panels_unit_ios_repository.get_by_parent(
+            unit_io,
             DashboardPanel(uuid=self.access_service.current_agent.panel_uuid),
         )
-        is_valid_object(unit_node_panel)
+        is_valid_object(unit_io_panel)
 
-        self.unit_node_service.is_valid_active_data_pipe(unit_node)
+        self.unit_io_service.is_valid_active_data_pipe(unit_io)
         data_pipe_entity = is_valid_data_pipe_config(
-            json.loads(unit_node.data_pipe_yml), is_business_validator=True
+            json.loads(unit_io.data_pipe_yml), is_business_validator=True
         )
 
         return self.grafana_repository.get_datasource_data(
@@ -107,7 +107,7 @@ class GrafanaService:
                 limit=filters.limit,
             ),
             data_pipe_entity,
-            unit_node_panel,
+            unit_io_panel,
         )
 
     def create_dashboard(self, data: DashboardCreate) -> Dashboard:
@@ -152,17 +152,13 @@ class GrafanaService:
 
         return self.dashboard_panel_repository.create(dashboard_panel)
 
-    def link_unit_node_to_panel(
-        self, data: LinkUnitNodeToPanel
-    ) -> UnitNodeForPanel:
+    def link_unit_io_to_panel(self, data: LinkUnitIOToPanel) -> UnitIOForPanel:
         self.access_service.authorization.check_access([AgentType.USER])
 
-        unit_node = self.unit_node_repository.get(
-            UnitNode(uuid=data.unit_node_uuid)
-        )
-        is_valid_object(unit_node)
+        unit_io = self.unit_io_repository.get(UnitIO(uuid=data.unit_io_uuid))
+        is_valid_object(unit_io)
         self.access_service.authorization.check_ownership(
-            unit_node, [OwnershipType.CREATOR]
+            unit_io, [OwnershipType.CREATOR]
         )
 
         dashboard_panel = self.dashboard_panel_repository.get(
@@ -173,29 +169,27 @@ class GrafanaService:
             dashboard_panel, [OwnershipType.CREATOR]
         )
 
-        self.check_unique_unit_node_for_panel(dashboard_panel, unit_node)
-        self.is_valid_unit_node_in_panel_count(dashboard_panel.uuid)
+        self.check_unique_unit_io_for_panel(dashboard_panel, unit_io)
+        self.is_valid_unit_io_in_panel_count(dashboard_panel.uuid)
 
-        panel_unit_node = PanelsUnitNodes(
+        panel_unit_io = PanelsUnitIOs(
             is_last_data=data.is_last_data,
             is_forced_to_json=data.is_forced_to_json,
             create_datetime=datetime.datetime.now(datetime.UTC),
             creator_uuid=self.access_service.current_agent.uuid,
-            unit_node_uuid=data.unit_node_uuid,
+            unit_io_uuid=data.unit_io_uuid,
             dashboard_panels_uuid=data.dashboard_panels_uuid,
         )
 
-        panel_unit_node = self.panels_unit_nodes_repository.create(
-            panel_unit_node
-        )
+        panel_unit_io = self.panels_unit_ios_repository.create(panel_unit_io)
 
-        unit = self.unit_repository.get(Unit(uuid=unit_node.unit_uuid))
+        unit = self.unit_repository.get(Unit(uuid=unit_io.unit_uuid))
 
-        return UnitNodeForPanel(
-            unit_node=UnitNodeRead(**unit_node.dict()),
-            is_last_data=panel_unit_node.is_last_data,
-            is_forced_to_json=panel_unit_node.is_forced_to_json,
-            unit_with_unit_node_name=unit.name + "@" + unit_node.topic_name,
+        return UnitIOForPanel(
+            unit_io=UnitIORead(**unit_io.dict()),
+            is_last_data=panel_unit_io.is_last_data,
+            is_forced_to_json=panel_unit_io.is_forced_to_json,
+            unit_with_unit_io_name=unit.name + "@" + unit_io.topic_name,
         )
 
     def get_dashboard(self, uuid: uuid_pkg.UUID) -> Dashboard:
@@ -300,17 +294,15 @@ class GrafanaService:
 
     def delete_link(
         self,
-        unit_node_uuid: uuid_pkg.UUID,
+        unit_io_uuid: uuid_pkg.UUID,
         dashboard_panel_uuid: uuid_pkg.UUID,
     ) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
-        unit_node = self.unit_node_repository.get(
-            UnitNode(uuid=unit_node_uuid)
-        )
-        is_valid_object(unit_node)
+        unit_io = self.unit_io_repository.get(UnitIO(uuid=unit_io_uuid))
+        is_valid_object(unit_io)
         self.access_service.authorization.check_ownership(
-            unit_node, [OwnershipType.CREATOR]
+            unit_io, [OwnershipType.CREATOR]
         )
 
         dashboard_panel = self.dashboard_panel_repository.get(
@@ -321,22 +313,22 @@ class GrafanaService:
             dashboard_panel, [OwnershipType.CREATOR]
         )
 
-        self.panels_unit_nodes_repository.delete(unit_node, dashboard_panel)
+        self.panels_unit_ios_repository.delete(unit_io, dashboard_panel)
 
-    def check_unique_unit_node_for_panel(
-        self, dashboard_panel: Dashboard, unit_node: UnitNode
+    def check_unique_unit_io_for_panel(
+        self, dashboard_panel: Dashboard, unit_io: UnitIO
     ):
-        if self.dashboard_panel_repository.check_unique_unit_node_for_panel(
-            dashboard_panel, unit_node
+        if self.dashboard_panel_repository.check_unique_unit_io_for_panel(
+            dashboard_panel, unit_io
         ):
-            msg = "This UnitNode is not unique for this Panel"
+            msg = "This UnitIO is not unique for this Panel"
             raise GrafanaError(msg)
 
-    def is_valid_unit_node_in_panel_count(self, uuid: uuid_pkg.UUID):
-        limit = runtime.get().pu_datapipe_limit_unit_node_per_one_panel
+    def is_valid_unit_io_in_panel_count(self, uuid: uuid_pkg.UUID):
+        limit = runtime.get().pu_datapipe_limit_unit_io_per_one_panel
         if (
             self.dashboard_panel_repository.get_count_unit_for_panel(uuid)
             >= limit
         ):
-            msg = f"Limit UnitNode for one panel is {limit}"
+            msg = f"Limit UnitIO for one panel is {limit}"
             raise GrafanaError(msg)

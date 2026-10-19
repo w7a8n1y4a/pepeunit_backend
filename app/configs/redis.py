@@ -32,7 +32,7 @@ async def get_redis_session(
 
 
 async def send_to_data_pipe_stream(
-    action: DataPipeConfigAction, unit_node: dict
+    action: DataPipeConfigAction, unit_io: dict
 ) -> None:
     redis = await anext(get_redis_session())
     try:
@@ -40,9 +40,7 @@ async def send_to_data_pipe_stream(
             "backend_data_pipe_nodes",
             {
                 "action": action,
-                "unit_node_data": json.dumps(
-                    unit_node, default=obj_serializer
-                ),
+                "unit_io_data": json.dumps(unit_io, default=obj_serializer),
             },
         )
     finally:

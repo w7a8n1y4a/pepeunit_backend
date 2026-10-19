@@ -5,28 +5,28 @@ import pytest
 
 from app import runtime
 from app.configs.errors import GrafanaError, NoAccessError
-from app.dto.agent.abc import AgentGrafanaUnitNode
+from app.dto.agent.abc import AgentGrafanaUnitIO
 from app.dto.enum import (
     DashboardPanelTypeEnum,
     DashboardStatus,
     DatasourceFormat,
     ProcessingPolicyType,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
 )
 from app.schemas.pydantic.grafana import (
     DashboardCreate,
     DashboardFilter,
     DashboardPanelCreate,
     DatasourceFilter,
-    LinkUnitNodeToPanel,
+    LinkUnitIOToPanel,
 )
-from app.schemas.pydantic.unit_node import DataPipeFilter, UnitNodeFilter
+from app.schemas.pydantic.unit_io import DataPipeFilter, UnitIOFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
 from tests.integration.helpers.data_pipe import seed_pipe_node
 from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     grafana_service,
-    unit_node_service,
+    unit_io_service,
     user_service,
 )
 
@@ -130,25 +130,25 @@ async def test_import_data_to_data_pipe(
     database,
     cc,
 ) -> None:
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
 
     for unit in piped_units.piped():
-        count, input_unit_node = service.list(
-            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+        count, input_unit_io = service.list(
+            UnitIOFilter(unit_uuid=unit.uuid, type=[UnitIOTypeEnum.INPUT])
         )
-        await seed_pipe_node(service, input_unit_node[0])
+        await seed_pipe_node(service, input_unit_io[0])
 
 
 @pytest.mark.grafana
 @pytest.mark.datapipe
-def test_create_link_unit_node_to_panel(
+def test_create_link_unit_io_to_panel(
     grafana_panels,
     piped_units,
     regular_user_token,
     database,
     cc,
 ) -> None:
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
     grafana = grafana_service(database, cc, regular_user_token)
     panels, delete_panel = grafana_panels
 
@@ -163,18 +163,18 @@ def test_create_link_unit_node_to_panel(
         panels,
         strict=False,
     ):
-        count, input_unit_node = service.list(
-            UnitNodeFilter(unit_uuid=unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+        count, input_unit_io = service.list(
+            UnitIOFilter(unit_uuid=unit.uuid, type=[UnitIOTypeEnum.INPUT])
         )
         data_pipe_entity = is_valid_data_pipe_config(
-            json.loads(input_unit_node[0].data_pipe_yml), is_business_validator=True
+            json.loads(input_unit_io[0].data_pipe_yml), is_business_validator=True
         )
         logging.info(
-            f"{target_type} {input_unit_node[0].uuid}-{data_pipe_entity.processing_policy.policy_type} {panel.uuid}-{panel.type}"
+            f"{target_type} {input_unit_io[0].uuid}-{data_pipe_entity.processing_policy.policy_type} {panel.uuid}-{panel.type}"
         )
-        grafana.link_unit_node_to_panel(
-            LinkUnitNodeToPanel(
-                unit_node_uuid=input_unit_node[0].uuid,
+        grafana.link_unit_io_to_panel(
+            LinkUnitIOToPanel(
+                unit_io_uuid=input_unit_io[0].uuid,
                 dashboard_panels_uuid=panel.uuid,
                 is_forced_to_json=target_type
                 in [DashboardPanelTypeEnum.PIE_CHART, DashboardPanelTypeEnum.LOGS],
@@ -182,24 +182,24 @@ def test_create_link_unit_node_to_panel(
             )
         )
         with pytest.raises(GrafanaError):
-            grafana.link_unit_node_to_panel(
-                LinkUnitNodeToPanel(
-                    unit_node_uuid=input_unit_node[0].uuid,
+            grafana.link_unit_io_to_panel(
+                LinkUnitIOToPanel(
+                    unit_io_uuid=input_unit_io[0].uuid,
                     dashboard_panels_uuid=panel.uuid,
                     is_forced_to_json=target_type == DashboardPanelTypeEnum.PIE_CHART,
                     is_last_data=False,
                 )
             )
 
-    count, input_unit_node = service.list(
-        UnitNodeFilter(
+    count, input_unit_io = service.list(
+        UnitIOFilter(
             unit_uuid=piped_units.universal_manual_unit.uuid,
-            type=[UnitNodeTypeEnum.INPUT],
+            type=[UnitIOTypeEnum.INPUT],
         )
     )
-    grafana.link_unit_node_to_panel(
-        LinkUnitNodeToPanel(
-            unit_node_uuid=input_unit_node[0].uuid,
+    grafana.link_unit_io_to_panel(
+        LinkUnitIOToPanel(
+            unit_io_uuid=input_unit_io[0].uuid,
             dashboard_panels_uuid=delete_panel.uuid,
             is_forced_to_json=False,
             is_last_data=False,
@@ -216,11 +216,11 @@ def test_get_aggregation_pipe_data_after_import(
     database,
     cc,
 ) -> None:
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
     _, input_nodes = service.list(
-        UnitNodeFilter(
+        UnitIOFilter(
             unit_uuid=piped_units.universal_manual_unit.uuid,
-            type=[UnitNodeTypeEnum.INPUT],
+            type=[UnitIOTypeEnum.INPUT],
         )
     )
     count, rows = service.get_data_pipe_data(
@@ -241,15 +241,15 @@ def test_grafana_datasource_data(
     database,
     cc,
 ) -> None:
-    node_svc = unit_node_service(database, cc, regular_user_token)
+    node_svc = unit_io_service(database, cc, regular_user_token)
     panels, _ = grafana_panels
     _, input_nodes = node_svc.list(
-        UnitNodeFilter(
+        UnitIOFilter(
             unit_uuid=piped_units.universal_manual_unit.uuid,
-            type=[UnitNodeTypeEnum.INPUT],
+            type=[UnitIOTypeEnum.INPUT],
         )
     )
-    token = AgentGrafanaUnitNode(
+    token = AgentGrafanaUnitIO(
         uuid=input_nodes[0].uuid,
         panel_uuid=panels[0].uuid,
         name="grafana",
@@ -282,11 +282,11 @@ def test_create_org_if_not_exists(
 
 
 @pytest.mark.grafana
-def test_panel_unit_node_limit(
+def test_panel_unit_io_limit(
     live_units, regular_user_token, database, cc
 ) -> None:
     grafana = grafana_service(database, cc, regular_user_token)
-    node_svc = unit_node_service(database, cc, regular_user_token)
+    node_svc = unit_io_service(database, cc, regular_user_token)
     dashboard = grafana.create_dashboard(
         DashboardCreate(name=unique_name("gflim"))
     )
@@ -299,29 +299,29 @@ def test_panel_unit_node_limit(
     )
     nodes = []
     for unit in live_units.all():
-        _, unit_nodes = node_svc.list(
-            UnitNodeFilter.unlimited(
+        _, unit_ios = node_svc.list(
+            UnitIOFilter.unlimited(
                 unit_uuid=unit.uuid,
-                type=[item.value for item in UnitNodeTypeEnum],
+                type=[item.value for item in UnitIOTypeEnum],
             )
         )
-        nodes.extend(unit_nodes)
-    limit = runtime.get().pu_datapipe_limit_unit_node_per_one_panel
+        nodes.extend(unit_ios)
+    limit = runtime.get().pu_datapipe_limit_unit_io_per_one_panel
     assert len(nodes) > limit
     try:
         for node in nodes[:limit]:
-            grafana.link_unit_node_to_panel(
-                LinkUnitNodeToPanel(
-                    unit_node_uuid=node.uuid,
+            grafana.link_unit_io_to_panel(
+                LinkUnitIOToPanel(
+                    unit_io_uuid=node.uuid,
                     dashboard_panels_uuid=panel.uuid,
                     is_forced_to_json=False,
                     is_last_data=False,
                 )
             )
         with pytest.raises(GrafanaError):
-            grafana.link_unit_node_to_panel(
-                LinkUnitNodeToPanel(
-                    unit_node_uuid=nodes[limit].uuid,
+            grafana.link_unit_io_to_panel(
+                LinkUnitIOToPanel(
+                    unit_io_uuid=nodes[limit].uuid,
                     dashboard_panels_uuid=panel.uuid,
                     is_forced_to_json=False,
                     is_last_data=False,
@@ -380,17 +380,17 @@ def test_delete_link(
     database,
     cc,
 ) -> None:
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
     grafana = grafana_service(database, cc, regular_user_token)
     _, delete_panel = grafana_panels
-    count, input_unit_node = service.list(
-        UnitNodeFilter(
+    count, input_unit_io = service.list(
+        UnitIOFilter(
             unit_uuid=piped_units.universal_manual_unit.uuid,
-            type=[UnitNodeTypeEnum.INPUT],
+            type=[UnitIOTypeEnum.INPUT],
         )
     )
     grafana.delete_link(
-        unit_node_uuid=input_unit_node[0].uuid,
+        unit_io_uuid=input_unit_io[0].uuid,
         dashboard_panel_uuid=delete_panel.uuid,
     )
 

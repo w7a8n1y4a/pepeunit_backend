@@ -11,9 +11,9 @@ from fastapi import Depends
 from app import runtime, settings
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
-from app.domain.panels_unit_nodes_model import PanelsUnitNodes
+from app.domain.panels_unit_ios_model import PanelsUnitIOs
 from app.domain.user_model import User
-from app.dto.agent.abc import AgentGrafanaUnitNode
+from app.dto.agent.abc import AgentGrafanaUnitIO
 from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.last_value import LastValue
 from app.dto.clickhouse.n_records import NRecords
@@ -28,9 +28,9 @@ from app.repositories.data_pipe_repository import DataPipeRepository
 from app.schemas.pydantic.grafana import (
     DashboardPanelRead,
     DatasourceTimeSeriesData,
-    UnitNodeForPanel,
+    UnitIOForPanel,
 )
-from app.schemas.pydantic.unit_node import DataPipeFilter
+from app.schemas.pydantic.unit_io import DataPipeFilter
 from app.utils.utils import generate_random_string
 from app.validators.data_pipe import DataPipeConfig, is_valid_data_pipe_config
 
@@ -151,27 +151,27 @@ class GrafanaRepository:
         panels_list = []
         for panel in panels:
             targets_list = []
-            for ref_id, unit_node in self.enumerate_refid(
-                panel.unit_nodes_for_panel
+            for ref_id, unit_io in self.enumerate_refid(
+                panel.unit_ios_for_panel
             ):
-                if not unit_node.unit_node.is_data_pipe_active:
-                    msg = f"{unit_node.unit_with_unit_node_name} has no active DataPipe"
+                if not unit_io.unit_io.is_data_pipe_active:
+                    msg = f"{unit_io.unit_with_unit_io_name} has no active DataPipe"
                     raise GrafanaError(msg)
 
-                data_pipe_dict = json.loads(unit_node.unit_node.data_pipe_yml)
+                data_pipe_dict = json.loads(unit_io.unit_io.data_pipe_yml)
                 data_pipe_entity = is_valid_data_pipe_config(
                     data_pipe_dict, is_business_validator=True
                 )
 
                 if (
                     isinstance(data_pipe_entity, list)
-                    or unit_node.unit_node.data_pipe_yml is None
+                    or unit_io.unit_io.data_pipe_yml is None
                 ):
-                    msg = f"{unit_node.unit_with_unit_node_name} has no valid yml DataPipe"
+                    msg = f"{unit_io.unit_with_unit_io_name} has no valid yml DataPipe"
                     raise GrafanaError(msg)
 
                 columns, root_selector = self.get_columns(
-                    unit_node, data_pipe_entity
+                    unit_io, data_pipe_entity
                 )
 
                 target_dict = {
@@ -192,8 +192,8 @@ class GrafanaRepository:
                         "headers": [
                             {
                                 "key": "x-auth-token",
-                                "value": AgentGrafanaUnitNode(
-                                    uuid=unit_node.unit_node.uuid,
+                                "value": AgentGrafanaUnitIO(
+                                    uuid=unit_io.unit_io.uuid,
                                     panel_uuid=panel.uuid,
                                     name="grafana",
                                 ).generate_agent_token(),
@@ -270,7 +270,7 @@ class GrafanaRepository:
         # BUG: limit can only be set manually. When generated, it breaks panels with an Unknown Query Type error
 
         """
-        if unit_node.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
+        if unit_io.is_last_data or data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.LAST_VALUE:
             params['limit'] = 1
 
         if data_pipe_entity.processing_policy.policy_type == ProcessingPolicyType.N_RECORDS:
@@ -295,17 +295,17 @@ class GrafanaRepository:
 
     def get_columns(
         self,
-        unit_node_panel: UnitNodeForPanel,
+        unit_io_panel: UnitIOForPanel,
         data_pipe_entity: DataPipeConfig,
     ) -> tuple[list[dict], str]:
         data = self.get_datasource_data(
             DataPipeFilter(
-                uuid=unit_node_panel.unit_node.uuid,
+                uuid=unit_io_panel.unit_io.uuid,
                 type=data_pipe_entity.processing_policy.policy_type,
                 limit=1,
             ),
             data_pipe_entity,
-            unit_node_panel,
+            unit_io_panel,
         )
 
         columns = [{"selector": "time", "text": "", "type": "timestamp_epoch"}]
@@ -335,7 +335,7 @@ class GrafanaRepository:
         self,
         filters: DataPipeFilter,
         data_pipe_entity: DataPipeConfig,
-        unit_node_panel: PanelsUnitNodes | UnitNodeForPanel,
+        unit_io_panel: PanelsUnitIOs | UnitIOForPanel,
     ) -> list[DatasourceTimeSeriesData]:
         count, data = self.data_pipe_repository.list(filters=filters)
 
@@ -343,7 +343,7 @@ class GrafanaRepository:
             DatasourceTimeSeriesData(
                 time=self.get_time_datasource_value(item),
                 value=self.get_typed_datasource_value(
-                    item.state, data_pipe_entity, unit_node_panel
+                    item.state, data_pipe_entity, unit_io_panel
                 ),
             )
             for item in data
@@ -353,9 +353,9 @@ class GrafanaRepository:
     def get_typed_datasource_value(
         value: str,
         data_pipe_entity: DataPipeConfig,
-        unit_node_panel: PanelsUnitNodes,
+        unit_io_panel: PanelsUnitIOs,
     ) -> str | float | dict:
-        if unit_node_panel.is_forced_to_json:
+        if unit_io_panel.is_forced_to_json:
             return json.loads(value)
         if data_pipe_entity.filters.type_input_value == TypeInputValue.NUMBER:
             return float(value)

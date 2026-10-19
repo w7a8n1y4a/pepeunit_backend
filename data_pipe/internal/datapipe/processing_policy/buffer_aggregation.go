@@ -25,7 +25,7 @@ type AggregationEntry struct {
 // AggregationBuffer accumulates messages and periodically flushes them to the database
 type AggregationBuffer struct {
 	mu            sync.Mutex
-	updates       map[uuid.UUID]map[string]*AggregationWindow // map[nodeUUID]map[windowKey]*AggregationWindow
+	updates       map[uuid.UUID]map[string]*AggregationWindow // map[ioUUID]map[windowKey]*AggregationWindow
 	flushInterval time.Duration
 	maxSize       int
 	clickhouseDB  *database.ClickHouseDB
@@ -206,18 +206,18 @@ func (b *AggregationBuffer) Flush(ctx context.Context) error {
 
 	// Create a copy of updates to work with
 	updatesCopy := make(map[uuid.UUID]map[string]*AggregationWindow, len(b.updates))
-	for nodeUUID, windows := range b.updates {
-		updatesCopy[nodeUUID] = make(map[string]*AggregationWindow, len(windows))
+	for ioUUID, windows := range b.updates {
+		updatesCopy[ioUUID] = make(map[string]*AggregationWindow, len(windows))
 		for key, window := range windows {
 			// Only copy windows that are ready to be flushed
 			if window.EndTime.Before(time.Now()) {
-				updatesCopy[nodeUUID][key] = window
-				delete(b.updates[nodeUUID], key)
+				updatesCopy[ioUUID][key] = window
+				delete(b.updates[ioUUID], key)
 			}
 		}
 		// Clean up empty node maps
-		if len(b.updates[nodeUUID]) == 0 {
-			delete(b.updates, nodeUUID)
+		if len(b.updates[ioUUID]) == 0 {
+			delete(b.updates, ioUUID)
 		}
 	}
 	b.mu.Unlock()
@@ -243,13 +243,13 @@ func (b *AggregationBuffer) Flush(ctx context.Context) error {
 
 	// Convert updates to AggregationEntry slice
 	entries := make([]database.AggregationEntry, 0, totalEntries)
-	for nodeUUID, windows := range updatesCopy {
+	for ioUUID, windows := range updatesCopy {
 		for _, window := range windows {
 			// Calculate aggregated value
 			aggregatedValue := calculateAggregation(window, string(*policy.AggregationFunctions))
 
 			entries = append(entries, database.AggregationEntry{
-				UnitNodeUUID:        nodeUUID,
+				UnitIOUUID:          ioUUID,
 				State:               aggregatedValue,
 				AggregationType:     string(*policy.AggregationFunctions),
 				TimeWindowSize:      uint32(*policy.TimeWindowSize),

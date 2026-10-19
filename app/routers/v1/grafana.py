@@ -21,8 +21,8 @@ from app.schemas.pydantic.grafana import (
     DashboardsResult,
     DatasourceFilter,
     DatasourceTimeSeriesData,
-    LinkUnitNodeToPanel,
-    UnitNodeForPanel,
+    LinkUnitIOToPanel,
+    UnitIOForPanel,
 )
 from app.services.grafana_service import GrafanaService
 
@@ -51,21 +51,21 @@ def create_dashboard_panel(
     grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
     return DashboardPanelRead(
-        unit_nodes_for_panel=[],
+        unit_ios_for_panel=[],
         **grafana_service.create_dashboard_panel(data).dict(),
     )
 
 
 @router.post(
-    "/link_unit_node_to_panel",
-    response_model=UnitNodeForPanel,
+    "/link_unit_io_to_panel",
+    response_model=UnitIOForPanel,
     status_code=status.HTTP_201_CREATED,
 )
-def link_unit_node_to_panel(
-    data: LinkUnitNodeToPanel,
+def link_unit_io_to_panel(
+    data: LinkUnitIOToPanel,
     grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
-    return grafana_service.link_unit_node_to_panel(data)
+    return grafana_service.link_unit_io_to_panel(data)
 
 
 @router.get("/get_dashboard/{uuid}", response_model=DashboardRead)
@@ -132,11 +132,11 @@ def delete_panel(
 
 @router.delete("/delete_link/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_link(
-    unit_node_uuid: uuid_pkg.UUID,
+    unit_io_uuid: uuid_pkg.UUID,
     dashboard_panel_uuid: uuid_pkg.UUID,
     grafana_service: GrafanaService = Depends(get_grafana_service),
 ):
-    return grafana_service.delete_link(unit_node_uuid, dashboard_panel_uuid)
+    return grafana_service.delete_link(unit_io_uuid, dashboard_panel_uuid)
 
 
 @router.get("/oidc/authorize")

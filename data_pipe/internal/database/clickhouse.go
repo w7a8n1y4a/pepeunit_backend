@@ -88,7 +88,7 @@ func (db *ClickHouseDB) Close() error {
 
 // NLastEntry represents a record for the n_last_entry table
 type NLastEntry struct {
-	UnitNodeUUID   uuid.UUID
+	UnitIOUUID     uuid.UUID
 	State          string
 	StateType      string // "Number" or "Text"
 	CreateDateTime time.Time
@@ -105,7 +105,7 @@ func (db *ClickHouseDB) BulkCreateNLastEntries(ctx context.Context, entries []NL
 
 	for _, entry := range entries {
 		err := batch.Append(
-			entry.UnitNodeUUID,
+			entry.UnitIOUUID,
 			entry.State,
 			entry.StateType,
 			entry.CreateDateTime,
@@ -126,7 +126,7 @@ func (db *ClickHouseDB) BulkCreateNLastEntries(ctx context.Context, entries []NL
 
 // WindowEntry represents a record for the window_entry table
 type WindowEntry struct {
-	UnitNodeUUID       uuid.UUID
+	UnitIOUUID         uuid.UUID
 	State              string
 	StateType          string // "Number" or "Text"
 	CreateDateTime     time.Time
@@ -143,7 +143,7 @@ func (db *ClickHouseDB) BulkCreateWindowEntries(ctx context.Context, entries []W
 
 	for _, entry := range entries {
 		err := batch.Append(
-			entry.UnitNodeUUID,
+			entry.UnitIOUUID,
 			entry.State,
 			entry.StateType,
 			entry.CreateDateTime,
@@ -164,7 +164,7 @@ func (db *ClickHouseDB) BulkCreateWindowEntries(ctx context.Context, entries []W
 
 // AggregationEntry represents a record for the aggregation_entry table
 type AggregationEntry struct {
-	UnitNodeUUID        uuid.UUID
+	UnitIOUUID          uuid.UUID
 	State               float64
 	AggregationType     string // "Avg", "Min", "Max", "Sum"
 	TimeWindowSize      uint32 // Size of the time window in seconds
@@ -182,7 +182,7 @@ func (db *ClickHouseDB) BulkCreateAggregationEntries(ctx context.Context, entrie
 
 	for _, entry := range entries {
 		err := batch.Append(
-			entry.UnitNodeUUID,
+			entry.UnitIOUUID,
 			entry.State,
 			entry.AggregationType,
 			entry.TimeWindowSize,
@@ -202,18 +202,18 @@ func (db *ClickHouseDB) BulkCreateAggregationEntries(ctx context.Context, entrie
 	return nil
 }
 
-// CleanupNLastEntries removes entries that exceed max_count for each unit_node_uuid
+// CleanupNLastEntries removes entries that exceed max_count for each unit_io_uuid
 func (db *ClickHouseDB) CleanupNLastEntries(ctx context.Context) error {
 	query := `
 		ALTER TABLE n_last_entry
-		DELETE WHERE (unit_node_uuid, create_datetime) IN (
-			SELECT unit_node_uuid, create_datetime
+		DELETE WHERE (unit_io_uuid, create_datetime) IN (
+			SELECT unit_io_uuid, create_datetime
 			FROM (
 				SELECT
-					unit_node_uuid,
+					unit_io_uuid,
 					create_datetime,
 					ROW_NUMBER() OVER (
-						PARTITION BY unit_node_uuid
+						PARTITION BY unit_io_uuid
 						ORDER BY create_datetime DESC
 					) as row_num,
 					max_count

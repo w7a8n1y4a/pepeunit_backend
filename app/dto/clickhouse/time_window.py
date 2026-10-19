@@ -8,7 +8,7 @@ from app.dto.mixin import ClickHouseBaseMixin
 
 
 class TimeWindow(BaseModel, ClickHouseBaseMixin):
-    unit_node_uuid: uuid_pkg.UUID
+    unit_io_uuid: uuid_pkg.UUID
     state: str
     state_type: TypeInputValue
     create_datetime: datetime

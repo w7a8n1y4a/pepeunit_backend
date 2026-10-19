@@ -6,8 +6,8 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
-from app.domain.panels_unit_nodes_model import PanelsUnitNodes
-from app.domain.unit_node_model import UnitNode
+from app.domain.panels_unit_ios_model import PanelsUnitIOs
+from app.domain.unit_io_model import UnitIO
 from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
     apply_ilike_search_string,
@@ -46,19 +46,19 @@ class DashboardPanelRepository(UniqueNameMixin, BaseRepository):
 
     def get_count_unit_for_panel(self, uuid: uuid_pkg.UUID) -> int:
         return (
-            self.db.query(PanelsUnitNodes)
-            .filter(PanelsUnitNodes.dashboard_panels_uuid == uuid)
+            self.db.query(PanelsUnitIOs)
+            .filter(PanelsUnitIOs.dashboard_panels_uuid == uuid)
             .count()
         )
 
-    def check_unique_unit_node_for_panel(
-        self, dashboard_panel: Dashboard, unit_node: UnitNode
+    def check_unique_unit_io_for_panel(
+        self, dashboard_panel: Dashboard, unit_io: UnitIO
     ) -> int:
         return (
-            self.db.query(PanelsUnitNodes)
+            self.db.query(PanelsUnitIOs)
             .filter(
-                PanelsUnitNodes.dashboard_panels_uuid == dashboard_panel.uuid,
-                PanelsUnitNodes.unit_node_uuid == unit_node.uuid,
+                PanelsUnitIOs.dashboard_panels_uuid == dashboard_panel.uuid,
+                PanelsUnitIOs.unit_io_uuid == unit_io.uuid,
             )
             .count()
         )

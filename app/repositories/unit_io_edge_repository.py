@@ -6,26 +6,26 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, func, select
 
 from app.configs.db import get_session
-from app.domain.unit_node_edge_model import UnitNodeEdge
-from app.domain.unit_node_model import UnitNode
+from app.domain.unit_io_edge_model import UnitIOEdge
+from app.domain.unit_io_model import UnitIO
 from app.dto.enum import VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.services.validators import is_valid_uuid
 
 
-class UnitNodeEdgeRepository(BaseRepository):
+class UnitIOEdgeRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        super().__init__(UnitNodeEdge, db)
+        super().__init__(UnitIOEdge, db)
 
-    def get_by_nodes(self, unit_nodes: list[UnitNode]) -> list[UnitNodeEdge]:
-        uuids = [unit_node.uuid for unit_node in unit_nodes]
+    def get_by_nodes(self, unit_ios: list[UnitIO]) -> list[UnitIOEdge]:
+        uuids = [unit_io.uuid for unit_io in unit_ios]
 
         return (
-            self.db.query(UnitNodeEdge)
+            self.db.query(UnitIOEdge)
             .filter(
                 or_(
-                    UnitNodeEdge.node_input_uuid.in_(uuids),
-                    UnitNodeEdge.node_output_uuid.in_(uuids),
+                    UnitIOEdge.input_uuid.in_(uuids),
+                    UnitIOEdge.output_uuid.in_(uuids),
                 )
             )
             .all()
@@ -35,21 +35,20 @@ class UnitNodeEdgeRepository(BaseRepository):
         self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID
     ):
         return (
-            self.db.query(UnitNodeEdge)
+            self.db.query(UnitIOEdge)
             .filter(
-                UnitNodeEdge.node_input_uuid == is_valid_uuid(input_uuid),
-                UnitNodeEdge.node_output_uuid == is_valid_uuid(output_uuid),
+                UnitIOEdge.input_uuid == is_valid_uuid(input_uuid),
+                UnitIOEdge.output_uuid == is_valid_uuid(output_uuid),
             )
             .first()
         )
 
-    def check(self, unit_node_edge: UnitNodeEdge) -> bool:
+    def check(self, unit_io_edge: UnitIOEdge) -> bool:
         check = (
-            self.db.query(UnitNodeEdge)
+            self.db.query(UnitIOEdge)
             .filter(
-                UnitNodeEdge.node_input_uuid == unit_node_edge.node_input_uuid,
-                UnitNodeEdge.node_output_uuid
-                == unit_node_edge.node_output_uuid,
+                UnitIOEdge.input_uuid == unit_io_edge.input_uuid,
+                UnitIOEdge.output_uuid == unit_io_edge.output_uuid,
             )
             .first()
         )
@@ -59,34 +58,32 @@ class UnitNodeEdgeRepository(BaseRepository):
     def count_by_input_node(self, input_uuid: uuid_pkg.UUID) -> int:
         """Count the number of edges connected to an input node"""
         return (
-            self.db.query(UnitNodeEdge)
-            .filter(UnitNodeEdge.node_input_uuid == is_valid_uuid(input_uuid))
+            self.db.query(UnitIOEdge)
+            .filter(UnitIOEdge.input_uuid == is_valid_uuid(input_uuid))
             .count()
         )
 
     def count_by_output_node(self, output_uuid: uuid_pkg.UUID) -> int:
         """Count the number of edges connected from an output node"""
         return (
-            self.db.query(UnitNodeEdge)
-            .filter(
-                UnitNodeEdge.node_output_uuid == is_valid_uuid(output_uuid)
-            )
+            self.db.query(UnitIOEdge)
+            .filter(UnitIOEdge.output_uuid == is_valid_uuid(output_uuid))
             .count()
         )
 
     def get_public_count(self) -> int:
-        input_node = aliased(UnitNode)
-        output_node = aliased(UnitNode)
+        input_node = aliased(UnitIO)
+        output_node = aliased(UnitIO)
         return self.db.exec(
             select(func.count())
-            .select_from(UnitNodeEdge)
+            .select_from(UnitIOEdge)
             .join(
                 input_node,
-                UnitNodeEdge.node_input_uuid == input_node.uuid,
+                UnitIOEdge.input_uuid == input_node.uuid,
             )
             .join(
                 output_node,
-                UnitNodeEdge.node_output_uuid == output_node.uuid,
+                UnitIOEdge.output_uuid == output_node.uuid,
             )
             .where(
                 and_(

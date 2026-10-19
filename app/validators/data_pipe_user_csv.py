@@ -33,7 +33,7 @@ class StreamingCSVValidator:
         self.current_row = 0
 
     async def iter_validated_streaming(
-        self, unit_node_uuid: uuid_pkg.UUID, upload_file
+        self, unit_io_uuid: uuid_pkg.UUID, upload_file
     ) -> AsyncGenerator[TimeWindow | NRecords | Aggregation]:
         content = await upload_file.read()
         csv_content = content.decode("utf-8")
@@ -77,7 +77,7 @@ class StreamingCSVValidator:
                         seconds=self.config.processing_policy.time_window_size
                     )
                     yield TimeWindow(
-                        unit_node_uuid=unit_node_uuid,
+                        unit_io_uuid=unit_io_uuid,
                         state=str(state),
                         state_type=self.config.filters.type_input_value,
                         create_datetime=create_datetime,
@@ -89,7 +89,7 @@ class StreamingCSVValidator:
                     self.check_n_last_entry()
 
                     yield NRecords(
-                        unit_node_uuid=unit_node_uuid,
+                        unit_io_uuid=unit_io_uuid,
                         state=str(state),
                         state_type=self.config.filters.type_input_value,
                         create_datetime=create_datetime,
@@ -109,7 +109,7 @@ class StreamingCSVValidator:
                         row[AvailableCSVKeys.START_WINDOW_DATETIME.value]
                     )
                     yield Aggregation(
-                        unit_node_uuid=unit_node_uuid,
+                        unit_io_uuid=unit_io_uuid,
                         state=float(state),
                         aggregation_type=self.config.processing_policy.aggregation_functions,
                         time_window_size=self.config.processing_policy.time_window_size,

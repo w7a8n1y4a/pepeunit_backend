@@ -29,8 +29,8 @@ from app.schemas.bot.repository_registry_bot_router import (
 )
 from app.schemas.bot.start_help import base_router
 from app.schemas.bot.unit_bot_router import UnitBotRouter
+from app.schemas.bot.unit_io_bot_router import UnitIOBotRouter
 from app.schemas.bot.unit_log_bot_router import UnitLogBotRouter
-from app.schemas.bot.unit_node_bot_router import UnitNodeBotRouter
 from app.schemas.bot.utils import build_telegram_bot
 from app.schemas.mqtt.topic import mqtt
 from app.services.startup_service import StartupService
@@ -109,7 +109,7 @@ if bot is not None:
     dp.include_router(RepositoryRegistryBotRouter().router)
     dp.include_router(RepoBotRouter().router)
     dp.include_router(UnitBotRouter().router)
-    dp.include_router(UnitNodeBotRouter().router)
+    dp.include_router(UnitIOBotRouter().router)
     dp.include_router(UnitLogBotRouter().router)
     if runtime.get().pu_ff_grafana_integration_enable:
         dp.include_router(DashboardBotRouter().router)

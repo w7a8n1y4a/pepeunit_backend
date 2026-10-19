@@ -7,7 +7,7 @@ from app import runtime, settings
 from app.dto.enum import BackendTopicCommand
 from app.schemas.pydantic.repo import RepoUpdate
 from app.schemas.pydantic.unit import UnitUpdate
-from app.schemas.pydantic.unit_node import UnitNodeSetState
+from app.schemas.pydantic.unit_io import UnitIOSetState
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -83,11 +83,11 @@ def post_schema_update(token: str, unit_uuid: uuid_pkg.UUID) -> int:
     return _status(response)
 
 
-def patch_input_state(token: str, unit_node_uuid: uuid_pkg.UUID, state: str) -> int:
-    url = f"{settings.pu_link_prefix_and_v1}/unit_nodes/set_state_input/{unit_node_uuid}"
+def patch_input_state(token: str, unit_io_uuid: uuid_pkg.UUID, state: str) -> int:
+    url = f"{settings.pu_link_prefix_and_v1}/unit_ios/set_state_input/{unit_io_uuid}"
     response = httpx.patch(
         url=url,
-        json=UnitNodeSetState(state=state).dict(),
+        json=UnitIOSetState(state=state).dict(),
         headers=_headers(token),
         timeout=runtime.get().http_timeout(),
     )

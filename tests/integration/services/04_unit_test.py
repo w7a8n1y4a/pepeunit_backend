@@ -33,7 +33,7 @@ from app.dto.enum import (
     OperationTaskType,
     OrderByDate,
     ReservedEnvVariableName,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
     VisibilityLevel,
 )
 from app.repositories.unit_log_repository import UnitLogRepository
@@ -44,7 +44,7 @@ from app.schemas.pydantic.unit import (
     UnitLogFilter,
     UnitUpdate,
 )
-from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.schemas.pydantic.unit_io import UnitIOFilter
 from app.services.utils import get_topic_name
 from app.utils.utils import aes_gcm_encode
 from tests.integration.helpers.http import (
@@ -59,7 +59,7 @@ from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     branch_commits,
     repo_service,
-    unit_node_service,
+    unit_io_service,
     unit_service,
 )
 from tests.integration.helpers.tasks import latest_task
@@ -667,10 +667,10 @@ def test_list_units_with_output_nodes(
     count, units = unit_service(database, cc, regular_user_token).list(
         UnitFilter.unlimited(
             creator_uuid=regular_user.uuid,
-            unit_node_type=[item.value for item in UnitNodeTypeEnum],
-            unit_node_uuids=[],
+            unit_io_type=[item.value for item in UnitIOTypeEnum],
+            unit_io_uuids=[],
         ),
-        is_include_output_unit_nodes=True,
+        is_include_output_unit_ios=True,
     )
     assert count >= 1
     assert any(nodes for _, nodes in units)
@@ -776,10 +776,10 @@ def test_mqtt_auth_node_topics(
     unit_token = unit_service(database, cc, regular_user_token).generate_token(
         compile_unit.uuid
     )
-    node_svc = unit_node_service(database, cc, regular_user_token)
+    node_svc = unit_io_service(database, cc, regular_user_token)
     _, public_nodes = node_svc.list(
-        UnitNodeFilter(
-            unit_uuid=universal_manual_unit.uuid, type=[UnitNodeTypeEnum.INPUT]
+        UnitIOFilter(
+            unit_uuid=universal_manual_unit.uuid, type=[UnitIOTypeEnum.INPUT]
         )
     )
     unit_service(database, cc, unit_token).get_mqtt_auth(
@@ -787,7 +787,7 @@ def test_mqtt_auth_node_topics(
     )
 
     _, private_nodes = node_svc.list(
-        UnitNodeFilter(unit_uuid=chain_sink_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+        UnitIOFilter(unit_uuid=chain_sink_unit.uuid, type=[UnitIOTypeEnum.INPUT])
     )
     with pytest.raises(NoAccessError):
         unit_service(database, cc, unit_token).get_mqtt_auth(

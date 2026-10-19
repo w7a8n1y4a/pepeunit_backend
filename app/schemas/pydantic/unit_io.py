@@ -13,54 +13,54 @@ from app.dto.enum import (
     DataPipeStage,
     OrderByDate,
     ProcessingPolicyType,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
     VisibilityLevel,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
 from app.utils.utils import parse_interval
 
 
-class UnitNodeUpdate(BaseModel):
+class UnitIOUpdate(BaseModel):
     visibility_level: VisibilityLevel | None = None
     is_rewritable_input: bool | None = None
     is_data_pipe_active: bool | None = None
     max_connections: int | None = None
 
 
-class UnitNodeSetState(BaseModel):
+class UnitIOSetState(BaseModel):
     state: str | None = None
 
 
 @dataclass
-class UnitNodeFilter(BasePaginationRestMixin):
+class UnitIOFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     unit_uuid: uuid_pkg.UUID | None = None
     search_string: str | None = None
 
-    type: list[str] | None = Query([item.value for item in UnitNodeTypeEnum])
+    type: list[str] | None = Query([item.value for item in UnitIOTypeEnum])
     visibility_level: list[str] | None = Query(
         [item.value for item in VisibilityLevel]
     )
 
     order_by_create_date: OrderByDate | None = OrderByDate.desc
 
-    # get only input UnitNode linked with this output UnitNode
+    # get only input UnitIO linked with this output UnitIO
     output_uuid: uuid_pkg.UUID | None = None
 
     def dict(self):
         return self.__dict__
 
 
-class UnitNodeEdgeRead(BaseModel):
+class UnitIOEdgeRead(BaseModel):
     uuid: uuid_pkg.UUID
-    node_output_uuid: uuid_pkg.UUID
-    node_input_uuid: uuid_pkg.UUID
+    output_uuid: uuid_pkg.UUID
+    input_uuid: uuid_pkg.UUID
 
 
-class UnitNodeEdgeCreate(BaseModel):
-    node_output_uuid: uuid_pkg.UUID
-    node_input_uuid: uuid_pkg.UUID
+class UnitIOEdgeCreate(BaseModel):
+    output_uuid: uuid_pkg.UUID
+    input_uuid: uuid_pkg.UUID
 
 
 class DataPipeValidationErrorRead(BaseModel):

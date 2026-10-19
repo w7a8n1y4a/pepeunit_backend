@@ -58,7 +58,7 @@ class Agent(ABC, BaseModel):
                 settings.pu_secret_key,
                 "HS256",
             )
-        elif self.type == AgentType.GRAFANA_UNIT_NODE:
+        elif self.type == AgentType.GRAFANA_UNIT_IO:
             token = jwt.encode(
                 {
                     "uuid": str(self.uuid),
@@ -110,6 +110,6 @@ class AgentGrafana(Agent):
     status: AgentStatus = AgentStatus.VERIFIED
 
 
-class AgentGrafanaUnitNode(Agent):
-    type: AgentType = AgentType.GRAFANA_UNIT_NODE
+class AgentGrafanaUnitIO(Agent):
+    type: AgentType = AgentType.GRAFANA_UNIT_IO
     status: AgentStatus = AgentStatus.VERIFIED

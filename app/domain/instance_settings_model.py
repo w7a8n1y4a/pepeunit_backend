@@ -45,7 +45,7 @@ class InstanceSettings(SQLModel, table=True):
     pu_datapipe_default_last_value_enable: bool = Field(
         nullable=False, default=True
     )
-    pu_datapipe_limit_unit_node_per_one_panel: int = Field(
+    pu_datapipe_limit_unit_io_per_one_panel: int = Field(
         nullable=False, default=10
     )
     pu_datapipe_mqtt_keepalive: int = Field(nullable=False, default=60)

@@ -49,10 +49,10 @@ func NewDataPipeConfigs(cfg *config.Config) *DataPipeConfigs {
 }
 
 // Get retrieves a node's configuration together with the unit that owns the node
-func (c *DataPipeConfigs) Get(nodeUUID string) (types.DataPipeConfig, NodeTarget, bool) {
+func (c *DataPipeConfigs) Get(ioUUID string) (types.DataPipeConfig, NodeTarget, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	stored, exists := c.configs[nodeUUID]
+	stored, exists := c.configs[ioUUID]
 	if !exists {
 		return types.DataPipeConfig{}, NodeTarget{}, false
 	}
@@ -71,9 +71,9 @@ func (c *DataPipeConfigs) Get(nodeUUID string) (types.DataPipeConfig, NodeTarget
 
 // LoadNodeConfigs loads active node configurations from PostgreSQL
 func (c *DataPipeConfigs) LoadNodeConfigs(ctx context.Context, postgresDB *database.PostgresDB) error {
-	nodes, err := postgresDB.GetActiveUnitNodes(ctx)
+	nodes, err := postgresDB.GetActiveUnitIOs(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get active unit nodes: %w", err)
+		return fmt.Errorf("failed to get active unit IO: %w", err)
 	}
 
 	c.mu.Lock()
@@ -185,10 +185,10 @@ func (c *DataPipeConfigs) StartConfigSync(ctx context.Context, postgresDB *datab
 					lastID = message.ID
 					values := message.Values
 
-					if unitNodeData, ok := values["unit_node_data"].(string); ok {
+					if unitIOData, ok := values["unit_io_data"].(string); ok {
 						var nodeData map[string]interface{}
-						if err := json.Unmarshal([]byte(unitNodeData), &nodeData); err != nil {
-							logging.Errorf("Error parsing unit_node_data JSON: %v", err)
+						if err := json.Unmarshal([]byte(unitIOData), &nodeData); err != nil {
+							logging.Errorf("Error parsing unit_io_data JSON: %v", err)
 							continue
 						}
 

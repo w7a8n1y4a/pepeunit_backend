@@ -31,8 +31,8 @@ def remove_none_value_dict(data: dict) -> dict:
     return {k: v for k, v in data.items() if v is not None}
 
 
-def get_topic_name(node_uuid: uuid_pkg.UUID, topic_name: str):
-    main_topic = f"{settings.pu_domain}/{node_uuid}"
+def get_topic_name(io_uuid: uuid_pkg.UUID, topic_name: str):
+    main_topic = f"{settings.pu_domain}/{io_uuid}"
     main_topic += (
         GlobalPrefixTopic.BACKEND_SUB_PREFIX
         if topic_name[-len(GlobalPrefixTopic.BACKEND_SUB_PREFIX) :]

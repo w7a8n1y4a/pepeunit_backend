@@ -6,8 +6,8 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
-from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
+from app.repositories.unit_io_edge_repository import UnitIOEdgeRepository
+from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.metrics import BaseMetricsRead
@@ -22,8 +22,8 @@ class MetricsService:
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
-        unit_node_edge_repository: UnitNodeEdgeRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
+        unit_io_edge_repository: UnitIOEdgeRepository = Depends(),
+        unit_io_repository: UnitIORepository = Depends(),
         unit_repository: UnitRepository = Depends(),
         user_repository: UserRepository = Depends(),
         access_service: AccessService = Depends(),
@@ -31,8 +31,8 @@ class MetricsService:
         self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.unit_repository = unit_repository
-        self.unit_node_repository = unit_node_repository
-        self.unit_node_edge_repository = unit_node_edge_repository
+        self.unit_io_repository = unit_io_repository
+        self.unit_io_edge_repository = unit_io_edge_repository
         self.user_repository = user_repository
         self.access_service = access_service
 
@@ -66,9 +66,9 @@ class MetricsService:
                 )[0],
                 repo_count=self.repo_repository.get_public_count(),
                 unit_count=self.unit_repository.get_public_count(),
-                unit_node_count=self.unit_node_repository.get_public_count(),
-                unit_node_edge_count=(
-                    self.unit_node_edge_repository.get_public_count()
+                unit_io_count=self.unit_io_repository.get_public_count(),
+                unit_io_edge_count=(
+                    self.unit_io_edge_repository.get_public_count()
                 ),
             )
         else:
@@ -77,8 +77,8 @@ class MetricsService:
                 repository_registry_count=self.repository_registry_repository.get_all_count(),
                 repo_count=self.repo_repository.get_all_count(),
                 unit_count=self.unit_repository.get_all_count(),
-                unit_node_count=self.unit_node_repository.get_all_count(),
-                unit_node_edge_count=self.unit_node_edge_repository.get_all_count(),
+                unit_io_count=self.unit_io_repository.get_all_count(),
+                unit_io_edge_count=self.unit_io_edge_repository.get_all_count(),
             )
 
         self._cache[cache_key] = metrics

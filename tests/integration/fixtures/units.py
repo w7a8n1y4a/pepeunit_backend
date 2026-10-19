@@ -225,28 +225,28 @@ def running_units(unpacked_firmwares, client_emulator, regular_user_token, datab
 
 @pytest.fixture(scope="session")
 def chain_edges(running_units, regular_user_token, database, cc):
-    from app.dto.enum import UnitNodeTypeEnum
-    from app.schemas.pydantic.unit_node import UnitNodeEdgeCreate, UnitNodeFilter
-    from tests.integration.helpers.services import unit_node_service
+    from app.dto.enum import UnitIOTypeEnum
+    from app.schemas.pydantic.unit_io import UnitIOEdgeCreate, UnitIOFilter
+    from tests.integration.helpers.services import unit_io_service
 
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
     io_units_list = []
     for unit in running_units.chain():
-        _, unit_nodes = service.list(UnitNodeFilter.unlimited(unit_uuid=unit.uuid))
-        if unit_nodes[0].type == UnitNodeTypeEnum.OUTPUT:
-            unit_nodes = unit_nodes[::-1]
-        io_units_list.append(unit_nodes)
+        _, unit_ios = service.list(UnitIOFilter.unlimited(unit_uuid=unit.uuid))
+        if unit_ios[0].type == UnitIOTypeEnum.OUTPUT:
+            unit_ios = unit_ios[::-1]
+        io_units_list.append(unit_ios)
 
     service.create_node_edge(
-        UnitNodeEdgeCreate(
-            node_output_uuid=io_units_list[0][1].uuid,
-            node_input_uuid=io_units_list[1][0].uuid,
+        UnitIOEdgeCreate(
+            output_uuid=io_units_list[0][1].uuid,
+            input_uuid=io_units_list[1][0].uuid,
         )
     )
     service.create_node_edge(
-        UnitNodeEdgeCreate(
-            node_output_uuid=io_units_list[1][1].uuid,
-            node_input_uuid=io_units_list[2][0].uuid,
+        UnitIOEdgeCreate(
+            output_uuid=io_units_list[1][1].uuid,
+            input_uuid=io_units_list[2][0].uuid,
         )
     )
     return io_units_list

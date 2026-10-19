@@ -20,7 +20,7 @@ class Permission(SQLModel, table=True):
         default_factory=uuid_pkg.uuid4,
     )
 
-    # User, Unit, Unit Node
+    # User, Unit, Unit IO
     agent_type: str = Field(nullable=False)
     agent_user_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
@@ -37,7 +37,7 @@ class Permission(SQLModel, table=True):
         )
     )
 
-    # Repo, Unit, UnitNode
+    # Repo, Unit, UnitIO
     resource_type: str = Field(nullable=False)
     resource_repo_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
@@ -53,10 +53,10 @@ class Permission(SQLModel, table=True):
             nullable=True,
         )
     )
-    resource_unit_node_uuid: uuid_pkg.UUID = Field(
+    resource_unit_io_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("units_nodes.uuid", ondelete="CASCADE"),
+            ForeignKey("units_io.uuid", ondelete="CASCADE"),
             nullable=True,
         )
     )

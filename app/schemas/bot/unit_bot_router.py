@@ -19,7 +19,7 @@ from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import (
     get_bot_repo_service,
-    get_bot_unit_node_service,
+    get_bot_unit_io_service,
     get_bot_unit_service,
 )
 from app.dto.enum import (
@@ -473,8 +473,8 @@ class UnitBotRouter(BaseBotRouter):
 
         buttons = [
             InlineKeyboardButton(
-                text="🎯 Unit Nodes",
-                callback_data=f"{EntityNames.UNIT_NODE.value}_unit_{unit.uuid}",
+                text="🎯 Unit IO",
+                callback_data=f"{EntityNames.UNIT_IO.value}_unit_{unit.uuid}",
             ),
         ]
 
@@ -515,7 +515,7 @@ class UnitBotRouter(BaseBotRouter):
             unit_service = get_bot_unit_service(
                 db, cc, str(callback.from_user.id)
             )
-            unit_node_service = get_bot_unit_node_service(
+            unit_io_service = get_bot_unit_io_service(
                 db, cc, str(callback.from_user.id)
             )
 
@@ -562,7 +562,7 @@ class UnitBotRouter(BaseBotRouter):
                     BackendTopicCommand.LOG_SYNC,
                     BackendTopicCommand.RESET,
                 ):
-                    unit_node_service.command_to_input_base_topic(
+                    unit_io_service.command_to_input_base_topic(
                         unit_uuid, BackendTopicCommand(decrees_type)
                     )
                     text = f"Success send command {decrees_type}"

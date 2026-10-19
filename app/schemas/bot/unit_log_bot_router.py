@@ -11,7 +11,7 @@ from app.dto.enum import EntityNames, LogLevel
 from app.schemas.bot.base_bot_router import (
     BaseBotFilters,
     BaseBotRouter,
-    UnitNodeStates,
+    UnitIOStates,
 )
 from app.schemas.bot.utils import make_monospace_table_with_title
 from app.schemas.pydantic.unit import UnitLogFilter
@@ -20,7 +20,7 @@ from app.schemas.pydantic.unit import UnitLogFilter
 class UnitLogBotRouter(BaseBotRouter):
     def __init__(self):
         entity_name = EntityNames.UNIT_LOG.value
-        super().__init__(entity_name=entity_name, states_group=UnitNodeStates)
+        super().__init__(entity_name=entity_name, states_group=UnitIOStates)
         self.router.callback_query(
             F.data.startswith(f"{self.entity_name}_unit_")
         )(self.handle_by_unit)

@@ -97,7 +97,7 @@ class UnitDailySummaryData(NotificationContent):
 class DataPipeAlertData(NotificationContent):
     value: str | int | float
     topic_name: str | None = None
-    unit_node_uuid: uuid_pkg.UUID | None = None
+    unit_io_uuid: uuid_pkg.UUID | None = None
     unit_uuid: uuid_pkg.UUID | None = None
     unit_name: str | None = None
     type_value_filtering: FilterTypeValueFiltering | None = None
@@ -146,7 +146,7 @@ class DataPipeAlertData(NotificationContent):
 
     @property
     def table_text(self) -> str:
-        topic = self.topic_name or self.unit_node_uuid or "-"
+        topic = self.topic_name or self.unit_io_uuid or "-"
         checks = self._checks()
         return make_monospace_table_with_title(
             [

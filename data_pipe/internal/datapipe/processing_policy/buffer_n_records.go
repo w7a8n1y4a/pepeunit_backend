@@ -159,10 +159,10 @@ func (b *NRecordsBuffer) Flush(ctx context.Context) error {
 
 	// Convert updates to NLastEntry slice
 	entries := make([]database.NLastEntry, 0, totalEntries)
-	for nodeUUID, nodeEntries := range updatesCopy {
+	for ioUUID, nodeEntries := range updatesCopy {
 		for _, entry := range nodeEntries {
 			entries = append(entries, database.NLastEntry{
-				UnitNodeUUID:   nodeUUID, // Use the node UUID
+				UnitIOUUID:     ioUUID, // Use the node UUID
 				State:          entry.State,
 				StateType:      string(entry.TypeInputValue), // Use TypeInputValue from config
 				CreateDateTime: entry.UpdateTime,

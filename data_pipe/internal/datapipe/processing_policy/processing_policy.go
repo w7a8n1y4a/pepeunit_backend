@@ -40,7 +40,7 @@ func (p *ProcessingPolicy) Stop() {
 // ApplyProcessingPolicy applies the processing policy based on its type
 func (p *ProcessingPolicy) ApplyProcessingPolicy(
 	ctx context.Context,
-	nodeUUID uuid.UUID,
+	ioUUID uuid.UUID,
 	value string,
 	currentTime time.Time,
 	policy types.ProcessingPolicyConfig,
@@ -57,16 +57,16 @@ func (p *ProcessingPolicy) ApplyProcessingPolicy(
 
 	switch policy.PolicyType {
 	case types.ProcessingPolicyTypeLastValue:
-		return buffer.Add(ctx, nodeUUID, value, currentTime)
+		return buffer.Add(ctx, ioUUID, value, currentTime)
 
 	case types.ProcessingPolicyTypeNRecords:
-		return buffer.Add(ctx, nodeUUID, value, currentTime)
+		return buffer.Add(ctx, ioUUID, value, currentTime)
 
 	case types.ProcessingPolicyTypeTimeWindow:
-		return buffer.Add(ctx, nodeUUID, value, currentTime)
+		return buffer.Add(ctx, ioUUID, value, currentTime)
 
 	case types.ProcessingPolicyTypeAggregation:
-		return buffer.Add(ctx, nodeUUID, value, currentTime)
+		return buffer.Add(ctx, ioUUID, value, currentTime)
 
 	default:
 		return fmt.Errorf("unknown processing policy type: %s", policy.PolicyType)

@@ -73,7 +73,7 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_available_name_entity_symbols: str
     pu_available_topic_symbols: str
 
-    pu_datapipe_limit_unit_node_per_one_panel: int
+    pu_datapipe_limit_unit_io_per_one_panel: int
 
     pu_instance_cipher_max_length: int
     pu_instance_http_connect_timeout: float
@@ -111,8 +111,8 @@ class CurrentInstanceSettingsV1(BaseModel):
                 settings.pu_available_name_entity_symbols
             ),
             pu_available_topic_symbols=settings.pu_available_topic_symbols,
-            pu_datapipe_limit_unit_node_per_one_panel=(
-                runtime.get().pu_datapipe_limit_unit_node_per_one_panel
+            pu_datapipe_limit_unit_io_per_one_panel=(
+                runtime.get().pu_datapipe_limit_unit_io_per_one_panel
             ),
             pu_instance_cipher_max_length=(
                 runtime.get().pu_instance_cipher_max_length
@@ -184,8 +184,8 @@ class CurrentInstanceMetricsV1(BaseModel):
     repository_registry_count: int = Field(ge=0)
     repo_count: int = Field(ge=0)
     unit_count: int = Field(ge=0)
-    unit_node_count: int = Field(ge=0)
-    unit_node_edge_count: int = Field(ge=0)
+    unit_io_count: int = Field(ge=0)
+    unit_io_edge_count: int = Field(ge=0)
 
 
 class CurrentInstanceContactsV1(BaseModel):

@@ -5,14 +5,14 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 
-class UnitNodeEdge(SQLModel, table=True):
+class UnitIOEdge(SQLModel, table=True):
     """
-    Link between different UnitNode
+    Link between different UnitIO
 
     output -> input
     """
 
-    __tablename__ = "units_nodes_edges"
+    __tablename__ = "units_io_edges"
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -21,18 +21,18 @@ class UnitNodeEdge(SQLModel, table=True):
         default_factory=uuid_pkg.uuid4,
     )
 
-    # routed output UnitNode
-    node_output_uuid: uuid_pkg.UUID = Field(
+    # routed output UnitIO
+    output_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("units_nodes.uuid", ondelete="CASCADE"),
+            ForeignKey("units_io.uuid", ondelete="CASCADE"),
         )
     )
-    # target input UnitNode
-    node_input_uuid: uuid_pkg.UUID = Field(
+    # target input UnitIO
+    input_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("units_nodes.uuid", ondelete="CASCADE"),
+            ForeignKey("units_io.uuid", ondelete="CASCADE"),
         )
     )
     # to User link

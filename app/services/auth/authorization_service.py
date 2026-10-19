@@ -3,8 +3,8 @@ import uuid as uuid_pkg
 from app.configs.errors import NoAccessError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.dto.agent.abc import Agent
 from app.dto.enum import (
     AgentType,
@@ -80,7 +80,7 @@ class AuthorizationService:
         if (
             OwnershipType.UNIT_TO_INPUT_NODE in ownership_types
             and self.current_agent.type == AgentType.UNIT
-            and isinstance(entity, UnitNode)
+            and isinstance(entity, UnitIO)
             and not entity.is_rewritable_input
         ):
             msg = "The Unit requesting the information does not have access to it"

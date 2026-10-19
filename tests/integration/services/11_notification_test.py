@@ -20,7 +20,7 @@ from app.dto.enum import (
     NotificationType,
     OperationTaskStatus,
     OperationTaskType,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
     UserRole,
 )
 from app.repositories.notification_settings_repository import (
@@ -41,7 +41,7 @@ from app.schemas.pydantic.notification import (
     UnitDailySummaryData,
 )
 from app.schemas.pydantic.operation_task import OperationTaskCreate
-from app.schemas.pydantic.unit_node import UnitNodeFilter, UnitNodeUpdate
+from app.schemas.pydantic.unit_io import UnitIOFilter, UnitIOUpdate
 from app.services.notification_delivery import (
     TelegramAlertQueue,
     notification_delivery,
@@ -57,7 +57,7 @@ from tests.integration.helpers.notifications import (
 from tests.integration.helpers.services import (
     notification_service,
     operation_task_service,
-    unit_node_service,
+    unit_io_service,
 )
 from tests.integration.helpers.tasks import drop_task
 from tests.integration.helpers.wait import wait_until
@@ -391,11 +391,11 @@ async def test_data_pipe_alert_live(
     running_units, recipient_service, regular_user_token, database, cc
 ) -> None:
     """Unit emulator -> MQTT -> data pipe -> notifications table -> backend job"""
-    service = unit_node_service(database, cc, regular_user_token)
+    service = unit_io_service(database, cc, regular_user_token)
     _, nodes = service.list(
-        UnitNodeFilter.unlimited(
+        UnitIOFilter.unlimited(
             unit_uuid=running_units.chain_sink_unit.uuid,
-            type=[UnitNodeTypeEnum.OUTPUT],
+            type=[UnitIOTypeEnum.OUTPUT],
         )
     )
     node = nodes[0]
@@ -403,7 +403,7 @@ async def test_data_pipe_alert_live(
     created = []
     try:
         await service.update(
-            node.uuid, UnitNodeUpdate(is_data_pipe_active=True)
+            node.uuid, UnitIOUpdate(is_data_pipe_active=True)
         )
         await service.set_data_pipe_config(
             node.uuid, (await create_upload_file_from_path(LIVE_ALERT_YAML))
@@ -418,7 +418,7 @@ async def test_data_pipe_alert_live(
             created[:] = [
                 item
                 for item in notifications
-                if item.data["unit_node_uuid"] == str(node.uuid)
+                if item.data["unit_io_uuid"] == str(node.uuid)
                 and _aware(item.create_datetime) >= started
             ]
             return bool(created)
@@ -445,7 +445,7 @@ async def test_data_pipe_alert_live(
         assert alert.big_text is None
     finally:
         await service.update(
-            node.uuid, UnitNodeUpdate(is_data_pipe_active=False)
+            node.uuid, UnitIOUpdate(is_data_pipe_active=False)
         )
         recipient_service.update_settings(
             NotificationSettingsUpdate(is_data_pipe_alert_enable=False)
@@ -460,7 +460,7 @@ async def test_data_pipe_alert_live(
             [
                 item
                 for item in leftovers
-                if item.data["unit_node_uuid"] == str(node.uuid)
+                if item.data["unit_io_uuid"] == str(node.uuid)
             ],
         )
 

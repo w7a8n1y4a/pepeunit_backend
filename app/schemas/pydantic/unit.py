@@ -10,11 +10,11 @@ from app.dto.enum import (
     OrderByDate,
     OrderByText,
     UnitFirmwareUpdateStatus,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
     VisibilityLevel,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
-from app.schemas.pydantic.shared import UnitNodeRead
+from app.schemas.pydantic.shared import UnitIORead
 
 
 class UnitStateRead(BaseModel):
@@ -72,7 +72,7 @@ class UnitRead(BaseModel):
     last_firmware_update_datetime: datetime | None = None
 
     # only if requested
-    unit_nodes: list[UnitNodeRead] = []
+    unit_ios: list[UnitIORead] = []
 
 
 class UnitsResult(BaseModel):
@@ -140,14 +140,14 @@ class UnitFilter(BasePaginationRestMixin):
     order_by_create_date: OrderByDate | None = OrderByDate.desc
     order_by_last_update: OrderByDate | None = OrderByDate.desc
 
-    # Only with is_include_output_unit_nodes = True
-    unit_node_input_uuid: uuid_pkg.UUID | None = None
-    # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_type: list[str] | None = Query(
-        [item.value for item in UnitNodeTypeEnum]
+    # Only with is_include_output_unit_ios = True
+    unit_io_input_uuid: uuid_pkg.UUID | None = None
+    # Only with is_include_output_unit_ios = True and unit_io_input_uuid == None
+    unit_io_type: list[str] | None = Query(
+        [item.value for item in UnitIOTypeEnum]
     )
-    # Only with is_include_output_unit_nodes = True and unit_node_input_uuid == None
-    unit_node_uuids: list[uuid_pkg.UUID] | None = Query([])
+    # Only with is_include_output_unit_ios = True and unit_io_input_uuid == None
+    unit_io_uuids: list[uuid_pkg.UUID] | None = Query([])
 
     def dict(self):
         return self.__dict__

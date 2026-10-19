@@ -90,7 +90,7 @@ const (
 	DataPipeStatusError    DataPipeStatus = "Error"
 )
 
-type UnitNode struct {
+type UnitIO struct {
 	UUID               uuid.UUID `db:"uuid"`
 	Type               string    `db:"type"`
 	VisibilityLevel    string    `db:"visibility_level"`
@@ -108,46 +108,46 @@ type UnitNode struct {
 	UnitName           string    `db:"unit_name"`
 }
 
-// GetActiveUnitNodes returns all active unit nodes
-func (db *PostgresDB) GetActiveUnitNodes(ctx context.Context) ([]*UnitNode, error) {
+// GetActiveUnitIOs returns all active unit IO
+func (db *PostgresDB) GetActiveUnitIOs(ctx context.Context) ([]*UnitIO, error) {
 	query := `
 		SELECT n.uuid, n.type, n.visibility_level, n.is_rewritable_input, n.topic_name,
 			n.create_datetime, n.state, n.last_update_datetime, n.is_data_pipe_active,
 			n.data_pipe_yml, n.data_pipe_status, n.data_pipe_error, n.creator_uuid,
 			n.unit_uuid, u.name
-		FROM units_nodes n
+		FROM units_io n
 		JOIN units u ON u.uuid = n.unit_uuid
 		WHERE n.is_data_pipe_active = true`
 
 	rows, err := db.Query(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query active unit nodes: %w", err)
+		return nil, fmt.Errorf("failed to query active unit IO: %w", err)
 	}
 	defer rows.Close()
 
-	var nodes []*UnitNode
+	var nodes []*UnitIO
 	for rows.Next() {
-		node := &UnitNode{}
+		node := &UnitIO{}
 		if err := rows.Scan(
 			&node.UUID, &node.Type, &node.VisibilityLevel, &node.IsRewritableInput,
 			&node.TopicName, &node.CreateDatetime, &node.State, &node.LastUpdateDatetime,
 			&node.IsDataPipeActive, &node.DataPipeYML, &node.DataPipeStatus,
 			&node.DataPipeError, &node.CreatorUUID, &node.UnitUUID, &node.UnitName,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan unit node: %w", err)
+			return nil, fmt.Errorf("failed to scan unit IO: %w", err)
 		}
 		nodes = append(nodes, node)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating unit nodes: %w", err)
+		return nil, fmt.Errorf("error iterating unit IO: %w", err)
 	}
 
 	return nodes, nil
 }
 
-// BulkUpdateUnitNodeStates updates multiple unit node states in a single query
-func (db *PostgresDB) BulkUpdateUnitNodeStates(ctx context.Context, updates map[uuid.UUID]struct {
+// BulkUpdateUnitIOStates updates multiple unit IO states in a single query
+func (db *PostgresDB) BulkUpdateUnitIOStates(ctx context.Context, updates map[uuid.UUID]struct {
 	State      string
 	UpdateTime time.Time
 }) error {
@@ -156,7 +156,7 @@ func (db *PostgresDB) BulkUpdateUnitNodeStates(ctx context.Context, updates map[
 	}
 
 	query := `
-		UPDATE units_nodes AS t SET
+		UPDATE units_io AS t SET
 			state = c.state,
 			last_update_datetime = c.last_update_datetime::timestamp
 		FROM (VALUES 
@@ -182,7 +182,7 @@ func (db *PostgresDB) BulkUpdateUnitNodeStates(ctx context.Context, updates map[
 
 	_, err := db.pool.Exec(ctx, query, values...)
 	if err != nil {
-		return fmt.Errorf("failed to bulk update unit node states: %w", err)
+		return fmt.Errorf("failed to bulk update unit IO states: %w", err)
 	}
 
 	return nil

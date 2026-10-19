@@ -149,10 +149,10 @@ func (b *TimeWindowBuffer) Flush(ctx context.Context) error {
 
 	// Convert updates to WindowEntry slice
 	entries := make([]database.WindowEntry, 0, totalEntries)
-	for nodeUUID, nodeEntries := range updatesCopy {
+	for ioUUID, nodeEntries := range updatesCopy {
 		for _, entry := range nodeEntries {
 			entries = append(entries, database.WindowEntry{
-				UnitNodeUUID:       nodeUUID, // Use the node UUID
+				UnitIOUUID:         ioUUID, // Use the node UUID
 				State:              entry.State,
 				StateType:          string(entry.TypeInputValue), // Use TypeInputValue from config
 				CreateDateTime:     entry.UpdateTime,

@@ -97,8 +97,8 @@ func (b *LastValueBuffer) Flush(ctx context.Context) error {
 
 	logging.Infof("Send values for %v nodes to Postgres", len(b.updates))
 
-	if err := b.db.BulkUpdateUnitNodeStates(ctx, b.updates); err != nil {
-		return fmt.Errorf("failed to bulk update unit node states: %w", err)
+	if err := b.db.BulkUpdateUnitIOStates(ctx, b.updates); err != nil {
+		return fmt.Errorf("failed to bulk update unit IO states: %w", err)
 	}
 
 	// Clear the buffer after successful flush

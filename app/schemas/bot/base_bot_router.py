@@ -13,7 +13,7 @@ from app.dto.enum import (
     LogLevel,
     NotificationType,
     RepositoryRegistryType,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
     VisibilityLevel,
 )
 
@@ -42,7 +42,7 @@ class UnitStates(StatesGroup):
     waiting_for_search = State()
 
 
-class UnitNodeStates(StatesGroup):
+class UnitIOStates(StatesGroup):
     waiting_for_search = State()
 
 
@@ -51,7 +51,7 @@ class BaseBotFilters(BaseModel):
     visibility_levels: list[str] = Query(
         [item.value for item in VisibilityLevel]
     )
-    unit_types: list[str] = Query([item.value for item in UnitNodeTypeEnum])
+    unit_types: list[str] = Query([item.value for item in UnitIOTypeEnum])
     log_levels: list[str] = Query([item.value for item in LogLevel])
     repository_types: list[str] = Query(
         [item.value for item in RepositoryRegistryType]
@@ -161,7 +161,7 @@ class BaseBotRouter(ABC):
             RepositoryRegistryStates,
             RepoStates,
             UnitStates,
-            UnitNodeStates,
+            UnitIOStates,
             DashboardStates,
         ):
             self.router.message(self.states_group.waiting_for_search)(
@@ -201,7 +201,7 @@ class BaseBotRouter(ABC):
             RepositoryRegistryStates,
             RepoStates,
             UnitStates,
-            UnitNodeStates,
+            UnitIOStates,
             DashboardStates,
         ):
             await callback.message.edit_text(
@@ -231,7 +231,7 @@ class BaseBotRouter(ABC):
             item.value for item in VisibilityLevel
         ]:
             self._toggle_filter_value(filters.visibility_levels, target)
-        elif target in [item.value for item in UnitNodeTypeEnum]:
+        elif target in [item.value for item in UnitIOTypeEnum]:
             self._toggle_filter_value(filters.unit_types, target)
         elif target in [item.value for item in LogLevel]:
             self._toggle_filter_value(filters.log_levels, target)
@@ -257,7 +257,7 @@ class BaseBotRouter(ABC):
             if data.get("current_filters")
             else BaseBotFilters()
         )
-        if self.entity_name == EntityNames.UNIT_NODE.value:
+        if self.entity_name == EntityNames.UNIT_IO.value:
             filters = BaseBotFilters(
                 search_string=message.text,
                 unit_uuid=current_filters.unit_uuid,

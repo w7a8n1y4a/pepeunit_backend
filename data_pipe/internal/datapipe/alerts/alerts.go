@@ -120,17 +120,17 @@ type Target struct {
 
 // Build is one unprocessed notifications row. Data is the raw JSON payload,
 // typed later by the backend. Only the violated rules are present.
-func Build(nodeUUID string, target Target, value string, config *types.AlertsConfig, violation Violation) (database.Notification, error) {
+func Build(ioUUID string, target Target, value string, config *types.AlertsConfig, violation Violation) (database.Notification, error) {
 	userUUID, err := uuid.Parse(target.CreatorUUID)
 	if err != nil {
 		return database.Notification{}, fmt.Errorf("alert user uuid: %w", err)
 	}
 	data := map[string]interface{}{
-		"unit_node_uuid": nodeUUID,
-		"unit_uuid":      target.UnitUUID,
-		"unit_name":      target.UnitName,
-		"topic_name":     target.TopicName,
-		"value":          value,
+		"unit_io_uuid": ioUUID,
+		"unit_uuid":    target.UnitUUID,
+		"unit_name":    target.UnitName,
+		"topic_name":   target.TopicName,
+		"value":        value,
 	}
 	if violation.Filtering && config.TypeValueFiltering != nil {
 		data["type_value_filtering"] = string(*config.TypeValueFiltering)

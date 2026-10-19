@@ -53,7 +53,7 @@ class AgentType(str, enum.Enum):
     UNIT = "Unit"
     BACKEND = "Backend"
     GRAFANA = "Grafana"
-    GRAFANA_UNIT_NODE = "GrafanaUnitNode"
+    GRAFANA_UNIT_IO = "GrafanaUnitIO"
 
 
 class IconEntityType(str, enum.Enum):
@@ -87,9 +87,9 @@ class OwnershipType(str, enum.Enum):
     UNIT_TO_INPUT_NODE = "UnitToInputNode"
 
 
-class UnitNodeTypeEnum(str, enum.Enum):
+class UnitIOTypeEnum(str, enum.Enum):
     """
-    UnitNode types for database
+    UnitIO types for database
     """
 
     OUTPUT = "Output"
@@ -233,7 +233,7 @@ class EntityNames(str, enum.Enum):
     REGISTRY = "Registry"
     REPO = "Repo"
     UNIT = "Unit"
-    UNIT_NODE = "UnitNode"
+    UNIT_IO = "UnitIO"
     UNIT_LOG = "UnitLog"
     DASHBOARD = "Dashboard"
     INSTANCE = "Instance"
@@ -267,7 +267,7 @@ class PermissionEntities(str, enum.Enum):
     USER = "User"
     UNIT = "Unit"
     REPO = "Repo"
-    UNIT_NODE = "UnitNode"
+    UNIT_IO = "UnitIO"
 
 
 class GitPlatform(str, enum.Enum):

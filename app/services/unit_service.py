@@ -16,8 +16,8 @@ from app import runtime, settings
 from app.configs.errors import MqttError, NoAccessError, UnitError
 from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.domain.unit_node_model import UnitNode
 from app.domain.user_model import User
 from app.dto.agent.abc import AgentBackend, AgentUnit
 from app.dto.clickhouse.log import UnitLog
@@ -31,7 +31,7 @@ from app.dto.enum import (
     PermissionEntities,
     ReservedEnvVariableName,
     StaticRepoFileName,
-    UnitNodeTypeEnum,
+    UnitIOTypeEnum,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.icon_repository import IconRepository
@@ -39,12 +39,12 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
+from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_log_repository import UnitLogRepository
-from app.repositories.unit_node_repository import UnitNodeRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_topic_split
 from app.schemas.pydantic.repo import TargetVersionRead
-from app.schemas.pydantic.shared import UnitNodeRead
+from app.schemas.pydantic.shared import UnitIORead
 from app.schemas.pydantic.unit import (
     UnitCreate,
     UnitFilter,
@@ -52,11 +52,11 @@ from app.schemas.pydantic.unit import (
     UnitRead,
     UnitUpdate,
 )
-from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.schemas.pydantic.unit_io import UnitIOFilter
 from app.services.access_service import AccessService
 from app.services.icon_image import IconImage
 from app.services.permission_service import PermissionService
-from app.services.unit_node_service import UnitNodeService
+from app.services.unit_io_service import UnitIOService
 from app.services.utils import (
     get_topic_name,
     merge_two_dict_first_priority,
@@ -79,22 +79,22 @@ class UnitService:
         icon_repository: IconRepository = Depends(),
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
-        unit_node_repository: UnitNodeRepository = Depends(),
+        unit_io_repository: UnitIORepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         access_service: AccessService = Depends(),
         permission_service: PermissionService = Depends(),
-        unit_node_service: UnitNodeService = Depends(),
+        unit_io_service: UnitIOService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
         self.icon_repository = icon_repository
         self.repository_registry_repository = repository_registry_repository
         self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
-        self.unit_node_repository = unit_node_repository
+        self.unit_io_repository = unit_io_repository
         self.unit_log_repository = unit_log_repository
         self.access_service = access_service
         self.permission_service = permission_service
-        self.unit_node_service = unit_node_service
+        self.unit_io_service = unit_io_service
 
     def create(self, data: UnitCreate) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
@@ -160,7 +160,7 @@ class UnitService:
         )
         self.permission_service.create_by_domains(unit, unit)
 
-        self.unit_node_service.bulk_create(schema_dict, unit, False)
+        self.unit_io_service.bulk_create(schema_dict, unit, False)
 
         return unit_deepcopy
 
@@ -207,13 +207,13 @@ class UnitService:
 
         unit_update.last_update_datetime = datetime.datetime.now(datetime.UTC)
         result_unit = self.unit_repository.update(uuid, unit_update)
-        self.unit_node_service.bulk_set_visibility_level(result_unit)
+        self.unit_io_service.bulk_set_visibility_level(result_unit)
 
-        result_unit = self.sync_state_unit_nodes_for_version(
+        result_unit = self.sync_state_unit_ios_for_version(
             repo, result_unit, repository_registry
         )
         with contextlib.suppress(MqttError):
-            self.unit_node_service.command_to_input_base_topic(
+            self.unit_io_service.command_to_input_base_topic(
                 uuid=result_unit.uuid,
                 command=BackendTopicCommand.UPDATE,
                 is_auto_update=True,
@@ -221,7 +221,7 @@ class UnitService:
 
         return result_unit
 
-    def sync_state_unit_nodes_for_version(
+    def sync_state_unit_ios_for_version(
         self,
         repo: Repo,
         unit: Unit,
@@ -267,27 +267,27 @@ class UnitService:
 
             unit = self.unit_repository.update(unit.uuid, unit)
 
-        count, all_exist_unit_nodes = self.unit_node_repository.list(
-            UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
+        count, all_exist_unit_ios = self.unit_io_repository.list(
+            UnitIOFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         input_node_dict = {
-            unit_node.topic_name: unit_node.uuid
-            for unit_node in all_exist_unit_nodes
-            if unit_node.type == UnitNodeTypeEnum.INPUT
+            unit_io.topic_name: unit_io.uuid
+            for unit_io in all_exist_unit_ios
+            if unit_io.type == UnitIOTypeEnum.INPUT
         }
 
         output_node_dict = {
-            unit_node.topic_name: unit_node.uuid
-            for unit_node in all_exist_unit_nodes
-            if unit_node.type == UnitNodeTypeEnum.OUTPUT
+            unit_io.topic_name: unit_io.uuid
+            for unit_io in all_exist_unit_ios
+            if unit_io.type == UnitIOTypeEnum.OUTPUT
         }
 
         schema_dict = self.git_repo_repository.get_schema_dict(
             repository_registry, target_version
         )
 
-        self.unit_node_service.bulk_update(
+        self.unit_io_service.bulk_update(
             schema_dict, unit, input_node_dict, output_node_dict
         )
 
@@ -602,23 +602,23 @@ class UnitService:
                     raise NoAccessError(msg)
 
             elif len_struct in [2, 3]:
-                backend_domain, unit_node_uuid, *_ = struct_topic
+                backend_domain, unit_io_uuid, *_ = struct_topic
 
                 if (
-                    unit_node_uuid == "+"
+                    unit_io_uuid == "+"
                     and self.access_service.current_agent.type
                     == AgentType.BACKEND
                 ):
                     return
 
-                unit_node_uuid = is_valid_uuid(unit_node_uuid)
+                unit_io_uuid = is_valid_uuid(unit_io_uuid)
 
-                unit_node = self.unit_node_repository.get(
-                    UnitNode(uuid=unit_node_uuid)
+                unit_io = self.unit_io_repository.get(
+                    UnitIO(uuid=unit_io_uuid)
                 )
-                is_valid_object(unit_node)
+                is_valid_object(unit_io)
 
-                self.access_service.authorization.check_visibility(unit_node)
+                self.access_service.authorization.check_visibility(unit_io)
             else:
                 msg = f"Topic struct is invalid, len {len_struct}, available - [2, 3]"
                 raise MqttError(msg)
@@ -636,26 +636,26 @@ class UnitService:
             unit, [OwnershipType.CREATOR]
         )
 
-        count, unit_nodes = self.unit_node_repository.list(
-            UnitNodeFilter.unlimited(unit_uuid=unit.uuid)
+        count, unit_ios = self.unit_io_repository.list(
+            UnitIOFilter.unlimited(unit_uuid=unit.uuid)
         )
 
         # orm feature =_=
         unit_deep = copy.deepcopy(unit)
-        unit_nodes_deep = copy.deepcopy(unit_nodes)
+        unit_ios_deep = copy.deepcopy(unit_ios)
 
         self.unit_repository.delete(unit)
 
         # clickhouse data clear
-        self.unit_node_service.data_pipe_repository.bulk_delete(
-            [unit_node.uuid for unit_node in unit_nodes_deep]
+        self.unit_io_service.data_pipe_repository.bulk_delete(
+            [unit_io.uuid for unit_io in unit_ios_deep]
         )
         self.unit_log_repository.delete(unit_deep.uuid)
 
     def list(
         self,
         filters: UnitFilter,
-        is_include_output_unit_nodes: bool = False,
+        is_include_output_unit_ios: bool = False,
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER, AgentType.UNIT]
@@ -672,7 +672,7 @@ class UnitService:
         return self.unit_repository.list(
             filters,
             restriction=restriction,
-            is_include_output_unit_nodes=is_include_output_unit_nodes,
+            is_include_output_unit_ios=is_include_output_unit_ios,
         )
 
     def log_list(
@@ -723,23 +723,23 @@ class UnitService:
         repository_registry: RepositoryRegistry,
         target_version: str,
     ) -> dict:
-        nodes_with_edges = self.unit_node_repository.get_nodes_with_edges(
+        nodes_with_edges = self.unit_io_repository.get_nodes_with_edges(
             unit.uuid
         )
 
         output_dict = {}
         input_dict = {}
-        for node_uuid, topic_name, topic_type, edges in nodes_with_edges:
+        for io_uuid, topic_name, topic_type, edges in nodes_with_edges:
             edge_topic_list = []
             if edges is not None:
-                for output_node_uuid, output_topic_name in edges:
+                for output_uuid, output_topic_name in edges:
                     edge_topic_list.append(
-                        get_topic_name(output_node_uuid, output_topic_name)
+                        get_topic_name(output_uuid, output_topic_name)
                     )
 
-            topics = [get_topic_name(node_uuid, topic_name)] + edge_topic_list
+            topics = [get_topic_name(io_uuid, topic_name)] + edge_topic_list
 
-            if topic_type == UnitNodeTypeEnum.INPUT:
+            if topic_type == UnitIOTypeEnum.INPUT:
                 input_dict[topic_name] = topics
             else:
                 output_dict[topic_name] = topics
@@ -892,7 +892,7 @@ class UnitService:
     ) -> UnitRead:
         return UnitRead(
             **unit[0].to_dict(),
-            unit_nodes=[UnitNodeRead(**item) for item in unit[1]],
+            unit_ios=[UnitIORead(**item) for item in unit[1]],
         )
 
     @staticmethod

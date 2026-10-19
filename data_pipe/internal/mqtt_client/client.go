@@ -411,7 +411,7 @@ func (c *MQTTClient) GetSubscriptionCount() int {
 }
 
 func (c *MQTTClient) GetActiveTopics(ctx context.Context) ([]string, error) {
-	nodes, err := c.postgresDB.GetActiveUnitNodes(ctx)
+	nodes, err := c.postgresDB.GetActiveUnitIOs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active nodes: %w", err)
 	}

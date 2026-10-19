@@ -3,15 +3,15 @@ import uuid as uuid_pkg
 import pytest
 
 from app.configs.errors import CustomPermissionError, NoAccessError, ValidationError
-from app.dto.enum import PermissionEntities, UnitNodeTypeEnum, VisibilityLevel
+from app.dto.enum import PermissionEntities, UnitIOTypeEnum, VisibilityLevel
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.unit import UnitFilter
-from app.schemas.pydantic.unit_node import UnitNodeFilter
+from app.schemas.pydantic.unit_io import UnitIOFilter
 from tests.integration.helpers.services import (
     permission_service,
     repo_service,
-    unit_node_service,
+    unit_io_service,
     unit_service,
 )
 
@@ -56,7 +56,7 @@ def test_create_permission_invalid_resource(
                 agent_uuid=admin_user.uuid,
                 agent_type=PermissionEntities.USER,
                 resource_uuid=crud_unit.uuid,
-                resource_type=PermissionEntities.UNIT_NODE,
+                resource_type=PermissionEntities.UNIT_IO,
             )
         )
 
@@ -218,8 +218,8 @@ def test_cannot_delete_unit_parent_repo_permission(
 def test_cannot_delete_unit_child_node_permission(
     compile_unit, regular_user_token, database, cc
 ) -> None:
-    _, nodes = unit_node_service(database, cc, regular_user_token).list(
-        UnitNodeFilter(unit_uuid=compile_unit.uuid, type=[UnitNodeTypeEnum.INPUT])
+    _, nodes = unit_io_service(database, cc, regular_user_token).list(
+        UnitIOFilter(unit_uuid=compile_unit.uuid, type=[UnitIOTypeEnum.INPUT])
     )
     with pytest.raises(CustomPermissionError):
         permission_service(database, regular_user_token).delete(

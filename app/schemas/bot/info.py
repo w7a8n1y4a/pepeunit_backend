@@ -22,8 +22,8 @@ async def info_resolver(message: types.Message):
             "RepositoryRegistry": metrics.repository_registry_count,
             "Repo": metrics.repo_count,
             "Unit": metrics.unit_count,
-            "UnitNode": metrics.unit_node_count,
-            "UnitNodeEdge": metrics.unit_node_edge_count,
+            "UnitIO": metrics.unit_io_count,
+            "UnitIOEdge": metrics.unit_io_edge_count,
         }
 
         for k, v in metrics_dict.items():

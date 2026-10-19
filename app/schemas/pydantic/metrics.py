@@ -6,5 +6,5 @@ class BaseMetricsRead(BaseModel):
     repository_registry_count: int
     repo_count: int
     unit_count: int
-    unit_node_count: int
-    unit_node_edge_count: int
+    unit_io_count: int
+    unit_io_edge_count: int

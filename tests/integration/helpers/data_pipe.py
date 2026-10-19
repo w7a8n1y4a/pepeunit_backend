@@ -9,7 +9,7 @@ from io import StringIO
 from fastapi import UploadFile
 
 from app.dto.enum import ProcessingPolicyType
-from app.schemas.pydantic.unit_node import DataPipeFilter
+from app.schemas.pydantic.unit_io import DataPipeFilter
 from app.validators.data_pipe import is_valid_data_pipe_config
 
 CSV_DIR = "tmp/csv"
@@ -87,7 +87,7 @@ def save_pipe_csv(policy: ProcessingPolicyType) -> str:
 
 
 async def upload_pipe_csv(
-    service, unit_node_uuid, policy: ProcessingPolicyType
+    service, unit_io_uuid, policy: ProcessingPolicyType
 ) -> None:
     """Fills a node through the user CSV import, unlike the live MQTT flow it
     writes to ClickHouse synchronously
@@ -96,7 +96,7 @@ async def upload_pipe_csv(
     try:
         with open(file_path, "rb") as handle:
             await service.set_data_pipe_data_csv(
-                uuid=unit_node_uuid,
+                uuid=unit_io_uuid,
                 data_csv=UploadFile(
                     filename=os.path.basename(file_path), file=handle
                 ),
@@ -105,30 +105,30 @@ async def upload_pipe_csv(
         os.remove(file_path)
 
 
-async def seed_pipe_node(service, unit_node, *, force: bool = True) -> None:
+async def seed_pipe_node(service, unit_io, *, force: bool = True) -> None:
     """Fill a node the same way grafana tests do: CSV for ClickHouse policies,
     set_state for LastValue. force=False skips nodes that already have data.
     """
-    if not unit_node.data_pipe_yml:
+    if not unit_io.data_pipe_yml:
         return
 
     data_pipe_entity = is_valid_data_pipe_config(
-        json.loads(unit_node.data_pipe_yml), is_business_validator=True
+        json.loads(unit_io.data_pipe_yml), is_business_validator=True
     )
     policy = data_pipe_entity.processing_policy.policy_type
 
     if policy == ProcessingPolicyType.LAST_VALUE:
-        if force or unit_node.state is None:
+        if force or unit_io.state is None:
             service.set_state(
-                unit_node_uuid=unit_node.uuid, state=LAST_VALUE_STATE
+                unit_io_uuid=unit_io.uuid, state=LAST_VALUE_STATE
             )
         return
 
     if not force:
         count, _ = service.get_data_pipe_data(
-            DataPipeFilter(uuid=unit_node.uuid, type=policy)
+            DataPipeFilter(uuid=unit_io.uuid, type=policy)
         )
         if count > 0:
             return
 
-    await upload_pipe_csv(service, unit_node.uuid, policy)
+    await upload_pipe_csv(service, unit_io.uuid, policy)
