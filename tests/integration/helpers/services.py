@@ -12,6 +12,7 @@ from app.configs.rest import (
     get_permission_service,
     get_repo_service,
     get_repository_registry_service,
+    get_unit_group_service,
     get_unit_node_service,
     get_unit_service,
     get_user_service,
@@ -39,6 +40,10 @@ def repo_service(database, cc, token=None):
 
 def unit_service(database, cc, token=None):
     return get_unit_service(database, cc, token)
+
+
+def unit_group_service(database, token=None):
+    return get_unit_group_service(database, token)
 
 
 def unit_node_service(database, cc, token=None):

@@ -1,3 +1,5 @@
+import uuid as uuid_pkg
+
 from fastapi import Depends
 from fastapi.params import Query
 from sqlalchemy import func, text
@@ -6,6 +8,7 @@ from sqlmodel import Session, select
 
 from app.configs.db import get_session
 from app.configs.errors import UnitError
+from app.domain.unit_group_unit_model import UnitGroupUnit
 from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
@@ -19,6 +22,7 @@ from app.repositories.utils import (
     apply_restriction,
 )
 from app.schemas.pydantic.unit import UnitFilter
+from app.schemas.pydantic.unit_group import UnitGroupMemberFilter
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
 
@@ -166,6 +170,23 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
             if is_include_output_unit_nodes
             else [(item, []) for item in query.all()]
         )
+
+    def list_for_group(
+        self, group_uuid: uuid_pkg.UUID, filters: UnitGroupMemberFilter
+    ) -> tuple[int, list[Unit]]:
+        query = (
+            self.db.query(Unit)
+            .join(UnitGroupUnit, UnitGroupUnit.unit_uuid == Unit.uuid)
+            .filter(UnitGroupUnit.unit_group_uuid == group_uuid)
+        )
+
+        query = apply_ilike_search_string(query, filters, [Unit.name])
+
+        fields = {"order_by_unit_name": Unit.name}
+        query = apply_orders_by(query, filters, fields)
+
+        count, query = apply_offset_and_limit(query, filters)
+        return count, query.all()
 
     def is_valid_name(self, name: str):
         if not is_valid_string_with_rules(name):

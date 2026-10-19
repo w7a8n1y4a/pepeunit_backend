@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from app.configs.errors import NoAccessError, UserError
+from app.configs.errors import InstanceError, NoAccessError, UserError
 from app.domain.operation_task_model import OperationTask
 from app.domain.user_model import User
 from app.dto.enum import OperationTaskStatus, OperationTaskType, UserRole
@@ -71,6 +71,37 @@ def test_user_count_limit(database, cc, extra_user, extra_user_token) -> None:
             InstanceSettingsUpdate(pu_instance_user_max_count=current)
         )
         wait_runtime("pu_instance_user_max_count", current)
+        _restore_owner(database, repository, extra_user, previous)
+
+
+def test_group_limit_range(database, extra_user, extra_user_token) -> None:
+    repository, previous = _as_owner(database, extra_user)
+    service = instance_settings_service(database, extra_user_token)
+    current = service.get().pu_instance_user_max_group
+    try:
+        with pytest.raises(InstanceError):
+            service.update(InstanceSettingsUpdate(pu_instance_user_max_group=7))
+        with pytest.raises(InstanceError):
+            service.update(
+                InstanceSettingsUpdate(pu_instance_user_max_group=33)
+            )
+        assert (
+            service.update(
+                InstanceSettingsUpdate(pu_instance_user_max_group=8)
+            ).pu_instance_user_max_group
+            == 8
+        )
+        assert (
+            service.update(
+                InstanceSettingsUpdate(pu_instance_user_max_group=32)
+            ).pu_instance_user_max_group
+            == 32
+        )
+    finally:
+        service.update(
+            InstanceSettingsUpdate(pu_instance_user_max_group=current)
+        )
+        wait_runtime("pu_instance_user_max_group", current)
         _restore_owner(database, repository, extra_user, previous)
 
 

@@ -237,3 +237,13 @@ class LokiError(CustomException):
             message_template="Loki Error: {}",
             error_code=20,
         )
+
+
+class UnitGroupError(CustomException):
+    def __init__(self, message):
+        super().__init__(
+            message,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            message_template="Unit Group Validation Error: {}",
+            error_code=21,
+        )

@@ -5,6 +5,7 @@ from fastapi import Depends
 from app.configs.errors import NoAccessError, ValidationError
 from app.domain.icon_model import Icon
 from app.domain.instance_settings_model import InstanceSettings
+from app.domain.unit_group_model import UnitGroup
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
 from app.dto.enum import AgentType, IconEntityType, OwnershipType, UserRole
@@ -12,6 +13,7 @@ from app.repositories.icon_repository import IconRepository
 from app.repositories.instance_settings_repository import (
     InstanceSettingsRepository,
 )
+from app.repositories.unit_group_repository import UnitGroupRepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
@@ -25,12 +27,14 @@ class IconService:
         icon_repository: IconRepository = Depends(),
         user_repository: UserRepository = Depends(),
         unit_repository: UnitRepository = Depends(),
+        unit_group_repository: UnitGroupRepository = Depends(),
         instance_settings_repository: InstanceSettingsRepository = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
         self.icon_repository = icon_repository
         self.user_repository = user_repository
         self.unit_repository = unit_repository
+        self.unit_group_repository = unit_group_repository
         self.instance_settings_repository = instance_settings_repository
         self.access_service = access_service
 
@@ -55,6 +59,8 @@ class IconService:
                 return self._user(entity_uuid)
             case IconEntityType.UNIT:
                 return self._unit(entity_uuid)
+            case IconEntityType.UNIT_GROUP:
+                return self._unit_group(entity_uuid)
             case IconEntityType.INSTANCE:
                 return self._instance(entity_uuid)
             case _:
@@ -78,6 +84,15 @@ class IconService:
             unit, [OwnershipType.CREATOR]
         )
         return unit
+
+    def _unit_group(self, entity_uuid: uuid_pkg.UUID) -> UnitGroup:
+        self.access_service.authorization.check_access([AgentType.USER])
+        group = self.unit_group_repository.get(UnitGroup(uuid=entity_uuid))
+        is_valid_object(group)
+        self.access_service.authorization.check_ownership(
+            group, [OwnershipType.CREATOR]
+        )
+        return group
 
     def _instance(self, entity_uuid: uuid_pkg.UUID) -> InstanceSettings:
         self.access_service.authorization.check_access(

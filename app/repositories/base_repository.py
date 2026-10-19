@@ -11,10 +11,12 @@ from app.configs.errors import (
     GrafanaError,
     RepoError,
     UnitError,
+    UnitGroupError,
 )
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.repo_model import Repo
+from app.domain.unit_group_model import UnitGroup
 from app.domain.unit_model import Unit
 
 
@@ -65,6 +67,7 @@ class UniqueNameMixin[T: SQLModel]:
     model: type[T]
     _name_errors: dict[type[SQLModel], type[CustomException]] = {
         Unit: UnitError,
+        UnitGroup: UnitGroupError,
         Repo: RepoError,
         Dashboard: GrafanaError,
         DashboardPanel: GrafanaError,

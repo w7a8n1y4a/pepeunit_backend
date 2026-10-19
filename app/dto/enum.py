@@ -61,6 +61,7 @@ class IconEntityType(str, enum.Enum):
 
     USER = "User"
     UNIT = "Unit"
+    UNIT_GROUP = "UnitGroup"
     INSTANCE = "Instance"
 
 

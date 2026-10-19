@@ -33,6 +33,10 @@ from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
+from app.repositories.unit_group_repository import UnitGroupRepository
+from app.repositories.unit_group_unit_repository import (
+    UnitGroupUnitRepository,
+)
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_node_edge_repository import UnitNodeEdgeRepository
 from app.repositories.unit_node_repository import UnitNodeRepository
@@ -49,6 +53,7 @@ from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
 from app.services.repository_registry_service import RepositoryRegistryService
+from app.services.unit_group_service import UnitGroupService
 from app.services.unit_node_service import UnitNodeService
 from app.services.unit_service import UnitService
 from app.services.user_service import UserService
@@ -72,6 +77,8 @@ class ServiceFactory:
         self.user_repository = UserRepository(db)
         self.icon_repository = IconRepository(db)
         self.unit_repository = UnitRepository(db)
+        self.unit_group_repository = UnitGroupRepository(db)
+        self.unit_group_unit_repository = UnitGroupUnitRepository(db)
         self.permission_repository = PermissionRepository(db)
         self.repo_repository = RepoRepository(db)
         self.repository_registry_repository = RepositoryRegistryRepository(db)
@@ -133,7 +140,17 @@ class ServiceFactory:
             icon_repository=self.icon_repository,
             user_repository=self.user_repository,
             unit_repository=self.unit_repository,
+            unit_group_repository=self.unit_group_repository,
             instance_settings_repository=self.instance_settings_repository,
+            access_service=self.access_service,
+        )
+
+    def get_unit_group_service(self) -> UnitGroupService:
+        return UnitGroupService(
+            unit_group_repository=self.unit_group_repository,
+            unit_group_unit_repository=self.unit_group_unit_repository,
+            unit_repository=self.unit_repository,
+            icon_repository=self.icon_repository,
             access_service=self.access_service,
         )
 
@@ -319,6 +336,13 @@ def get_repo_service(
     jwt_token: str | None = Depends(token_depends),
 ) -> RepoService:
     return create_service_factory(db, client, jwt_token).get_repo_service()
+
+
+def get_unit_group_service(
+    db: Session = Depends(get_session),
+    jwt_token: str | None = Depends(token_depends),
+) -> UnitGroupService:
+    return create_service_factory(db, None, jwt_token).get_unit_group_service()
 
 
 def get_unit_service(

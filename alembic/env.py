@@ -26,6 +26,8 @@ MODEL_MODULES = (
     "permission_model",
     "repo_model",
     "repository_registry_model",
+    "unit_group_model",
+    "unit_group_unit_model",
     "unit_model",
     "unit_node_edge_model",
     "unit_node_model",
