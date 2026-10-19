@@ -1,7 +1,7 @@
 import uuid as uuid_pkg
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
@@ -12,6 +12,13 @@ class DashboardPanel(SQLModel, table=True):
     """
 
     __tablename__ = "dashboard_panels"
+    __table_args__ = (
+        UniqueConstraint(
+            "creator_uuid",
+            "title",
+            name="dashboard_panels_creator_title_key",
+        ),
+    )
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -22,7 +29,7 @@ class DashboardPanel(SQLModel, table=True):
 
     # type visualisation, Heatmap, Histogram, Stat
     type: str = Field(nullable=False)
-    # visualization name
+    # Unique for the creator
     title: str = Field(nullable=False)
 
     create_datetime: datetime = Field(nullable=False)

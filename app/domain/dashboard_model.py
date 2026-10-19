@@ -1,7 +1,7 @@
 import uuid as uuid_pkg
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
@@ -12,6 +12,13 @@ class Dashboard(SQLModel, table=True):
     """
 
     __tablename__ = "dashboards"
+    __table_args__ = (
+        UniqueConstraint(
+            "creator_uuid",
+            "name",
+            name="dashboards_creator_name_key",
+        ),
+    )
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -24,7 +31,7 @@ class Dashboard(SQLModel, table=True):
     grafana_uuid: uuid_pkg.UUID = Field(
         nullable=False, default_factory=uuid_pkg.uuid4
     )
-    # dashboard name, user set
+    # Unique for the creator
     name: str = Field(nullable=False)
 
     # url from grafana

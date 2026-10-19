@@ -71,18 +71,36 @@ def test_create_unit(live_units) -> None:
 
 
 def test_create_unit_duplicate_name(
-    live_units, universal_compile_repo, regular_user_token, database, cc
+    live_units, universal_public_repo, regular_user_token, database, cc
 ) -> None:
     service = unit_service(database, cc, regular_user_token)
-    with pytest.raises(UnitError):
+    with pytest.raises(UnitError, match="Name is not unique"):
         service.create(
             UnitCreate(
-                repo_uuid=universal_compile_repo.uuid,
-                visibility_level=universal_compile_repo.visibility_level,
-                name=live_units.universal_auto_unit.name,
+                repo_uuid=universal_public_repo.uuid,
+                visibility_level=universal_public_repo.visibility_level,
+                name=live_units.universal_manual_unit.name,
                 is_auto_update_from_repo_unit=True,
             )
         )
+
+
+def test_create_unit_same_name_other_user(
+    live_units, universal_public_repo, extra_user_token, database, cc
+) -> None:
+    service = unit_service(database, cc, extra_user_token)
+    unit = service.create(
+        UnitCreate(
+            repo_uuid=universal_public_repo.uuid,
+            visibility_level=universal_public_repo.visibility_level,
+            name=live_units.universal_manual_unit.name,
+            is_auto_update_from_repo_unit=True,
+        )
+    )
+    try:
+        assert unit.creator_uuid != live_units.universal_manual_unit.creator_uuid
+    finally:
+        service.delete(unit.uuid)
 
 
 def test_create_unit_without_default_branch(
@@ -128,7 +146,7 @@ def test_update_unit_name_exists(
     live_units, regular_user_token, database, cc
 ) -> None:
     service = unit_service(database, cc, regular_user_token)
-    with pytest.raises(UnitError):
+    with pytest.raises(UnitError, match="Name is not unique"):
         service.update(
             live_units.universal_auto_unit.uuid,
             UnitUpdate(name=live_units.universal_manual_unit.name),

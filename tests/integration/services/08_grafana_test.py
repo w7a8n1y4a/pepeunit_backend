@@ -38,8 +38,31 @@ def test_create_dashboard(grafana_dashboards, regular_user_token, database, cc) 
     assert second.uuid
 
     service = grafana_service(database, cc, regular_user_token)
-    with pytest.raises(GrafanaError):
+    with pytest.raises(GrafanaError, match="Name is not correct"):
         service.create_dashboard(DashboardCreate(name="x"))
+
+
+@pytest.mark.grafana
+def test_create_dashboard_duplicate_name(
+    grafana_dashboards, regular_user_token, database, cc
+) -> None:
+    service = grafana_service(database, cc, regular_user_token)
+    with pytest.raises(GrafanaError, match="Name is not unique"):
+        service.create_dashboard(DashboardCreate(name=grafana_dashboards[0].name))
+
+
+@pytest.mark.grafana
+def test_create_dashboard_same_name_other_user(
+    grafana_dashboards, extra_user_token, database, cc
+) -> None:
+    service = grafana_service(database, cc, extra_user_token)
+    dashboard = service.create_dashboard(
+        DashboardCreate(name=grafana_dashboards[0].name)
+    )
+    try:
+        assert dashboard.creator_uuid != grafana_dashboards[0].creator_uuid
+    finally:
+        service.delete_dashboard(dashboard.uuid)
 
 
 @pytest.mark.grafana
@@ -51,7 +74,7 @@ def test_create_dashboard_panel(
     assert delete_panel.uuid
 
     service = grafana_service(database, cc, regular_user_token)
-    with pytest.raises(GrafanaError):
+    with pytest.raises(GrafanaError, match="Title is not correct"):
         service.create_dashboard_panel(
             DashboardPanelCreate(
                 dashboard_uuid=grafana_dashboards[0].uuid,
@@ -59,6 +82,44 @@ def test_create_dashboard_panel(
                 type=DashboardPanelTypeEnum.PIE_CHART,
             )
         )
+
+
+@pytest.mark.grafana
+def test_create_dashboard_panel_duplicate_title(
+    grafana_panels, grafana_dashboards, regular_user_token, database, cc
+) -> None:
+    panels, _delete_panel = grafana_panels
+    service = grafana_service(database, cc, regular_user_token)
+    with pytest.raises(GrafanaError, match="Title is not unique"):
+        service.create_dashboard_panel(
+            DashboardPanelCreate(
+                dashboard_uuid=grafana_dashboards[1].uuid,
+                title=panels[0].title,
+                type=DashboardPanelTypeEnum.PIE_CHART,
+            )
+        )
+
+
+@pytest.mark.grafana
+def test_create_dashboard_panel_same_title_other_user(
+    grafana_panels, extra_user_token, database, cc
+) -> None:
+    panels, _delete_panel = grafana_panels
+    service = grafana_service(database, cc, extra_user_token)
+    dashboard = service.create_dashboard(
+        DashboardCreate(name=unique_name("gpnl"))
+    )
+    try:
+        panel = service.create_dashboard_panel(
+            DashboardPanelCreate(
+                dashboard_uuid=dashboard.uuid,
+                title=panels[0].title,
+                type=DashboardPanelTypeEnum.PIE_CHART,
+            )
+        )
+        assert panel.creator_uuid != panels[0].creator_uuid
+    finally:
+        service.delete_dashboard(dashboard.uuid)
 
 
 @pytest.mark.grafana

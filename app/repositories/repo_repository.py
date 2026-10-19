@@ -1,5 +1,3 @@
-import uuid as uuid_pkg
-
 from fastapi import Depends
 from fastapi.params import Query
 from sqlalchemy import desc, func
@@ -11,7 +9,7 @@ from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import VisibilityLevel
-from app.repositories.base_repository import BaseRepository
+from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.utils import (
     apply_enums,
@@ -33,7 +31,7 @@ from app.services.validators import (
 )
 
 
-class RepoRepository(BaseRepository):
+class RepoRepository(UniqueNameMixin, BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
         super().__init__(Repo, db)
         self.git_repo_repository = GitRepoRepository()
@@ -151,21 +149,9 @@ class RepoRepository(BaseRepository):
         count, query = apply_offset_and_limit(query, filters)
         return count, [repo for repo, _ in query.all()]
 
-    def is_valid_name(self, name: str, uuid: uuid_pkg.UUID | None = None):
+    def is_valid_name(self, name: str):
         if not is_valid_string_with_rules(name):
             msg = "Name is not correct"
-            raise RepoError(msg)
-
-        uuid = str(uuid)
-        repo_uuid = self.db.exec(
-            select(Repo.uuid).where(Repo.name == name)
-        ).first()
-        repo_uuid = str(repo_uuid) if repo_uuid else repo_uuid
-
-        if (uuid is None and repo_uuid) or (
-            uuid and repo_uuid != uuid and repo_uuid is not None
-        ):
-            msg = "Name is not unique"
             raise RepoError(msg)
 
     @staticmethod

@@ -2,7 +2,7 @@ import json
 import uuid as uuid_pkg
 from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
@@ -16,6 +16,13 @@ class Unit(SQLModel, table=True):
     """
 
     __tablename__ = "units"
+    __table_args__ = (
+        UniqueConstraint(
+            "creator_uuid",
+            "name",
+            name="units_creator_name_key",
+        ),
+    )
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -42,8 +49,8 @@ class Unit(SQLModel, table=True):
         nullable=False, default=VisibilityLevel.PUBLIC
     )
 
-    # Unique Unit name on Instance
-    name: str = Field(nullable=False, unique=True)
+    # Unique for the creator
+    name: str = Field(nullable=False)
     create_datetime: datetime = Field(nullable=False)
 
     # Automatically update when the parent Repo is updated?

@@ -11,7 +11,7 @@ from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_nodes_model import PanelsUnitNodes
 from app.domain.unit_model import Unit
 from app.domain.unit_node_model import UnitNode
-from app.repositories.base_repository import BaseRepository
+from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
     apply_ilike_search_string,
     apply_offset_and_limit,
@@ -25,7 +25,7 @@ from app.schemas.pydantic.grafana import (
 from app.schemas.pydantic.shared import UnitNodeRead
 
 
-class DashboardRepository(BaseRepository):
+class DashboardRepository(UniqueNameMixin, BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
         super().__init__(Dashboard, db)
 

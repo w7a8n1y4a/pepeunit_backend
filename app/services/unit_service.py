@@ -187,7 +187,7 @@ class UnitService:
                 remove_none_value_dict(data.dict()), unit.dict()
             )
         )
-        self.unit_repository.is_valid_name(unit_update.name, uuid)
+        self.unit_repository.is_valid_name(unit_update.name)
 
         repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         is_valid_visibility_level(repo, [unit_update])

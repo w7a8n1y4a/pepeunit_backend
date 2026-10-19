@@ -179,7 +179,7 @@ class RepoService:
         )
 
         if data.name:
-            self.repo_repository.is_valid_name(data.name, uuid)
+            self.repo_repository.is_valid_name(data.name)
 
         repository_registry = self.repository_registry_service.repository_registry_repository.get(
             RepositoryRegistry(uuid=repo.repository_registry_uuid)

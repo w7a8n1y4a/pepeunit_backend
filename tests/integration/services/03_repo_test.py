@@ -35,8 +35,23 @@ def test_create_repo_duplicate_name(
 ) -> None:
     service = repo_service(database, cc, regular_user_token)
     existing = service.get(live_repos.universal_public_repo.uuid)
-    with pytest.raises(RepoError):
+    with pytest.raises(RepoError, match="Name is not unique"):
         service.create(repo_create_payload(existing))
+
+
+def test_create_repo_same_name_other_user(
+    live_repos, regular_user_token, extra_user_token, database, cc
+) -> None:
+    existing = repo_service(database, cc, regular_user_token).get(
+        live_repos.universal_public_repo.uuid
+    )
+    service = repo_service(database, cc, extra_user_token)
+    repo = service.create(repo_create_payload(existing))
+    try:
+        assert repo.name == existing.name
+        assert repo.creator_uuid != existing.creator_uuid
+    finally:
+        service.delete(repo.uuid)
 
 
 @pytest.mark.private_repo
@@ -68,7 +83,7 @@ def test_update_repo_name_exists(
     live_repos, regular_user_token, database, cc
 ) -> None:
     service = repo_service(database, cc, regular_user_token)
-    with pytest.raises(RepoError):
+    with pytest.raises(RepoError, match="Name is not unique"):
         service.update(
             live_repos.universal_public_repo.uuid,
             RepoUpdate(name=live_repos.universal_internal_repo.name),

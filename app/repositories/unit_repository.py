@@ -1,5 +1,3 @@
-import uuid as uuid_pkg
-
 from fastapi import Depends
 from fastapi.params import Query
 from sqlalchemy import func, text
@@ -12,7 +10,7 @@ from app.domain.unit_model import Unit
 from app.domain.unit_node_edge_model import UnitNodeEdge
 from app.domain.unit_node_model import UnitNode
 from app.dto.enum import VisibilityLevel
-from app.repositories.base_repository import BaseRepository
+from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
     apply_enums,
     apply_ilike_search_string,
@@ -24,7 +22,7 @@ from app.schemas.pydantic.unit import UnitFilter
 from app.services.validators import is_valid_string_with_rules, is_valid_uuid
 
 
-class UnitRepository(BaseRepository):
+class UnitRepository(UniqueNameMixin, BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
         super().__init__(Unit, db)
 
@@ -169,21 +167,9 @@ class UnitRepository(BaseRepository):
             else [(item, []) for item in query.all()]
         )
 
-    def is_valid_name(self, name: str, uuid: uuid_pkg.UUID | None = None):
+    def is_valid_name(self, name: str):
         if not is_valid_string_with_rules(name):
             msg = "Name is not correct"
-            raise UnitError(msg)
-
-        uuid = str(uuid)
-        unit_uuid = self.db.exec(
-            select(Unit.uuid).where(Unit.name == name)
-        ).first()
-        unit_uuid = str(unit_uuid) if unit_uuid else unit_uuid
-
-        if (uuid is None and unit_uuid) or (
-            uuid and unit_uuid != uuid and unit_uuid is not None
-        ):
-            msg = "Name is not unique"
             raise UnitError(msg)
 
     def get_public_count(self) -> int:
