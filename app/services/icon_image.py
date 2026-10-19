@@ -1,24 +1,69 @@
 import hashlib
+import math
+from collections.abc import Callable
 from io import BytesIO
 from typing import NamedTuple
 
-from PIL import Image, ImageDraw, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageDraw, UnidentifiedImageError
 
 from app.configs.errors import ValidationError
 
 Rgb = tuple[int, int, int]
 _SIDE = 192
-_MASK = (1 << 64) - 1
-# Mondrian's structural black. Biome color never replaces it.
-_RULE = (22, 18, 20)
+_MASK64 = (1 << 64) - 1
+# Literals, not math.pi: every instance reduces angles the same way.
+_PI = 3.141592653589793
+_HALF_PI = 1.5707963267948966
+_TAU = 6.283185307179586
+_REACH = 0.66
+
+# Material 500, in color-wheel order. Field colors are neighbors on this
+# wheel; the sign is the color farthest from that group.
+_PALETTE: tuple[Rgb, ...] = (
+    (244, 67, 54),
+    (233, 30, 99),
+    (156, 39, 176),
+    (103, 58, 183),
+    (63, 81, 181),
+    (33, 150, 243),
+    (3, 169, 244),
+    (0, 188, 212),
+    (0, 150, 136),
+    (76, 175, 80),
+    (139, 195, 74),
+    (205, 220, 57),
+    (255, 235, 59),
+    (255, 193, 7),
+    (255, 152, 0),
+    (255, 87, 34),
+)
+
+_SEAL = 0
+_FRAME = 1
+_STAR = 2
+_KOCH = 3
+_GASKET = 4
+_RADIAL = 5
+_KINDS = 6
+
+_GRADS = (
+    (1.0, 1.0),
+    (-1.0, 1.0),
+    (1.0, -1.0),
+    (-1.0, -1.0),
+    (1.0, 0.0),
+    (-1.0, 0.0),
+    (0.0, 1.0),
+    (0.0, -1.0),
+)
 
 
 class IconImage:
     """192x192 PNG. The same seed always draws the same bytes.
 
-    Hard-edge painting: a Minecraft biome palette, one abstract
-    composition, and a single concrete thing (tree, cactus, mushroom,
-    sail, portal, sun, or block).
+    Background is Perlin noise at several scales, each in its own
+    Material color. A parametric fractal is painted on top as a seal,
+    a frame closing on the center, or another abstract sign.
     """
 
     SIDE = _SIDE
@@ -84,11 +129,11 @@ class IconImage:
     @classmethod
     def _render(cls, digest: bytes) -> bytes:
         ink = _Ink(digest)
-        biome = _Biome.ALL[ink.pick(len(_Biome.ALL))]
-        image = Image.new("RGB", (cls.SIDE, cls.SIDE), biome.sky)
-        _Picture.ALL[ink.pick(len(_Picture.ALL))](
-            ImageDraw.Draw(image), ink, biome
-        )
+        noise = _Noise(ink)
+        field = _build_field(ink)
+        image = Image.new("RGB", (cls.SIDE, cls.SIDE), field.base)
+        _paint_field(image, noise, field)
+        _paint_mark(image, ink, field.colors)
         buffer = BytesIO()
         image.save(buffer, format="PNG", compress_level=9)
         return buffer.getvalue()
@@ -100,1005 +145,981 @@ class _Ink:
     def __init__(self, digest: bytes) -> None:
         state = 0
         for byte in digest:
-            state = (state * 131 + byte) & _MASK
+            state = (state * 131 + byte) & _MASK64
         self._state = state or 1
 
-    def u8(self) -> int:
+    def _step(self) -> int:
         self._state = (
             self._state * 6364136223846793005 + 1442695040888963407
-        ) & _MASK
-        return (self._state >> 33) & 255
+        ) & _MASK64
+        return self._state
+
+    def u8(self) -> int:
+        return (self._step() >> 33) & 255
+
+    def below(self, limit: int) -> int:
+        if limit <= 1:
+            return 0
+        return (self._step() >> 17) % limit
 
     def span(self, low: int, high: int) -> int:
-        return low + self.u8() % (high - low + 1)
-
-    def pick(self, count: int) -> int:
-        return self.u8() % count
+        return low + self.below(high - low + 1)
 
     def bit(self) -> bool:
         return bool(self.u8() & 1)
 
 
-class _Biome(NamedTuple):
-    sky: Rgb
-    ground: Rgb
-    shade: Rgb
-    leaf: Rgb
-    accent: Rgb
-    light: Rgb
-    motifs: tuple[int, int, int]
+class _Noise:
+    """2D Perlin. Only + and *, so two hosts sample the same field."""
 
+    def __init__(self, ink: _Ink) -> None:
+        perm = list(range(256))
+        for index in range(255, 0, -1):
+            swap = ink.below(index + 1)
+            perm[index], perm[swap] = perm[swap], perm[index]
+        self._p = [*perm, *perm]
 
-# Motif index: oak spruce cactus mushroom flower blocks
-# acacia spike chorus mesa sail fall.
-_Biome.ALL = (
-    _Biome(
-        (126, 166, 246),
-        (132, 180, 78),
-        (102, 72, 46),
-        (58, 114, 46),
-        (204, 62, 58),
-        (255, 206, 84),
-        (0, 4, 5),
-    ),
-    _Biome(
-        (148, 188, 242),
-        (216, 198, 124),
-        (168, 146, 82),
-        (58, 104, 42),
-        (186, 96, 48),
-        (255, 220, 140),
-        (2, 2, 5),
-    ),
-    _Biome(
-        (110, 156, 230),
-        (98, 66, 42),
-        (52, 36, 24),
-        (40, 102, 38),
-        (184, 84, 60),
-        (190, 210, 146),
-        (0, 1, 4),
-    ),
-    _Biome(
-        (132, 170, 210),
-        (232, 238, 242),
-        (54, 40, 30),
-        (30, 62, 44),
-        (104, 140, 156),
-        (255, 255, 255),
-        (1, 7, 5),
-    ),
-    _Biome(
-        (164, 176, 158),
-        (58, 78, 60),
-        (36, 44, 34),
-        (92, 122, 50),
-        (70, 104, 46),
-        (210, 212, 190),
-        (0, 3, 4),
-    ),
-    _Biome(
-        (124, 176, 238),
-        (26, 96, 172),
-        (10, 42, 108),
-        (32, 136, 152),
-        (228, 108, 82),
-        (224, 236, 242),
-        (10, 5, 4),
-    ),
-    _Biome(
-        (92, 152, 224),
-        (16, 72, 28),
-        (8, 40, 18),
-        (46, 148, 50),
-        (180, 100, 40),
-        (168, 200, 60),
-        (0, 0, 4),
-    ),
-    _Biome(
-        (156, 194, 238),
-        (182, 164, 68),
-        (88, 56, 30),
-        (186, 108, 44),
-        (78, 102, 42),
-        (255, 214, 136),
-        (6, 2, 5),
-    ),
-    _Biome(
-        (120, 168, 216),
-        (168, 70, 50),
-        (88, 42, 36),
-        (200, 110, 58),
-        (212, 160, 84),
-        (228, 186, 146),
-        (9, 5, 7),
-    ),
-    _Biome(
-        (170, 160, 192),
-        (114, 102, 128),
-        (68, 58, 84),
-        (146, 106, 68),
-        (174, 42, 46),
-        (238, 230, 216),
-        (3, 3, 5),
-    ),
-    _Biome(
-        (32, 10, 12),
-        (148, 52, 44),
-        (54, 16, 16),
-        (255, 88, 22),
-        (255, 172, 44),
-        (255, 216, 140),
-        (11, 5, 11),
-    ),
-    _Biome(
-        (10, 8, 18),
-        (208, 202, 148),
-        (42, 36, 58),
-        (150, 96, 172),
-        (194, 148, 204),
-        (238, 234, 198),
-        (8, 5, 8),
-    ),
-    _Biome(
-        (248, 206, 218),
-        (120, 150, 78),
-        (84, 56, 60),
-        (234, 124, 164),
-        (255, 182, 200),
-        (255, 234, 238),
-        (0, 4, 4),
-    ),
-    _Biome(
-        (146, 186, 218),
-        (238, 246, 252),
-        (36, 86, 138),
-        (64, 156, 196),
-        (150, 214, 232),
-        (255, 255, 255),
-        (7, 7, 5),
-    ),
-    _Biome(
-        (12, 26, 20),
-        (62, 118, 52),
-        (22, 32, 26),
-        (78, 140, 58),
-        (210, 92, 134),
-        (238, 182, 56),
-        (4, 0, 5),
-    ),
-    _Biome(
-        (8, 10, 14),
-        (14, 78, 80),
-        (4, 28, 32),
-        (18, 120, 112),
-        (42, 176, 162),
-        (188, 198, 196),
-        (5, 7, 5),
-    ),
-)
-
-
-class _Pen:
-    """Integer marks and the colors that contrast with the field under them."""
-
-    @staticmethod
-    def dist(left: Rgb, right: Rgb) -> int:
-        return (
-            abs(left[0] - right[0])
-            + abs(left[1] - right[1])
-            + abs(left[2] - right[2])
+    def at(self, x: float, y: float) -> float:
+        x0 = math.floor(x)
+        y0 = math.floor(y)
+        xf = x - x0
+        yf = y - y0
+        xi = int(x0) & 255
+        yi = int(y0) & 255
+        u = _fade(xf)
+        v = _fade(yf)
+        p = self._p
+        aa = p[p[xi] + yi]
+        ab = p[p[xi] + yi + 1]
+        ba = p[p[xi + 1] + yi]
+        bb = p[p[xi + 1] + yi + 1]
+        top = _lerp(_grad(aa, xf, yf), _grad(ba, xf - 1.0, yf), u)
+        bot = _lerp(
+            _grad(ab, xf, yf - 1.0),
+            _grad(bb, xf - 1.0, yf - 1.0),
+            u,
         )
+        return _lerp(top, bot, v)
 
-    @staticmethod
-    def focal(
-        biome: _Biome, background: Rgb, count: int = 3
-    ) -> tuple[Rgb, ...]:
-        ranked = sorted(
-            (
-                biome.sky,
-                biome.ground,
-                biome.shade,
-                biome.leaf,
-                biome.accent,
-                biome.light,
+
+class _Octave(NamedTuple):
+    color: Rgb
+    freq: float
+    ox: float
+    oy: float
+    lo: float
+    hi: float
+    gain: float
+
+
+class _Field(NamedTuple):
+    base: Rgb
+    octaves: tuple[_Octave, ...]
+    colors: tuple[Rgb, ...]
+
+
+class _Place(NamedTuple):
+    cx: float
+    cy: float
+    radius: float
+    angle: float
+
+
+class _Form(NamedTuple):
+    kind: int
+    sides: int
+    count: int
+    band: float
+    gap: float
+    aspect: float
+    twist: float
+    ticks: int
+    tall: bool
+    points: int
+    inner: float
+    depth: int
+    bulge: float
+    arms: int
+    end_sides: int
+    hollow: bool
+
+
+def _fade(t: float) -> float:
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    return a + t * (b - a)
+
+
+def _grad(h: int, x: float, y: float) -> float:
+    gx, gy = _GRADS[h & 7]
+    return gx * x + gy * y
+
+
+def _sin(angle: float) -> float:
+    x = angle - math.floor(angle / _TAU + 0.5) * _TAU
+    if x > _HALF_PI:
+        x = _PI - x
+    elif x < -_HALF_PI:
+        x = -_PI - x
+    x2 = x * x
+    return x * (
+        1.0
+        + x2
+        * (
+            -1.0 / 6.0
+            + x2
+            * (
+                1.0 / 120.0
+                + x2
+                * (
+                    -1.0 / 5040.0
+                    + x2
+                    * (
+                        1.0 / 362880.0
+                        + x2 * (-1.0 / 39916800.0 + x2 * (1.0 / 6227020800.0))
+                    )
+                )
+            )
+        )
+    )
+
+
+def _cos(angle: float) -> float:
+    return _sin(angle + _HALF_PI)
+
+
+def _rint(value: float) -> int:
+    if value >= 0.0:
+        return math.floor(value + 0.5)
+    return -math.floor(-value + 0.5)
+
+
+def _byte(value: float) -> int:
+    rounded = _rint(value)
+    if rounded < 0:
+        return 0
+    if rounded > 255:
+        return 255
+    return rounded
+
+
+def _smooth(edge0: float, edge1: float, value: float) -> float:
+    span = edge1 - edge0
+    if span <= 0.0:
+        return 1.0 if value >= edge0 else 0.0
+    t = (value - edge0) / span
+    if t <= 0.0:
+        return 0.0
+    if t >= 1.0:
+        return 1.0
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _luma(color: Rgb) -> int:
+    return (color[0] * 3 + color[1] * 6 + color[2]) // 10
+
+
+def _apart(left: Rgb, right: Rgb) -> int:
+    return (
+        abs(left[0] - right[0])
+        + abs(left[1] - right[1])
+        + abs(left[2] - right[2])
+        + abs(_luma(left) - _luma(right))
+    )
+
+
+def _farthest(blocked: tuple[Rgb, ...]) -> Rgb:
+    best = _PALETTE[0]
+    score = -1
+    for color in _PALETTE:
+        dist = min(_apart(color, other) for other in blocked)
+        if dist > score:
+            best = color
+            score = dist
+    return best
+
+
+def _turns(ink: _Ink) -> float:
+    return ink.span(0, 359) * _TAU / 360.0
+
+
+def _build_field(ink: _Ink) -> _Field:
+    start = ink.below(len(_PALETTE))
+    step = 1 if ink.bit() else 2
+    colors = tuple(
+        _PALETTE[(start + index * step) % len(_PALETTE)] for index in range(4)
+    )
+    coarse = ink.span(11, 20) / 1000.0
+    return _Field(colors[0], _octaves(ink, colors, coarse), colors)
+
+
+def _octaves(
+    ink: _Ink, colors: tuple[Rgb, ...], coarse: float
+) -> tuple[_Octave, ...]:
+    mid = coarse * ink.span(24, 38) / 10.0
+    fine = coarse * ink.span(52, 84) / 10.0
+    return (
+        _octave(ink, colors[1], coarse, 0.22, 0.58, 1.0),
+        _octave(ink, colors[2], mid, 0.46, 0.70, 1.0),
+        _octave(ink, colors[3], fine, 0.58, 0.78, ink.span(40, 64) / 100.0),
+    )
+
+
+def _octave(
+    ink: _Ink,
+    color: Rgb,
+    freq: float,
+    lo: float,
+    hi: float,
+    gain: float,
+) -> _Octave:
+    shift = ink.span(-5, 5) / 100.0
+    return _Octave(
+        color,
+        freq,
+        ink.span(0, 5000) / 10.0,
+        ink.span(0, 5000) / 10.0,
+        lo + shift,
+        hi + shift,
+        gain,
+    )
+
+
+def _paint_field(image: Image.Image, noise: _Noise, field: _Field) -> None:
+    # Sampled on a 2px lattice. Midpoints are integer averages, so the
+    # smooth field is the same on every host and cheap to expand.
+    image.frombytes(_field_bytes(noise, field))
+
+
+def _field_bytes(noise: _Noise, field: _Field) -> bytes:
+    cells = _SIDE // 2 + 1
+    samples = _lattice(noise, field, cells)
+    return bytes(_expand(samples, cells))
+
+
+def _lattice(noise: _Noise, field: _Field, cells: int) -> list[Rgb]:
+    samples: list[Rgb] = []
+    push = samples.append
+    at = noise.at
+    octaves = field.octaves
+    base = field.base
+    for gy in range(cells):
+        py = float(gy * 2)
+        for gx in range(cells):
+            push(_mix(at, octaves, base, float(gx * 2), py))
+    return samples
+
+
+def _mix(
+    at: Callable[[float, float], float],
+    octaves: tuple[_Octave, ...],
+    base: Rgb,
+    x: float,
+    y: float,
+) -> Rgb:
+    red, green, blue = float(base[0]), float(base[1]), float(base[2])
+    for octave in octaves:
+        weight = _amp(at, octave, x, y)
+        red += (octave.color[0] - red) * weight
+        green += (octave.color[1] - green) * weight
+        blue += (octave.color[2] - blue) * weight
+    return _byte(red), _byte(green), _byte(blue)
+
+
+def _amp(
+    at: Callable[[float, float], float],
+    octave: _Octave,
+    x: float,
+    y: float,
+) -> float:
+    unit = (
+        at(x * octave.freq + octave.ox, y * octave.freq + octave.oy) + 0.65
+    ) / 1.3
+    if unit < 0.0:
+        unit = 0.0
+    elif unit > 1.0:
+        unit = 1.0
+    return _smooth(octave.lo, octave.hi, unit) * octave.gain
+
+
+def _expand(samples: list[Rgb], cells: int) -> bytearray:
+    span = _SIDE * 3
+    raw = bytearray(span * _SIDE)
+    tiles = cells - 1
+    for gy in range(tiles):
+        even, odd = _expand_row(samples, cells, gy)
+        start = gy * 2 * span
+        raw[start : start + span] = even
+        raw[start + span : start + 2 * span] = odd
+    return raw
+
+
+def _expand_row(
+    samples: list[Rgb], cells: int, gy: int
+) -> tuple[bytearray, bytearray]:
+    span = _SIDE * 3
+    even = bytearray(span)
+    odd = bytearray(span)
+    row0 = gy * cells
+    row1 = row0 + cells
+    cursor = 0
+    for gx in range(cells - 1):
+        c00 = samples[row0 + gx]
+        c10 = samples[row0 + gx + 1]
+        c01 = samples[row1 + gx]
+        c11 = samples[row1 + gx + 1]
+        _store(even, cursor, c00)
+        _store(even, cursor + 3, _avg(c00, c10))
+        left = _avg(c00, c01)
+        _store(odd, cursor, left)
+        _store(odd, cursor + 3, _avg(left, _avg(c10, c11)))
+        cursor += 6
+    return even, odd
+
+
+def _store(buf: bytearray, cursor: int, color: Rgb) -> None:
+    buf[cursor] = color[0]
+    buf[cursor + 1] = color[1]
+    buf[cursor + 2] = color[2]
+
+
+def _avg(left: Rgb, right: Rgb) -> Rgb:
+    return (
+        (left[0] + right[0]) // 2,
+        (left[1] + right[1]) // 2,
+        (left[2] + right[2]) // 2,
+    )
+
+
+def _mask() -> Image.Image:
+    return Image.new("L", (_SIDE, _SIDE), 0)
+
+
+def _paint_mark(
+    image: Image.Image, ink: _Ink, colors: tuple[Rgb, ...]
+) -> None:
+    place = _place(ink)
+    outer = _spec(ink, ink.below(_KINDS), place.radius)
+    front = _draw(
+        _mask(), place.cx, place.cy, place.radius, place.angle, outer
+    )
+    back = _inset(ink, place, outer)
+    primary = _farthest(colors)
+    _blit(image, front, primary, back, _farthest((*colors, primary)))
+
+
+def _place(ink: _Ink) -> _Place:
+    angle = _turns(ink)
+    roll = ink.u8()
+    if roll < 150:
+        return _emblem(ink, angle)
+    if roll < 215:
+        return _Place(_SIDE / 2, _SIDE / 2, float(ink.span(92, 112)), angle)
+    return _corner(ink, angle)
+
+
+def _corner(ink: _Ink, angle: float) -> _Place:
+    """A whole sign sitting in part of the field, noise around it."""
+    radius = float(ink.span(48, 68))
+    margin = int(radius) + 6
+    return _Place(
+        float(ink.span(margin, _SIDE - margin)),
+        float(ink.span(margin, _SIDE - margin)),
+        radius,
+        angle,
+    )
+
+
+def _emblem(ink: _Ink, angle: float) -> _Place:
+    radius = float(ink.span(64, 84))
+    slack = min(16, int(90 - radius))
+    return _Place(
+        _SIDE / 2 + ink.span(-slack, slack),
+        _SIDE / 2 + ink.span(-slack, slack),
+        radius,
+        angle,
+    )
+
+
+def _inset(ink: _Ink, place: _Place, outer: _Form) -> Image.Image:
+    hole = _opening(outer, place.radius)
+    if hole < 18.0:
+        return _mask()
+    inner = _spec(ink, ink.below(_KINDS), hole)
+    return _draw(
+        _mask(),
+        place.cx,
+        place.cy,
+        hole,
+        place.angle + _turns(ink),
+        inner,
+    )
+
+
+def _blit(
+    image: Image.Image,
+    front: Image.Image,
+    primary: Rgb,
+    back: Image.Image,
+    secondary: Rgb,
+) -> None:
+    image.paste(Image.new("RGB", (_SIDE, _SIDE), primary), mask=front)
+    image.paste(Image.new("RGB", (_SIDE, _SIDE), secondary), mask=back)
+
+
+def _form(
+    kind: int,
+    sides: int = 4,
+    count: int = 1,
+    band: float = 0.16,
+    gap: float = 0.1,
+    aspect: float = 1.0,
+    twist: float = 0.0,
+    ticks: int = 0,
+    tall: bool = False,
+    points: int = 5,
+    inner: float = 0.4,
+    depth: int = 1,
+    bulge: float = 0.86,
+    arms: int = 5,
+    end_sides: int = 4,
+    hollow: bool = False,
+) -> _Form:
+    return _Form(
+        kind,
+        sides,
+        count,
+        band,
+        gap,
+        aspect,
+        twist,
+        ticks,
+        tall,
+        points,
+        inner,
+        depth,
+        bulge,
+        arms,
+        end_sides,
+        hollow,
+    )
+
+
+def _spec(ink: _Ink, kind: int, radius: float) -> _Form:
+    if kind == _SEAL:
+        return _seal_spec(ink)
+    if kind == _FRAME:
+        return _frame_spec(ink)
+    if kind == _STAR:
+        return _star_spec(ink)
+    if kind == _KOCH:
+        return _koch_spec(ink, radius)
+    if kind == _GASKET:
+        return _gasket_spec(ink, radius)
+    return _radial_spec(ink, radius)
+
+
+def _seal_spec(ink: _Ink) -> _Form:
+    sides = ink.span(12, 18) if ink.u8() < 120 else ink.span(5, 8)
+    ticks = ink.span(5, 9) * 2 if ink.bit() else 0
+    return _form(
+        _SEAL,
+        sides=sides,
+        count=ink.span(2, 3),
+        band=ink.span(15, 24) / 100.0,
+        gap=ink.span(7, 13) / 100.0,
+        aspect=ink.span(100, 124) / 100.0,
+        twist=ink.span(0, 22) * _TAU / 360.0,
+        ticks=ticks,
+        tall=ink.bit(),
+    )
+
+
+def _frame_spec(ink: _Ink) -> _Form:
+    roll = ink.u8()
+    if roll < 150:
+        sides = 4
+    elif roll < 210:
+        sides = 3
+    else:
+        sides = ink.span(5, 6)
+    twist = 0.0 if ink.u8() < 110 else ink.span(7, 16) * _TAU / 360.0
+    return _form(
+        _FRAME,
+        sides=sides,
+        count=ink.span(4, 6),
+        band=ink.span(12, 18) / 100.0,
+        gap=ink.span(6, 11) / 100.0,
+        aspect=ink.span(108, 150) / 100.0,
+        twist=twist,
+        tall=ink.bit(),
+    )
+
+
+def _star_spec(ink: _Ink) -> _Form:
+    return _form(
+        _STAR,
+        points=ink.span(4, 8),
+        inner=ink.span(32, 46) / 100.0,
+        hollow=ink.u8() < 80,
+    )
+
+
+def _koch_spec(ink: _Ink, radius: float) -> _Form:
+    bulge = ink.span(-100, 120) / 100.0
+    if -0.4 < bulge < 0.4:
+        bulge = 0.86 if bulge >= 0.0 else -0.72
+    if radius < 40.0:
+        depth = 1
+    elif radius < 96.0:
+        depth = 2
+    else:
+        depth = ink.span(2, 3)
+    return _form(
+        _KOCH,
+        sides=ink.span(3, 6),
+        depth=depth,
+        bulge=bulge,
+        hollow=bulge > 0.0 and ink.u8() < 70,
+        aspect=ink.span(100, 118) / 100.0,
+        tall=ink.bit(),
+    )
+
+
+def _gasket_spec(ink: _Ink, radius: float) -> _Form:
+    if radius < 42.0 or not ink.bit():
+        depth = 1
+    elif radius > 90.0 and ink.bit():
+        depth = 3
+    else:
+        depth = 2
+    return _form(
+        _GASKET,
+        sides=ink.span(3, 5),
+        depth=depth,
+        twist=ink.span(0, 18) * _TAU / 360.0,
+        hollow=ink.bit(),
+    )
+
+
+def _radial_spec(ink: _Ink, radius: float) -> _Form:
+    arms = ink.span(3, 6)
+    depth = 2 if radius > 100.0 and arms <= 4 and ink.bit() else 1
+    return _form(
+        _RADIAL,
+        arms=arms,
+        end_sides=ink.span(3, 6),
+        depth=depth,
+        twist=ink.span(-18, 18) * _TAU / 360.0,
+        band=ink.span(7, 12) / 100.0,
+    )
+
+
+def _draw(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+) -> Image.Image:
+    if form.kind in {_SEAL, _FRAME}:
+        return _draw_concentric(mask, cx, cy, radius, angle, form)
+    if form.kind == _STAR:
+        return _draw_star(mask, cx, cy, radius, angle, form)
+    if form.kind == _KOCH:
+        return _draw_koch(mask, cx, cy, radius, angle, form)
+    if form.kind == _GASKET:
+        return _gasket_at(mask, cx, cy, radius, angle, form, form.depth)
+    return _radial_node(mask, cx, cy, radius, angle, form, form.depth, True)
+
+
+def _opening(form: _Form, radius: float) -> float:
+    if form.kind in {_SEAL, _FRAME}:
+        return _concentric_hole(form, radius) / form.aspect * 0.84
+    if form.kind == _STAR:
+        return radius * form.inner * 0.78
+    if form.kind == _KOCH:
+        scale = 0.50 if form.hollow else 0.44
+        return radius * scale
+    if form.kind == _GASKET:
+        return radius * 0.22
+    return radius * 0.26
+
+
+def _band_shrink(form: _Form, radius: float) -> tuple[float, float]:
+    band = form.band
+    floor = 5.5 / radius if radius > 0.0 else band
+    band = min(max(band, floor), 0.4)
+    shrink = max(1.0 - band - form.gap, 0.5)
+    return band, shrink
+
+
+def _concentric_hole(form: _Form, radius: float) -> float:
+    band, shrink = _band_shrink(form, radius)
+    ring = radius
+    hole = ring * (1.0 - band)
+    for _ in range(form.count):
+        if ring < 12.0:
+            break
+        hole = ring * (1.0 - band)
+        ring *= shrink
+    return hole
+
+
+def _draw_concentric(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+) -> Image.Image:
+    band, shrink = _band_shrink(form, radius)
+    ring = radius
+    for index in range(form.count):
+        if ring < 12.0:
+            break
+        ang = angle + form.twist * index
+        mask = _cut(
+            mask,
+            _ngon(cx, cy, ring, form, ang),
+            _ngon(cx, cy, ring * (1.0 - band), form, ang),
+        )
+        ring *= shrink
+    if form.ticks:
+        mask = _ticks(mask, cx, cy, radius, angle, form.ticks)
+    return mask
+
+
+def _draw_star(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+) -> Image.Image:
+    outer = _star(cx, cy, radius, angle, form.points, form.inner)
+    if not form.hollow:
+        return _fill(mask, outer)
+    inner = _star(cx, cy, radius * 0.62, angle, form.points, form.inner)
+    return _cut(mask, outer, inner)
+
+
+def _draw_koch(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+) -> Image.Image:
+    rx, ry = _axes(radius, form.aspect, form.tall)
+    outer = _koch(cx, cy, rx, ry, angle, form.sides, form.depth, form.bulge)
+    if not form.hollow:
+        return _fill(mask, outer)
+    inner = _koch(
+        cx,
+        cy,
+        rx * 0.58,
+        ry * 0.58,
+        angle,
+        form.sides,
+        form.depth,
+        form.bulge,
+    )
+    return _cut(mask, outer, inner)
+
+
+def _gasket_at(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+    level: int,
+) -> Image.Image:
+    if level <= 0 or radius < 8.0:
+        return _gasket_leaf(mask, cx, cy, radius, angle, form)
+    step = _TAU / form.sides
+    for index in range(form.sides):
+        arm = angle + step * index
+        mask = _gasket_at(
+            mask,
+            cx + _cos(arm) * radius * 0.5,
+            cy + _sin(arm) * radius * 0.5,
+            radius * 0.5,
+            angle + form.twist,
+            form,
+            level - 1,
+        )
+    return mask
+
+
+def _gasket_leaf(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+) -> Image.Image:
+    outer = _ngon_r(cx, cy, radius, angle, form.sides)
+    if form.hollow and radius >= 12.0:
+        inner = _ngon_r(cx, cy, radius * 0.52, angle, form.sides)
+        return _cut(mask, outer, inner)
+    return _fill(mask, outer)
+
+
+def _radial_node(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+    level: int,
+    root: bool,
+) -> Image.Image:
+    if not root:
+        mask = _fill(
+            mask,
+            _ngon_r(
+                cx,
+                cy,
+                max(6.0, radius * 0.34),
+                angle,
+                form.end_sides,
             ),
-            key=lambda color: _Pen.dist(background, color),
-            reverse=True,
         )
-        return tuple(ranked[:count])
-
-    @staticmethod
-    def sun_color(biome: _Biome) -> Rgb:
-        if _Pen.dist(biome.sky, biome.light) >= 150:
-            return biome.light
-        return _Pen.focal(biome, biome.sky)[0]
-
-    @staticmethod
-    def fill(
-        draw: ImageDraw.ImageDraw,
-        x: int,
-        y: int,
-        width: int,
-        height: int,
-        color: Rgb,
-    ) -> None:
-        # Integer corners only, so two hosts fill the same pixels.
-        if width <= 0 or height <= 0:
-            return
-        draw.rectangle((x, y, x + width - 1, y + height - 1), fill=color)
-
-    @staticmethod
-    def disc(
-        draw: ImageDraw.ImageDraw,
-        cx: int,
-        cy: int,
-        rx: int,
-        ry: int,
-        color: Rgb,
-    ) -> None:
-        if rx <= 0 or ry <= 0:
-            return
-        draw.ellipse((cx - rx, cy - ry, cx + rx, cy + ry), fill=color)
-
-    @staticmethod
-    def cube(
-        draw: ImageDraw.ImageDraw,
-        x: int,
-        y: int,
-        side: int,
-        outer: Rgb,
-        inner: Rgb,
-    ) -> None:
-        _Pen.fill(draw, x, y, side, side, outer)
-        margin = max(4, side // 5)
-        _Pen.fill(
-            draw,
-            x + margin,
-            y + margin,
-            side - 2 * margin,
-            side - 2 * margin,
-            inner,
-        )
-
-    @staticmethod
-    def sun(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        low: int,
-        high: int,
-    ) -> None:
-        size = ink.span(48, 76)
-        cx = ink.span(10, _SIDE - 10)
-        cy = ink.span(low, max(low, high))
-        color = _Pen.sun_color(biome)
-        if ink.bit():
-            _Pen.fill(draw, cx - size // 2, cy - size // 2, size, size, color)
-            return
-        _Pen.disc(draw, cx, cy, size // 2, size // 2, color)
-
-    @staticmethod
-    def contrast_pair(biome: _Biome) -> tuple[Rgb, Rgb]:
-        colors = (
-            biome.sky,
-            biome.ground,
-            biome.shade,
-            biome.leaf,
-            biome.accent,
-            biome.light,
-        )
-        best = (colors[0], colors[1])
-        score = -1
-        for index, left in enumerate(colors):
-            for right in colors[index + 1 :]:
-                dist = _Pen.dist(left, right)
-                if dist <= score:
-                    continue
-                best = (left, right)
-                score = dist
-        return best
-
-    @staticmethod
-    def banner_colors(biome: _Biome) -> tuple[Rgb, Rgb, Rgb]:
-        pair = _Pen.contrast_pair(biome)
-        for color in (biome.sky, biome.shade, biome.ground, biome.leaf):
-            if color not in pair:
-                return color, pair[0], pair[1]
-        return biome.shade, pair[0], pair[1]
-
-    @staticmethod
-    def stamp_colors(biome: _Biome, dark: Rgb, light: Rgb) -> tuple[Rgb, Rgb]:
-        rest = [
-            color
-            for color in (
-                biome.sky,
-                biome.ground,
-                biome.shade,
-                biome.leaf,
-                biome.accent,
-                biome.light,
-            )
-            if color not in (dark, light)
-        ]
-        outer = max(
-            rest,
-            key=lambda color: _Pen.dist(color, dark) + _Pen.dist(color, light),
-        )
-        inner = (
-            dark
-            if _Pen.dist(outer, dark) >= _Pen.dist(outer, light)
-            else light
-        )
-        return outer, inner
+    if root:
+        mask = _spokes(mask, cx, cy, radius, angle, form)
+    if level <= 0 or radius < 22.0:
+        return mask
+    return _radial_arms(mask, cx, cy, radius, angle, form, level)
 
 
-class _Motif:
-    """One concrete object: tree, cactus, mushroom, sail, block."""
-
-    @staticmethod
-    def oak(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        trunk_h = ink.span(28, 44)
-        radius = ink.span(26, 38)
-        _Pen.fill(draw, x - 6, ground - trunk_h, 12, trunk_h + 4, biome.shade)
-        _Pen.disc(
-            draw, x, ground - trunk_h - radius + 14, radius, radius, biome.leaf
-        )
-
-    @staticmethod
-    def spruce(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        height = ink.span(64, 98)
-        half = ink.span(22, 32)
-        draw.polygon(
-            [
-                (x, ground - height),
-                (x - half, ground - 8),
-                (x + half, ground - 8),
-            ],
-            fill=biome.leaf,
-        )
-        _Pen.fill(draw, x - 4, ground - 18, 8, 18, biome.shade)
-
-    @staticmethod
-    def cactus(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        body_h = ink.span(68, 100)
-        body_w = 18
-        left = x - body_w // 2
-        top = ground - body_h
-        _Pen.fill(draw, left, top, body_w, body_h, biome.leaf)
-        arm_y = top + ink.span(16, 28)
-        _Pen.fill(draw, left - 22, arm_y, 22, 12, biome.leaf)
-        _Pen.fill(draw, left - 22, arm_y - 24, 12, 24, biome.leaf)
-        if not ink.bit():
-            return
-        arm_y = top + ink.span(36, 52)
-        _Pen.fill(draw, left + body_w, arm_y, 20, 12, biome.leaf)
-        _Pen.fill(draw, left + body_w + 8, arm_y - 20, 12, 20, biome.leaf)
-
-    @staticmethod
-    def mushroom(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        stem_h = ink.span(18, 30)
-        _Pen.fill(draw, x - 7, ground - stem_h, 14, stem_h, biome.light)
-        cap_y = ground - stem_h + 4
-        rx = ink.span(22, 32)
-        _Pen.disc(draw, x, cap_y, rx, max(12, rx // 2), biome.accent)
-        _Pen.disc(draw, x - rx // 3, cap_y - 2, 5, 4, biome.light)
-        _Pen.disc(draw, x + rx // 3, cap_y - 1, 4, 3, biome.light)
-
-    @staticmethod
-    def flower(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        height = ink.span(34, 54)
-        draw.line((x, ground, x, ground - height), fill=biome.leaf, width=5)
-        radius = ink.span(12, 18)
-        _Pen.disc(draw, x, ground - height, radius, radius, biome.accent)
-        _Pen.disc(
-            draw,
-            x,
-            ground - height,
-            max(3, radius // 3),
-            max(3, radius // 3),
-            biome.light,
-        )
-
-    @staticmethod
-    def blocks(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        side = ink.span(30, 44)
-        outer, inner, third = _Pen.focal(biome, biome.ground)
-        _Pen.cube(draw, x - side // 2, ground - side, side, outer, inner)
-        _Pen.cube(
-            draw,
-            x - side // 5,
-            ground - 2 * side + 3,
-            side,
-            third,
-            biome.light,
-        )
-
-    @staticmethod
-    def acacia(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        trunk_h = ink.span(32, 48)
-        top_y = ground - trunk_h
-        crown = x + ink.span(8, 20)
-        _Pen.fill(draw, x - 4, top_y + 8, 8, trunk_h - 6, biome.shade)
-        draw.polygon(
-            [
-                (crown - 52, top_y + 10),
-                (crown + 24, top_y - 4),
-                (crown + 42, top_y + 8),
-                (crown - 38, top_y + 18),
-            ],
-            fill=biome.leaf,
-        )
-
-    @staticmethod
-    def spike(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        tall = ink.span(72, 114)
-        short = ink.span(40, 70)
-        _Pen.fill(draw, x - 8, ground - tall, 16, tall, biome.leaf)
-        _Pen.fill(draw, x + 14, ground - short, 12, short, biome.accent)
-
-    @staticmethod
-    def chorus(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        height = ink.span(36, 58)
-        size = ink.span(18, 28)
-        _Pen.fill(draw, x - 4, ground - height, 8, height, biome.leaf)
-        _Pen.fill(
-            draw,
-            x - size,
-            ground - height - size + 4,
-            size,
-            size,
-            biome.accent,
-        )
-        _Pen.fill(
-            draw, x + 4, ground - height - size - 8, size, size, biome.light
-        )
-
-    @staticmethod
-    def mesa(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        width = ink.span(52, 80)
-        height = ink.span(52, 84)
-        band = ink.span(10, 16)
-        _Pen.fill(
-            draw,
-            x - width // 2,
-            ground - height,
-            width,
-            height + 4,
-            biome.leaf,
-        )
-        _Pen.fill(
-            draw,
-            x - width // 2 - 8,
-            ground - height + 16,
-            width + 16,
-            band,
-            biome.accent,
-        )
-
-    @staticmethod
-    def sail(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        height = ink.span(52, 76)
-        width = ink.span(28, 42)
-        draw.polygon(
-            [
-                (x, ground - height),
-                (x, ground - 6),
-                (x + width, ground - height // 2),
-            ],
-            fill=biome.light,
-        )
-        _Pen.fill(draw, x - 2, ground - height - 4, 4, height + 4, biome.shade)
-
-    @staticmethod
-    def fall(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        x: int,
-        ground: int,
-    ) -> None:
-        width = ink.span(16, 28)
-        _Pen.fill(draw, x - width // 2, 0, width, max(ground, 1), biome.leaf)
-
-    @staticmethod
-    def place(
-        draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome, ground: int
-    ) -> None:
-        motif = biome.motifs[ink.pick(len(biome.motifs))]
-        _Motif.ALL[motif](draw, ink, biome, ink.span(36, _SIDE - 36), ground)
-
-
-class _Picture:
-    """One abstract composition for the whole icon."""
-
-    @staticmethod
-    def horizon(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        horizon = ink.span(82, 112)
-        tilt = ink.span(-14, 14)
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, biome.sky)
-        draw.polygon(
-            [
-                (0, horizon),
-                (_SIDE, horizon + tilt),
-                (_SIDE, _SIDE),
-                (0, _SIDE),
-            ],
-            fill=biome.ground,
-        )
-        crust = ink.span(16, 28)
-        _Pen.fill(draw, 0, _SIDE - crust, _SIDE, crust, biome.shade)
-        _Pen.sun(draw, ink, biome, -8, min(horizon, horizon + tilt) - 18)
-        x = ink.span(40, _SIDE - 40)
-        _Motif.ALL[biome.motifs[ink.pick(3)]](
-            draw, ink, biome, x, horizon + tilt * x // _SIDE
-        )
-
-    @staticmethod
-    def _cuts(ink: _Ink) -> tuple[int, int]:
-        first = ink.span(42, 78)
-        return first, ink.span(first + 34, 154)
-
-    @staticmethod
-    def mondrian(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        paper = max((biome.sky, biome.ground, biome.light), key=sum)
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, paper)
-        xs = (0, *_Picture._cuts(ink), _SIDE)
-        ys = (0, *_Picture._cuts(ink), _SIDE)
-        _Picture._panes(draw, ink, biome, paper, xs, ys)
-        _Picture._rules(draw, xs, ys)
-        _Picture._medallion(draw, ink, biome, xs, ys)
-
-    @staticmethod
-    def _panes(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        paper: Rgb,
-        xs: tuple[int, ...],
-        ys: tuple[int, ...],
-    ) -> None:
-        choices = (
-            biome.sky,
-            biome.ground,
-            biome.leaf,
-            biome.accent,
-            biome.shade,
-        )
-        for top, bottom in zip(ys, ys[1:], strict=False):
-            for left, right in zip(xs, xs[1:], strict=False):
-                _Picture._pane(
-                    draw, ink, paper, choices, left, top, right, bottom
-                )
-
-    @staticmethod
-    def _pane(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        paper: Rgb,
-        choices: tuple[Rgb, ...],
-        left: int,
-        top: int,
-        right: int,
-        bottom: int,
-    ) -> None:
-        if ink.u8() % 4 == 0:
-            return
-        color = choices[ink.pick(len(choices))]
-        if color == paper:
-            color = choices[-1]
-        _Pen.fill(draw, left, top, right - left, bottom - top, color)
-
-    @staticmethod
-    def _rules(
-        draw: ImageDraw.ImageDraw, xs: tuple[int, ...], ys: tuple[int, ...]
-    ) -> None:
-        for x in xs[1:-1]:
-            _Pen.fill(draw, x - 3, 0, 7, _SIDE, _RULE)
-        for y in ys[1:-1]:
-            _Pen.fill(draw, 0, y - 3, _SIDE, 7, _RULE)
-
-    @staticmethod
-    def _medallion(
-        draw: ImageDraw.ImageDraw,
-        ink: _Ink,
-        biome: _Biome,
-        xs: tuple[int, ...],
-        ys: tuple[int, ...],
-    ) -> None:
-        col = ink.pick(3)
-        row = ink.pick(3)
-        left, right = xs[col], xs[col + 1]
-        top, bottom = ys[row], ys[row + 1]
-        room = min(right - left, bottom - top)
-        radius = min(24, max(12, room // 3))
-        cx = (left + right) // 2
-        cy = (top + bottom) // 2
-        _Pen.disc(draw, cx, cy, radius, radius, biome.accent)
-        _Pen.disc(
-            draw, cx, cy, max(3, radius // 3), max(3, radius // 3), biome.light
-        )
-
-    @staticmethod
-    def suprematist(
-        draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome
-    ) -> None:
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, biome.sky)
-        outer, inner, bar = _Pen.focal(biome, biome.sky)
-        side = ink.span(84, 112)
-        on_left = ink.bit()
-        x = (
-            ink.span(-16, 28)
-            if on_left
-            else ink.span(_SIDE - side - 28, _SIDE - side + 16)
-        )
-        y = ink.span(_SIDE - side - 8, _SIDE - side + 20)
-        _Pen.cube(draw, x, y, side, outer, inner)
-        bar_y = y + side // 3 if ink.bit() else ink.span(18, 46)
-        _Pen.fill(draw, 0, bar_y, _SIDE, ink.span(12, 18), bar)
-        small = ink.span(18, 28)
-        sx = _SIDE - small - 18 if on_left else 18
-        _Pen.fill(draw, sx, ink.span(70, 120), small, small, outer)
-        _Pen.disc(
-            draw,
-            sx + small // 2,
-            ink.span(14, 36),
-            12,
-            12,
-            _Pen.sun_color(biome),
-        )
-
-    @staticmethod
-    def kandinsky(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, biome.sky)
-        primary, secondary, tertiary = _Pen.focal(biome, biome.sky)
-        _Pen.disc(
-            draw,
-            ink.span(-40, 60),
-            ink.span(120, 230),
-            ink.span(78, 104),
-            ink.span(78, 104),
-            primary,
-        )
-        spots = _Picture._orbits(ink, secondary, tertiary, primary)
-        line = biome.light if sum(biome.sky) < 380 else biome.shade
-        for start, end in zip(spots, spots[1:], strict=False):
-            draw.line((*start[0], *end[0]), fill=line, width=4)
-        for center, radius, color in spots:
-            _Pen.disc(draw, center[0], center[1], radius, radius, color)
-        _Picture._wedge(draw, ink, tertiary)
-        _Pen.cube(
-            draw,
-            ink.span(16, _SIDE - 40),
-            ink.span(16, _SIDE - 40),
-            18,
-            secondary,
-            biome.light,
-        )
-
-    @staticmethod
-    def _orbits(
-        ink: _Ink, secondary: Rgb, tertiary: Rgb, primary: Rgb
-    ) -> list[tuple[tuple[int, int], int, Rgb]]:
-        spots = []
-        for radius, color in (
-            (ink.span(22, 34), secondary),
-            (ink.span(12, 18), tertiary),
-            (ink.span(16, 26), primary),
-        ):
-            spots.append(
-                (
-                    (ink.span(28, _SIDE - 28), ink.span(28, _SIDE - 28)),
-                    radius,
-                    color,
-                )
-            )
-        return spots
-
-    @staticmethod
-    def _wedge(draw: ImageDraw.ImageDraw, ink: _Ink, color: Rgb) -> None:
-        x = ink.span(16, 110)
-        y = ink.span(16, 80)
-        draw.polygon(
-            [
-                (x, y),
-                (x + ink.span(30, 54), y + ink.span(6, 18)),
-                (x + ink.span(4, 16), y + ink.span(34, 58)),
-            ],
-            fill=color,
-        )
-
-    @staticmethod
-    def strata(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        colors = (
-            biome.sky,
-            biome.ground,
-            biome.shade,
-            biome.leaf,
-            biome.accent,
-            biome.light,
-        )
-        shift = ink.pick(len(colors))
-        ordered = colors[shift:] + colors[:shift]
-        y = 0
-        for height, color in zip(_Picture._bands(ink), ordered, strict=True):
-            _Pen.fill(draw, 0, y, _SIDE, height, color)
-            y += height
-        if ink.bit():
-            _Picture._butte(draw, ink, biome)
-            return
-        _Pen.sun(draw, ink, biome, -10, 70)
-
-    @staticmethod
-    def _bands(ink: _Ink) -> list[int]:
-        raw = [ink.span(18, 46) for _ in range(6)]
-        total = sum(raw)
-        heights = [_SIDE * item // total for item in raw[:-1]]
-        heights.append(_SIDE - sum(heights))
-        return heights
-
-    @staticmethod
-    def _butte(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        width = ink.span(48, 80)
-        x = ink.span(16, _SIDE - width - 16)
-        top = ink.span(28, 76)
-        _Pen.fill(draw, x, top, width, _SIDE - top, biome.shade)
-        span = _SIDE - top
-        _Pen.fill(draw, x - 10, top + span // 3, width + 20, 14, biome.light)
-        _Pen.fill(
-            draw,
-            x + 6,
-            top + 2 * span // 3,
-            max(width - 12, 8),
-            12,
-            biome.accent,
-        )
-
-    @staticmethod
-    def arcs(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, biome.shade)
-        anchors = (
-            (0, 0),
-            (_SIDE, 0),
-            (0, _SIDE),
-            (_SIDE, _SIDE),
-            (_SIDE // 2, _SIDE // 2),
-        )
-        cx, cy = anchors[ink.pick(len(anchors))]
-        colors = (
-            biome.sky,
-            biome.ground,
-            biome.leaf,
-            biome.accent,
-            biome.light,
-        )
-        for radius, color in zip((128, 96, 68, 44, 22), colors, strict=True):
-            _Pen.disc(draw, cx, cy, radius, radius, color)
-        band = ink.span(12, 18)
-        focal = _Pen.focal(biome, biome.light)[0]
-        if ink.bit():
-            _Pen.fill(draw, 0, ink.span(40, _SIDE - 60), _SIDE, band, focal)
-        else:
-            _Pen.fill(draw, ink.span(40, _SIDE - 60), 0, band, _SIDE, focal)
-        _Pen.cube(
-            draw,
-            ink.span(76, 108),
-            ink.span(76, 108),
-            24,
-            biome.shade,
-            biome.light,
-        )
-
-    @staticmethod
-    def peaks(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, biome.sky)
-        back, mid, front = _Pen.focal(biome, biome.sky)
-        _Picture._ridge(draw, ink, back, 124, 170)
-        _Picture._ridge(draw, ink, mid, 96, 142)
-        _Picture._ridge(draw, ink, front, 62, 112)
-        _Pen.sun(draw, ink, biome, -6, 52)
-        _Motif.place(draw, ink, biome, _SIDE)
-
-    @staticmethod
-    def _ridge(
-        draw: ImageDraw.ImageDraw, ink: _Ink, color: Rgb, low: int, high: int
-    ) -> None:
-        height = ink.span(low, high)
-        half = ink.span(60, 98)
-        apex = ink.span(28, _SIDE - 28)
-        draw.polygon(
-            [
-                (apex, _SIDE - height),
-                (apex - half, _SIDE + 8),
-                (apex + half, _SIDE + 8),
-            ],
-            fill=color,
-        )
-
-    @staticmethod
-    def portal(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, biome.sky)
-        frame = (
-            biome.shade
-            if _Pen.dist(biome.sky, biome.shade) >= 48
-            else _Pen.focal(biome, biome.sky)[0]
-        )
-        margin = ink.span(34, 48)
-        ox = ink.span(-6, 6)
-        oy = ink.span(-6, 6)
-        _Pen.fill(
-            draw,
-            margin + ox,
-            margin + oy,
-            _SIDE - 2 * margin,
-            _SIDE - 2 * margin,
-            frame,
-        )
-        inset = 18
-        opening = _SIDE - 2 * margin - 2 * inset
-        _Picture._stripes(
-            draw, biome, margin + inset + ox, margin + inset + oy, opening
-        )
-        corners = (
-            (28, 28),
-            (_SIDE - 28, 28),
-            (28, _SIDE - 28),
-            (_SIDE - 28, _SIDE - 28),
-        )
-        moon_x, moon_y = corners[ink.pick(len(corners))]
-        _Pen.disc(draw, moon_x, moon_y, 20, 20, _Pen.sun_color(biome))
-
-    @staticmethod
-    def _stripes(
-        draw: ImageDraw.ImageDraw,
-        biome: _Biome,
-        left: int,
-        top: int,
-        opening: int,
-    ) -> None:
-        stripe_a, stripe_b = biome.leaf, biome.accent
-        count = 5
-        stripe = opening // count
-        colors = (stripe_a, stripe_b)
-        for index in range(count):
-            width = (
-                opening - stripe * (count - 1)
-                if index == count - 1
-                else stripe
-            )
-            _Pen.fill(
-                draw,
-                left + index * stripe,
-                top,
+def _spokes(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+) -> Image.Image:
+    width = max(4.0, radius * form.band)
+    step = _TAU / form.arms
+    for index in range(form.arms):
+        mask = _fill(
+            mask,
+            _bar(
+                cx,
+                cy,
+                angle + step * index,
+                radius * 0.30,
+                radius * _REACH,
                 width,
-                opening,
-                colors[index % 2],
-            )
-
-    @staticmethod
-    def quilt(draw: ImageDraw.ImageDraw, ink: _Ink, biome: _Biome) -> None:
-        grout, left, right = _Pen.banner_colors(biome)
-        _Pen.fill(draw, 0, 0, _SIDE, _SIDE, grout)
-        _Picture._banner(draw, ink, left, right)
-        side = ink.span(36, 50)
-        outer, inner = _Pen.stamp_colors(biome, left, right)
-        _Pen.cube(
-            draw,
-            (_SIDE - side) // 2 + ink.span(-12, 12),
-            (_SIDE - side) // 2 + ink.span(-12, 12),
-            side,
-            outer,
-            inner,
+            ),
         )
-
-    @staticmethod
-    def _banner(
-        draw: ImageDraw.ImageDraw, ink: _Ink, left: Rgb, right: Rgb
-    ) -> None:
-        rows = 3
-        cols = 3
-        gap = 10
-        row_h = (_SIDE - gap * (rows + 1)) // rows
-        brick_w = (_SIDE - gap * (cols + 1)) // cols
-        shift = (brick_w + gap) // 2 if ink.bit() else 0
-        for row in range(rows):
-            y = gap + row * (row_h + gap)
-            offset = shift if row % 2 else 0
-            for col in range(cols + 1):
-                x = gap + col * (brick_w + gap) - offset
-                color = left if (row + col) % 2 == 0 else right
-                _Pen.fill(draw, x, y, brick_w, row_h, color)
+    return mask
 
 
-_Motif.ALL = (
-    _Motif.oak,
-    _Motif.spruce,
-    _Motif.cactus,
-    _Motif.mushroom,
-    _Motif.flower,
-    _Motif.blocks,
-    _Motif.acacia,
-    _Motif.spike,
-    _Motif.chorus,
-    _Motif.mesa,
-    _Motif.sail,
-    _Motif.fall,
-)
+def _radial_arms(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    form: _Form,
+    level: int,
+) -> Image.Image:
+    step = _TAU / form.arms
+    dist = radius * _REACH
+    child = radius * 0.42
+    for index in range(form.arms):
+        arm = angle + step * index + form.twist
+        mask = _radial_node(
+            mask,
+            cx + _cos(arm) * dist,
+            cy + _sin(arm) * dist,
+            child,
+            arm,
+            form,
+            level - 1,
+            False,
+        )
+    return mask
 
-_Picture.ALL = (
-    _Picture.horizon,
-    _Picture.mondrian,
-    _Picture.suprematist,
-    _Picture.kandinsky,
-    _Picture.strata,
-    _Picture.arcs,
-    _Picture.peaks,
-    _Picture.portal,
-    _Picture.quilt,
-)
+
+def _axes(radius: float, aspect: float, tall: bool) -> tuple[float, float]:
+    minor = radius / aspect
+    if tall:
+        return minor, radius
+    return radius, minor
+
+
+def _vertices(
+    cx: float,
+    cy: float,
+    rx: float,
+    ry: float,
+    angle: float,
+    sides: int,
+) -> list[tuple[float, float]]:
+    step = _TAU / sides
+    return [
+        (cx + rx * _cos(angle + step * i), cy + ry * _sin(angle + step * i))
+        for i in range(sides)
+    ]
+
+
+def _ngon(
+    cx: float, cy: float, radius: float, form: _Form, angle: float
+) -> list[tuple[int, int]]:
+    rx, ry = _axes(radius, form.aspect, form.tall)
+    return _ints(_vertices(cx, cy, rx, ry, angle, form.sides))
+
+
+def _ngon_r(
+    cx: float, cy: float, radius: float, angle: float, sides: int
+) -> list[tuple[int, int]]:
+    return _ints(_vertices(cx, cy, radius, radius, angle, sides))
+
+
+def _star(
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    points: int,
+    inner: float,
+) -> list[tuple[int, int]]:
+    step = _PI / points
+    pts: list[tuple[int, int]] = []
+    for index in range(points * 2):
+        reach = radius if index % 2 == 0 else radius * inner
+        arm = angle + step * index
+        pts.append(
+            (_rint(cx + reach * _cos(arm)), _rint(cy + reach * _sin(arm)))
+        )
+    return pts
+
+
+def _koch(
+    cx: float,
+    cy: float,
+    rx: float,
+    ry: float,
+    angle: float,
+    sides: int,
+    depth: int,
+    bulge: float,
+) -> list[tuple[int, int]]:
+    raw = _vertices(cx, cy, rx, ry, angle, sides)
+    acc: list[tuple[float, float]] = []
+    count = len(raw)
+    for index in range(count):
+        ax, ay = raw[index]
+        bx, by = raw[(index + 1) % count]
+        acc.extend(_koch_edge(ax, ay, bx, by, depth, bulge))
+    return _ints(acc)
+
+
+def _koch_edge(
+    ax: float, ay: float, bx: float, by: float, depth: int, bulge: float
+) -> list[tuple[float, float]]:
+    if depth <= 0:
+        return [(ax, ay)]
+    dx = bx - ax
+    dy = by - ay
+    p1 = (ax + dx / 3.0, ay + dy / 3.0)
+    p2 = (ax + 2.0 * dx / 3.0, ay + 2.0 * dy / 3.0)
+    peak = (
+        (p1[0] + p2[0]) / 2.0 + (-dy) * bulge / 3.0,
+        (p1[1] + p2[1]) / 2.0 + dx * bulge / 3.0,
+    )
+    return [
+        *_koch_edge(ax, ay, p1[0], p1[1], depth - 1, bulge),
+        *_koch_edge(p1[0], p1[1], peak[0], peak[1], depth - 1, bulge),
+        *_koch_edge(peak[0], peak[1], p2[0], p2[1], depth - 1, bulge),
+        *_koch_edge(p2[0], p2[1], bx, by, depth - 1, bulge),
+    ]
+
+
+def _bar(
+    cx: float,
+    cy: float,
+    angle: float,
+    r0: float,
+    r1: float,
+    width: float,
+) -> list[tuple[int, int]]:
+    c = _cos(angle)
+    s = _sin(angle)
+    nx = -s * width / 2.0
+    ny = c * width / 2.0
+    x0 = cx + c * r0
+    y0 = cy + s * r0
+    x1 = cx + c * r1
+    y1 = cy + s * r1
+    return [
+        (_rint(x0 + nx), _rint(y0 + ny)),
+        (_rint(x1 + nx), _rint(y1 + ny)),
+        (_rint(x1 - nx), _rint(y1 - ny)),
+        (_rint(x0 - nx), _rint(y0 - ny)),
+    ]
+
+
+def _ticks(
+    mask: Image.Image,
+    cx: float,
+    cy: float,
+    radius: float,
+    angle: float,
+    count: int,
+) -> Image.Image:
+    length = max(7.0, radius * 0.13)
+    width = max(4.0, length * 0.42)
+    step = _TAU / count
+    for index in range(count):
+        mask = _fill(
+            mask,
+            _bar(
+                cx,
+                cy,
+                angle + step * index,
+                radius * 0.90,
+                radius + length,
+                width,
+            ),
+        )
+    return mask
+
+
+def _ints(raw: list[tuple[float, float]]) -> list[tuple[int, int]]:
+    return [(_rint(x), _rint(y)) for x, y in raw]
+
+
+def _fill(mask: Image.Image, pts: list[tuple[int, int]]) -> Image.Image:
+    if len(pts) >= 3:
+        ImageDraw.Draw(mask).polygon(pts, fill=255)
+    return mask
+
+
+def _cut(
+    mask: Image.Image,
+    outer: list[tuple[int, int]],
+    inner: list[tuple[int, int]],
+) -> Image.Image:
+    if len(outer) < 3:
+        return mask
+    band = Image.new("L", (_SIDE, _SIDE), 0)
+    pen = ImageDraw.Draw(band)
+    pen.polygon(outer, fill=255)
+    if len(inner) >= 3:
+        pen.polygon(inner, fill=0)
+    return ImageChops.lighter(mask, band)
