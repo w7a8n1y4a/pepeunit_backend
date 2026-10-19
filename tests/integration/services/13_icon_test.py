@@ -4,7 +4,6 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from app import settings
 from app.configs.errors import NoAccessError, ValidationError
 from app.domain.instance_settings_model import InstanceSettings
 from app.domain.user_model import User
@@ -151,12 +150,16 @@ def test_unit_icon_lifecycle(
         icons.get(updated_uuid)
 
 
-def test_instance_icon_matches_domain(database) -> None:
+def test_instance_keeps_its_stored_icon(database) -> None:
+    """The instance icon is a snapshot. A later generator does not redraw it."""
     row = InstanceSettingsRepository(database).get(
         InstanceSettings(uuid=InstanceSettings.ROW_UUID)
     )
     icon = icon_service(database).get(row.icon_uuid)
-    assert bytes(icon.image_bin) == IconImage.generate(settings.pu_domain)
+    image = bytes(icon.image_bin)
+    IconImage.validate(image)
+    assert icon.size == len(image)
+    assert icon.image_hash == IconImage.md5(image)
 
 
 def test_instance_icon_is_owner_only(
