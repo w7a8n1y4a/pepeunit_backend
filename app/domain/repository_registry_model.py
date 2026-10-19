@@ -6,6 +6,7 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
+from app.domain.icon_model import Icon
 from app.dto.enum import CredentialStatus
 from app.schemas.pydantic.repository_registry import (
     Credentials,
@@ -25,6 +26,20 @@ class RepositoryRegistry(SQLModel, table=True):
         nullable=False,
         index=True,
         default_factory=uuid_pkg.uuid4,
+    )
+
+    # Picture is generated from repository_url and cannot be replaced.
+    icon_uuid: uuid_pkg.UUID = Field(
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey(
+                Icon.__table__.c.uuid,
+                name="repository_registry_icon_uuid_fkey",
+                ondelete="RESTRICT",
+            ),
+            nullable=False,
+            index=True,
+        )
     )
 
     # type of remote hosting

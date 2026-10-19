@@ -29,6 +29,7 @@ from app.repositories.git_platform_repository import (
     GitPlatformClientABC,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.icon_repository import IconRepository
 from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
@@ -47,6 +48,7 @@ from app.schemas.pydantic.repository_registry import (
 )
 from app.services.access_service import AccessService
 from app.services.background import BackgroundService
+from app.services.icon_image import IconImage
 from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.validators import is_emtpy_sequence, is_valid_object
@@ -57,6 +59,7 @@ class RepositoryRegistryService:
     def __init__(
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
+        icon_repository: IconRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         user_repository: UserRepository = Depends(),
         operation_task_service: OperationTaskService = Depends(),
@@ -64,6 +67,7 @@ class RepositoryRegistryService:
         access_service: AccessService = Depends(),
     ) -> None:
         self.repository_registry_repository = repository_registry_repository
+        self.icon_repository = icon_repository
         self.repo_repository = repo_repository
         self.user_repository = user_repository
         self.operation_task_service = operation_task_service
@@ -173,6 +177,9 @@ class RepositoryRegistryService:
         repository_registry.last_update_datetime = (
             repository_registry.create_datetime
         )
+        repository_registry.icon_uuid = self.icon_repository.stage(
+            IconImage.generate(repository_registry.repository_url)
+        ).uuid
 
         repository_registry = self.repository_registry_repository.create(
             repository_registry

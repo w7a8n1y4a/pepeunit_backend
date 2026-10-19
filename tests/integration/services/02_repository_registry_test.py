@@ -19,6 +19,7 @@ from app.dto.enum import (
     UserRole,
 )
 from app.repositories.user_repository import UserRepository
+from app.services.icon_image import IconImage
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
     Credentials,
@@ -29,6 +30,7 @@ from tests.integration.helpers.instance_settings import owner_setting
 from tests.integration.helpers.names import UNIVERSAL_FIRST_COMMIT
 from tests.integration.helpers.services import (
     all_branch_commits,
+    icon_service,
     registry_service,
 )
 from tests.integration.helpers.wait import wait_task_finish
@@ -43,6 +45,10 @@ def test_create_repository_registry(
         assert os.path.exists(
             service.git_repo_repository.get_path_physic_repository(registry)
         )
+        expected = IconImage.generate(registry.repository_url)
+        icon = icon_service(database).get(registry.icon_uuid)
+        assert bytes(icon.image_bin) == expected
+        assert icon.image_hash == IconImage.md5(expected)
 
 
 def test_create_repository_registry_duplicate(

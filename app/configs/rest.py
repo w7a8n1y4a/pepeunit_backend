@@ -158,6 +158,7 @@ class ServiceFactory:
     def get_repository_registry_service(self) -> RepositoryRegistryService:
         return RepositoryRegistryService(
             repository_registry_repository=self.repository_registry_repository,
+            icon_repository=self.icon_repository,
             repo_repository=self.repo_repository,
             user_repository=self.user_repository,
             operation_task_service=self.get_operation_task_service(),

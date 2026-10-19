@@ -37,6 +37,7 @@ class RepositoryRegistryCreate(BaseModel):
 
 class RepositoryRegistryRead(BaseModel):
     uuid: uuid_pkg.UUID
+    icon_uuid: uuid_pkg.UUID
 
     platform: GitPlatform
     repository_url: str
