@@ -37,15 +37,8 @@ class Permission(SQLModel, table=True):
         )
     )
 
-    # Repo, Unit, UnitIO
+    # Unit, UnitIO
     resource_type: str = Field(nullable=False)
-    resource_repo_uuid: uuid_pkg.UUID = Field(
-        sa_column=Column(
-            UUID(as_uuid=True),
-            ForeignKey("repos.uuid", ondelete="CASCADE"),
-            nullable=True,
-        )
-    )
     resource_unit_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),

@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import json
 import logging
@@ -30,13 +31,12 @@ from app.repositories.git_platform_repository import (
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.icon_repository import IconRepository
-from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
+from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.operation_task import OperationTaskCreate
-from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
     CommitRead,
@@ -46,12 +46,17 @@ from app.schemas.pydantic.repository_registry import (
     RepositoryRegistryFilter,
     RepositoryRegistryRead,
 )
+from app.schemas.pydantic.unit import UnitFilter
 from app.services.access_service import AccessService
 from app.services.background import BackgroundService
 from app.services.icon_image import IconImage
 from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
-from app.services.validators import is_emtpy_sequence, is_valid_object
+from app.services.validators import (
+    is_emtpy_sequence,
+    is_valid_json,
+    is_valid_object,
+)
 from app.utils.utils import ensure_timezone_aware
 
 
@@ -60,7 +65,7 @@ class RepositoryRegistryService:
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
         icon_repository: IconRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
+        unit_repository: UnitRepository = Depends(),
         user_repository: UserRepository = Depends(),
         operation_task_service: OperationTaskService = Depends(),
         permission_service: PermissionService = Depends(),
@@ -68,7 +73,7 @@ class RepositoryRegistryService:
     ) -> None:
         self.repository_registry_repository = repository_registry_repository
         self.icon_repository = icon_repository
-        self.repo_repository = repo_repository
+        self.unit_repository = unit_repository
         self.user_repository = user_repository
         self.operation_task_service = operation_task_service
         self.git_repo_repository = GitRepoRepository()
@@ -230,6 +235,48 @@ class RepositoryRegistryService:
 
         return [CommitRead(**item) for item in page]
 
+    def get_available_platforms(
+        self,
+        uuid: uuid_pkg.UUID,
+        target_commit: str | None = None,
+        target_tag: str | None = None,
+        branch: str | None = None,
+    ) -> list[tuple[str, str]]:
+        self.access_service.authorization.check_access([AgentType.USER])
+
+        repository_registry = self.repository_registry_repository.get(
+            RepositoryRegistry(uuid=uuid)
+        )
+        is_valid_object(repository_registry)
+        self.access_service.authorization.check_visibility(repository_registry)
+
+        platforms = []
+        if repository_registry.releases_data:
+            releases = is_valid_json(
+                repository_registry.releases_data, "releases for compile repo"
+            )
+
+            if target_tag:
+                with contextlib.suppress(KeyError):
+                    platforms = releases[target_tag]
+            elif target_commit:
+                commit = self.git_repo_repository.get_commit_with_tag(
+                    repository_registry, branch, target_commit
+                )
+                if commit and commit.get("tag"):
+                    platforms = releases[commit["tag"]]
+            else:
+                page = self.git_repo_repository.get_branch_tagged_commits_page(
+                    repository_registry, branch, 0, 1
+                )
+                target = page[0] if page else None
+                if not target:
+                    msg = "Version is missing: The tags are not in the repository"
+                    raise GitRepoError(msg)
+                platforms = releases[target["tag"]]
+
+        return platforms
+
     def get_credentials(
         self, uuid: uuid_pkg.UUID
     ) -> OneRepositoryRegistryCredentials | None:
@@ -312,10 +359,10 @@ class RepositoryRegistryService:
             repository_registry, [OwnershipType.CREATOR]
         )
 
-        count, repo_list = self.repo_repository.list(
-            RepoFilter(repository_registry_uuid=uuid, limit=1)
+        _count, units = self.unit_repository.list(
+            UnitFilter(repository_registry_uuid=uuid, limit=1)
         )
-        is_emtpy_sequence(repo_list)
+        is_emtpy_sequence(units)
 
         self.git_repo_repository.delete_repo(repository_registry)
         self.repository_registry_repository.delete(repository_registry)

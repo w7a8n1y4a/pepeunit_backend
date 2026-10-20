@@ -8,6 +8,7 @@ from app.schemas.pydantic.repository_registry import (
     CommitRead,
     Credentials,
     OneRepositoryRegistryCredentials,
+    PlatformRead,
     RepositoriesRegistryResult,
     RepositoryRegistryCreate,
     RepositoryRegistryFilter,
@@ -55,6 +56,24 @@ def get_branch_commits(
     ),
 ):
     return repository_registry_service.get_branch_commits(uuid, filters)
+
+
+@router.get("/available_platforms/{uuid}", response_model=list[PlatformRead])
+def get_available_platforms(
+    uuid: uuid_pkg.UUID,
+    target_commit: str | None = None,
+    target_tag: str | None = None,
+    branch: str | None = None,
+    repository_registry_service: RepositoryRegistryService = Depends(
+        get_repository_registry_service
+    ),
+):
+    return [
+        PlatformRead(name=platform[0], link=platform[1])
+        for platform in repository_registry_service.get_available_platforms(
+            uuid, target_commit, target_tag, branch
+        )
+    ]
 
 
 @router.patch(

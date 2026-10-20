@@ -81,6 +81,11 @@ class RepositoryRegistryFilter(BasePaginationRestMixin):
         return self.__dict__
 
 
+class PlatformRead(BaseModel):
+    name: str
+    link: str
+
+
 class CommitRead(BaseModel):
     commit: str
     summary: str

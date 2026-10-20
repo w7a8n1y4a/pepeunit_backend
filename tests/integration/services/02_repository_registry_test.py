@@ -384,3 +384,43 @@ def test_schedule_update_all(
     finished = wait_task_finish(database, task, timeout=600)
     assert finished.status == OperationTaskStatus.SUCCESS.value
     assert finished.result.startswith("Synced ")
+
+
+def test_get_available_platforms(
+    universal_registry, regular_user_token, database
+) -> None:
+    service = registry_service(database, regular_user_token)
+    branch = service.git_repo_repository.get_branches(universal_registry)[0]
+
+    platforms = service.get_available_platforms(
+        universal_registry.uuid, branch=branch
+    )
+    assert len(platforms) > 0
+
+    platforms = service.get_available_platforms(
+        universal_registry.uuid, target_tag="0.0.9"
+    )
+    assert len(platforms) > 0
+
+    platforms = service.get_available_platforms(
+        universal_registry.uuid, target_tag="0.0.0.0"
+    )
+    assert len(platforms) == 0
+
+    commits = service.git_repo_repository.get_branch_commits_with_tag(
+        universal_registry, branch
+    )
+    platforms = service.get_available_platforms(
+        universal_registry.uuid,
+        target_commit=commits[-1]["commit"],
+        branch=branch,
+    )
+    assert len(platforms) == 0
+
+    tags = service.git_repo_repository.get_tags_from_all_commits(commits)
+    platforms = service.get_available_platforms(
+        universal_registry.uuid,
+        target_commit=tags[0]["commit"],
+        branch=branch,
+    )
+    assert len(platforms) > 0

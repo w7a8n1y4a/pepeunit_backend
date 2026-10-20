@@ -24,7 +24,6 @@ MODEL_MODULES = (
     "operation_task_model",
     "panels_unit_ios_model",
     "permission_model",
-    "repo_model",
     "repository_registry_model",
     "unit_group_model",
     "unit_group_unit_model",

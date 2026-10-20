@@ -57,7 +57,7 @@ class RestClient:
         ).json()["token"]
         self.headers["x-auth-token"] = self.token
 
-    def get_repo(self):
+    def get_registry(self):
         target_registry_link = (
             "https://git.pepemoss.com/pepe/pepeunit/units/universal_load_unit.git"
         )
@@ -91,49 +91,7 @@ class RestClient:
         else:
             target_registry = target_registry["repositories_registry"][0]
 
-        repo = {
-            "repository_registry_uuid": target_registry["uuid"],
-            "default_branch": target_registry["branches"][0],
-            "visibility_level": "Public",
-            "name": f"test_{self.config.test_hash}",
-            "is_compilable_repo": False,
-        }
-
-        repo_link = f"{self.config.url}/pepeunit/api/v1/repos"
-
-        response = httpx.post(
-            repo_link,
-            json=repo,
-            headers=self.headers,
-            timeout=runtime.get().http_timeout(),
-        )
-
-        if response.status_code == 422:
-            repo_link += f"?search_string={repo['name']}"
-            response = httpx.get(
-                repo_link,
-                headers=self.headers,
-                timeout=runtime.get().http_timeout(),
-            )
-
-        response = response.json()
-        target_repo = response["repos"][0] if "repos" in response else response
-
-        update_repo_link = (
-            f"{self.config.url}/pepeunit/api/v1/repos/{target_repo['uuid']}"
-        )
-        httpx.patch(
-            update_repo_link,
-            json={
-                "default_branch": target_registry["branches"][0],
-                "is_auto_update_repo": True,
-                "is_only_tag_update": False,
-            },
-            headers=self.headers,
-            timeout=runtime.get().http_timeout(),
-        )
-
-        return target_repo
+        return target_registry
 
     async def del_units(self):
         logging.warning("Run del old Units")
@@ -149,7 +107,7 @@ class RestClient:
                 )
                 logging.warning(f"Deleted {len(unit_uuids)} Units")
 
-    async def create_units(self, target_repo: dict):
+    async def create_units(self, target_registry: dict):
         logging.warning("Run create new Units")
 
         unit_create_link = f"{self.config.url}/pepeunit/api/v1/units"
@@ -160,10 +118,13 @@ class RestClient:
         ) as client:
             units = [
                 {
-                    "repo_uuid": target_repo["uuid"],
+                    "repository_registry_uuid": target_registry["uuid"],
                     "visibility_level": "Public",
                     "name": f"test_{i}_{self.config.test_hash}",
-                    "is_auto_update_from_repo_unit": True,
+                    "target_branch": target_registry["branches"][0],
+                    "is_auto_update_unit": True,
+                    "is_only_tag_update": False,
+                    "is_compilable_unit": False,
                 }
                 for i in range(self.config.unit_count)
             ]
@@ -237,9 +198,9 @@ class RestClient:
         logging.warning(f"Fetched env for {len(target_units)} Units")
         return updated_units
 
-    async def generation_units(self, target_repo: dict):
+    async def generation_units(self, target_registry: dict):
         await self.del_units()
-        await self.create_units(target_repo)
+        await self.create_units(target_registry)
         created_units = self.get_units()
         await self.create_units_env(created_units)
         await self.set_data_pipe(created_units)

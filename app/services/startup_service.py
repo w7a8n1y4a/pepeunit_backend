@@ -346,7 +346,7 @@ class StartupService:
 
     def _update_repositories(self) -> None:
         with BackgroundService() as services:
-            services.get_repo_service().bulk_update_units_firmware()
+            services.get_unit_service().bulk_update_units_firmware()
 
     def _update_registry(self) -> None:
         with BackgroundService() as services:

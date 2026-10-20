@@ -3,7 +3,7 @@ import json
 import os
 from uuid import UUID
 
-from aiogram import F, types
+from aiogram import types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -18,7 +18,6 @@ from app import runtime, settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import (
-    get_bot_repo_service,
     get_bot_unit_io_service,
     get_bot_unit_service,
 )
@@ -52,25 +51,12 @@ class UnitBotRouter(BaseBotRouter):
 
         super().__init__(entity_name=entity_name, states_group=UnitStates)
         self.router.message(Command(CommandNames.UNIT))(self.unit_resolver)
-        self.router.callback_query(
-            F.data.startswith(f"{self.entity_name}_repo_")
-        )(self.handle_by_repo)
 
     async def unit_resolver(self, message: types.Message, state: FSMContext):
         await state.set_state(None)
         filters = BaseBotFilters()
         await state.update_data(current_filters=filters)
         await self.show_entities(message, filters)
-
-    async def handle_by_repo(
-        self, callback: types.CallbackQuery, state: FSMContext
-    ):
-        *_, repo_uuid = callback.data.split("_")
-
-        await state.set_state(None)
-        filters = BaseBotFilters(repo_uuid=repo_uuid)
-        await state.update_data(current_filters=filters)
-        await self.show_entities(callback, filters)
 
     async def show_entities(
         self,
@@ -92,13 +78,6 @@ class UnitBotRouter(BaseBotRouter):
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
-        if filters.repo_uuid:
-            with get_hand_session() as db, get_hand_clickhouse_client() as cc:
-                repo_service = get_bot_repo_service(db, cc, str(chat_id))
-                repo = repo_service.get(filters.repo_uuid)
-
-            text += f" - for repo `{repo.name}`"
-
         await self.telegram_response(message, text, keyboard)
 
     async def get_entities_page(
@@ -119,7 +98,6 @@ class UnitBotRouter(BaseBotRouter):
                         else None
                     ),
                     search_string=filters.search_string,
-                    repo_uuid=filters.repo_uuid,
                 )
             )
 
@@ -133,19 +111,18 @@ class UnitBotRouter(BaseBotRouter):
         self, entities: list, filters: BaseBotFilters, total_pages: int
     ) -> InlineKeyboardMarkup:
         builder = InlineKeyboardBuilder()
-        if not filters.repo_uuid:
-            filter_buttons = [
-                InlineKeyboardButton(
-                    text="🔍 Search",
-                    callback_data=f"{self.entity_name}_search",
-                ),
-                InlineKeyboardButton(
-                    text=("🟢 " if filters.is_only_my_entity else "🔴 ")
-                    + "My units",
-                    callback_data=f"{self.entity_name}_toggle_mine",
-                ),
-            ]
-            builder.row(*filter_buttons)
+        filter_buttons = [
+            InlineKeyboardButton(
+                text="🔍 Search",
+                callback_data=f"{self.entity_name}_search",
+            ),
+            InlineKeyboardButton(
+                text=("🟢 " if filters.is_only_my_entity else "🔴 ")
+                + "My units",
+                callback_data=f"{self.entity_name}_toggle_mine",
+            ),
+        ]
+        builder.row(*filter_buttons)
 
         filter_visibility_buttons = [
             InlineKeyboardButton(
@@ -195,25 +172,17 @@ class UnitBotRouter(BaseBotRouter):
                 )
             builder.row(*pagination_row)
 
-        if filters.repo_uuid:
-            builder.row(
-                InlineKeyboardButton(
-                    text="← Back",
-                    callback_data=f"{EntityNames.REPO.value}_uuid_{filters.repo_uuid}_{filters.page}",
-                )
-            )
-
         return builder.as_markup()
 
     async def handle_entity_click(
         self, callback: types.CallbackQuery, state: FSMContext
     ) -> None:
         filters = await self._get_filters(state, callback)
-        unit, repo, target_version, current_schema, is_creator = (
-            self._get_unit_data(callback)
+        unit, target_version, current_schema, is_creator = self._get_unit_data(
+            callback
         )
 
-        text = self._build_unit_info_text(unit, repo, target_version)
+        text = self._build_unit_info_text(unit, target_version)
         if unit.unit_state:
             text += self._build_unit_state_text(unit)
 
@@ -255,14 +224,10 @@ class UnitBotRouter(BaseBotRouter):
             unit_service = get_bot_unit_service(
                 db, cc, str(callback.from_user.id)
             )
-            repo_service = get_bot_repo_service(
-                db, cc, str(callback.from_user.id)
-            )
 
             unit = unit_service.mapper_unit_to_unit_read(
                 (unit_service.get(unit_uuid), [])
             )
-            repo = repo_service.get(unit.repo_uuid)
 
             try:
                 target_version = unit_service.get_target_version(unit_uuid)
@@ -279,28 +244,35 @@ class UnitBotRouter(BaseBotRouter):
                 == unit.creator_uuid
             )
 
-        return unit, repo, target_version, current_schema, is_creator
+        return unit, target_version, current_schema, is_creator
 
-    def _build_unit_info_text(self, unit, repo, target_version):
+    def _build_unit_info_text(self, unit, target_version):
         text = f"*Unit* - `{self.header_name_limit(unit.name)}` - *{unit.visibility_level}*\n```text\n"
 
         table = [
-            ["Auto-update ?", unit.is_auto_update_from_repo_unit],
+            ["Auto-update ?", unit.is_auto_update_unit],
+            ["Tags only ?", unit.is_only_tag_update],
+            [
+                "Branch",
+                self.header_name_limit(unit.target_branch)
+                if unit.target_branch
+                else None,
+            ],
         ]
 
-        if not unit.is_auto_update_from_repo_unit:
+        if not unit.is_auto_update_unit:
             table.append(
                 [
-                    "Branch",
-                    self.header_name_limit(unit.repo_branch)
-                    if unit.repo_branch
+                    "Commit",
+                    self.git_hash_limit(unit.target_commit)
+                    if unit.target_commit
                     else None,
                 ]
             )
 
-        table.append(["Compilable ?", repo.is_compilable_repo])
+        table.append(["Compilable ?", unit.is_compilable_unit])
 
-        if repo.is_compilable_repo:
+        if unit.is_compilable_unit:
             table.append(
                 [
                     "Compilable Platform",

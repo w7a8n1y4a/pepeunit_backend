@@ -8,7 +8,6 @@ from app.domain.unit_group_model import UnitGroup
 from app.dto.enum import IconEntityType, OrderByText, VisibilityLevel
 from app.repositories.unit_group_repository import UnitGroupRepository
 from app.repositories.unit_group_unit_repository import UnitGroupUnitRepository
-from app.schemas.pydantic.repo import RepoCreate
 from app.schemas.pydantic.unit import UnitCreate, UnitRead
 from app.schemas.pydantic.unit_group import (
     UnitGroupCreate,
@@ -23,7 +22,6 @@ from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     branch_commits,
     icon_service,
-    repo_service,
     unit_group_service,
     unit_service,
 )
@@ -39,45 +37,36 @@ def _delete_groups(service, groups) -> None:
 
 
 @pytest.fixture(scope="module")
-def group_repo(universal_registry, regular_user_token, database, cc):
-    token = regular_user_token
-    read, commits = branch_commits(database, token, universal_registry.uuid)
-    repo = repo_service(database, cc, token).create(
-        RepoCreate(
-            repository_registry_uuid=universal_registry.uuid,
-            default_branch=read.branches[0],
-            visibility_level=VisibilityLevel.PUBLIC,
-            name=unique_name("grepo"),
-            is_compilable_repo=False,
-        )
+def group_source(universal_registry, regular_user_token, database):
+    read, commits = branch_commits(
+        database, regular_user_token, universal_registry.uuid
     )
-    yield repo, read.branches[0], commits[0].commit
-    repo_service(database, cc, token).delete(repo.uuid)
+    return universal_registry, read.branches[0], commits[0].commit
 
 
-def _unit(database, cc, token, repo, branch, commit, name, visibility):
+def _unit(database, cc, token, registry, branch, commit, name, visibility):
     return unit_service(database, cc, token).create(
         UnitCreate(
-            repo_uuid=repo.uuid,
+            repository_registry_uuid=registry.uuid,
             visibility_level=visibility,
             name=name,
-            is_auto_update_from_repo_unit=False,
-            repo_branch=branch,
-            repo_commit=commit,
+            is_auto_update_unit=False,
+            target_branch=branch,
+            target_commit=commit,
         )
     )
 
 
 @pytest.fixture(scope="module")
-def group_units(group_repo, regular_user_token, database, cc):
-    repo, branch, commit = group_repo
+def group_units(group_source, regular_user_token, database, cc):
+    registry, branch, commit = group_source
     token = regular_user_token
     created = [
         _unit(
             database,
             cc,
             token,
-            repo,
+            registry,
             branch,
             commit,
             unique_name("gua"),
@@ -87,7 +76,7 @@ def group_units(group_repo, regular_user_token, database, cc):
             database,
             cc,
             token,
-            repo,
+            registry,
             branch,
             commit,
             unique_name("gub"),
@@ -97,7 +86,7 @@ def group_units(group_repo, regular_user_token, database, cc):
             database,
             cc,
             token,
-            repo,
+            registry,
             branch,
             commit,
             unique_name("gup"),
@@ -330,15 +319,15 @@ def test_deleted_group_drops_icon_and_membership(
 
 
 def test_deleted_unit_leaves_the_group(
-    database, cc, regular_user_token, group_repo
+    database, cc, regular_user_token, group_source
 ) -> None:
-    repo, branch, commit = group_repo
+    registry, branch, commit = group_source
     token = regular_user_token
     unit = _unit(
         database,
         cc,
         token,
-        repo,
+        registry,
         branch,
         commit,
         unique_name("gux"),

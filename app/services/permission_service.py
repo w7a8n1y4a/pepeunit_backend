@@ -4,7 +4,6 @@ from fastapi import Depends
 
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
-from app.domain.repo_model import Repo
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
@@ -58,7 +57,7 @@ class PermissionService:
         return self.permission_repository.create(new_permission)
 
     def create_by_domains(
-        self, agent: User | Unit, resource: Repo | Unit | UnitIO
+        self, agent: User | Unit, resource: Unit | UnitIO
     ) -> PermissionBaseType:
         agent_type = agent.__class__.__name__
         resource_type = resource.__class__.__name__
@@ -126,14 +125,6 @@ class PermissionService:
 
         if agent.uuid == resource.creator_uuid:
             msg = "The creator of the resource cannot remove his access to the resource"
-            raise CustomPermissionError(msg)
-
-        if (
-            isinstance(agent, Unit)
-            and isinstance(resource, Repo)
-            and resource.uuid == agent.repo_uuid
-        ):
-            msg = "You cannot remove Unit's access to the parent Repo"
             raise CustomPermissionError(msg)
 
         if (

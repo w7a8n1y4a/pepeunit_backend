@@ -53,18 +53,22 @@ class Unit(SQLModel, table=True):
     name: str = Field(nullable=False)
     create_datetime: datetime = Field(nullable=False)
 
-    # Automatically update when the parent Repo is updated?
-    # the last tag or commit in the default Repo branch is taken automatically
-    is_auto_update_from_repo_unit: bool = Field(nullable=False, default=True)
+    # Follow target_branch. Last tag when is_only_tag_update or
+    # is_compilable_unit, otherwise the branch head.
+    is_auto_update_unit: bool = Field(nullable=False, default=True)
 
-    # if is_compilable_repo == True - link names from assets releases
+    # Compiled firmware uses tags only. The archive contains env and schema.
+    is_compilable_unit: bool = Field(nullable=False, default=False)
+
+    # With is_auto_update_unit, follow the last tag instead of the branch head.
+    is_only_tag_update: bool = Field(nullable=False, default=True)
+
+    # Release asset name when is_compilable_unit is true.
     target_firmware_platform: str = Field(nullable=True, default=None)
 
-    # if is_auto_update_from_repo_unit = False
-    # target branch name
-    repo_branch: str = Field(nullable=True)
-    # target commit name - if target is Tag - will be assigned to the commit corresponding Tag
-    repo_commit: str = Field(nullable=True)
+    target_branch: str = Field(nullable=False)
+    # Pin used when is_auto_update_unit is false.
+    target_commit: str = Field(nullable=True)
 
     last_update_datetime: datetime = Field(nullable=False)
 
@@ -90,10 +94,12 @@ class Unit(SQLModel, table=True):
             UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
         )
     )
-    # to Repo link
-    repo_uuid: uuid_pkg.UUID = Field(
+    repository_registry_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
-            UUID(as_uuid=True), ForeignKey("repos.uuid", ondelete="CASCADE")
+            UUID(as_uuid=True),
+            ForeignKey("repository_registry.uuid", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
         )
     )
 

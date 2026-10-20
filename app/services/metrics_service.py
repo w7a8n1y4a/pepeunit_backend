@@ -2,7 +2,6 @@ from cachetools import TTLCache
 from fastapi import Depends
 
 from app.dto.enum import AgentType, CacheKey
-from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
@@ -21,7 +20,6 @@ class MetricsService:
     def __init__(
         self,
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
         unit_io_edge_repository: UnitIOEdgeRepository = Depends(),
         unit_io_repository: UnitIORepository = Depends(),
         unit_repository: UnitRepository = Depends(),
@@ -29,7 +27,6 @@ class MetricsService:
         access_service: AccessService = Depends(),
     ) -> None:
         self.repository_registry_repository = repository_registry_repository
-        self.repo_repository = repo_repository
         self.unit_repository = unit_repository
         self.unit_io_repository = unit_io_repository
         self.unit_io_edge_repository = unit_io_edge_repository
@@ -64,7 +61,6 @@ class MetricsService:
                         limit=0,
                     )
                 )[0],
-                repo_count=self.repo_repository.get_public_count(),
                 unit_count=self.unit_repository.get_public_count(),
                 unit_io_count=self.unit_io_repository.get_public_count(),
                 unit_io_edge_count=(
@@ -75,7 +71,6 @@ class MetricsService:
             metrics = BaseMetricsRead(
                 user_count=self.user_repository.get_all_count(),
                 repository_registry_count=self.repository_registry_repository.get_all_count(),
-                repo_count=self.repo_repository.get_all_count(),
                 unit_count=self.unit_repository.get_all_count(),
                 unit_io_count=self.unit_io_repository.get_all_count(),
                 unit_io_edge_count=self.unit_io_edge_repository.get_all_count(),

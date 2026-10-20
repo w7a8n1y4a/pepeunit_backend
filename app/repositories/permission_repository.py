@@ -7,7 +7,6 @@ from sqlmodel import Session
 from app.configs.db import get_session
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import Permission, PermissionBaseType
-from app.domain.repo_model import Repo
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
@@ -30,7 +29,6 @@ class PermissionRepository(BaseRepository):
                     Permission.agent_unit_uuid == agent_uuid,
                 ),
                 or_(
-                    Permission.resource_repo_uuid == resource_uuid,
                     Permission.resource_unit_uuid == resource_uuid,
                     Permission.resource_unit_io_uuid == resource_uuid,
                 ),
@@ -62,9 +60,7 @@ class PermissionRepository(BaseRepository):
             permission.agent_unit_uuid = base_permission.agent_uuid
 
         resource_type = eval(base_permission.resource_type)
-        if resource_type is Repo:
-            permission.resource_repo_uuid = base_permission.resource_uuid
-        elif resource_type is Unit:
+        if resource_type is Unit:
             permission.resource_unit_uuid = base_permission.resource_uuid
         elif resource_type is UnitIO:
             permission.resource_unit_io_uuid = base_permission.resource_uuid
@@ -88,9 +84,7 @@ class PermissionRepository(BaseRepository):
             base_permission.agent_uuid = permission.agent_unit_uuid
 
         resource_type = eval(base_permission.resource_type)
-        if resource_type is Repo:
-            base_permission.resource_uuid = permission.resource_repo_uuid
-        elif resource_type is Unit:
+        if resource_type is Unit:
             base_permission.resource_uuid = permission.resource_unit_uuid
         elif resource_type is UnitIO:
             base_permission.resource_uuid = permission.resource_unit_io_uuid
@@ -131,7 +125,6 @@ class PermissionRepository(BaseRepository):
         fld_type: PermissionEntities,
     ) -> uuid_pkg.UUID:
         entities_dict = {
-            PermissionEntities.REPO: Permission.resource_repo_uuid,
             PermissionEntities.UNIT: Permission.resource_unit_uuid,
             PermissionEntities.UNIT_IO: Permission.resource_unit_io_uuid,
         }
@@ -191,7 +184,6 @@ class PermissionRepository(BaseRepository):
     @staticmethod
     def is_valid_agent_type(permission: Permission) -> None:
         entities = [item.value for item in PermissionEntities]
-        entities.remove(PermissionEntities.REPO)
         entities.remove(PermissionEntities.UNIT_IO)
 
         if permission.agent_type not in entities:

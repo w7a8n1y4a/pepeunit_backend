@@ -12,34 +12,60 @@ from app.schemas.pydantic.unit import UnitCreate
 from tests.integration.helpers.names import entity_name, unique_name
 from tests.integration.helpers.services import (
     branch_commits,
+    registry_read,
     unit_service,
 )
 from tests.integration.helpers.wait import wait_until
 
 
-def _create_manual_unit(database, cc, token, repo, name: str, *, compile_unit: bool = False):
+def _create_manual_unit(
+    database,
+    cc,
+    token,
+    registry,
+    name: str,
+    visibility_level: VisibilityLevel,
+    *,
+    compile_unit: bool = False,
+    is_only_tag_update: bool = True,
+):
     service = unit_service(database, cc, token)
-    _, commits = branch_commits(database, token, repo.repository_registry_uuid)
+    read, commits = branch_commits(database, token, registry.uuid)
     return service.create(
         UnitCreate(
-            repo_uuid=repo.uuid,
-            visibility_level=repo.visibility_level,
+            repository_registry_uuid=registry.uuid,
+            visibility_level=visibility_level,
             name=name,
-            is_auto_update_from_repo_unit=False,
-            repo_branch=repo.default_branch,
-            repo_commit=commits[0].commit,
+            target_branch=read.branches[0],
+            is_auto_update_unit=False,
+            is_compilable_unit=compile_unit,
+            is_only_tag_update=is_only_tag_update,
+            target_commit=commits[0].commit,
             target_firmware_platform="Universal" if compile_unit else None,
         )
     )
 
 
-def _create_auto_unit(database, cc, token, repo, name: str):
+def _create_auto_unit(
+    database,
+    cc,
+    token,
+    registry,
+    name: str,
+    visibility_level: VisibilityLevel,
+    *,
+    is_only_tag_update: bool = True,
+):
+    read = registry_read(database, token, registry)
     return unit_service(database, cc, token).create(
         UnitCreate(
-            repo_uuid=repo.uuid,
-            visibility_level=repo.visibility_level,
+            repository_registry_uuid=registry.uuid,
+            visibility_level=visibility_level,
             name=name,
-            is_auto_update_from_repo_unit=True,
+            target_branch=read.branches[0],
+            is_auto_update_unit=True,
+            is_only_tag_update=is_only_tag_update,
+            is_compilable_unit=False,
         )
     )
 
@@ -75,41 +101,85 @@ class LiveUnits:
 
 
 @pytest.fixture(scope="session")
-def live_units(live_repos, regular_user_token, database, cc) -> LiveUnits:
+def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnits:
     token = regular_user_token
     service = unit_service(database, cc, token)
+    registry = universal_registry
 
     units = LiveUnits(
         universal_auto_unit=_create_auto_unit(
-            database, cc, token, live_repos.universal_private_repo, entity_name("u_auto")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_auto"),
+            VisibilityLevel.PRIVATE,
         ),
         universal_manual_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_public_repo, entity_name("u_man")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_man"),
+            VisibilityLevel.PUBLIC,
         ),
         last_value_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_public_repo, entity_name("u_last")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_last"),
+            VisibilityLevel.PUBLIC,
         ),
         n_records_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_internal_repo, entity_name("u_nrec")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_nrec"),
+            VisibilityLevel.INTERNAL,
+            is_only_tag_update=False,
         ),
         time_window_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_private_repo, entity_name("u_twin")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_twin"),
+            VisibilityLevel.PRIVATE,
         ),
         chain_source_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_public_repo, entity_name("u_csrc")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_csrc"),
+            VisibilityLevel.PUBLIC,
         ),
         chain_middle_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_internal_repo, entity_name("u_cmid")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_cmid"),
+            VisibilityLevel.INTERNAL,
+            is_only_tag_update=False,
         ),
         chain_sink_unit=_create_manual_unit(
-            database, cc, token, live_repos.universal_private_repo, entity_name("u_csnk")
+            database,
+            cc,
+            token,
+            registry,
+            entity_name("u_csnk"),
+            VisibilityLevel.PRIVATE,
         ),
         compile_unit=_create_manual_unit(
             database,
             cc,
             token,
-            live_repos.universal_compile_repo,
+            registry,
             entity_name("u_cmp"),
+            VisibilityLevel.PUBLIC,
             compile_unit=True,
         ),
     )
@@ -252,28 +322,20 @@ def chain_edges(running_units, regular_user_token, database, cc):
     return io_units_list
 
 
-def _create_crud_unit(database, cc, token, repo, visibility_level, name: str):
-    read, commits = branch_commits(database, token, repo.repository_registry_uuid)
-    return unit_service(database, cc, token).create(
-        UnitCreate(
-            repo_uuid=repo.uuid,
-            visibility_level=visibility_level,
-            name=name,
-            is_auto_update_from_repo_unit=False,
-            repo_branch=read.branches[0],
-            repo_commit=commits[0].commit,
-        )
+def _create_crud_unit(database, cc, token, registry, visibility_level, name: str):
+    return _create_manual_unit(
+        database, cc, token, registry, name, visibility_level
     )
 
 
 @pytest.fixture
-def crud_unit(universal_public_repo, regular_user_token, database, cc):
+def crud_unit(universal_registry, regular_user_token, database, cc):
     token = regular_user_token
     unit = _create_crud_unit(
         database,
         cc,
         token,
-        universal_public_repo,
+        universal_registry,
         VisibilityLevel.PUBLIC,
         unique_name("ucrud"),
     )
@@ -285,13 +347,13 @@ def crud_unit(universal_public_repo, regular_user_token, database, cc):
 
 
 @pytest.fixture
-def private_crud_unit(universal_public_repo, regular_user_token, database, cc):
+def private_crud_unit(universal_registry, regular_user_token, database, cc):
     token = regular_user_token
     unit = _create_crud_unit(
         database,
         cc,
         token,
-        universal_public_repo,
+        universal_registry,
         VisibilityLevel.PRIVATE,
         unique_name("upriv"),
     )

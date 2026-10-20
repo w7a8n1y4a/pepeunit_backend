@@ -10,14 +10,12 @@ from app.configs.rest import (
     get_notification_service,
     get_operation_task_service,
     get_permission_service,
-    get_repo_service,
     get_repository_registry_service,
     get_unit_group_service,
     get_unit_io_service,
     get_unit_service,
     get_user_service,
 )
-from app.schemas.pydantic.repo import RepoCreate
 from app.schemas.pydantic.repository_registry import CommitFilter
 from app.schemas.pydantic.user import AuthChallengeCreate, AuthTokenCreate
 
@@ -32,10 +30,6 @@ def icon_service(database, token=None):
 
 def registry_service(database, token=None):
     return get_repository_registry_service(database, token)
-
-
-def repo_service(database, cc, token=None):
-    return get_repo_service(database, cc, token)
 
 
 def unit_service(database, cc, token=None):
@@ -82,16 +76,6 @@ def registry_read(database, token, registry_or_uuid):
     service = registry_service(database, token)
     registry_uuid = getattr(registry_or_uuid, "uuid", registry_or_uuid)
     return service.mapper_registry_to_registry_read(service.get(registry_uuid))
-
-
-def repo_create_payload(repo) -> RepoCreate:
-    return RepoCreate(
-        repository_registry_uuid=repo.repository_registry_uuid,
-        default_branch=repo.default_branch,
-        visibility_level=repo.visibility_level,
-        name=repo.name,
-        is_compilable_repo=repo.is_compilable_repo,
-    )
 
 
 def _collect_commits(service, registry_uuid, branch, only_tag, count):

@@ -182,7 +182,6 @@ class CurrentInstanceStateV1(BaseModel):
 class CurrentInstanceMetricsV1(BaseModel):
     user_count: int = Field(ge=0)
     repository_registry_count: int = Field(ge=0)
-    repo_count: int = Field(ge=0)
     unit_count: int = Field(ge=0)
     unit_io_count: int = Field(ge=0)
     unit_io_edge_count: int = Field(ge=0)

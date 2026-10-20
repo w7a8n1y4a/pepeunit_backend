@@ -34,10 +34,6 @@ class RepositoryRegistryStates(StatesGroup):
     waiting_for_search = State()
 
 
-class RepoStates(StatesGroup):
-    waiting_for_search = State()
-
-
 class UnitStates(StatesGroup):
     waiting_for_search = State()
 
@@ -62,7 +58,6 @@ class BaseBotFilters(BaseModel):
     is_only_my_entity: bool = False
     search_string: str | None = None
     previous_filters: BaseBotFilters | None = None
-    repo_uuid: str | None = None
     unit_uuid: str | None = None
 
     @field_validator("previous_filters")
@@ -159,7 +154,6 @@ class BaseBotRouter(ABC):
         )(self.handle_entity_decrees)
         if self.states_group in (
             RepositoryRegistryStates,
-            RepoStates,
             UnitStates,
             UnitIOStates,
             DashboardStates,
@@ -199,7 +193,6 @@ class BaseBotRouter(ABC):
     ):
         if self.states_group in (
             RepositoryRegistryStates,
-            RepoStates,
             UnitStates,
             UnitIOStates,
             DashboardStates,

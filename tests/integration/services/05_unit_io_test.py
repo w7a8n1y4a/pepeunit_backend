@@ -27,7 +27,6 @@ from tests.integration.helpers.http import (
     post_schema_update,
 )
 from tests.integration.helpers.services import (
-    repo_service,
     unit_io_service,
     unit_service,
 )
@@ -379,14 +378,6 @@ def test_delete_unit(crud_unit, regular_user_token, database, cc) -> None:
     service.delete(crud_unit.uuid)
     with pytest.raises(ValidationError):
         service.get(crud_unit.uuid)
-
-
-def test_get_repo_versions(
-    live_units, universal_private_repo, regular_user_token, database, cc
-) -> None:
-    service = repo_service(database, cc, regular_user_token)
-    versions = service.get_versions(universal_private_repo.uuid)
-    assert versions.unit_count == 3
 
 
 @pytest.mark.datapipe

@@ -21,7 +21,6 @@ from app.configs.errors import (
     UnitError,
     ValidationError,
 )
-from app.domain.repo_model import Repo
 from app.dto.agent.abc import AgentBackend
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
@@ -37,7 +36,6 @@ from app.dto.enum import (
     VisibilityLevel,
 )
 from app.repositories.unit_log_repository import UnitLogRepository
-from app.schemas.pydantic.repo import RepoUpdate
 from app.schemas.pydantic.unit import (
     UnitCreate,
     UnitFilter,
@@ -49,16 +47,14 @@ from app.services.utils import get_topic_name
 from app.utils.utils import aes_gcm_encode
 from tests.integration.helpers.http import (
     get_unit_logs_file,
-    patch_repo,
     patch_unit_commit,
-    patch_update_units_firmware,
-    post_bulk_update_repo,
+    post_bulk_update_units,
     post_unit_command,
 )
 from tests.integration.helpers.names import unique_name
 from tests.integration.helpers.services import (
     branch_commits,
-    repo_service,
+    registry_service,
     unit_io_service,
     unit_service,
 )
@@ -71,30 +67,30 @@ def test_create_unit(live_units) -> None:
 
 
 def test_create_unit_duplicate_name(
-    live_units, universal_public_repo, regular_user_token, database, cc
+    live_units, universal_registry, regular_user_token, database, cc
 ) -> None:
     service = unit_service(database, cc, regular_user_token)
     with pytest.raises(UnitError, match="Name is not unique"):
         service.create(
             UnitCreate(
-                repo_uuid=universal_public_repo.uuid,
-                visibility_level=universal_public_repo.visibility_level,
+                repository_registry_uuid=universal_registry.uuid,
+                visibility_level=VisibilityLevel.PUBLIC,
                 name=live_units.universal_manual_unit.name,
-                is_auto_update_from_repo_unit=True,
+                target_branch=live_units.universal_manual_unit.target_branch,
             )
         )
 
 
 def test_create_unit_same_name_other_user(
-    live_units, universal_public_repo, extra_user_token, database, cc
+    live_units, universal_registry, extra_user_token, database, cc
 ) -> None:
     service = unit_service(database, cc, extra_user_token)
     unit = service.create(
         UnitCreate(
-            repo_uuid=universal_public_repo.uuid,
-            visibility_level=universal_public_repo.visibility_level,
+            repository_registry_uuid=universal_registry.uuid,
+            visibility_level=VisibilityLevel.PUBLIC,
             name=live_units.universal_manual_unit.name,
-            is_auto_update_from_repo_unit=True,
+            target_branch=live_units.universal_manual_unit.target_branch,
         )
     )
     try:
@@ -103,32 +99,27 @@ def test_create_unit_same_name_other_user(
         service.delete(unit.uuid)
 
 
-def test_create_unit_without_default_branch(
-    crud_repo, regular_user_token, database, cc
+def test_create_unit_unknown_branch(
+    universal_registry, regular_user_token, database, cc
 ) -> None:
     service = unit_service(database, cc, regular_user_token)
-    repo_svc = repo_service(database, cc, regular_user_token)
-    target_repo = Repo(**crud_repo.__dict__)
-    target_repo.default_branch = None
-    repo_svc.repo_repository.update(crud_repo.uuid, target_repo)
-
     with pytest.raises(GitRepoError):
         service.create(
             UnitCreate(
-                repo_uuid=crud_repo.uuid,
-                visibility_level=crud_repo.visibility_level,
+                repository_registry_uuid=universal_registry.uuid,
+                visibility_level=VisibilityLevel.PUBLIC,
                 name=unique_name("nobr"),
-                is_auto_update_from_repo_unit=True,
+                target_branch="branch-does-not-exist",
             )
         )
 
 
-def test_delete_repo_with_unit(
-    universal_compile_repo, compile_unit, regular_user_token, database, cc
+def test_delete_registry_with_unit(
+    universal_registry, compile_unit, regular_user_token, database
 ) -> None:
-    repo_svc = repo_service(database, cc, regular_user_token)
+    registry_svc = registry_service(database, regular_user_token)
     with pytest.raises(ValidationError):
-        repo_svc.delete(universal_compile_repo.uuid)
+        registry_svc.delete(universal_registry.uuid)
 
 
 def test_update_unit_name(
@@ -176,24 +167,24 @@ def test_update_unit_auto_flags(
     service = unit_service(database, cc, regular_user_token)
     with pytest.raises(UnitError):
         service.update(
-            universal_auto_unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=False)
+            universal_auto_unit.uuid, UnitUpdate(is_auto_update_unit=False)
         )
 
-    repo_svc = repo_service(database, cc, regular_user_token)
-    target_repo = repo_svc.get(universal_auto_unit.repo_uuid)
-    read, commits = branch_commits(
-        database, regular_user_token, target_repo.repository_registry_uuid
+    _read, commits = branch_commits(
+        database,
+        regular_user_token,
+        universal_auto_unit.repository_registry_uuid,
     )
     service.update(
         universal_auto_unit.uuid,
         UnitUpdate(
-            is_auto_update_from_repo_unit=False,
-            repo_branch=read.branches[0],
-            repo_commit=commits[0].commit,
+            is_auto_update_unit=False,
+            target_branch=universal_auto_unit.target_branch,
+            target_commit=commits[0].commit,
         ),
     )
     service.update(
-        universal_auto_unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True)
+        universal_auto_unit.uuid, UnitUpdate(is_auto_update_unit=True)
     )
 
 
@@ -203,7 +194,7 @@ def test_update_unit_not_creator(
     service = unit_service(database, cc, admin_user_token)
     with pytest.raises(NoAccessError):
         service.update(
-            universal_auto_unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True)
+            universal_auto_unit.uuid, UnitUpdate(is_auto_update_unit=True)
         )
 
 
@@ -274,18 +265,16 @@ def test_hand_update_firmware_unit(
     token = regular_user_token
     logging.info(f"User token: {token}")
     service = unit_service(database, cc, token)
-    repo_svc = repo_service(database, cc, token)
     target_units = running_units.firmware_manual()
 
     target_versions = []
     for unit in target_units:
         logging.info(unit.uuid)
-        repo = repo_svc.get(unit.repo_uuid)
-        read, commits = branch_commits(
+        _read, commits = branch_commits(
             database,
             token,
-            repo.repository_registry_uuid,
-            only_tag=repo.is_only_tag_update,
+            unit.repository_registry_uuid,
+            only_tag=unit.is_only_tag_update,
             count=2,
         )
         target_version = commits[1].commit
@@ -331,7 +320,6 @@ def test_hand_update_with_bad_env(
 ) -> None:
     token = regular_user_token
     service = unit_service(database, cc, token)
-    repo_svc = repo_service(database, cc, token)
 
     env_dict = service.get_env(universal_manual_unit.uuid)
     del env_dict["PU_SECRET_KEY"]
@@ -341,52 +329,48 @@ def test_hand_update_with_bad_env(
     update_unit.cipher_env_dict = aes_gcm_encode(json.dumps(env_dict))
     service.unit_repository.update(universal_manual_unit.uuid, update_unit)
 
-    repo = repo_svc.get(universal_manual_unit.repo_uuid)
-    _, commits = branch_commits(database, token, repo.repository_registry_uuid)
+    _, commits = branch_commits(
+        database, token, universal_manual_unit.repository_registry_uuid
+    )
     assert patch_unit_commit(token, universal_manual_unit, commits[0].commit) == 200
 
 
-def test_repo_update_firmware_unit(
+def test_auto_update_firmware_unit(
     running_units, admin_user_token, regular_user_token, database, cc
 ) -> None:
     token = regular_user_token
     service = unit_service(database, cc, token)
-    repo_svc = repo_service(database, cc, token)
-    target_units = running_units.chain()
-
-    for unit in target_units:
-        logging.info(unit.uuid)
-        service.update(unit.uuid, UnitUpdate(is_auto_update_from_repo_unit=True))
-
-    target_repo = repo_svc.get(target_units[0].repo_uuid)
-    _, commits = branch_commits(database, token, target_repo.repository_registry_uuid)
+    source, middle, sink = running_units.chain()
+    _, commits = branch_commits(database, token, source.repository_registry_uuid)
     target_version = commits[0].commit
-    assert patch_repo(token, target_repo, RepoUpdate(default_commit=target_version)) < 400
+    assert patch_unit_commit(token, source, target_version) < 400
 
     wait_until(
-        lambda: service.get(target_units[0].uuid).current_commit_version == target_version,
+        lambda: service.get(source.uuid).current_commit_version == target_version,
         timeout=runtime.get().pu_instance_unit_state_send_interval * 2 + 10,
-        message="hand repo update did not reach unit commit",
+        message="hand unit update did not reach unit commit",
         session=database,
     )
 
-    assert post_bulk_update_repo(admin_user_token) < 400
-
-    target_repo = repo_svc.get(target_units[0].repo_uuid)
-    from tests.integration.helpers.services import registry_service
+    service.update(
+        middle.uuid,
+        UnitUpdate(is_auto_update_unit=True, is_only_tag_update=False),
+    )
+    service.update(
+        sink.uuid,
+        UnitUpdate(is_auto_update_unit=True, is_only_tag_update=True),
+    )
+    assert post_bulk_update_units(admin_user_token) < 400
 
     registry_svc = registry_service(database, token)
     repository_registry = registry_svc.mapper_registry_to_registry_read(
-        registry_svc.get(target_repo.repository_registry_uuid)
+        registry_svc.get(source.repository_registry_uuid)
     )
-    commits_with_tag = repo_svc.git_repo_repository.get_branch_commits_with_tag(
-        repository_registry, target_repo.default_branch
+    commits_with_tag = service.git_repo_repository.get_branch_commits_with_tag(
+        repository_registry, source.target_branch
     )
-    tags = repo_svc.git_repo_repository.get_tags_from_all_commits(commits_with_tag)
+    tags = service.git_repo_repository.get_tags_from_all_commits(commits_with_tag)
     tag_commit = tags[0]["commit"]
-
-    middle = target_units[-2]
-    sink = target_units[-1]
 
     def bulk_reached() -> bool:
         middle_commit = service.get(middle.uuid).current_commit_version
@@ -398,7 +382,7 @@ def test_repo_update_firmware_unit(
         bulk_reached,
         timeout=runtime.get().pu_instance_unit_state_send_interval * 2 + 10,
         interval=2,
-        message="bulk repo update did not reach chain units",
+        message="bulk unit update did not reach chain units",
         session=database,
     )
 
@@ -478,7 +462,6 @@ def test_reset_command(running_units, chain_sink_unit, regular_user_token) -> No
 def test_get_many_unit(
     live_units,
     universal_auto_unit,
-    universal_private_repo,
     regular_user,
     regular_user_token,
     database,
@@ -489,9 +472,9 @@ def test_get_many_unit(
     count, units = service.list(
         UnitFilter.unlimited(
             creator_uuid=regular_user.uuid,
-            repo_uuid=universal_private_repo.uuid,
+            repository_registry_uuid=universal_auto_unit.repository_registry_uuid,
             search_string=test_hash,
-            is_auto_update_from_repo_unit=True,
+            is_auto_update_unit=True,
         )
     )
     assert count >= 1
@@ -677,15 +660,12 @@ def test_list_units_with_output_nodes(
 
 
 def test_update_units_firmware(
-    running_units, universal_private_repo, regular_user_token, database
+    running_units, admin_user_token, database
 ) -> None:
-    task_type = OperationTaskType.UPDATE_UNITS_FIRMWARE
+    task_type = OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE
     previous_task = latest_task(database, task_type)
 
-    assert (
-        patch_update_units_firmware(regular_user_token, universal_private_repo)
-        < 400
-    )
+    assert post_bulk_update_units(admin_user_token) < 400
 
     def is_finish() -> bool:
         task = latest_task(database, task_type)

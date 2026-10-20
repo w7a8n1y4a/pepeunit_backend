@@ -5,7 +5,6 @@ import httpx
 
 from app import runtime, settings
 from app.dto.enum import BackendTopicCommand
-from app.schemas.pydantic.repo import RepoUpdate
 from app.schemas.pydantic.unit import UnitUpdate
 from app.schemas.pydantic.unit_io import UnitIOSetState
 
@@ -28,35 +27,20 @@ def patch_unit_commit(token: str, unit, target_version: str) -> int:
     url = f"{settings.pu_link_prefix_and_v1}/units/{unit.uuid}"
     response = httpx.patch(
         url=url,
-        json=UnitUpdate(repo_commit=target_version).dict(),
+        json=UnitUpdate(
+            is_auto_update_unit=False, target_commit=target_version
+        ).dict(),
         headers=_headers(token),
         timeout=runtime.get().http_timeout(),
     )
     return _status(response)
 
 
-def patch_repo(token: str, repo, repo_update: RepoUpdate) -> int:
-    url = f"{settings.pu_link_prefix_and_v1}/repos/{repo.uuid}"
-    response = httpx.patch(
-        url=url,
-        json=repo_update.dict(),
-        headers=_headers(token),
-        timeout=runtime.get().http_timeout(),
+def post_bulk_update_units(token: str) -> int:
+    url = f"{settings.pu_link_prefix_and_v1}/units/bulk_update"
+    response = httpx.post(
+        url=url, headers=_headers(token), timeout=runtime.get().http_timeout()
     )
-    return _status(response)
-
-
-def post_bulk_update_repo(token: str) -> int:
-    url = f"{settings.pu_link_prefix_and_v1}/repos/bulk_update"
-    response = httpx.post(url=url, headers=_headers(token), timeout=runtime.get().http_timeout())
-    return _status(response)
-
-
-def patch_update_units_firmware(token: str, repo) -> int:
-    url = (
-        f"{settings.pu_link_prefix_and_v1}/repos/update_units_firmware/{repo.uuid}"
-    )
-    response = httpx.patch(url=url, headers=_headers(token), timeout=runtime.get().http_timeout())
     return _status(response)
 
 

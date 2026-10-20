@@ -5,6 +5,7 @@ import copy
 import datetime
 import itertools
 import json
+import logging
 import os
 import shutil
 import uuid as uuid_pkg
@@ -14,7 +15,7 @@ from fastapi import Depends
 
 from app import runtime, settings
 from app.configs.errors import MqttError, NoAccessError, UnitError
-from app.domain.repo_model import Repo
+from app.domain.operation_task_model import OperationTask
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
@@ -26,16 +27,17 @@ from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     LogLevel,
+    OperationTaskType,
     OrderByDate,
     OwnershipType,
     PermissionEntities,
     ReservedEnvVariableName,
     StaticRepoFileName,
     UnitIOTypeEnum,
+    UserRole,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.icon_repository import IconRepository
-from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
@@ -43,9 +45,10 @@ from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
 from app.schemas.mqtt.utils import get_topic_split
-from app.schemas.pydantic.repo import TargetVersionRead
+from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.shared import UnitIORead
 from app.schemas.pydantic.unit import (
+    TargetVersionRead,
     UnitCreate,
     UnitFilter,
     UnitLogFilter,
@@ -54,7 +57,9 @@ from app.schemas.pydantic.unit import (
 )
 from app.schemas.pydantic.unit_io import UnitIOFilter
 from app.services.access_service import AccessService
+from app.services.background import BackgroundService
 from app.services.icon_image import IconImage
+from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.unit_io_service import UnitIOService
 from app.services.utils import (
@@ -67,7 +72,6 @@ from app.services.validators import (
     is_valid_json,
     is_valid_object,
     is_valid_uuid,
-    is_valid_visibility_level,
 )
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
@@ -78,67 +82,58 @@ class UnitService:
         unit_repository: UnitRepository = Depends(),
         icon_repository: IconRepository = Depends(),
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
         unit_io_repository: UnitIORepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         access_service: AccessService = Depends(),
         permission_service: PermissionService = Depends(),
+        operation_task_service: OperationTaskService = Depends(),
         unit_io_service: UnitIOService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
         self.icon_repository = icon_repository
         self.repository_registry_repository = repository_registry_repository
-        self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_io_repository = unit_io_repository
         self.unit_log_repository = unit_log_repository
         self.access_service = access_service
         self.permission_service = permission_service
+        self.operation_task_service = operation_task_service
         self.unit_io_service = unit_io_service
 
     def create(self, data: UnitCreate) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
         self.unit_repository.is_valid_name(data.name)
 
-        repo = self.repo_repository.get(Repo(uuid=data.repo_uuid))
-        is_valid_object(repo)
-        is_valid_visibility_level(repo, [data])
-
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=data.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
-
-        self.repo_repository.is_valid_auto_updated_repo(
-            repo, repository_registry
+        self.access_service.authorization.check_repository_registry_access(
+            repository_registry
         )
-        self.is_valid_no_auto_updated_unit(repository_registry, data)
-
-        if data.is_auto_update_from_repo_unit:
-            self.git_repo_repository.is_valid_branch(
-                repository_registry, repo.default_branch
-            )
-        else:
-            self.git_repo_repository.is_valid_branch(
-                repository_registry, data.repo_branch
-            )
-            self.git_repo_repository.is_valid_schema_file(
-                repository_registry, data.repo_commit
-            )
-            self.git_repo_repository.get_env_dict(
-                repository_registry, data.repo_commit
-            )
 
         unit = Unit(
             creator_uuid=self.access_service.current_agent.uuid, **data.dict()
         )
-        self.git_repo_repository.is_valid_firmware_platform(
-            repo, repository_registry, unit, unit.target_firmware_platform
+        self.is_valid_update_rule(unit)
+        target_commit, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repository_registry, unit
+            )
         )
-
-        target_commit = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
-        )[0]
+        self.git_repo_repository.is_valid_firmware_platform(
+            repository_registry,
+            unit,
+            unit.target_firmware_platform,
+            (target_commit, target_tag),
+        )
+        self.git_repo_repository.is_valid_schema_file(
+            repository_registry, target_commit
+        )
+        if not unit.is_auto_update_unit:
+            self.git_repo_repository.get_env_dict(
+                repository_registry, target_commit
+            )
 
         schema_dict = self.git_repo_repository.get_schema_dict(
             repository_registry, target_commit
@@ -154,9 +149,6 @@ class UnitService:
 
         self.permission_service.create_by_domains(
             User(uuid=self.access_service.current_agent.uuid), unit
-        )
-        self.permission_service.create_by_domains(
-            unit, Repo(uuid=unit.repo_uuid)
         )
         self.permission_service.create_by_domains(unit, unit)
 
@@ -189,20 +181,21 @@ class UnitService:
         )
         self.unit_repository.is_valid_name(unit_update.name)
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        is_valid_visibility_level(repo, [unit_update])
-
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
-
-        self.is_valid_no_auto_updated_unit(repository_registry, unit_update)
+        self.is_valid_update_rule(unit_update)
+        target_commit, target_tag = (
+            self.git_repo_repository.get_target_unit_version(
+                repository_registry, unit_update
+            )
+        )
         self.git_repo_repository.is_valid_firmware_platform(
-            repo,
             repository_registry,
             unit_update,
             unit_update.target_firmware_platform,
+            (target_commit, target_tag),
         )
 
         unit_update.last_update_datetime = datetime.datetime.now(datetime.UTC)
@@ -210,7 +203,7 @@ class UnitService:
         self.unit_io_service.bulk_set_visibility_level(result_unit)
 
         result_unit = self.sync_state_unit_ios_for_version(
-            repo, result_unit, repository_registry
+            result_unit, repository_registry, (target_commit, target_tag)
         )
         with contextlib.suppress(MqttError):
             self.unit_io_service.command_to_input_base_topic(
@@ -223,7 +216,6 @@ class UnitService:
 
     def sync_state_unit_ios_for_version(
         self,
-        repo: Repo,
         unit: Unit,
         repository_registry: RepositoryRegistry,
         target_version_with_tag: tuple[str, str | None] = None,
@@ -231,11 +223,10 @@ class UnitService:
         target_version, target_tag = (
             target_version_with_tag
             or self.git_repo_repository.get_target_unit_version(
-                repo, repository_registry, unit
+                repository_registry, unit
             )
         )
         self.git_repo_repository.is_valid_firmware_platform(
-            repo,
             repository_registry,
             unit,
             unit.target_firmware_platform,
@@ -305,16 +296,14 @@ class UnitService:
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
         )
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        is_valid_object(repo)
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
         target_commit, target_tag = (
             self.git_repo_repository.get_target_unit_version(
-                repo, repository_registry, unit
+                repository_registry, unit
             )
         )
 
@@ -336,15 +325,13 @@ class UnitService:
             unit, [OwnershipType.CREATOR]
         )
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        is_valid_object(repo)
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
         target_version = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+            repository_registry, unit
         )[0]
 
         env_dict = self.generate_unified_env(
@@ -390,16 +377,14 @@ class UnitService:
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
         )
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        is_valid_object(repo)
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
         target_commit, target_tag = (
             self.git_repo_repository.get_target_unit_version(
-                repo, repository_registry, unit
+                repository_registry, unit
             )
         )
         return TargetVersionRead(commit=target_commit, tag=target_tag)
@@ -416,15 +401,13 @@ class UnitService:
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
         )
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        is_valid_object(repo)
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
         target_version = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+            repository_registry, unit
         )[0]
 
         return self.generate_current_schema(
@@ -442,15 +425,13 @@ class UnitService:
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
         )
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
-        is_valid_object(repo)
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
         is_valid_object(repository_registry)
 
         target_version = self.git_repo_repository.get_target_unit_version(
-            repo, repository_registry, unit
+            repository_registry, unit
         )[0]
 
         env_dict = self.get_env(unit.uuid)
@@ -460,7 +441,7 @@ class UnitService:
 
         gen_uuid = uuid_pkg.uuid4()
 
-        if repo.is_compilable_repo:
+        if unit.is_compilable_unit:
             tmp_git_repo_path = self.git_repo_repository.get_tmp_path(gen_uuid)
             os.mkdir(tmp_git_repo_path)
         else:
@@ -717,6 +698,51 @@ class UnitService:
 
         return log_filepath, f"{unit.name}.log"
 
+    def bulk_update_units_firmware(self) -> str:
+        _, units = self.unit_repository.list(
+            UnitFilter.unlimited(is_auto_update_unit=True)
+        )
+        logging.info(f"{len(units)} units update launched")
+
+        success = 0
+        error = 0
+        for unit, _nodes in units:
+            try:
+                repository_registry = self.repository_registry_repository.get(
+                    RepositoryRegistry(uuid=unit.repository_registry_uuid)
+                )
+                is_valid_object(repository_registry)
+                self.sync_state_unit_ios_for_version(unit, repository_registry)
+                self.unit_io_service.command_to_input_base_topic(
+                    uuid=unit.uuid,
+                    command=BackendTopicCommand.UPDATE,
+                    is_auto_update=True,
+                )
+                success += 1
+            except Exception as exc:
+                logging.warning(f"Failed update unit {unit.uuid} {exc}")
+                error += 1
+
+        return f"Updated {success}, failed {error}"
+
+    def schedule_bulk_update_units_firmware(self) -> OperationTask:
+        self.access_service.authorization.check_access(
+            [AgentType.USER],
+            [UserRole.ADMIN],
+        )
+        task = self.operation_task_service.create(
+            OperationTaskCreate(
+                task_type=OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE,
+            )
+        )
+
+        def operation(_db):
+            with BackgroundService() as services:
+                return services.get_unit_service().bulk_update_units_firmware()
+
+        self.operation_task_service.schedule(task, operation)
+        return task
+
     def generate_current_schema(
         self,
         unit: Unit,
@@ -868,23 +894,21 @@ class UnitService:
 
         return merged_env_dict
 
-    def is_valid_no_auto_updated_unit(
-        self, repository_registry: RepositoryRegistry, data: Unit | UnitCreate
-    ):
-        if not data.is_auto_update_from_repo_unit and (
-            not data.repo_branch or not data.repo_commit
+    @staticmethod
+    def is_valid_update_rule(data: Unit | UnitCreate) -> None:
+        if (
+            data.is_compilable_unit
+            and data.is_auto_update_unit
+            and not data.is_only_tag_update
+        ):
+            msg = "Compiled units use only tags when updating automatically"
+            raise UnitError(msg)
+
+        if not data.is_auto_update_unit and (
+            not data.target_branch or not data.target_commit
         ):
             msg = "Unit updated manually requires branch and commit to be filled out"
             raise UnitError(msg)
-
-        # check commit and branch for not auto updated unit
-        if not data.is_auto_update_from_repo_unit:
-            self.git_repo_repository.is_valid_branch(
-                repository_registry, data.repo_branch
-            )
-            self.git_repo_repository.is_valid_commit(
-                repository_registry, data.repo_branch, data.repo_commit
-            )
 
     @staticmethod
     def mapper_unit_to_unit_read(

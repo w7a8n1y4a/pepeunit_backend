@@ -11,7 +11,6 @@ from git.exc import GitCommandError
 from app import runtime, settings
 from app.configs.errors import GitRepoError
 from app.configs.utils import get_directory_size
-from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.enum import (
@@ -325,14 +324,14 @@ class GitRepoRepository:
             else None
         )
 
-    def get_target_repo_version(
-        self, repository_registry: RepositoryRegistry, repo: Repo
+    def get_target_unit_version(
+        self, repository_registry: RepositoryRegistry, unit: Unit
     ) -> tuple[str, str | None]:
-        branch = repo.default_branch
+        branch = unit.target_branch
         self.is_valid_branch(repository_registry, branch)
 
-        if repo.is_auto_update_repo:
-            if repo.is_compilable_repo or repo.is_only_tag_update:
+        if unit.is_auto_update_unit:
+            if unit.is_compilable_unit or unit.is_only_tag_update:
                 page = self.get_branch_tagged_commits_page(
                     repository_registry, branch, 0, 1
                 )
@@ -344,12 +343,12 @@ class GitRepoRepository:
                 target = self._commit(repository_registry, sha)
         else:
             self.is_valid_commit(
-                repository_registry, branch, repo.default_commit
+                repository_registry, branch, unit.target_commit
             )
             target = self.get_commit_with_tag(
-                repository_registry, branch, repo.default_commit
+                repository_registry, branch, unit.target_commit
             )
-            self._raise_if_compilable_untagged(repo, target)
+            self._raise_if_compilable_untagged(unit, target)
 
         if not target:
             msg = "Version is missing: The tags are not in the repository"
@@ -357,27 +356,9 @@ class GitRepoRepository:
 
         return target["commit"], target["tag"]
 
-    def get_target_unit_version(
-        self, repo: Repo, repository_registry: RepositoryRegistry, unit: Unit
-    ) -> tuple[str, str | None]:
-        if unit.is_auto_update_from_repo_unit:
-            return self.get_target_repo_version(repository_registry, repo)
-
-        self.is_valid_branch(repository_registry, unit.repo_branch)
-        target = self.get_commit_with_tag(
-            repository_registry, unit.repo_branch, unit.repo_commit
-        )
-        self._raise_if_compilable_untagged(repo, target)
-
-        if not target:
-            msg = "Version is missing"
-            raise GitRepoError(msg)
-
-        return target["commit"], target["tag"]
-
     @staticmethod
-    def _raise_if_compilable_untagged(repo: Repo, target: dict | None) -> None:
-        if target and repo.is_compilable_repo and target["tag"] is None:
+    def _raise_if_compilable_untagged(unit: Unit, target: dict | None) -> None:
+        if target and unit.is_compilable_unit and target["tag"] is None:
             msg = "Commit {} without Tag".format(target["commit"])
             raise GitRepoError(msg)
 
@@ -523,13 +504,12 @@ class GitRepoRepository:
 
     def is_valid_firmware_platform(
         self,
-        repo: Repo,
         repository_registry: RepositoryRegistry,
         unit: Unit,
         firmware_platform: str,
         target_version_with_tag: tuple[str, str | None] | None = None,
     ):
-        if not repo.is_compilable_repo:
+        if not unit.is_compilable_unit:
             return
 
         is_valid_object(repository_registry.releases_data)
@@ -538,7 +518,7 @@ class GitRepoRepository:
         )
         _, target_tag = (
             target_version_with_tag
-            or self.get_target_unit_version(repo, repository_registry, unit)
+            or self.get_target_unit_version(repository_registry, unit)
         )
         target_platforms = releases.get(target_tag)
 

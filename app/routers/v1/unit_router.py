@@ -10,11 +10,11 @@ from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_unit_service
 from app.dto.enum import BackendTopicCommand
-from app.schemas.pydantic.repo import TargetVersionRead
 from app.schemas.pydantic.shared import MqttRead
 from app.schemas.pydantic.unit import (
     EnvJsonString,
     StateStorage,
+    TargetVersionRead,
     UnitCreate,
     UnitFilter,
     UnitLogFilter,
@@ -177,6 +177,11 @@ def reset_env(
     uuid: uuid_pkg.UUID, unit_service: UnitService = Depends(get_unit_service)
 ):
     return unit_service.reset_env(uuid)
+
+
+@router.post("/bulk_update", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_update(unit_service: UnitService = Depends(get_unit_service)):
+    unit_service.schedule_bulk_update_units_firmware()
 
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)

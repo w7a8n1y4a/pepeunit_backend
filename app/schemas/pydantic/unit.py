@@ -52,12 +52,14 @@ class UnitRead(BaseModel):
     name: str
     create_datetime: datetime
 
-    is_auto_update_from_repo_unit: bool
+    is_auto_update_unit: bool
+    is_compilable_unit: bool
+    is_only_tag_update: bool
 
     target_firmware_platform: str | None = None
 
-    repo_branch: str | None = None
-    repo_commit: str | None = None
+    target_branch: str
+    target_commit: str | None = None
 
     unit_state: UnitStateRead | None = None
     current_commit_version: str | None = None
@@ -65,7 +67,7 @@ class UnitRead(BaseModel):
     last_update_datetime: datetime
 
     creator_uuid: uuid_pkg.UUID
-    repo_uuid: uuid_pkg.UUID
+    repository_registry_uuid: uuid_pkg.UUID
 
     firmware_update_status: UnitFirmwareUpdateStatus | None = None
     firmware_update_error: str | None = None
@@ -94,30 +96,37 @@ class UnitLogsResult(BaseModel):
     unit_logs: list[UnitLogRead]
 
 
+class TargetVersionRead(BaseModel):
+    commit: str
+    tag: str | None = None
+
+
 class UnitCreate(BaseModel):
-    repo_uuid: uuid_pkg.UUID
+    repository_registry_uuid: uuid_pkg.UUID
 
     visibility_level: VisibilityLevel
     name: str
 
-    is_auto_update_from_repo_unit: bool
+    target_branch: str
+    is_compilable_unit: bool = False
+    is_auto_update_unit: bool = True
+    is_only_tag_update: bool = True
 
     target_firmware_platform: str | None = None
-
-    repo_branch: str | None = None
-    repo_commit: str | None = None
+    target_commit: str | None = None
 
 
 class UnitUpdate(BaseModel):
     visibility_level: VisibilityLevel | None = None
     name: str | None = None
 
-    is_auto_update_from_repo_unit: bool | None = None
+    target_branch: str | None = None
+    is_compilable_unit: bool | None = None
+    is_auto_update_unit: bool | None = None
+    is_only_tag_update: bool | None = None
 
     target_firmware_platform: str | None = None
-
-    repo_branch: str | None = None
-    repo_commit: str | None = None
+    target_commit: str | None = None
 
 
 @dataclass
@@ -125,12 +134,11 @@ class UnitFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     creator_uuid: uuid_pkg.UUID | None = None
-    repo_uuid: uuid_pkg.UUID | None = None
-    repos_uuids: list[uuid_pkg.UUID] | None = Query([])
+    repository_registry_uuid: uuid_pkg.UUID | None = None
 
     search_string: str | None = None
 
-    is_auto_update_from_repo_unit: bool | None = None
+    is_auto_update_unit: bool | None = None
 
     visibility_level: list[str] | None = Query(
         [item.value for item in VisibilityLevel]

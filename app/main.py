@@ -23,7 +23,6 @@ from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
 from app.schemas.bot.instance_bot_router import InstanceBotRouter
 from app.schemas.bot.notification_bot_router import NotificationBotRouter
-from app.schemas.bot.repo_bot_router import RepoBotRouter
 from app.schemas.bot.repository_registry_bot_router import (
     RepositoryRegistryBotRouter,
 )
@@ -107,7 +106,6 @@ if bot is not None:
     dp.include_router(NotificationBotRouter().router)
     dp.include_router(base_router)
     dp.include_router(RepositoryRegistryBotRouter().router)
-    dp.include_router(RepoBotRouter().router)
     dp.include_router(UnitBotRouter().router)
     dp.include_router(UnitIOBotRouter().router)
     dp.include_router(UnitLogBotRouter().router)

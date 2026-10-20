@@ -3,14 +3,12 @@ import uuid as uuid_pkg
 import pytest
 
 from app.configs.errors import CustomPermissionError, NoAccessError, ValidationError
-from app.dto.enum import PermissionEntities, UnitIOTypeEnum, VisibilityLevel
+from app.dto.enum import PermissionEntities, UnitIOTypeEnum
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
-from app.schemas.pydantic.repo import RepoFilter
 from app.schemas.pydantic.unit import UnitFilter
 from app.schemas.pydantic.unit_io import UnitIOFilter
 from tests.integration.helpers.services import (
     permission_service,
-    repo_service,
     unit_io_service,
     unit_service,
 )
@@ -122,23 +120,11 @@ def test_visibility_list_hides_private(
     )
 
 
-def test_bot_sees_only_public(
-    live_repos, live_units, database, cc
-) -> None:
-    bot_repos = repo_service(database, cc, None)
-    bot_repos.get(live_repos.universal_public_repo.uuid)
-    with pytest.raises(NoAccessError):
-        bot_repos.get(live_repos.universal_internal_repo.uuid)
-    with pytest.raises(NoAccessError):
-        bot_repos.get(live_repos.universal_private_repo.uuid)
-
-    _, repos = bot_repos.list(RepoFilter.unlimited())
-    assert all(
-        repo.visibility_level == VisibilityLevel.PUBLIC for repo in repos
-    )
-
+def test_bot_sees_only_public(live_units, database, cc) -> None:
     bot_units = unit_service(database, cc, None)
     bot_units.get(live_units.universal_manual_unit.uuid)
+    with pytest.raises(NoAccessError):
+        bot_units.get(live_units.n_records_unit.uuid)
     with pytest.raises(NoAccessError):
         bot_units.get(live_units.universal_auto_unit.uuid)
 
@@ -203,15 +189,6 @@ def test_cannot_delete_unit_self_permission(
     with pytest.raises(CustomPermissionError):
         permission_service(database, regular_user_token).delete(
             compile_unit.uuid, compile_unit.uuid
-        )
-
-
-def test_cannot_delete_unit_parent_repo_permission(
-    compile_unit, regular_user_token, database
-) -> None:
-    with pytest.raises(CustomPermissionError):
-        permission_service(database, regular_user_token).delete(
-            compile_unit.uuid, compile_unit.repo_uuid
         )
 
 

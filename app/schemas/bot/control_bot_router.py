@@ -10,8 +10,8 @@ from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
 from app.configs.rest import (
     get_bot_instance_service,
-    get_bot_repo_service,
     get_bot_repository_registry_service,
+    get_bot_unit_service,
 )
 from app.dto.enum import (
     AgentType,
@@ -124,7 +124,7 @@ class ControlBotRouter(BaseBotRouter):
                             db, chat_id
                         ).schedule_update_all()
                     case DecreesNames.UPDATE_ALL_UNITS_FIRMWARE:
-                        get_bot_repo_service(
+                        get_bot_unit_service(
                             db, cc, chat_id
                         ).schedule_bulk_update_units_firmware()
         except CustomException as e:

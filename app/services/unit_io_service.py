@@ -17,7 +17,6 @@ from app.configs.errors import (
 )
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
-from app.domain.repo_model import Repo
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
@@ -43,7 +42,6 @@ from app.dto.enum import (
 )
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
-from app.repositories.repo_repository import RepoRepository
 from app.repositories.repository_registry_repository import (
     RepositoryRegistryRepository,
 )
@@ -86,7 +84,6 @@ class UnitIOService:
         self,
         unit_repository: UnitRepository = Depends(),
         repository_registry_repository: RepositoryRegistryRepository = Depends(),
-        repo_repository: RepoRepository = Depends(),
         unit_io_repository: UnitIORepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
@@ -96,7 +93,6 @@ class UnitIOService:
     ) -> None:
         self.unit_repository = unit_repository
         self.repository_registry_repository = repository_registry_repository
-        self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_io_repository = unit_io_repository
         self.unit_log_repository = unit_log_repository
@@ -367,17 +363,17 @@ class UnitIOService:
                 unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
             )
 
-        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
         repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=repo.repository_registry_uuid)
+            RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
+        is_valid_object(repository_registry)
 
         self.git_repo_repository.is_valid_firmware_platform(
-            repo, repository_registry, unit, unit.target_firmware_platform
+            repository_registry, unit, unit.target_firmware_platform
         )
         target_version, target_tag = (
             self.git_repo_repository.get_target_unit_version(
-                repo, repository_registry, unit
+                repository_registry, unit
             )
         )
         schema_dict = self.git_repo_repository.get_schema_dict(
@@ -399,7 +395,6 @@ class UnitIOService:
         if target_topic in schema_dict["input_base_topic"]:
             update_message_dict = self._build_message_dict(
                 command,
-                repo,
                 repository_registry,
                 unit,
                 target_version,
@@ -437,7 +432,6 @@ class UnitIOService:
     def _build_message_dict(
         self,
         command: BackendTopicCommand,
-        repo: Repo,
         repository_registry: RepositoryRegistry,
         unit: Unit,
         target_version: str,
@@ -449,7 +443,7 @@ class UnitIOService:
             message_dict[ReservedEnvVariableName.PU_COMMIT_VERSION.value] = (
                 target_version
             )
-            if repo.is_compilable_repo:
+            if unit.is_compilable_unit:
                 links = is_valid_json(
                     repository_registry.releases_data,
                     "Releases for compile repo",

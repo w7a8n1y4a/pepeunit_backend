@@ -215,7 +215,6 @@ class CommandNames(str, enum.Enum):
     START = "start"
     HELP = "help"
     REGISTRY = "registry"
-    REPO = "repo"
     UNIT = "unit"
     INFO = "info"
     VERIFICATION = "verification"
@@ -231,7 +230,6 @@ class EntityNames(str, enum.Enum):
     """
 
     REGISTRY = "Registry"
-    REPO = "Repo"
     UNIT = "Unit"
     UNIT_IO = "UnitIO"
     UNIT_LOG = "UnitLog"
@@ -266,7 +264,6 @@ class PermissionEntities(str, enum.Enum):
 
     USER = "User"
     UNIT = "Unit"
-    REPO = "Repo"
     UNIT_IO = "UnitIO"
 
 
