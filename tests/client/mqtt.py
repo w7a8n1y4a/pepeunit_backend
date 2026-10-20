@@ -1,20 +1,48 @@
 import asyncio
 import json
+import os
+import tarfile
+import tempfile
 import threading
 import time
+import zlib
 from collections import namedtuple
-from typing import Optional
 
 from pepeunit_client import PepeunitClient
-from pepeunit_client.enums import SearchScope, SearchTopicType, RestartMode
+from pepeunit_client.enums import RestartMode, SearchScope, SearchTopicType
+from pepeunit_client.file_manager import FileManager
+
+
+def _extract_pepeunit_archive(file_path: str, extract_path: str) -> None:
+    """The library writes every archive to /tmp/temp_update.tar.
+
+    The integration emulators update together, so that shared path mixes
+    one unit's env and schema into another unit's directory.
+    """
+    with open(file_path, "rb") as handle:
+        producer = zlib.decompressobj(wbits=9)
+        tar_data = producer.decompress(handle.read()) + producer.flush()
+
+    descriptor, tar_filepath = tempfile.mkstemp(suffix=".tar")
+    os.close(descriptor)
+    try:
+        with open(tar_filepath, "wb") as tar_file:
+            tar_file.write(tar_data)
+        with tarfile.open(tar_filepath, "r") as tar:
+            tar.extractall(extract_path, filter="data")
+    finally:
+        os.remove(tar_filepath)
+
+
+FileManager.extract_pepeunit_archive = staticmethod(_extract_pepeunit_archive)
 
 
 class MQTTClient:
     def __init__(self, unit):
         self.unit = unit
-        self.client: Optional[PepeunitClient] = None
+        self.client: PepeunitClient | None = None
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self.env_file = f"tmp/test_units/{unit.uuid}/env.json"
         self.schema_file = f"tmp/test_units/{unit.uuid}/schema.json"
