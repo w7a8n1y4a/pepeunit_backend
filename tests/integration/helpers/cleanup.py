@@ -3,30 +3,28 @@ from datetime import UTC, datetime
 
 from sqlmodel import Session
 
-from app.domain.instance_model import Instance
+from app.domain.peer_model import Peer
 from app.domain.repo_model import Repo
 from app.domain.user_model import User
-from app.dto.enum import InstanceTrustStatus
+from app.dto.enum import PeerTrustStatus
 from app.repositories.git_repo_repository import GitRepoRepository
-from app.repositories.instance_repository import InstanceRepository
-from app.services.instance_service import InstanceService
+from app.repositories.peer_repository import PeerRepository
+from app.services.peer_service import PeerService
 from tests.integration.helpers.names import TEST_HASH
 from tests.integration.helpers.private_repos import all_known_repo_urls
 
 
-def ensure_own_instance(database: Session) -> None:
-    own_url = InstanceService.get_own_url()
-    repository = InstanceRepository(db=database)
-    existing = (
-        database.query(Instance).filter(Instance.url == own_url).first()
-    )
+def ensure_own_peer(database: Session) -> None:
+    own_url = PeerService.get_own_url()
+    repository = PeerRepository(db=database)
+    existing = database.query(Peer).filter(Peer.url == own_url).first()
     if existing:
         return
 
     repository.create(
-        Instance(
+        Peer(
             url=own_url,
-            trust_status=InstanceTrustStatus.TRUST.value,
+            trust_status=PeerTrustStatus.TRUST.value,
             create_datetime=datetime.now(UTC),
         )
     )
@@ -38,17 +36,11 @@ def _drop_test_repos(database: Session) -> None:
         return
 
     git_repo_repository = GitRepoRepository()
-    repos = (
-        database.query(Repo)
-        .where(Repo.repository_url.in_(urls))
-        .all()
-    )
+    repos = database.query(Repo).where(Repo.repository_url.in_(urls)).all()
     for repo in repos:
         git_repo_repository.delete_repo(repo)
 
-    database.query(Repo).where(
-        Repo.repository_url.in_(urls)
-    ).delete()
+    database.query(Repo).where(Repo.repository_url.in_(urls)).delete()
 
 
 def clear_integration_data(database: Session) -> None:
@@ -57,12 +49,12 @@ def clear_integration_data(database: Session) -> None:
     _drop_test_repos(database)
 
     # OperationTask is deleted by cascade together with test Users
-    own_url = InstanceService.get_own_url()
-    database.query(Instance).where(
-        Instance.url.ilike(f"%{TEST_HASH}%"),
-        Instance.url != own_url,
+    own_url = PeerService.get_own_url()
+    database.query(Peer).where(
+        Peer.url.ilike(f"%{TEST_HASH}%"),
+        Peer.url != own_url,
     ).delete()
 
     database.query(User).where(User.login.ilike(f"%{TEST_HASH}%")).delete()
     database.commit()
-    ensure_own_instance(database)
+    ensure_own_peer(database)

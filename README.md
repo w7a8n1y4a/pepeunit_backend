@@ -51,7 +51,7 @@ make help
 repo - Repo
 unit - Unit Actions
 dashboard - Dashboard List url
-instances - Instance List
+peers - Peer List
 alerts - Alerts and operation status
 info - Instance Metrics
 help - About Instance

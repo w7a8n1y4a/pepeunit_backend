@@ -16,7 +16,7 @@ def unique_name(role: str) -> str:
     return f"{role}_{TEST_HASH}_{uuid_pkg.uuid4().hex[:6]}"
 
 
-def instance_url(role: str) -> str:
+def peer_url(role: str) -> str:
     return (
         f"https://{role}-{TEST_HASH}.pepeunit.test"
         f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}"
@@ -24,9 +24,9 @@ def instance_url(role: str) -> str:
     )
 
 
-def unique_instance_url(role: str) -> str:
-    return instance_url(f"{role}-{uuid_pkg.uuid4().hex[:6]}")
+def unique_peer_url(role: str) -> str:
+    return peer_url(f"{role}-{uuid_pkg.uuid4().hex[:6]}")
 
 
-def unreachable_instance_url() -> str:
+def unreachable_peer_url() -> str:
     return f"http://127.0.0.1:1/{TEST_HASH}/instances/current"

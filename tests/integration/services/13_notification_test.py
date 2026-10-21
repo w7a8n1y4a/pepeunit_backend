@@ -534,7 +534,7 @@ def test_mark_all_notifications_read(
     crud_notification, regular_user, regular_user_token, database, cc
 ) -> None:
     task = operation_task_service(database, regular_user_token).create(
-        OperationTaskCreate(task_type=OperationTaskType.SCAN_INSTANCE)
+        OperationTaskCreate(task_type=OperationTaskType.SCAN_PEER)
     )
     service = notification_service(database, cc, regular_user_token)
     second = latest_notification(database, regular_user.uuid)

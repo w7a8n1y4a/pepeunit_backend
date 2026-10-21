@@ -3,12 +3,13 @@ import random
 from locust import HttpUser, between, constant, task
 
 from app import runtime, settings
-from app.dto.enum import InstanceTrustStatus
+from app.dto.enum import PeerTrustStatus
 
 REST_INSTANCES = f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/instances"
+REST_PEERS = f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/peers"
 ERROR_CODES = f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/error_codes"
 
-TRUST_STATUS_REST = [item.value for item in InstanceTrustStatus]
+TRUST_STATUS_REST = [item.value for item in PeerTrustStatus]
 
 
 def _random_pagination() -> dict:
@@ -44,11 +45,11 @@ class InstanceRestUser(InstanceBaseUser):
         self.client.get(f"{REST_INSTANCES}/current")
 
     @task
-    def instances(self):
+    def peers(self):
         self.client.get(
-            REST_INSTANCES,
+            REST_PEERS,
             params=random_rest_filters(),
-            name=REST_INSTANCES,
+            name=REST_PEERS,
         )
 
 
@@ -76,15 +77,15 @@ class InstanceCatalogUser(InstanceBaseUser):
     @task
     def urls(self):
         self.client.get(
-            f"{REST_INSTANCES}/urls",
+            f"{REST_PEERS}/urls",
             params=random_rest_filters(),
-            name=f"{REST_INSTANCES}/urls",
+            name=f"{REST_PEERS}/urls",
         )
 
     @task
     def repos(self):
         self.client.get(
-            f"{REST_INSTANCES}/repos",
+            f"{REST_PEERS}/repos",
             params=random_rest_filters(),
-            name=f"{REST_INSTANCES}/repos",
+            name=f"{REST_PEERS}/repos",
         )

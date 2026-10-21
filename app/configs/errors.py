@@ -107,6 +107,11 @@ class InstanceError(CustomException):
     message_template = "Instance Validation Error: {}"
 
 
+class PeerError(CustomException):
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Peer Validation Error: {}"
+
+
 class OperationTaskError(CustomException):
     status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
     message_template = "Operation Task Validation Error: {}"

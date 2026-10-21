@@ -6,37 +6,37 @@ import httpx
 
 from app import runtime
 from app.configs.error_codes import ErrorCode
-from app.configs.errors import InstanceError
-from app.schemas.pydantic.instance import (
-    CurrentInstanceSchemaV1,
-    InstancePublicRepo,
-    InstanceReposPage,
-    InstanceUrlsPage,
+from app.configs.errors import PeerError
+from app.schemas.pydantic.instance import CurrentInstanceSchemaV1
+from app.schemas.pydantic.peer import (
+    PeerPublicRepo,
+    PeerReposPage,
+    PeerUrlsPage,
 )
 
 
 @dataclass
-class CollectedInstance:
+class CollectedPeer:
     state: CurrentInstanceSchemaV1
     urls: list[str]
-    repos: list[InstancePublicRepo]
+    repos: list[PeerPublicRepo]
     last_ping: float
 
 
-class InstanceExternalRepository:
-    async def collect(self, current_url: str) -> CollectedInstance:
+class PeerExternalRepository:
+    async def collect(self, current_url: str) -> CollectedPeer:
         started_at = time.perf_counter()
         state, urls, repos = await asyncio.gather(
             self._get_current(current_url),
-            self._get_all_items(current_url, "urls", InstanceUrlsPage, "urls"),
+            self._get_all_items(current_url, "urls", PeerUrlsPage, "urls"),
             self._get_all_items(
                 current_url,
                 "repos",
-                InstanceReposPage,
+                PeerReposPage,
                 "repos",
             ),
         )
-        return CollectedInstance(
+        return CollectedPeer(
             state=state,
             urls=urls,
             repos=repos,
@@ -51,10 +51,10 @@ class InstanceExternalRepository:
         self,
         current_url: str,
         endpoint: str,
-        page_model: type[InstanceUrlsPage] | type[InstanceReposPage],
+        page_model: type[PeerUrlsPage] | type[PeerReposPage],
         items_field: str,
     ) -> list:
-        url = f"{current_url.rsplit('/', 1)[0]}/{endpoint}"
+        url = self.list_url(current_url, endpoint)
 
         items = []
         while True:
@@ -71,6 +71,14 @@ class InstanceExternalRepository:
             items.extend(page_items)
             if not page_items or len(items) >= page.total_count:
                 return items
+
+    @staticmethod
+    def list_url(current_url: str, endpoint: str) -> str:
+        base, found, _rest = current_url.rpartition("/instances/")
+        if not found:
+            msg = 'Peer URL must point to the "/instances/current" endpoint'
+            raise PeerError(msg, code=ErrorCode.PEER_URL_ENDPOINT)
+        return f"{base}/peers/{endpoint}"
 
     async def _request(
         self,
@@ -90,7 +98,5 @@ class InstanceExternalRepository:
     @staticmethod
     def is_valid_response_size(response: httpx.Response) -> None:
         if len(response.content) > runtime.get().pu_instance_max_state_size:
-            msg = f"Instance response {len(response.content)} B exceeds the limit {runtime.get().pu_instance_max_state_size} B"
-            raise InstanceError(
-                msg, code=ErrorCode.INSTANCE_RESPONSE_TOO_LARGE
-            )
+            msg = f"Peer response {len(response.content)} B exceeds the limit {runtime.get().pu_instance_max_state_size} B"
+            raise PeerError(msg, code=ErrorCode.PEER_RESPONSE_TOO_LARGE)

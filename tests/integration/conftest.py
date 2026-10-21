@@ -13,7 +13,7 @@ from app.configs.db import get_session
 from tests.client.mqtt import MQTTClient
 from tests.integration.helpers.cleanup import (
     clear_integration_data,
-    ensure_own_instance,
+    ensure_own_peer,
 )
 from tests.integration.helpers.frontend_state import preserve_demo_dashboard
 
@@ -35,7 +35,7 @@ def clean_leftovers(database, cc) -> None:
     if settings.pu_test_integration_clear_data:
         clear_integration_data(database)
         return
-    ensure_own_instance(database)
+    ensure_own_peer(database)
     preserve_demo_dashboard(database, cc)
 
 

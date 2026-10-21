@@ -21,8 +21,8 @@ from app.dto.enum import FileLock, GlobalPrefixTopic
 from app.repositories.grafana_repository import GrafanaRepository
 from app.schemas.mqtt.manager import mqtt_manager
 from app.services.background import BackgroundService
-from app.services.instance_service import InstanceService
 from app.services.notification_delivery import notification_delivery
+from app.services.peer_service import PeerService
 from app.utils.utils import logo_to_console
 
 
@@ -98,7 +98,7 @@ class StartupService:
             self._run_mqtt_client(), name="run_mqtt_client"
         )
         with BackgroundService() as services:
-            services.get_instance_service().refresh_cache()
+            services.get_peer_service().refresh_cache()
         self._instance_tasks.append(
             asyncio.create_task(
                 self._run_instance_cache_loop(),
@@ -304,23 +304,23 @@ class StartupService:
         while True:
             await asyncio.sleep(60)
             with BackgroundService() as services:
-                services.get_instance_service().refresh_cache()
+                services.get_peer_service().refresh_cache()
 
     async def _run_instance_collection_loop(self) -> None:
         while True:
             await asyncio.sleep(self._seconds_until(minute=0))
             if not runtime.get().pu_ff_federation_enable:
                 continue
-            lock = acquire_file_lock(FileLock.COLLECT_INSTANCES)
+            lock = acquire_file_lock(FileLock.COLLECT_PEERS)
             if lock is None:
                 continue
             try:
                 with BackgroundService() as services:
-                    await services.get_instance_service().collect_all(
-                        InstanceService.COLLECT_ALL_MAX_DELAY
+                    await services.get_peer_service().collect_all(
+                        PeerService.COLLECT_ALL_MAX_DELAY
                     )
                 with BackgroundService() as services:
-                    service = services.get_instance_service()
+                    service = services.get_peer_service()
                     await service.delete_stale_instances()
                     service.refresh_cache()
             finally:

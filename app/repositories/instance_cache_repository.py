@@ -5,24 +5,24 @@ from typing import Any
 from app.configs.error_codes import ErrorCode
 from app.configs.errors import InstanceError
 from app.repositories.utils import resolve_query_default
-from app.schemas.pydantic.instance import (
-    CurrentInstanceSchemaV1,
-    InstanceFilter,
-    InstancePublicRepo,
-    InstanceRead,
-    InstanceReposPage,
-    InstancesPage,
-    InstanceUrlsPage,
-)
+from app.schemas.pydantic.instance import CurrentInstanceSchemaV1
 from app.schemas.pydantic.pagination import NO_PAGINATION
+from app.schemas.pydantic.peer import (
+    PeerFilter,
+    PeerPublicRepo,
+    PeerRead,
+    PeerReposPage,
+    PeersPage,
+    PeerUrlsPage,
+)
 
 
 @dataclass(frozen=True)
 class InstanceCacheSnapshot:
     current: CurrentInstanceSchemaV1
-    instances: tuple[InstanceRead, ...]
+    peers: tuple[PeerRead, ...]
     urls: tuple[str, ...]
-    repos: tuple[InstancePublicRepo, ...]
+    repos: tuple[PeerPublicRepo, ...]
 
 
 class InstanceCacheRepository:
@@ -48,29 +48,29 @@ class InstanceCacheRepository:
     def get_current(self) -> CurrentInstanceSchemaV1:
         return self.get().current
 
-    def get_instances(self, filters: InstanceFilter) -> InstancesPage:
+    def get_peers(self, filters: PeerFilter) -> PeersPage:
         trust_status = resolve_query_default(filters.trust_status) or []
-        instances = tuple(
-            instance
-            for instance in self.get().instances
-            if instance.trust_status in trust_status
+        peers = tuple(
+            peer
+            for peer in self.get().peers
+            if peer.trust_status in trust_status
         )
 
-        count, page = self.apply_offset_and_limit(instances, filters)
-        return InstancesPage(total_count=count, instances=page)
+        count, page = self.apply_offset_and_limit(peers, filters)
+        return PeersPage(total_count=count, peers=page)
 
-    def get_urls(self, filters: InstanceFilter) -> InstanceUrlsPage:
+    def get_urls(self, filters: PeerFilter) -> PeerUrlsPage:
         count, page = self.apply_offset_and_limit(self.get().urls, filters)
-        return InstanceUrlsPage(total_count=count, urls=page)
+        return PeerUrlsPage(total_count=count, urls=page)
 
-    def get_repos(self, filters: InstanceFilter) -> InstanceReposPage:
+    def get_repos(self, filters: PeerFilter) -> PeerReposPage:
         count, page = self.apply_offset_and_limit(self.get().repos, filters)
-        return InstanceReposPage(total_count=count, repos=page)
+        return PeerReposPage(total_count=count, repos=page)
 
     @staticmethod
     def apply_offset_and_limit(
         items: tuple[Any, ...],
-        filters: InstanceFilter,
+        filters: PeerFilter,
     ) -> tuple[int, list]:
         if filters.limit == NO_PAGINATION:
             return len(items), list(items)

@@ -1,72 +1,12 @@
 import uuid as uuid_pkg
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from fastapi import Query
-from pydantic import BaseModel, Field, JsonValue
+from pydantic import BaseModel, Field
 
 from app import runtime, settings
-from app.dto.enum import (
-    GitPlatform,
-    InstanceCollectionStatus,
-    InstanceTrustStatus,
-    IntegrationTestsStatus,
-)
-from app.schemas.pydantic.pagination import BasePaginationRestMixin
+from app.dto.enum import IntegrationTestsStatus
 from app.schemas.pydantic.shared import FeatureFlags
-
-
-class InstanceCreate(BaseModel):
-    url: str
-
-
-class InstanceUpdate(BaseModel):
-    trust_status: InstanceTrustStatus
-
-
-class InstanceRead(BaseModel):
-    uuid: uuid_pkg.UUID
-    url: str
-    trust_status: InstanceTrustStatus
-    last_ping: float | None
-    last_collection_status: InstanceCollectionStatus | None
-    last_success_datetime: datetime | None
-    last_attempt_datetime: datetime | None
-    consecutive_success_count: int
-    last_collection_error: str | None
-    state: dict[str, JsonValue] | None
-    create_datetime: datetime
-
-
-@dataclass
-class InstanceFilter(BasePaginationRestMixin):
-    trust_status: list[str] | None = Query(
-        [item.value for item in InstanceTrustStatus]
-    )
-
-    def dict(self):
-        return self.__dict__
-
-
-class InstancesPage(BaseModel):
-    total_count: int
-    instances: list[InstanceRead]
-
-
-class InstanceUrlsPage(BaseModel):
-    total_count: int
-    urls: list[str]
-
-
-class InstancePublicRepo(BaseModel):
-    url: str
-    platform: GitPlatform
-
-
-class InstanceReposPage(BaseModel):
-    total_count: int
-    repos: list[InstancePublicRepo]
 
 
 class CurrentInstanceSettingsV1(BaseModel):

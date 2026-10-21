@@ -12,35 +12,31 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import runtime
 from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
-from app.configs.rest import get_bot_instance_service
-from app.domain.instance_model import Instance
+from app.configs.rest import get_bot_peer_service
+from app.domain.peer_model import Peer
 from app.dto.enum import CommandNames, DecreesNames, EntityNames
 from app.schemas.bot.base_bot_router import (
     BaseBotFilters,
     BaseBotRouter,
-    InstanceStates,
+    PeerStates,
 )
 from app.schemas.bot.utils import (
     format_datetime,
     make_monospace_table_with_title,
 )
-from app.schemas.pydantic.instance import (
-    CurrentInstanceSchemaV1,
-    InstanceFilter,
-)
+from app.schemas.pydantic.instance import CurrentInstanceSchemaV1
+from app.schemas.pydantic.peer import PeerFilter
 
 
-class InstanceBotRouter(BaseBotRouter):
+class PeerBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.INSTANCE.value
-        super().__init__(entity_name=entity_name, states_group=InstanceStates)
-        self.router.message(Command(CommandNames.INSTANCES.value))(
-            self.instance_resolver
+        entity_name = EntityNames.PEER.value
+        super().__init__(entity_name=entity_name, states_group=PeerStates)
+        self.router.message(Command(CommandNames.PEERS.value))(
+            self.peer_resolver
         )
 
-    async def instance_resolver(
-        self, message: types.Message, state: FSMContext
-    ):
+    async def peer_resolver(self, message: types.Message, state: FSMContext):
         await state.set_state(None)
         filters = BaseBotFilters()
         await state.update_data(current_filters=filters)
@@ -62,7 +58,7 @@ class InstanceBotRouter(BaseBotRouter):
         )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
-        text = "*Instances*"
+        text = "*Peers*"
 
         await self.telegram_response(message, text, keyboard)
 
@@ -70,9 +66,9 @@ class InstanceBotRouter(BaseBotRouter):
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
         with get_hand_session() as db:
-            instance_service = get_bot_instance_service(db, chat_id)
-            count, instances = instance_service.list(
-                InstanceFilter(
+            peer_service = get_bot_peer_service(db, chat_id)
+            count, peers = peer_service.list(
+                PeerFilter(
                     offset=(filters.page - 1)
                     * runtime.get().pu_telegram_items_per_page,
                     limit=runtime.get().pu_telegram_items_per_page,
@@ -83,7 +79,7 @@ class InstanceBotRouter(BaseBotRouter):
                 count + runtime.get().pu_telegram_items_per_page - 1
             ) // runtime.get().pu_telegram_items_per_page
 
-        return instances, total_pages
+        return peers, total_pages
 
     def build_entities_keyboard(
         self, entities: list, filters: BaseBotFilters, total_pages: int
@@ -91,11 +87,11 @@ class InstanceBotRouter(BaseBotRouter):
         builder = InlineKeyboardBuilder()
 
         if entities:
-            for instance in entities:
+            for peer in entities:
                 builder.row(
                     InlineKeyboardButton(
-                        text=f"{instance.trust_status} - {self._instance_domain(instance.url)}",
-                        callback_data=f"{self.entity_name}_uuid_{instance.uuid}_{filters.page}",
+                        text=f"{peer.trust_status} - {self._peer_domain(peer.url)}",
+                        callback_data=f"{self.entity_name}_uuid_{peer.uuid}_{filters.page}",
                     )
                 )
         else:
@@ -139,7 +135,7 @@ class InstanceBotRouter(BaseBotRouter):
             else BaseBotFilters()
         )
 
-        instance_uuid = UUID(callback.data.split("_")[-2])
+        peer_uuid = UUID(callback.data.split("_")[-2])
         current_page = int(callback.data.split("_")[-1])
 
         if not filters.previous_filters:
@@ -148,15 +144,13 @@ class InstanceBotRouter(BaseBotRouter):
             await state.update_data(current_filters=new_filters)
 
         with get_hand_session() as db:
-            instance_service = get_bot_instance_service(
-                db, str(callback.from_user.id)
-            )
-            instance = instance_service.get(instance_uuid)
+            peer_service = get_bot_peer_service(db, str(callback.from_user.id))
+            peer = peer_service.get(peer_uuid)
 
-        text = f"*Instance* - `{self._instance_domain(instance.url)}`"
+        text = f"*Peer* - `{self._peer_domain(peer.url)}`"
         text += "\n```text\n"
         text += make_monospace_table_with_title(
-            self._get_base_info_table(instance),
+            self._get_base_info_table(peer),
             "Base Info",
             lengths=[15, 30],
         )
@@ -167,8 +161,8 @@ class InstanceBotRouter(BaseBotRouter):
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        text="🫀 Scan Instance",
-                        callback_data=f"{self.entity_name}_decres_{DecreesNames.SCAN.value}_{instance.uuid}",
+                        text="🫀 Scan Peer",
+                        callback_data=f"{self.entity_name}_decres_{DecreesNames.SCAN.value}_{peer.uuid}",
                     )
                 ]
             )
@@ -179,7 +173,7 @@ class InstanceBotRouter(BaseBotRouter):
                 ),
                 InlineKeyboardButton(
                     text="↻ Refresh",
-                    callback_data=f"{self.entity_name}_uuid_{instance.uuid}_{filters.page}",
+                    callback_data=f"{self.entity_name}_uuid_{peer.uuid}_{filters.page}",
                 ),
             ]
         )
@@ -193,17 +187,17 @@ class InstanceBotRouter(BaseBotRouter):
     async def handle_entity_decrees(
         self, callback: types.CallbackQuery
     ) -> None:
-        *_, decrees_type, instance_uuid = callback.data.split("_")
-        instance_uuid = UUID(instance_uuid)
+        *_, decrees_type, peer_uuid = callback.data.split("_")
+        peer_uuid = UUID(peer_uuid)
 
         try:
             with get_hand_session() as db:
-                instance_service = get_bot_instance_service(
+                peer_service = get_bot_peer_service(
                     db, str(callback.from_user.id)
                 )
                 match decrees_type:
                     case DecreesNames.SCAN:
-                        instance_service.scan_one(instance_uuid)
+                        peer_service.scan_one(peer_uuid)
         except CustomException as e:
             await callback.answer()
             await self.telegram_response(
@@ -214,29 +208,29 @@ class InstanceBotRouter(BaseBotRouter):
         await callback.answer(parse_mode="Markdown")
 
     @staticmethod
-    def _instance_domain(url: str) -> str:
+    def _peer_domain(url: str) -> str:
         return urlparse(url).netloc
 
-    def _get_base_info_table(self, instance: Instance) -> list[list]:
+    def _get_base_info_table(self, peer: Peer) -> list[list]:
         table = [
-            ["Domain", self._instance_domain(instance.url)],
-            ["Trust", instance.trust_status],
-            ["Collection", instance.last_collection_status],
+            ["Domain", self._peer_domain(peer.url)],
+            ["Trust", peer.trust_status],
+            ["Collection", peer.last_collection_status],
             [
                 "Last ping",
-                round(instance.last_ping) if instance.last_ping else None,
+                round(peer.last_ping) if peer.last_ping else None,
             ],
-            ["Last success", format_datetime(instance.last_success_datetime)],
+            ["Last success", format_datetime(peer.last_success_datetime)],
         ]
 
-        if instance.last_collection_error:
-            table.append(["Error", instance.last_collection_error])
+        if peer.last_collection_error:
+            table.append(["Error", peer.last_collection_error])
             return table
 
-        if not instance.state:
+        if not peer.state:
             return table
 
-        current = CurrentInstanceSchemaV1.model_validate(instance.state)
+        current = CurrentInstanceSchemaV1.model_validate(peer.state)
         table.append(["Version", current.version])
         table.append(["Units", current.metrics.unit_count])
 

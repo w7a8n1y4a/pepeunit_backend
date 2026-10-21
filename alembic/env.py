@@ -17,7 +17,7 @@ MODEL_MODULES = (
     "dashboard_model",
     "icon_model",
     "dashboard_panel_model",
-    "instance_model",
+    "peer_model",
     "instance_settings_model",
     "notification_model",
     "notification_settings_model",

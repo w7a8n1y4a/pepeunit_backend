@@ -58,7 +58,7 @@ async def start_help_resolver(message: types.Message):
             "Unit search, Unit base information, get env file, send mqtt command, get firmware archives, check IO nodes and check logs",
         ],
         ["/dashboard", "List of your Dashboards, links to Pepeunit"],
-        ["/instances", "List of known Pepeunit instances"],
+        ["/peers", "List of known peers"],
         ["/alerts", "Your alerts and the status of operations"],
     ]
     with get_hand_session() as db:

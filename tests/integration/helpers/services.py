@@ -4,11 +4,11 @@ from app import runtime
 from app.configs.rest import (
     get_grafana_service,
     get_icon_service,
-    get_instance_service,
     get_instance_settings_service,
     get_metrics_service,
     get_notification_service,
     get_operation_task_service,
+    get_peer_service,
     get_permission_service,
     get_repo_service,
     get_unit_group_service,
@@ -52,8 +52,8 @@ def permission_service(database, token=None):
     return get_permission_service(database, token)
 
 
-def instance_service(database, token=None):
-    return get_instance_service(database, token)
+def peer_service(database, token=None):
+    return get_peer_service(database, token)
 
 
 def instance_settings_service(database, token=None):

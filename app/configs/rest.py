@@ -13,10 +13,6 @@ from app.repositories.dashboard_panel_repository import (
 from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.icon_repository import IconRepository
-from app.repositories.instance_external_repository import (
-    InstanceExternalRepository,
-)
-from app.repositories.instance_repository import InstanceRepository
 from app.repositories.instance_settings_repository import (
     InstanceSettingsRepository,
 )
@@ -29,6 +25,10 @@ from app.repositories.operation_task_repository import OperationTaskRepository
 from app.repositories.panels_unit_ios_repository import (
     PanelsUnitIOsRepository,
 )
+from app.repositories.peer_external_repository import (
+    PeerExternalRepository,
+)
+from app.repositories.peer_repository import PeerRepository
 from app.repositories.permission_repository import PermissionRepository
 from app.repositories.repo_repository import (
     RepoRepository,
@@ -45,11 +45,11 @@ from app.repositories.user_repository import UserRepository
 from app.services.access_service import AccessService
 from app.services.grafana_service import GrafanaService
 from app.services.icon_service import IconService
-from app.services.instance_service import InstanceService
 from app.services.instance_settings_service import InstanceSettingsService
 from app.services.metrics_service import MetricsService
 from app.services.notification_service import NotificationService
 from app.services.operation_task_service import OperationTaskService
+from app.services.peer_service import PeerService
 from app.services.permission_service import PermissionService
 from app.services.repo_service import RepoService
 from app.services.unit_group_service import UnitGroupService
@@ -80,9 +80,9 @@ class ServiceFactory:
         self.unit_group_unit_repository = UnitGroupUnitRepository(db)
         self.permission_repository = PermissionRepository(db)
         self.repo_repository = RepoRepository(db)
-        self.instance_repository = InstanceRepository(db)
+        self.peer_repository = PeerRepository(db)
         self.instance_settings_repository = InstanceSettingsRepository(db)
-        self.instance_external_repository = InstanceExternalRepository()
+        self.peer_external_repository = PeerExternalRepository()
         self.loki_repository = LokiRepository()
         self.operation_task_repository = OperationTaskRepository(db)
         self.notification_repository = NotificationRepository(db)
@@ -152,10 +152,10 @@ class ServiceFactory:
             access_service=self.access_service,
         )
 
-    def get_instance_service(self) -> InstanceService:
-        return InstanceService(
-            instance_repository=self.instance_repository,
-            instance_external_repository=self.instance_external_repository,
+    def get_peer_service(self) -> PeerService:
+        return PeerService(
+            peer_repository=self.peer_repository,
+            peer_external_repository=self.peer_external_repository,
             operation_task_repository=self.operation_task_repository,
             repo_repository=self.repo_repository,
             access_service=self.access_service,
@@ -271,11 +271,11 @@ def get_user_service(
     return create_service_factory(db, client, jwt_token).get_user_service()
 
 
-def get_instance_service(
+def get_peer_service(
     db: Session = Depends(get_session),
     jwt_token: str | None = Depends(token_depends),
-) -> InstanceService:
-    return create_service_factory(db, None, jwt_token).get_instance_service()
+) -> PeerService:
+    return create_service_factory(db, None, jwt_token).get_peer_service()
 
 
 def get_instance_settings_service(
@@ -420,13 +420,11 @@ def get_bot_metrics_service(
     ).get_metrics_service()
 
 
-def get_bot_instance_service(
+def get_bot_peer_service(
     db: Session = Depends(get_session),
     jwt_token: str | None = Depends(token_depends),
-) -> InstanceService:
-    return create_bot_service_factory(
-        db, None, jwt_token
-    ).get_instance_service()
+) -> PeerService:
+    return create_bot_service_factory(db, None, jwt_token).get_peer_service()
 
 
 def get_bot_notification_service(

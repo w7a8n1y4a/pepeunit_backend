@@ -21,8 +21,8 @@ from app.schemas.bot.control_bot_router import ControlBotRouter
 from app.schemas.bot.dashboard_bot_router import DashboardBotRouter
 from app.schemas.bot.error import error_router
 from app.schemas.bot.info import info_router
-from app.schemas.bot.instance_bot_router import InstanceBotRouter
 from app.schemas.bot.notification_bot_router import NotificationBotRouter
+from app.schemas.bot.peer_bot_router import PeerBotRouter
 from app.schemas.bot.repo_bot_router import (
     RepoBotRouter,
 )
@@ -103,7 +103,7 @@ if bot is not None:
 
     dp.include_router(info_router)
     dp.include_router(ControlBotRouter().router)
-    dp.include_router(InstanceBotRouter().router)
+    dp.include_router(PeerBotRouter().router)
     dp.include_router(NotificationBotRouter().router)
     dp.include_router(base_router)
     dp.include_router(RepoBotRouter().router)

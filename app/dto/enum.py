@@ -219,7 +219,7 @@ class CommandNames(str, enum.Enum):
     INFO = "info"
     VERIFICATION = "verification"
     DASHBOARD = "dashboard"
-    INSTANCES = "instances"
+    PEERS = "peers"
     ALERTS = "alerts"
     CONTROL = "control"
 
@@ -234,7 +234,7 @@ class EntityNames(str, enum.Enum):
     UNIT_IO = "UnitIO"
     UNIT_LOG = "UnitLog"
     DASHBOARD = "Dashboard"
-    INSTANCE = "Instance"
+    PEER = "Peer"
     NOTIFICATION = "Notification"
     CONTROL = "Control"
 
@@ -467,13 +467,13 @@ class DashboardStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-class InstanceTrustStatus(str, enum.Enum):
+class PeerTrustStatus(str, enum.Enum):
     TRUST = "Trust"
     PENDING = "Pending"
     BLOCKING = "Blocking"
 
 
-class InstanceCollectionStatus(str, enum.Enum):
+class PeerCollectionStatus(str, enum.Enum):
     SUCCESS = "Success"
     TIMEOUT = "Timeout"
     ERROR = "Error"
@@ -488,8 +488,8 @@ class OperationTaskStatus(str, enum.Enum):
 
 class OperationTaskType(str, enum.Enum):
     INTEGRATION_TESTS = "IntegrationTests"
-    SCAN_ALL_INSTANCES = "ScanAllInstances"
-    SCAN_INSTANCE = "ScanInstance"
+    SCAN_ALL_PEERS = "ScanAllPeers"
+    SCAN_PEER = "ScanPeer"
     UPDATE_ALL_REPOS = "UpdateAllRepos"
     UPDATE_REPO = "UpdateRepo"
     UPDATE_UNITS_FIRMWARE = "UpdateUnitsFirmware"
@@ -518,8 +518,8 @@ class NotificationType(str, enum.Enum):
     UNIT_DAILY_SUMMARY = "UnitDailySummary"
     DATA_PIPE_ALERT = "DataPipeAlert"
     INTEGRATION_TESTS = OperationTaskType.INTEGRATION_TESTS.value
-    SCAN_ALL_INSTANCES = OperationTaskType.SCAN_ALL_INSTANCES.value
-    SCAN_INSTANCE = OperationTaskType.SCAN_INSTANCE.value
+    SCAN_ALL_PEERS = OperationTaskType.SCAN_ALL_PEERS.value
+    SCAN_PEER = OperationTaskType.SCAN_PEER.value
     UPDATE_ALL_REPOS = OperationTaskType.UPDATE_ALL_REPOS.value
     UPDATE_REPO = OperationTaskType.UPDATE_REPO.value
     UPDATE_UNITS_FIRMWARE = OperationTaskType.UPDATE_UNITS_FIRMWARE.value
@@ -535,7 +535,7 @@ class FileLock(str, enum.Enum):
     MQTT_SUBSCRIBE = "tmp/mqtt_subscribe.lock"
     UPDATE_REPOS = "tmp/update_repos.lock"
     UPDATE_REPO = "tmp/update_repo.lock"
-    COLLECT_INSTANCES = "tmp/collect_instances.lock"
+    COLLECT_PEERS = "tmp/collect_peers.lock"
     NOTIFICATION_SCHEDULE = "tmp/notification_schedule.lock"
     NOTIFICATION_PROCESS = "tmp/notification_process.lock"
 
@@ -557,6 +557,7 @@ class ErrorEntity(str, enum.Enum):
     NOTIFICATION = "Notification"
     OPERATION_TASK = "OperationTask"
     PAGINATION = "Pagination"
+    PEER = "Peer"
     PERMISSION = "Permission"
     README = "Readme"
     REPO = "Repo"
@@ -581,7 +582,7 @@ class NotFoundEntity(str, enum.Enum):
     PANELS_UNIT_IOS = "PanelsUnitIOs"
     ICON = "Icon"
     NOTIFICATION = "Notification"
-    INSTANCE = "Instance"
+    PEER = "Peer"
     INSTANCE_SETTINGS = "InstanceSettings"
     PERMISSION = "Permission"
     OPERATION_TASK = "OperationTask"

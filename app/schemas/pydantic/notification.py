@@ -231,14 +231,12 @@ class IntegrationTestsAlertData(OperationTaskAlertData):
         return self.result or None
 
 
-class ScanAllInstancesAlertData(OperationTaskAlertData):
-    task_type: ClassVar[OperationTaskType] = (
-        OperationTaskType.SCAN_ALL_INSTANCES
-    )
+class ScanAllPeersAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.SCAN_ALL_PEERS
 
 
-class ScanInstanceAlertData(OperationTaskAlertData):
-    task_type: ClassVar[OperationTaskType] = OperationTaskType.SCAN_INSTANCE
+class ScanPeerAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.SCAN_PEER
 
 
 class UpdateAllReposAlertData(OperationTaskAlertData):
@@ -267,8 +265,8 @@ class RebootInstanceAlertData(OperationTaskAlertData):
 
 OPERATION_TASK_ALERTS: dict[NotificationType, type[OperationTaskAlertData]] = {
     NotificationType.INTEGRATION_TESTS: IntegrationTestsAlertData,
-    NotificationType.SCAN_ALL_INSTANCES: ScanAllInstancesAlertData,
-    NotificationType.SCAN_INSTANCE: ScanInstanceAlertData,
+    NotificationType.SCAN_ALL_PEERS: ScanAllPeersAlertData,
+    NotificationType.SCAN_PEER: ScanPeerAlertData,
     NotificationType.UPDATE_ALL_REPOS: UpdateAllReposAlertData,
     NotificationType.UPDATE_REPO: UpdateRepoAlertData,
     NotificationType.UPDATE_UNITS_FIRMWARE: UpdateUnitsFirmwareAlertData,

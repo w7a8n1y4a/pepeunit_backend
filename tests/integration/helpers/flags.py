@@ -26,9 +26,9 @@ FIXTURE_MARKERS = {
     "grafana_dashboards": "grafana",
     "grafana_panels": "grafana",
     "piped_units": "datapipe",
-    "own_instance": "federation",
-    "trusted_instances": "federation",
-    "unreachable_instance": "federation",
+    "own_peer": "federation",
+    "trusted_peers": "federation",
+    "unreachable_peer": "federation",
     "private_repo_enabled": "private_repo",
     "private_repos": "private_repo",
     "private_repo": "private_repo",
@@ -40,7 +40,11 @@ def _disabled_markers() -> set[str]:
 
 
 def _item_gate_markers(item: pytest.Item) -> set[str]:
-    names = {marker.name for marker in item.iter_markers() if marker.name in MARKER_ENABLED}
+    names = {
+        marker.name
+        for marker in item.iter_markers()
+        if marker.name in MARKER_ENABLED
+    }
     for fixture in getattr(item, "fixturenames", ()):
         marker = FIXTURE_MARKERS.get(fixture)
         if marker:
@@ -48,7 +52,9 @@ def _item_gate_markers(item: pytest.Item) -> set[str]:
     return names
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     disabled = _disabled_markers()
     if not disabled:
         return

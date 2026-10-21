@@ -18,20 +18,21 @@ from app.configs.errors import (
     CustomException,
     FeatureFlagError,
     InstanceError,
+    PeerError,
 )
-from app.domain.instance_model import Instance
 from app.domain.operation_task_model import OperationTask
+from app.domain.peer_model import Peer
 from app.domain.repo_model import Repo
 from app.dto.enum import (
     AgentType,
     GitPlatform,
-    InstanceCollectionStatus,
-    InstanceTrustStatus,
     IntegrationTestsStatus,
     NotFoundEntity,
     OperationTaskStatus,
     OperationTaskType,
     OrderByText,
+    PeerCollectionStatus,
+    PeerTrustStatus,
     UserRole,
 )
 from app.dto.integration_tests import IntegrationTestsStats
@@ -39,12 +40,12 @@ from app.repositories.instance_cache_repository import (
     InstanceCacheSnapshot,
     instance_cache,
 )
-from app.repositories.instance_external_repository import (
-    CollectedInstance,
-    InstanceExternalRepository,
-)
-from app.repositories.instance_repository import InstanceRepository
 from app.repositories.operation_task_repository import OperationTaskRepository
+from app.repositories.peer_external_repository import (
+    CollectedPeer,
+    PeerExternalRepository,
+)
+from app.repositories.peer_repository import PeerRepository
 from app.repositories.repo_repository import (
     RepoRepository,
 )
@@ -52,16 +53,18 @@ from app.schemas.pydantic.instance import (
     CurrentInstanceMetricsV1,
     CurrentInstanceSchemaV1,
     CurrentInstanceStateV1,
-    InstanceCreate,
-    InstanceFilter,
-    InstancePublicRepo,
-    InstanceRead,
-    InstanceReposPage,
-    InstancesPage,
-    InstanceUpdate,
-    InstanceUrlsPage,
 )
 from app.schemas.pydantic.operation_task import OperationTaskCreate
+from app.schemas.pydantic.peer import (
+    PeerCreate,
+    PeerFilter,
+    PeerPublicRepo,
+    PeerRead,
+    PeerReposPage,
+    PeersPage,
+    PeerUpdate,
+    PeerUrlsPage,
+)
 from app.schemas.pydantic.repo import (
     RepoCreate,
     RepoFilter,
@@ -75,10 +78,10 @@ from app.services.validators import is_valid_object
 from app.utils.utils import ensure_timezone_aware
 
 
-class InstanceService:
+class PeerService:
     MAX_COLLECTION_ERROR_LENGTH = 256
 
-    # spread of external instance polling inside the data collection window
+    # spread of peer polling inside the data collection window
     COLLECT_ALL_MAX_DELAY = 60 * 60 - 1
     SCAN_ALL_MAX_DELAY = 10 * 60 - 1
     SCAN_ALL_COOLDOWN = timedelta(minutes=10)
@@ -88,8 +91,8 @@ class InstanceService:
 
     def __init__(
         self,
-        instance_repository: InstanceRepository = Depends(),
-        instance_external_repository: InstanceExternalRepository = Depends(),
+        peer_repository: PeerRepository = Depends(),
+        peer_external_repository: PeerExternalRepository = Depends(),
         operation_task_repository: OperationTaskRepository = Depends(),
         repo_repository: RepoRepository = Depends(),
         repo_service: RepoService = Depends(),
@@ -97,8 +100,8 @@ class InstanceService:
         operation_task_service: OperationTaskService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
-        self.instance_repository = instance_repository
-        self.instance_external_repository = instance_external_repository
+        self.peer_repository = peer_repository
+        self.peer_external_repository = peer_external_repository
         self.operation_task_repository = operation_task_repository
         self.repo_repository = repo_repository
         self.instance_cache_repository = instance_cache
@@ -107,62 +110,60 @@ class InstanceService:
         self.operation_task_service = operation_task_service
         self.access_service = access_service
 
-    def create(self, data: InstanceCreate) -> Instance:
+    def create(self, data: PeerCreate) -> Peer:
         self.access_service.authorization.check_access(
             [AgentType.USER],
             [UserRole.ADMIN],
         )
 
         url = self.is_valid_url(data.url)
-        self.instance_repository.is_unique_url(url)
+        self.peer_repository.is_unique_url(url)
 
-        instance = self.instance_repository.create(
-            Instance(
+        peer = self.peer_repository.create(
+            Peer(
                 url=url,
-                trust_status=InstanceTrustStatus.TRUST.value,
+                trust_status=PeerTrustStatus.TRUST.value,
                 create_datetime=datetime.now(UTC),
             )
         )
 
         self.refresh_cache()
-        return instance
+        return peer
 
-    def get(self, uuid: uuid_pkg.UUID) -> Instance:
+    def get(self, uuid: uuid_pkg.UUID) -> Peer:
         self.access_service.authorization.check_access([AgentType.USER])
-        return self.get_instance(uuid)
+        return self.get_peer(uuid)
 
-    def list(self, filters: InstanceFilter) -> tuple[int, list[Instance]]:
+    def list(self, filters: PeerFilter) -> tuple[int, list[Peer]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER]
         )
-        return self.instance_repository.list(filters)
+        return self.peer_repository.list(filters)
 
     def update(
         self,
         uuid: uuid_pkg.UUID,
-        data: InstanceUpdate,
-    ) -> Instance:
+        data: PeerUpdate,
+    ) -> Peer:
         self.access_service.authorization.check_access(
             [AgentType.USER],
             [UserRole.ADMIN],
         )
 
-        instance = self.get_instance(uuid)
+        peer = self.get_peer(uuid)
         self.is_valid_trust_status(data.trust_status)
 
-        instance.trust_status = data.trust_status.value
+        peer.trust_status = data.trust_status.value
 
-        if data.trust_status == InstanceTrustStatus.BLOCKING:
-            instance.last_collection_status = (
-                InstanceCollectionStatus.BLOCKING.value
-            )
-            instance.last_ping = None
-            instance.last_collection_error = None
+        if data.trust_status == PeerTrustStatus.BLOCKING:
+            peer.last_collection_status = PeerCollectionStatus.BLOCKING.value
+            peer.last_ping = None
+            peer.last_collection_error = None
 
-        instance = self.instance_repository.update(instance.uuid, instance)
+        peer = self.peer_repository.update(peer.uuid, peer)
 
         self.refresh_cache()
-        return instance
+        return peer
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access(
@@ -170,26 +171,24 @@ class InstanceService:
             [UserRole.ADMIN],
         )
 
-        self.instance_repository.delete(self.get_instance(uuid))
+        self.peer_repository.delete(self.get_peer(uuid))
 
         self.refresh_cache()
 
     def get_cached_current(self) -> CurrentInstanceSchemaV1:
         return self.instance_cache_repository.get_current()
 
-    def get_cached_instances(self, filters: InstanceFilter) -> InstancesPage:
-        return self.instance_cache_repository.get_instances(filters)
+    def get_cached_peers(self, filters: PeerFilter) -> PeersPage:
+        return self.instance_cache_repository.get_peers(filters)
 
-    def get_cached_urls(self, filters: InstanceFilter) -> InstanceUrlsPage:
+    def get_cached_urls(self, filters: PeerFilter) -> PeerUrlsPage:
         return self.instance_cache_repository.get_urls(filters)
 
-    def get_cached_repos(self, filters: InstanceFilter) -> InstanceReposPage:
+    def get_cached_repos(self, filters: PeerFilter) -> PeerReposPage:
         return self.instance_cache_repository.get_repos(filters)
 
     def refresh_cache(self) -> None:
-        count, instances = self.instance_repository.list(
-            InstanceFilter.unlimited()
-        )
+        count, peers = self.peer_repository.list(PeerFilter.unlimited())
         count, repos = self.repo_repository.list(
             RepoFilter.unlimited(
                 is_public_repository=True,
@@ -202,11 +201,10 @@ class InstanceService:
         self.instance_cache_repository.update(
             InstanceCacheSnapshot(
                 current=self.get_current_instance(),
-                instances=tuple(
-                    self.mapper_instance_to_instance_read(instance)
-                    for instance in instances
+                peers=tuple(
+                    self.mapper_peer_to_peer_read(peer) for peer in peers
                 ),
-                urls=tuple(sorted(instance.url for instance in instances)),
+                urls=tuple(sorted(peer.url for peer in peers)),
                 repos=tuple(
                     self.mapper_repo_to_public_repo(repo) for repo in repos
                 ),
@@ -260,23 +258,23 @@ class InstanceService:
         )
         self.is_federation_enable()
         self.operation_task_service.is_valid_cooldown(
-            OperationTaskType.SCAN_ALL_INSTANCES,
+            OperationTaskType.SCAN_ALL_PEERS,
             self.SCAN_ALL_COOLDOWN,
         )
 
         task = self.operation_task_service.create(
             OperationTaskCreate(
-                task_type=OperationTaskType.SCAN_ALL_INSTANCES,
+                task_type=OperationTaskType.SCAN_ALL_PEERS,
             )
         )
 
         async def operation(_db):
             with BackgroundService() as services:
-                summary = await services.get_instance_service().collect_all(
-                    InstanceService.SCAN_ALL_MAX_DELAY
+                summary = await services.get_peer_service().collect_all(
+                    PeerService.SCAN_ALL_MAX_DELAY
                 )
             with BackgroundService() as services:
-                services.get_instance_service().refresh_cache()
+                services.get_peer_service().refresh_cache()
             return summary
 
         self.operation_task_service.schedule(task, operation)
@@ -288,22 +286,22 @@ class InstanceService:
             [UserRole.ADMIN],
         )
         self.is_federation_enable()
-        self.get_instance(uuid)
+        self.get_peer(uuid)
 
         task = self.operation_task_service.create(
             OperationTaskCreate(
-                task_type=OperationTaskType.SCAN_INSTANCE,
+                task_type=OperationTaskType.SCAN_PEER,
             )
         )
 
         async def operation(_db):
             with BackgroundService() as services:
-                service = services.get_instance_service()
-                instance = await service.collect(uuid)
+                service = services.get_peer_service()
+                peer = await service.collect(uuid)
                 service.refresh_cache()
-                service.is_valid_collection_status(instance)
-                origin = InstanceService.instance_origin(instance.url)
-                return f"Scanned {origin}, ping {round(instance.last_ping)} ms"
+                service.is_valid_collection_status(peer)
+                origin = PeerService.peer_origin(peer.url)
+                return f"Scanned {origin}, ping {round(peer.last_ping)} ms"
 
         self.operation_task_service.schedule(task, operation)
         return task
@@ -322,7 +320,7 @@ class InstanceService:
 
         def operation(_db):
             with BackgroundService() as services:
-                service = services.get_instance_service()
+                service = services.get_peer_service()
                 log = service.run_integration_tests()
                 service.refresh_cache()
                 return log
@@ -352,163 +350,141 @@ class InstanceService:
     async def collect_all(self, max_delay: int) -> str:
         self.is_federation_enable()
 
-        count, instances = self.instance_repository.list(
-            InstanceFilter.unlimited(
-                trust_status=[InstanceTrustStatus.TRUST.value]
-            )
+        count, peers = self.peer_repository.list(
+            PeerFilter.unlimited(trust_status=[PeerTrustStatus.TRUST.value])
         )
 
         collected = await asyncio.gather(
-            *(
-                self.collect_with_delay(instance.uuid, max_delay)
-                for instance in instances
-            )
+            *(self.collect_with_delay(peer.uuid, max_delay) for peer in peers)
         )
         failed = [
-            instance
-            for instance in collected
-            if instance.last_collection_status
-            != InstanceCollectionStatus.SUCCESS.value
+            peer
+            for peer in collected
+            if peer.last_collection_status
+            != PeerCollectionStatus.SUCCESS.value
         ]
 
         return f"Scanned {len(collected)}, failed {len(failed)}"
 
     @staticmethod
-    async def collect_with_delay(
-        uuid: uuid_pkg.UUID, max_delay: int
-    ) -> Instance:
+    async def collect_with_delay(uuid: uuid_pkg.UUID, max_delay: int) -> Peer:
         await asyncio.sleep(random.randint(0, max_delay))
 
         with BackgroundService() as services:
-            return await services.get_instance_service().collect(uuid)
+            return await services.get_peer_service().collect(uuid)
 
-    async def collect(self, uuid: uuid_pkg.UUID) -> Instance:
+    async def collect(self, uuid: uuid_pkg.UUID) -> Peer:
         self.is_federation_enable()
 
-        instance = self.get_instance(uuid)
-        self.is_collection_available(instance)
+        peer = self.get_peer(uuid)
+        self.is_collection_available(peer)
 
-        instance.last_attempt_datetime = datetime.now(UTC)
-        instance.last_collection_error = None
-        instance = self.instance_repository.update(instance.uuid, instance)
+        peer.last_attempt_datetime = datetime.now(UTC)
+        peer.last_collection_error = None
+        peer = self.peer_repository.update(peer.uuid, peer)
 
         try:
-            collected = await self.instance_external_repository.collect(
-                instance.url
-            )
+            collected = await self.peer_external_repository.collect(peer.url)
         except (
             httpx.HTTPError,
             PydanticValidationError,
             ValueError,
-            InstanceError,
+            PeerError,
         ) as e:
-            return self.set_collection_failure(instance, e)
+            return self.set_collection_failure(peer, e)
 
-        instance = self.set_collection_success(instance, collected)
+        peer = self.set_collection_success(peer, collected)
 
         self.insert_discovered_urls(collected.urls)
         self.insert_discovered_repos(collected.repos)
-        return instance
+        return peer
 
     def set_collection_success(
         self,
-        instance: Instance,
-        collected: CollectedInstance,
-    ) -> Instance:
-        instance.state = collected.state.model_dump(mode="json")
-        instance.last_ping = collected.last_ping
-        instance.last_collection_status = (
-            InstanceCollectionStatus.SUCCESS.value
-        )
-        instance.last_success_datetime = datetime.now(UTC)
-        instance.consecutive_success_count += 1
-        instance.last_collection_error = None
+        peer: Peer,
+        collected: CollectedPeer,
+    ) -> Peer:
+        peer.state = collected.state.model_dump(mode="json")
+        peer.last_ping = collected.last_ping
+        peer.last_collection_status = PeerCollectionStatus.SUCCESS.value
+        peer.last_success_datetime = datetime.now(UTC)
+        peer.consecutive_success_count += 1
+        peer.last_collection_error = None
 
-        return self.instance_repository.update(instance.uuid, instance)
+        return self.peer_repository.update(peer.uuid, peer)
 
     def set_collection_failure(
         self,
-        instance: Instance,
+        peer: Peer,
         error: Exception,
-    ) -> Instance:
+    ) -> Peer:
         message = str(error).strip() or error.__class__.__name__
 
-        instance.last_collection_status = self.get_collection_status(
-            error
-        ).value
-        instance.last_ping = None
-        instance.consecutive_success_count = 0
-        instance.last_collection_error = message[
+        peer.last_collection_status = self.get_collection_status(error).value
+        peer.last_ping = None
+        peer.consecutive_success_count = 0
+        peer.last_collection_error = message[
             : self.MAX_COLLECTION_ERROR_LENGTH
         ]
 
-        return self.instance_repository.update(instance.uuid, instance)
+        return self.peer_repository.update(peer.uuid, peer)
 
-    async def delete_stale_instances(self) -> None:
+    async def delete_stale_peers(self) -> None:
         self.is_federation_enable()
 
         threshold = datetime.now(UTC) - timedelta(
             days=runtime.get().pu_instance_retention_days
         )
-        # pending is a quarantine for discovered instances, it is not deleted automatically
-        count, instances = self.instance_repository.list(
-            InstanceFilter.unlimited(
-                trust_status=[InstanceTrustStatus.TRUST.value]
-            )
+        # pending is a quarantine for discovered peers, it is not deleted automatically
+        count, peers = self.peer_repository.list(
+            PeerFilter.unlimited(trust_status=[PeerTrustStatus.TRUST.value])
         )
 
-        for instance in instances:
-            await self.delete_stale_trusted(instance, threshold)
+        for peer in peers:
+            await self.delete_stale_trusted(peer, threshold)
 
     async def delete_stale_trusted(
         self,
-        instance: Instance,
+        peer: Peer,
         threshold: datetime,
     ) -> None:
         last_datetime = ensure_timezone_aware(
-            instance.last_success_datetime or instance.create_datetime
+            peer.last_success_datetime or peer.create_datetime
         )
         if last_datetime >= threshold:
             return
 
-        # the instance is always polled before deletion
-        instance = await self.collect(instance.uuid)
-        if (
-            instance.last_collection_status
-            != InstanceCollectionStatus.SUCCESS.value
-        ):
-            self.instance_repository.delete(instance)
+        # the peer is always polled before deletion
+        peer = await self.collect(peer.uuid)
+        if peer.last_collection_status != PeerCollectionStatus.SUCCESS.value:
+            self.peer_repository.delete(peer)
 
     def insert_discovered_urls(self, urls: Sequence[str]) -> None:
-        count, instances = self.instance_repository.list(
-            InstanceFilter.unlimited()
-        )
+        count, peers = self.peer_repository.list(PeerFilter.unlimited())
 
-        known_urls = {instance.url for instance in instances}
+        known_urls = {peer.url for peer in peers}
         known_urls.add(self.get_own_url())
 
         for url in sorted(set(urls)):
             try:
                 valid_url = self.is_valid_url(url)
-            except InstanceError as e:
-                logging.warning(f"Skip discovered Instance {url}: {e}")
+            except PeerError as e:
+                logging.warning(f"Skip discovered Peer {url}: {e}")
                 continue
 
             if valid_url in known_urls:
                 continue
 
             known_urls.add(valid_url)
-            self.instance_repository.create(
-                Instance(
+            self.peer_repository.create(
+                Peer(
                     url=valid_url,
-                    trust_status=InstanceTrustStatus.PENDING.value,
+                    trust_status=PeerTrustStatus.PENDING.value,
                     create_datetime=datetime.now(UTC),
                 )
             )
 
-    def insert_discovered_repos(
-        self, repos: Sequence[InstancePublicRepo]
-    ) -> None:
+    def insert_discovered_repos(self, repos: Sequence[PeerPublicRepo]) -> None:
         count, known_repos = self.repo_repository.list(RepoFilter.unlimited())
         known_urls = {item.repository_url for item in known_repos}
 
@@ -529,30 +505,29 @@ class InstanceService:
             except CustomException as e:
                 logging.warning(f"Skip discovered Repo {repo.url}: {e}")
 
-    def get_instance(self, uuid: uuid_pkg.UUID) -> Instance:
-        instance = self.instance_repository.get(Instance(uuid=uuid))
-        is_valid_object(instance, NotFoundEntity.INSTANCE)
-        return instance
+    def get_peer(self, uuid: uuid_pkg.UUID) -> Peer:
+        peer = self.peer_repository.get(Peer(uuid=uuid))
+        is_valid_object(peer, NotFoundEntity.PEER)
+        return peer
 
     @staticmethod
     def get_own_url() -> str:
-        return InstanceService.is_valid_url(
+        return PeerService.is_valid_url(
             f"{settings.pu_link_prefix_and_v1}/instances/current"
         )
 
     @staticmethod
-    def get_collection_status(error: Exception) -> InstanceCollectionStatus:
+    def get_collection_status(error: Exception) -> PeerCollectionStatus:
         if isinstance(error, httpx.TimeoutException):
-            return InstanceCollectionStatus.TIMEOUT
+            return PeerCollectionStatus.TIMEOUT
 
         if (
             isinstance(error, httpx.HTTPStatusError)
-            and error.response.status_code
-            in InstanceService.BLOCKING_STATUS_CODES
+            and error.response.status_code in PeerService.BLOCKING_STATUS_CODES
         ):
-            return InstanceCollectionStatus.BLOCKING
+            return PeerCollectionStatus.BLOCKING
 
-        return InstanceCollectionStatus.ERROR
+        return PeerCollectionStatus.ERROR
 
     @staticmethod
     def get_integration_tests_status(
@@ -575,36 +550,31 @@ class InstanceService:
             raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
     @staticmethod
-    def is_collection_available(instance: Instance) -> None:
-        if instance.trust_status != InstanceTrustStatus.TRUST.value:
-            msg = f"Collection is not available, Instance trust status is {instance.trust_status}, but it should have been {InstanceTrustStatus.TRUST.value}"
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_COLLECTION_TRUST)
+    def is_collection_available(peer: Peer) -> None:
+        if peer.trust_status != PeerTrustStatus.TRUST.value:
+            msg = f"Collection is not available, Peer trust status is {peer.trust_status}, but it should have been {PeerTrustStatus.TRUST.value}"
+            raise PeerError(msg, code=ErrorCode.PEER_COLLECTION_TRUST)
 
     @staticmethod
-    def is_valid_collection_status(instance: Instance) -> None:
-        if (
-            instance.last_collection_status
-            != InstanceCollectionStatus.SUCCESS.value
-        ):
+    def is_valid_collection_status(peer: Peer) -> None:
+        if peer.last_collection_status != PeerCollectionStatus.SUCCESS.value:
             msg = (
-                instance.last_collection_error
-                or f"Collection {instance.url} is failed"
+                peer.last_collection_error
+                or f"Collection {peer.url} is failed"
             )
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_COLLECTION_FAILED)
+            raise PeerError(msg, code=ErrorCode.PEER_COLLECTION_FAILED)
 
     @staticmethod
-    def is_valid_trust_status(trust_status: InstanceTrustStatus) -> None:
+    def is_valid_trust_status(trust_status: PeerTrustStatus) -> None:
         if trust_status not in (
-            InstanceTrustStatus.TRUST,
-            InstanceTrustStatus.BLOCKING,
+            PeerTrustStatus.TRUST,
+            PeerTrustStatus.BLOCKING,
         ):
-            msg = f"Trust status can only be {InstanceTrustStatus.TRUST.value} or {InstanceTrustStatus.BLOCKING.value}"
-            raise InstanceError(
-                msg, code=ErrorCode.INSTANCE_TRUST_STATUS_INVALID
-            )
+            msg = f"Trust status can only be {PeerTrustStatus.TRUST.value} or {PeerTrustStatus.BLOCKING.value}"
+            raise PeerError(msg, code=ErrorCode.PEER_TRUST_STATUS_INVALID)
 
     @staticmethod
-    def instance_origin(url: str) -> str:
+    def peer_origin(url: str) -> str:
         parsed = urlparse(url)
         return f"{parsed.scheme}://{parsed.netloc}"
 
@@ -613,24 +583,22 @@ class InstanceService:
         parsed = urlparse(url.strip())
 
         if parsed.scheme not in ("http", "https"):
-            msg = "Instance URL scheme must be http or https"
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_SCHEME)
+            msg = "Peer URL scheme must be http or https"
+            raise PeerError(msg, code=ErrorCode.PEER_URL_SCHEME)
         if not parsed.hostname:
-            msg = "Instance URL must include a host"
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_HOST)
+            msg = "Peer URL must include a host"
+            raise PeerError(msg, code=ErrorCode.PEER_URL_HOST)
         if parsed.query or parsed.fragment:
-            msg = "Instance URL must not include query or fragment"
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_QUERY)
+            msg = "Peer URL must not include query or fragment"
+            raise PeerError(msg, code=ErrorCode.PEER_URL_QUERY)
         if parsed.username or parsed.password:
-            msg = "Instance URL must not include credentials"
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_CREDENTIALS)
+            msg = "Peer URL must not include credentials"
+            raise PeerError(msg, code=ErrorCode.PEER_URL_CREDENTIALS)
 
         path = parsed.path.rstrip("/")
         if not path.endswith("/instances/current"):
-            msg = (
-                'Instance URL must point to the "/instances/current" endpoint'
-            )
-            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_ENDPOINT)
+            msg = 'Peer URL must point to the "/instances/current" endpoint'
+            raise PeerError(msg, code=ErrorCode.PEER_URL_ENDPOINT)
 
         netloc = parsed.hostname.lower()
         if parsed.port is not None:
@@ -639,14 +607,14 @@ class InstanceService:
         return urlunparse((parsed.scheme.lower(), netloc, path, "", "", ""))
 
     @staticmethod
-    def mapper_instance_to_instance_read(instance: Instance) -> InstanceRead:
-        return InstanceRead(**instance.dict())
+    def mapper_peer_to_peer_read(peer: Peer) -> PeerRead:
+        return PeerRead(**peer.dict())
 
     @staticmethod
     def mapper_repo_to_public_repo(
         repo: Repo,
-    ) -> InstancePublicRepo:
-        return InstancePublicRepo(
+    ) -> PeerPublicRepo:
+        return PeerPublicRepo(
             url=repo.repository_url,
             platform=GitPlatform(repo.platform),
         )

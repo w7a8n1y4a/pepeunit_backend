@@ -18,7 +18,7 @@ from app.dto.enum import (
 )
 
 
-class InstanceStates(StatesGroup):
+class PeerStates(StatesGroup):
     pass
 
 
