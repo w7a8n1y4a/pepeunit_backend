@@ -13,6 +13,7 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_available_name_entity_symbols: str
     pu_available_topic_symbols: str
 
+    pu_datapipe_default_last_value_enable: bool
     pu_datapipe_limit_unit_io_per_one_panel: int
 
     pu_instance_cipher_max_length: int
@@ -26,6 +27,8 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_instance_unit_log_expiration: int
     pu_instance_unit_state_send_interval: int
     pu_instance_user_auth_token_expiration: int
+    pu_instance_user_max_count: int
+    pu_instance_user_max_group: int
 
     pu_mqtt_client_max_bytes_rate: str
     pu_mqtt_client_max_messages_rate: str
@@ -51,6 +54,9 @@ class CurrentInstanceSettingsV1(BaseModel):
                 settings.pu_available_name_entity_symbols
             ),
             pu_available_topic_symbols=settings.pu_available_topic_symbols,
+            pu_datapipe_default_last_value_enable=(
+                runtime.get().pu_datapipe_default_last_value_enable
+            ),
             pu_datapipe_limit_unit_io_per_one_panel=(
                 runtime.get().pu_datapipe_limit_unit_io_per_one_panel
             ),
@@ -81,6 +87,8 @@ class CurrentInstanceSettingsV1(BaseModel):
             pu_instance_user_auth_token_expiration=(
                 runtime.get().pu_instance_user_auth_token_expiration
             ),
+            pu_instance_user_max_count=runtime.get().pu_instance_user_max_count,
+            pu_instance_user_max_group=runtime.get().pu_instance_user_max_group,
             pu_mqtt_client_max_bytes_rate=(
                 runtime.get().pu_mqtt_client_max_bytes_rate
             ),
