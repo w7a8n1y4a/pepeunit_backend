@@ -16,6 +16,7 @@ from app.configs.config import (
     LogFormat,
     SettingsValidationMixin,
 )
+from app.configs.error_codes import ErrorCode
 
 
 class InstanceSettingsData(SettingsValidationMixin, BaseModel):
@@ -123,7 +124,9 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     def validate_owner_email(cls, value: str) -> str:
         if value and not cls._EMAIL_RE.fullmatch(value):
             msg = "pu_instance_owner_email must be a valid email or empty"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.INSTANCE_SETTINGS_EMAIL_INVALID, msg
+            )
         return value
 
     @field_validator("pu_telegram_token")
@@ -133,7 +136,9 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
             msg = (
                 "pu_telegram_token must look like '123456:ABC-def' or be empty"
             )
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.INSTANCE_SETTINGS_TELEGRAM_TOKEN_INVALID, msg
+            )
         return value
 
     @field_validator(
@@ -144,7 +149,9 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     def validate_count_rate(cls, value: str, info: ValidationInfo) -> str:
         if not cls._COUNT_RATE_RE.fullmatch(value):
             msg = f"{info.field_name} must look like '20/s' or '20/m'"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.INSTANCE_SETTINGS_COUNT_RATE_INVALID, msg
+            )
         return value
 
     @field_validator("pu_mqtt_client_max_bytes_rate")
@@ -152,7 +159,9 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     def validate_bytes_rate(cls, value: str) -> str:
         if not cls._BYTES_RATE_RE.fullmatch(value):
             msg = "pu_mqtt_client_max_bytes_rate must look like '1MB/s'"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.INSTANCE_SETTINGS_BYTES_RATE_INVALID, msg
+            )
         return value
 
     @model_validator(mode="after")
@@ -168,7 +177,9 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
                     "Grafana admin credentials are empty, "
                     "pu_ff_grafana_integration_enable stays off"
                 )
-                raise ValueError(msg)
+                raise ErrorCode.coded(
+                    ErrorCode.INSTANCE_SETTINGS_GRAFANA_CREDENTIALS, msg
+                )
 
         if self.pu_ff_telegram_bot_enable:
             self.require_http_url(
@@ -193,7 +204,9 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
                 "pu_instance_github_token_name and "
                 "pu_instance_github_token_pat must be set together"
             )
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.INSTANCE_SETTINGS_GITHUB_TOKEN_PAIR, msg
+            )
         return self
 
 

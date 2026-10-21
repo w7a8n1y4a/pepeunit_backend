@@ -14,6 +14,7 @@ import zlib
 from fastapi import Depends
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import MqttError, NoAccessError, UnitError
 from app.domain.operation_task_model import OperationTask
 from app.domain.repository_registry_model import RepositoryRegistry
@@ -26,7 +27,9 @@ from app.dto.enum import (
     AgentType,
     BackendTopicCommand,
     DestinationTopicType,
+    JsonPayload,
     LogLevel,
+    NotFoundEntity,
     OperationTaskType,
     OrderByDate,
     OwnershipType,
@@ -35,6 +38,7 @@ from app.dto.enum import (
     StaticRepoFileName,
     UnitIOTypeEnum,
     UserRole,
+    UuidEntity,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.icon_repository import IconRepository
@@ -107,7 +111,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=data.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
         self.access_service.authorization.check_repository_registry_access(
             repository_registry
         )
@@ -161,7 +167,7 @@ class UnitService:
             [AgentType.BOT, AgentType.USER, AgentType.UNIT]
         )
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
         self.access_service.authorization.check_visibility(unit)
         return unit
 
@@ -169,7 +175,7 @@ class UnitService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR]
         )
@@ -184,7 +190,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
         self.is_valid_update_rule(unit_update)
         target_commit, target_tag = (
             self.git_repo_repository.get_target_unit_version(
@@ -299,7 +307,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         target_commit, target_tag = (
             self.git_repo_repository.get_target_unit_version(
@@ -328,7 +338,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         target_version = self.git_repo_repository.get_target_unit_version(
             repository_registry, unit
@@ -338,9 +350,7 @@ class UnitService:
             unit=unit,
             repository_registry=repository_registry,
             target_version=target_version,
-            user_env_dict=is_valid_json(
-                env_json_str, StaticRepoFileName.ENV.value
-            ),
+            user_env_dict=is_valid_json(env_json_str, JsonPayload.ENV),
             include_commit_version=False,
             filter_by_allowed_keys=True,
         )
@@ -371,7 +381,7 @@ class UnitService:
             [AgentType.USER, AgentType.UNIT]
         )
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -380,7 +390,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         target_commit, target_tag = (
             self.git_repo_repository.get_target_unit_version(
@@ -395,7 +407,7 @@ class UnitService:
         )
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -404,7 +416,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         target_version = self.git_repo_repository.get_target_unit_version(
             repository_registry, unit
@@ -428,7 +442,9 @@ class UnitService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         target_version = self.git_repo_repository.get_target_unit_version(
             repository_registry, unit
@@ -521,7 +537,7 @@ class UnitService:
         )
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -539,7 +555,7 @@ class UnitService:
         )
         unit = self.unit_repository.get(Unit(uuid=uuid))
 
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -569,7 +585,7 @@ class UnitService:
                 backend_domain, destination, unit_uuid, topic_name, *_ = (
                     struct_topic
                 )
-                unit_uuid = is_valid_uuid(unit_uuid)
+                unit_uuid = is_valid_uuid(unit_uuid, UuidEntity.UNIT)
 
                 if destination in [
                     DestinationTopicType.INPUT_BASE_TOPIC,
@@ -577,10 +593,14 @@ class UnitService:
                 ]:
                     if self.access_service.current_agent.uuid != unit_uuid:
                         msg = "Available only for a docked Unit"
-                        raise NoAccessError(msg)
+                        raise NoAccessError(
+                            msg, code=ErrorCode.ACCESS_DOCKED_UNIT_ONLY
+                        )
                 else:
                     msg = f"Topic destination {destination} is invalid, available {list(DestinationTopicType)}"
-                    raise NoAccessError(msg)
+                    raise NoAccessError(
+                        msg, code=ErrorCode.ACCESS_TOPIC_DESTINATION_INVALID
+                    )
 
             elif len_struct in [2, 3]:
                 backend_domain, unit_io_uuid, *_ = struct_topic
@@ -592,26 +612,26 @@ class UnitService:
                 ):
                     return
 
-                unit_io_uuid = is_valid_uuid(unit_io_uuid)
+                unit_io_uuid = is_valid_uuid(unit_io_uuid, UuidEntity.UNIT_IO)
 
                 unit_io = self.unit_io_repository.get(
                     UnitIO(uuid=unit_io_uuid)
                 )
-                is_valid_object(unit_io)
+                is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
                 self.access_service.authorization.check_visibility(unit_io)
             else:
                 msg = f"Topic struct is invalid, len {len_struct}, available - [2, 3]"
-                raise MqttError(msg)
+                raise MqttError(msg, code=ErrorCode.MQTT_TOPIC_STRUCT)
         else:
             msg = "Only for Unit available topic communication"
-            raise MqttError(msg)
+            raise MqttError(msg, code=ErrorCode.MQTT_UNIT_TOPIC_ONLY)
 
     def delete(self, uuid: uuid_pkg.UUID) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR]
@@ -664,7 +684,7 @@ class UnitService:
         )
 
         unit = self.unit_repository.get(Unit(uuid=filters.uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -678,7 +698,7 @@ class UnitService:
         )
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -711,7 +731,9 @@ class UnitService:
                 repository_registry = self.repository_registry_repository.get(
                     RepositoryRegistry(uuid=unit.repository_registry_uuid)
                 )
-                is_valid_object(repository_registry)
+                is_valid_object(
+                    repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+                )
                 self.sync_state_unit_ios_for_version(unit, repository_registry)
                 self.unit_io_service.command_to_input_base_topic(
                     uuid=unit.uuid,
@@ -795,7 +817,7 @@ class UnitService:
 
     def generate_token(self, uuid: uuid_pkg.UUID) -> str:
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         return AgentUnit(**unit.dict()).generate_agent_token()
 
@@ -849,7 +871,7 @@ class UnitService:
         current_env_dict = None
         if unit.cipher_env_dict:
             current_env_dict = is_valid_json(
-                aes_gcm_decode(unit.cipher_env_dict), "Cipher env"
+                aes_gcm_decode(unit.cipher_env_dict), JsonPayload.CIPHER_ENV
             )
 
         merged_env_dict = target_env_dict.copy()
@@ -902,13 +924,15 @@ class UnitService:
             and not data.is_only_tag_update
         ):
             msg = "Compiled units use only tags when updating automatically"
-            raise UnitError(msg)
+            raise UnitError(msg, code=ErrorCode.UNIT_AUTOUPDATE_TAGS_ONLY)
 
         if not data.is_auto_update_unit and (
             not data.target_branch or not data.target_commit
         ):
             msg = "Unit updated manually requires branch and commit to be filled out"
-            raise UnitError(msg)
+            raise UnitError(
+                msg, code=ErrorCode.UNIT_MANUAL_UPDATE_BRANCH_COMMIT
+            )
 
     @staticmethod
     def mapper_unit_to_unit_read(
@@ -926,11 +950,11 @@ class UnitService:
         )
         if wbits not in available_values_list:
             msg = f"Wbits {wbits} is not valid, available {available_values_list}"
-            raise UnitError(msg)
+            raise UnitError(msg, code=ErrorCode.UNIT_WBITS_INVALID)
 
     @staticmethod
     def is_valid_level(level: int):
         available_values_list = list(range(-1, 10))
         if level not in available_values_list:
             msg = f"Level {level} is not valid, available {available_values_list}"
-            raise UnitError(msg)
+            raise UnitError(msg, code=ErrorCode.UNIT_LEVEL_INVALID)

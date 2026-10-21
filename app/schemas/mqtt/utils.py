@@ -1,3 +1,4 @@
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import MqttError
 from app.dto.enum import ReservedStateKey
 from app.schemas.mqtt.manager import mqtt_manager
@@ -25,7 +26,7 @@ def publish_to_topic(topic: str, msg: dict or str) -> None:
         msg = "Error when publish message to topic {}: {}".format(
             topic, "Backend MQTT session is invalid"
         )
-        raise MqttError(msg) from err
+        raise MqttError(msg, code=ErrorCode.MQTT_SESSION_INVALID) from err
     except Exception as err:
         msg = f"Error when publish message to topic {topic}: {err}"
-        raise MqttError(msg) from err
+        raise MqttError(msg, code=ErrorCode.MQTT_PUBLISH_FAILED) from err

@@ -19,13 +19,13 @@ from app.dto.enum import (
     UserRole,
 )
 from app.repositories.user_repository import UserRepository
-from app.services.icon_image import IconImage
 from app.schemas.pydantic.repository_registry import (
     CommitFilter,
     Credentials,
     RepositoryRegistryCreate,
     RepositoryRegistryFilter,
 )
+from app.services.icon_image import IconImage
 from tests.integration.helpers.instance_settings import owner_setting
 from tests.integration.helpers.names import UNIVERSAL_FIRST_COMMIT
 from tests.integration.helpers.services import (
@@ -338,9 +338,8 @@ def test_update_local_repository_sync_error(
         extra_user_token,
         "pu_instance_registry_max_size",
         0,
-    ):
-        with pytest.raises(RepositoryRegistryError):
-            service.update_local_repository(github_public_registry.uuid)
+    ), pytest.raises(RepositoryRegistryError):
+        service.update_local_repository(github_public_registry.uuid)
 
     registry = service.get(github_public_registry.uuid)
     assert registry.sync_status == RepositoryRegistryStatus.ERROR

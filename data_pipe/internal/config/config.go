@@ -2,10 +2,10 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/logging"
 
 	"github.com/caarlos0/env"
@@ -103,7 +103,7 @@ func LoadEnv() (*Config, error) {
 
 func (cfg *Config) validateEnv() error {
 	if cfg.MQTTPort < 1 || cfg.MQTTPort > 65535 {
-		return fmt.Errorf("PU_MQTT_PORT must be between 1 and 65535")
+		return apperr.New(apperr.MQTTPortInvalid, "PU_MQTT_PORT must be between 1 and 65535")
 	}
 	return nil
 }
@@ -111,19 +111,19 @@ func (cfg *Config) validateEnv() error {
 // ApplyRuntime copies the Postgres row onto the fields the pipe reads.
 func (cfg *Config) ApplyRuntime(settings RuntimeSettings) error {
 	if settings.BufferFlushInterval < 1 {
-		return fmt.Errorf("pu_datapipe_buffer_flush_interval must be >= 1")
+		return apperr.New(apperr.BufferFlushIntervalInvalid, "pu_datapipe_buffer_flush_interval must be >= 1")
 	}
 	if settings.BufferMaxSize < 1 {
-		return fmt.Errorf("pu_datapipe_buffer_max_size must be >= 1")
+		return apperr.New(apperr.BufferMaxSizeInvalid, "pu_datapipe_buffer_max_size must be >= 1")
 	}
 	if settings.ConfigSyncInterval < 1 {
-		return fmt.Errorf("pu_datapipe_config_sync_interval must be >= 1")
+		return apperr.New(apperr.ConfigSyncIntervalInvalid, "pu_datapipe_config_sync_interval must be >= 1")
 	}
 	if settings.NRecordsCleanupInterval < 1 {
-		return fmt.Errorf("pu_datapipe_nrecords_cleanup_interval must be >= 1")
+		return apperr.New(apperr.NRecordsCleanupIntervalInvalid, "pu_datapipe_nrecords_cleanup_interval must be >= 1")
 	}
 	if settings.MQTTKeepAlive < 0 {
-		return fmt.Errorf("pu_datapipe_mqtt_keepalive must be >= 0")
+		return apperr.New(apperr.MQTTKeepAliveInvalid, "pu_datapipe_mqtt_keepalive must be >= 0")
 	}
 	if err := logging.Configure(settings.LogMinLevel, settings.LogFormat); err != nil {
 		return err

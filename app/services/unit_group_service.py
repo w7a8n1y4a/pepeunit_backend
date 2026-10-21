@@ -4,11 +4,12 @@ import uuid as uuid_pkg
 from fastapi import Depends
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import UnitGroupError
 from app.domain.unit_group_model import UnitGroup
 from app.domain.unit_group_unit_model import UnitGroupUnit
 from app.domain.unit_model import Unit
-from app.dto.enum import AgentType, OwnershipType
+from app.dto.enum import AgentType, NotFoundEntity, OwnershipType
 from app.repositories.icon_repository import IconRepository
 from app.repositories.unit_group_repository import UnitGroupRepository
 from app.repositories.unit_group_unit_repository import UnitGroupUnitRepository
@@ -62,7 +63,7 @@ class UnitGroupService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         group = self.unit_group_repository.get(UnitGroup(uuid=uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
 
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
@@ -73,7 +74,7 @@ class UnitGroupService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         group = self.unit_group_repository.get(UnitGroup(uuid=uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
 
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
@@ -93,7 +94,7 @@ class UnitGroupService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         group = self.unit_group_repository.get(UnitGroup(uuid=uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
 
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
@@ -113,7 +114,7 @@ class UnitGroupService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         group = self.unit_group_repository.get(UnitGroup(uuid=uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
 
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
@@ -124,19 +125,21 @@ class UnitGroupService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         group = self.unit_group_repository.get(UnitGroup(uuid=uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
 
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
         )
 
         unit = self.unit_repository.get(Unit(uuid=unit_uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
         self.access_service.authorization.check_visibility(unit)
 
         if self.unit_group_unit_repository.get_link(group.uuid, unit.uuid):
             msg = "Unit is already in this group"
-            raise UnitGroupError(msg)
+            raise UnitGroupError(
+                msg, code=ErrorCode.UNIT_GROUP_UNIT_ALREADY_IN_GROUP
+            )
 
         self.unit_group_unit_repository.create(
             UnitGroupUnit(unit_group_uuid=group.uuid, unit_uuid=unit.uuid)
@@ -148,14 +151,14 @@ class UnitGroupService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         group = self.unit_group_repository.get(UnitGroup(uuid=uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
 
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
         )
 
         link = self.unit_group_unit_repository.get_link(group.uuid, unit_uuid)
-        is_valid_object(link)
+        is_valid_object(link, NotFoundEntity.UNIT_GROUP_UNIT)
         self.unit_group_unit_repository.delete(link)
 
     def is_valid_group_count(self) -> None:
@@ -165,4 +168,4 @@ class UnitGroupService:
         )
         if count >= limit:
             msg = f"Group count is {count}, the limit is {limit}"
-            raise UnitGroupError(msg)
+            raise UnitGroupError(msg, code=ErrorCode.UNIT_GROUP_COUNT_LIMIT)

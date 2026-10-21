@@ -7,6 +7,7 @@ from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import BaseModel, Field, field_validator
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.dto.enum import (
     CredentialStatus,
     GitPlatform,
@@ -109,5 +110,5 @@ class CommitFilter(Filter):
         maximum = runtime.get().pu_instance_max_pagination_size
         if value > maximum:
             msg = f"limit must be <= {maximum}"
-            raise ValueError(msg)
+            raise ErrorCode.coded(ErrorCode.PAGINATION_LIMIT_TOO_LARGE, msg)
         return value

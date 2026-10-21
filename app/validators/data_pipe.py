@@ -4,6 +4,7 @@ from numbers import Real
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import DataPipeError
 from app.dto.enum import (
     ActivePeriodType,
@@ -27,17 +28,23 @@ class ActivePeriod(BaseModel):
     def check_active_period(cls, self):
         if self.type == ActivePeriodType.FROM_DATE and not self.start:
             msg = "start must be provided for FROM_DATE"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_ACTIVE_FROM_DATE_START, msg
+            )
         if self.type == ActivePeriodType.TO_DATE and not self.end:
             msg = "end must be provided for TO_DATE"
-            raise ValueError(msg)
+            raise ErrorCode.coded(ErrorCode.DATAPIPE_ACTIVE_TO_DATE_END, msg)
         if self.type == ActivePeriodType.DATE_RANGE:
             if not self.start or not self.end:
                 msg = "start and end must be provided for DATE_RANGE"
-                raise ValueError(msg)
+                raise ErrorCode.coded(
+                    ErrorCode.DATAPIPE_ACTIVE_RANGE_BOUNDS, msg
+                )
             if self.start >= self.end:
                 msg = "start must be before end for DATE_RANGE"
-                raise ValueError(msg)
+                raise ErrorCode.coded(
+                    ErrorCode.DATAPIPE_ACTIVE_RANGE_ORDER, msg
+                )
         return self
 
 
@@ -54,12 +61,12 @@ def validate_filtering_values(
         isinstance(x, Real) for x in filtering_values
     ):
         msg = "filtering_values must be numeric for NUMBER input"
-        raise ValueError(msg)
+        raise ErrorCode.coded(ErrorCode.DATAPIPE_FILTER_VALUES_NUMBER, msg)
     if type_input_value == TypeInputValue.TEXT and not all(
         isinstance(x, str) for x in filtering_values
     ):
         msg = "filtering_values must be strings for TEXT input"
-        raise ValueError(msg)
+        raise ErrorCode.coded(ErrorCode.DATAPIPE_FILTER_VALUES_TEXT, msg)
 
 
 def validate_thresholds(
@@ -77,22 +84,26 @@ def validate_thresholds(
         and threshold_min is None
     ):
         msg = "threshold_min is required for MIN threshold"
-        raise ValueError(msg)
+        raise ErrorCode.coded(ErrorCode.DATAPIPE_THRESHOLD_MIN_REQUIRED, msg)
 
     if (
         type_value_threshold == FilterTypeValueThreshold.MAX
         and threshold_max is None
     ):
         msg = "threshold_max is required for MAX threshold"
-        raise ValueError(msg)
+        raise ErrorCode.coded(ErrorCode.DATAPIPE_THRESHOLD_MAX_REQUIRED, msg)
 
     if type_value_threshold == FilterTypeValueThreshold.RANGE:
         if threshold_min is None or threshold_max is None:
             msg = "Both threshold_min and threshold_max are required for RANGE threshold"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_THRESHOLD_RANGE_REQUIRED, msg
+            )
         if threshold_min >= threshold_max:
             msg = "threshold_min must be less than threshold_max"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_THRESHOLD_RANGE_ORDER, msg
+            )
 
 
 class FiltersConfig(BaseModel):
@@ -114,7 +125,7 @@ class FiltersConfig(BaseModel):
         max_allowed_size = runtime.get().pu_mqtt_max_payload_size * 1024
         if self.max_size > max_allowed_size:
             msg = f"max_size must be <= {max_allowed_size}"
-            raise ValueError(msg)
+            raise ErrorCode.coded(ErrorCode.DATAPIPE_MAX_SIZE, msg)
 
     @model_validator(mode="after")
     def validate_filters(self):
@@ -151,10 +162,12 @@ class ProcessingPolicyConfig(BaseModel):
         if self.policy_type == ProcessingPolicyType.N_RECORDS:
             if self.n_records_count is None:
                 msg = "n_records_count is required for N_RECORDS"
-                raise ValueError(msg)
+                raise ErrorCode.coded(
+                    ErrorCode.DATAPIPE_N_RECORDS_REQUIRED, msg
+                )
             if not (0 < self.n_records_count <= 1024):
                 msg = "n_records_count must be between 1 and 1024"
-                raise ValueError(msg)
+                raise ErrorCode.coded(ErrorCode.DATAPIPE_N_RECORDS_RANGE, msg)
 
         if self.policy_type in [
             ProcessingPolicyType.TIME_WINDOW,
@@ -162,17 +175,23 @@ class ProcessingPolicyConfig(BaseModel):
         ]:
             if self.time_window_size is None:
                 msg = "time_window_size is required"
-                raise ValueError(msg)
+                raise ErrorCode.coded(
+                    ErrorCode.DATAPIPE_TIME_WINDOW_REQUIRED, msg
+                )
             if self.time_window_size not in settings.pu_time_window_sizes:
                 msg = f"Invalid time_window_size. Must be one of: {settings.pu_time_window_sizes}"
-                raise ValueError(msg)
+                raise ErrorCode.coded(
+                    ErrorCode.DATAPIPE_TIME_WINDOW_INVALID, msg
+                )
 
         if (
             self.policy_type == ProcessingPolicyType.AGGREGATION
             and self.aggregation_functions is None
         ):
             msg = "aggregation_functions is required for AGGREGATION"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_AGGREGATION_FUNCTIONS_REQUIRED, msg
+            )
 
         return self
 
@@ -206,7 +225,9 @@ class AlertsConfig(BaseModel):
     def validate_alerts(self):
         if self.type_value_filtering and not self.filtering_values:
             msg = f"filtering_values is required for {self.type_value_filtering.value} filtering"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_FILTERING_VALUES_REQUIRED, msg
+            )
         return self
 
 
@@ -229,7 +250,9 @@ class DataPipeConfig(BaseModel):
             and self.alerts.type_value_threshold is not None
         ):
             msg = "type_value_threshold is not applicable to TEXT input"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_THRESHOLD_NOT_FOR_TEXT, msg
+            )
         validate_filtering_values(
             type_input_value,
             self.alerts.type_value_filtering,
@@ -254,6 +277,11 @@ def format_validation_error_dict(
             if err["loc"]
             else DataPipeStage.ALERTS,
             message=err["msg"],
+            error_code=int(
+                ErrorCode.code_from_validation(
+                    err, ErrorCode.DATAPIPE_CONFIG_INVALID
+                )
+            ),
         )
         for err in e.errors()
     ]
@@ -264,14 +292,19 @@ def is_valid_data_pipe_config(
 ) -> DataPipeConfig | list[DataPipeValidationErrorRead]:
     if data is None:
         msg = "DataPipe is None"
-        raise DataPipeError(msg)
+        raise DataPipeError(msg, code=ErrorCode.DATAPIPE_IS_NONE)
 
     if is_business_validator:
         try:
             return DataPipeConfig.model_validate(data)
         except ValidationError as err:
-            msg = f"{len(err.errors())} validation errors for DataPipeConfig"
-            raise DataPipeError(msg) from err
+            first = err.errors()[0]
+            raise DataPipeError(
+                first["msg"],
+                code=ErrorCode.code_from_validation(
+                    first, ErrorCode.DATAPIPE_CONFIG_INVALID
+                ),
+            ) from err
     else:
         try:
             DataPipeConfig.model_validate(data)

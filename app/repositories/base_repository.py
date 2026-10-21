@@ -6,12 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 
 from app.configs.db import get_session
-from app.configs.errors import (
-    CustomException,
-    GrafanaError,
-    UnitError,
-    UnitGroupError,
-)
+from app.configs.error_codes import ErrorCode
+from app.configs.errors import GrafanaError, UnitError, UnitGroupError
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.unit_group_model import UnitGroup
@@ -63,12 +59,6 @@ class UniqueNameMixin[T: SQLModel]:
 
     db: Session
     model: type[T]
-    _name_errors: dict[type[SQLModel], type[CustomException]] = {
-        Unit: UnitError,
-        UnitGroup: UnitGroupError,
-        Dashboard: GrafanaError,
-        DashboardPanel: GrafanaError,
-    }
 
     def create(self, obj: T) -> T:
         return self._save_unique(super().create, obj)
@@ -110,9 +100,23 @@ class UniqueNameMixin[T: SQLModel]:
             )
             if current_name != constraint_name:
                 raise
-            error_cls = self._name_errors.get(self.model)
-            if error_cls is None:
-                msg = f"No name error for {self.model.__name__}"
-                raise RuntimeError(msg) from err
             message = f"{field_name.capitalize()} is not unique"
-            raise error_cls(message) from err
+            model = self.model
+            if model is Unit:
+                raise UnitError(
+                    message, code=ErrorCode.UNIT_NAME_NOT_UNIQUE
+                ) from err
+            if model is UnitGroup:
+                raise UnitGroupError(
+                    message, code=ErrorCode.UNIT_GROUP_NAME_NOT_UNIQUE
+                ) from err
+            if model is Dashboard:
+                raise GrafanaError(
+                    message, code=ErrorCode.GRAFANA_NAME_NOT_UNIQUE
+                ) from err
+            if model is DashboardPanel:
+                raise GrafanaError(
+                    message, code=ErrorCode.GRAFANA_TITLE_NOT_UNIQUE
+                ) from err
+            msg = f"No name error for {model.__name__}"
+            raise RuntimeError(msg) from err

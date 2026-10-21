@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/database"
 	"data_pipe/internal/logging"
 	"data_pipe/internal/types"
@@ -102,15 +103,15 @@ func (b *AggregationBuffer) Add(ctx context.Context, uuid uuid.UUID, state strin
 	// Get the policy config from the context
 	policy, ok := ctx.Value("policy").(types.ProcessingPolicyConfig)
 	if !ok {
-		return fmt.Errorf("policy config not found in context")
+		return apperr.New(apperr.PolicyConfigMissing, "policy config not found in context")
 	}
 
 	if policy.AggregationFunctions == nil {
-		return fmt.Errorf("aggregation functions not specified in policy")
+		return apperr.New(apperr.AggregationFunctionsMissing, "aggregation functions not specified in policy")
 	}
 
 	if policy.TimeWindowSize == nil {
-		return fmt.Errorf("time window size not specified in policy")
+		return apperr.New(apperr.TimeWindowSizeMissing, "time window size not specified in policy")
 	}
 
 	// Store policy in buffer
@@ -121,7 +122,7 @@ func (b *AggregationBuffer) Add(ctx context.Context, uuid uuid.UUID, state strin
 	// Convert state string to float64
 	stateFloat, err := strconv.ParseFloat(state, 64)
 	if err != nil {
-		return fmt.Errorf("failed to parse state as float64: %w", err)
+		return apperr.Wrap(apperr.StateNotFloat, err, "failed to parse state as float64")
 	}
 
 	// Get window key for the current time
@@ -238,7 +239,7 @@ func (b *AggregationBuffer) Flush(ctx context.Context) error {
 	b.mu.Unlock()
 
 	if policy == nil || policy.TimeWindowSize == nil || policy.AggregationFunctions == nil {
-		return fmt.Errorf("invalid policy configuration")
+		return apperr.New(apperr.InvalidPolicyConfiguration, "invalid policy configuration")
 	}
 
 	// Convert updates to AggregationEntry slice

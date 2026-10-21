@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Self
 
-from fastapi import HTTPException
-
 from app import runtime
+from app.configs.error_codes import ErrorCode
+from app.configs.errors import ValidationError
 
 # Marker for filters that must not be paginated. It is only reachable through
 # BasePaginationRestMixin.unlimited, __post_init__ rejects it for any API input.
@@ -19,16 +19,21 @@ class BasePaginationRestMixin:
 
     def __post_init__(self):
         if self.offset < 0:
-            raise HTTPException(status_code=422, detail="offset must be >= 0")
+            msg = "offset must be >= 0"
+            raise ValidationError(msg, code=ErrorCode.PAGINATION_OFFSET)
 
         if self.limit < 0:
-            raise HTTPException(status_code=422, detail="limit must be >= 0")
+            msg = "limit must be >= 0"
+            raise ValidationError(
+                msg, code=ErrorCode.PAGINATION_LIMIT_NEGATIVE
+            )
         if self.limit > runtime.get().pu_instance_max_pagination_size:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"limit must be <= {runtime.get().pu_instance_max_pagination_size}"
-                ),
+            msg = (
+                "limit must be <= "
+                f"{runtime.get().pu_instance_max_pagination_size}"
+            )
+            raise ValidationError(
+                msg, code=ErrorCode.PAGINATION_LIMIT_TOO_LARGE
             )
 
     @classmethod

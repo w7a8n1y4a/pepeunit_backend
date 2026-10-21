@@ -18,8 +18,8 @@ from app.configs.errors import (
     MqttError,
     NoAccessError,
     ReadmeGenerationError,
+    RepositoryRegistryError,
     UnitError,
-    ValidationError,
 )
 from app.dto.agent.abc import AgentBackend
 from app.dto.clickhouse.log import UnitLog
@@ -118,7 +118,9 @@ def test_delete_registry_with_unit(
     universal_registry, compile_unit, regular_user_token, database
 ) -> None:
     registry_svc = registry_service(database, regular_user_token)
-    with pytest.raises(ValidationError):
+    with pytest.raises(
+        RepositoryRegistryError, match="Repository registry still has units"
+    ):
         registry_svc.delete(universal_registry.uuid)
 
 

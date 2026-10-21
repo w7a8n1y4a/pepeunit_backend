@@ -8,7 +8,7 @@ from sqlmodel import Session, func, select
 from app.configs.db import get_session
 from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
-from app.dto.enum import VisibilityLevel
+from app.dto.enum import UuidEntity, VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.services.validators import is_valid_uuid
 
@@ -37,8 +37,10 @@ class UnitIOEdgeRepository(BaseRepository):
         return (
             self.db.query(UnitIOEdge)
             .filter(
-                UnitIOEdge.input_uuid == is_valid_uuid(input_uuid),
-                UnitIOEdge.output_uuid == is_valid_uuid(output_uuid),
+                UnitIOEdge.input_uuid
+                == is_valid_uuid(input_uuid, UuidEntity.UNIT_IO_INPUT),
+                UnitIOEdge.output_uuid
+                == is_valid_uuid(output_uuid, UuidEntity.UNIT_IO_OUTPUT),
             )
             .first()
         )
@@ -59,7 +61,10 @@ class UnitIOEdgeRepository(BaseRepository):
         """Count the number of edges connected to an input node"""
         return (
             self.db.query(UnitIOEdge)
-            .filter(UnitIOEdge.input_uuid == is_valid_uuid(input_uuid))
+            .filter(
+                UnitIOEdge.input_uuid
+                == is_valid_uuid(input_uuid, UuidEntity.UNIT_IO_INPUT)
+            )
             .count()
         )
 
@@ -67,7 +72,10 @@ class UnitIOEdgeRepository(BaseRepository):
         """Count the number of edges connected from an output node"""
         return (
             self.db.query(UnitIOEdge)
-            .filter(UnitIOEdge.output_uuid == is_valid_uuid(output_uuid))
+            .filter(
+                UnitIOEdge.output_uuid
+                == is_valid_uuid(output_uuid, UuidEntity.UNIT_IO_OUTPUT)
+            )
             .count()
         )
 

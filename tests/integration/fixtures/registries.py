@@ -7,11 +7,11 @@ from app import settings
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.dto.agent.abc import AgentBackend
 from app.dto.enum import GitPlatform, RepositoryRegistryStatus
+from app.repositories.git_repo_repository import GitRepoRepository
 from app.schemas.pydantic.repository_registry import (
     Credentials,
     RepositoryRegistryCreate,
 )
-from app.repositories.git_repo_repository import GitRepoRepository
 from tests.integration.helpers.http import patch_backend_sync_registry
 from tests.integration.helpers.services import registry_service
 from tests.integration.helpers.wait import wait_until

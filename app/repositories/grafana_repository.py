@@ -9,6 +9,7 @@ import httpx
 from fastapi import Depends
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.panels_unit_ios_model import PanelsUnitIOs
@@ -74,7 +75,7 @@ class GrafanaRepository:
                 time.sleep(cls._CONNECT_RETRY_DELAY)
 
         msg = "Grafana request retries exhausted"
-        raise GrafanaError(msg)
+        raise GrafanaError(msg, code=ErrorCode.GRAFANA_RETRIES_EXHAUSTED)
 
     @classmethod
     def configure_admin_dashboard_permissions(cls) -> None:
@@ -146,7 +147,9 @@ class GrafanaRepository:
     ) -> dict:
         if len(panels) == 0:
             msg = "Dashboard does not have Panels"
-            raise GrafanaError(msg)
+            raise GrafanaError(
+                msg, code=ErrorCode.GRAFANA_DASHBOARD_HAS_NO_PANELS
+            )
 
         panels_list = []
         for panel in panels:
@@ -156,7 +159,9 @@ class GrafanaRepository:
             ):
                 if not unit_io.unit_io.is_data_pipe_active:
                     msg = f"{unit_io.unit_with_unit_io_name} has no active DataPipe"
-                    raise GrafanaError(msg)
+                    raise GrafanaError(
+                        msg, code=ErrorCode.GRAFANA_NO_ACTIVE_DATAPIPE
+                    )
 
                 data_pipe_dict = json.loads(unit_io.unit_io.data_pipe_yml)
                 data_pipe_entity = is_valid_data_pipe_config(
@@ -168,7 +173,9 @@ class GrafanaRepository:
                     or unit_io.unit_io.data_pipe_yml is None
                 ):
                     msg = f"{unit_io.unit_with_unit_io_name} has no valid yml DataPipe"
-                    raise GrafanaError(msg)
+                    raise GrafanaError(
+                        msg, code=ErrorCode.GRAFANA_INVALID_DATAPIPE_YML
+                    )
 
                 columns, root_selector = self.get_columns(
                     unit_io, data_pipe_entity
@@ -362,7 +369,7 @@ class GrafanaRepository:
         if data_pipe_entity.filters.type_input_value == TypeInputValue.TEXT:
             return value
         msg = "Processing this value not supported"
-        raise GrafanaError(msg)
+        raise GrafanaError(msg, code=ErrorCode.GRAFANA_VALUE_NOT_SUPPORTED)
 
     @staticmethod
     def get_time_datasource_value(
@@ -381,7 +388,7 @@ class GrafanaRepository:
         if value:
             return int(value.timestamp() * 1000)
         msg = "Data type not supported"
-        raise GrafanaError(msg)
+        raise GrafanaError(msg, code=ErrorCode.GRAFANA_DATA_TYPE_NOT_SUPPORTED)
 
     def get_org_name(self, org_id: str) -> str | None:
         with self._http_client() as client:

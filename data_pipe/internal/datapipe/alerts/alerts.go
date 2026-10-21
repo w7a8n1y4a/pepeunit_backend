@@ -2,9 +2,9 @@ package alerts
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/database"
 	"data_pipe/internal/datapipe/filters"
 	"data_pipe/internal/types"
@@ -123,7 +123,7 @@ type Target struct {
 func Build(ioUUID string, target Target, value string, config *types.AlertsConfig, violation Violation) (database.Notification, error) {
 	userUUID, err := uuid.Parse(target.CreatorUUID)
 	if err != nil {
-		return database.Notification{}, fmt.Errorf("alert user uuid: %w", err)
+		return database.Notification{}, apperr.Wrap(apperr.AlertUserUUID, err, "alert user uuid")
 	}
 	data := map[string]interface{}{
 		"unit_io_uuid": ioUUID,
@@ -147,7 +147,7 @@ func Build(ioUUID string, target Target, value string, config *types.AlertsConfi
 	}
 	encoded, err := json.Marshal(data)
 	if err != nil {
-		return database.Notification{}, fmt.Errorf("alert payload: %w", err)
+		return database.Notification{}, apperr.Wrap(apperr.AlertPayload, err, "alert payload")
 	}
 	return database.Notification{
 		UUID:           uuid.New(),

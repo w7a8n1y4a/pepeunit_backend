@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import suppress
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramBadRequest
 from starlette.requests import Request
 
 from app import runtime
@@ -89,8 +90,22 @@ class TelegramAlertQueue:
             )
         except asyncio.CancelledError:
             raise
+        except TelegramBadRequest as err:
+            if "chat not found" not in err.message.casefold():
+                logging.exception("Failed to send telegram alert")
+                return
+            logging.warning(
+                "Telegram alert skipped, chat %s was not found", chat_id
+            )
+            self._forget_chat(chat_id)
         except Exception:
             logging.exception("Failed to send telegram alert")
+
+    def _forget_chat(self, chat_id: str) -> None:
+        """A missing chat will not appear, so the rest of its lines go too."""
+        self._lines.pop(chat_id, None)
+        with suppress(ValueError):
+            self._turns.remove(chat_id)
 
     async def _wait_for_line(self) -> tuple[str, str]:
         while True:

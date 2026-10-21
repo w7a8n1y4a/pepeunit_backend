@@ -8,6 +8,7 @@ import uuid as uuid_pkg
 from fastapi import Depends
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import (
     CustomException,
     GitRepoError,
@@ -19,6 +20,8 @@ from app.dto.enum import (
     AgentType,
     CredentialStatus,
     GitPlatform,
+    JsonPayload,
+    NotFoundEntity,
     OperationTaskType,
     OwnershipType,
     RepositoryRegistryStatus,
@@ -53,7 +56,6 @@ from app.services.icon_image import IconImage
 from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
 from app.services.validators import (
-    is_emtpy_sequence,
     is_valid_json,
     is_valid_object,
 )
@@ -107,11 +109,17 @@ class RepositoryRegistryService:
 
                 if not credentials_with_status:
                     msg = "This User has no Credentials"
-                    raise RepositoryRegistryError(msg)
+                    raise RepositoryRegistryError(
+                        msg,
+                        code=ErrorCode.REPOSITORY_REGISTRY_USER_NO_CREDENTIALS,
+                    )
 
                 if credentials_with_status.status == CredentialStatus.ERROR:
                     msg = "Credentials has no permission, status: Error"
-                    raise RepositoryRegistryError(msg)
+                    raise RepositoryRegistryError(
+                        msg,
+                        code=ErrorCode.REPOSITORY_REGISTRY_CREDENTIALS_ERROR,
+                    )
 
                 if (
                     not skip_check_credentials
@@ -119,7 +127,10 @@ class RepositoryRegistryService:
                     == CredentialStatus.NOT_VERIFIED
                 ):
                     msg = "Credentials has no permission, status: NotVerified"
-                    raise RepositoryRegistryError(msg)
+                    raise RepositoryRegistryError(
+                        msg,
+                        code=ErrorCode.REPOSITORY_REGISTRY_CREDENTIALS_NOT_VERIFIED,
+                    )
 
                 credentials = credentials_with_status.credentials
 
@@ -139,7 +150,7 @@ class RepositoryRegistryService:
     ) -> RepositoryRegistry:
         if is_api:
             owner = self.user_repository.get_owner()
-            is_valid_object(owner)
+            is_valid_object(owner, NotFoundEntity.USER)
             creator_uuid = owner.uuid
         else:
             self.access_service.authorization.check_access([AgentType.USER])
@@ -202,7 +213,9 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
         self.access_service.authorization.check_visibility(repository_registry)
         return repository_registry
 
@@ -214,7 +227,9 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
         self.access_service.authorization.check_visibility(repository_registry)
 
         page = (
@@ -247,13 +262,16 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
         self.access_service.authorization.check_visibility(repository_registry)
 
         platforms = []
         if repository_registry.releases_data:
             releases = is_valid_json(
-                repository_registry.releases_data, "releases for compile repo"
+                repository_registry.releases_data,
+                JsonPayload.RELEASES_FOR_COMPILE_REPO,
             )
 
             if target_tag:
@@ -272,7 +290,9 @@ class RepositoryRegistryService:
                 target = page[0] if page else None
                 if not target:
                     msg = "Version is missing: The tags are not in the repository"
-                    raise GitRepoError(msg)
+                    raise GitRepoError(
+                        msg, code=ErrorCode.GIT_REPO_VERSION_MISSING
+                    )
                 platforms = releases[target["tag"]]
 
         return platforms
@@ -285,7 +305,9 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         self.is_private_repository(repository_registry)
 
@@ -306,7 +328,9 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         self.is_private_repository(repository_registry)
 
@@ -353,7 +377,9 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         self.access_service.authorization.check_ownership(
             repository_registry, [OwnershipType.CREATOR]
@@ -362,7 +388,12 @@ class RepositoryRegistryService:
         _count, units = self.unit_repository.list(
             UnitFilter(repository_registry_uuid=uuid, limit=1)
         )
-        is_emtpy_sequence(units)
+        if units:
+            msg = "Repository registry still has units"
+            raise RepositoryRegistryError(
+                msg,
+                code=ErrorCode.REPOSITORY_REGISTRY_HAS_UNITS,
+            )
 
         self.git_repo_repository.delete_repo(repository_registry)
         self.repository_registry_repository.delete(repository_registry)
@@ -428,7 +459,9 @@ class RepositoryRegistryService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         repository_registry = self.sync_external_repository(
             repository_registry
@@ -438,7 +471,9 @@ class RepositoryRegistryService:
                 repository_registry.sync_error
                 or "Repository registry sync failed"
             )
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_SYNC_FAILED
+            )
         return "Registry updated"
 
     def schedule_update(
@@ -526,7 +561,9 @@ class RepositoryRegistryService:
             url.find("https://") == 0 or url.find("http://") == 0
         ):
             msg = "Repo URL is not correct check the .git at the end of the link and the correctness of https / http"
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_URL_INVALID
+            )
 
     @staticmethod
     def is_valid_private_repository(
@@ -544,7 +581,9 @@ class RepositoryRegistryService:
             )
         ):
             msg = "Credentials is not valid"
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_CREDENTIALS_INVALID
+            )
 
         if (
             isinstance(data, RepositoryRegistry)
@@ -554,13 +593,18 @@ class RepositoryRegistryService:
 
             if not all_repository_credentials:
                 msg = "Credentials not Exist"
-                raise RepositoryRegistryError(msg)
+                raise RepositoryRegistryError(
+                    msg, code=ErrorCode.REPOSITORY_REGISTRY_CREDENTIALS_MISSING
+                )
 
             if not data.get_first_valid_credentials(
                 all_repository_credentials
             ):
                 msg = "No valid credentials in credential list"
-                raise RepositoryRegistryError(msg)
+                raise RepositoryRegistryError(
+                    msg,
+                    code=ErrorCode.REPOSITORY_REGISTRY_NO_VALID_CREDENTIALS,
+                )
 
     @staticmethod
     def is_private_repository(
@@ -568,7 +612,9 @@ class RepositoryRegistryService:
     ):
         if data.is_public_repository:
             msg = "This Repository is Public"
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_PUBLIC
+            )
 
     @staticmethod
     def is_valid_platform(
@@ -578,7 +624,9 @@ class RepositoryRegistryService:
             msg = "Platform {} is not supported - available: {}".format(
                 repository_registry.platform, ", ".join(list(GitPlatform))
             )
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_PLATFORM_UNSUPPORTED
+            )
 
     @staticmethod
     def is_sync_available(repository_registry: RepositoryRegistry):
@@ -596,7 +644,9 @@ class RepositoryRegistryService:
             ).total_seconds()
             if delta <= runtime.get().pu_instance_registry_min_interval_sync:
                 msg = f"Sync is not available, last sync was {delta} s ago, but it should have taken at least {runtime.get().pu_instance_registry_min_interval_sync} s"
-                raise RepositoryRegistryError(msg)
+                raise RepositoryRegistryError(
+                    msg, code=ErrorCode.REPOSITORY_REGISTRY_SYNC_TOO_SOON
+                )
 
     @staticmethod
     def is_valid_repo_size(
@@ -610,7 +660,7 @@ class RepositoryRegistryService:
                 shutil.rmtree(delete_path, ignore_errors=True)
 
             msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {runtime.get().pu_instance_registry_max_size} MB"
-            raise GitRepoError(msg)
+            raise GitRepoError(msg, code=ErrorCode.GIT_REPO_TOO_LARGE)
 
     def mapper_registry_to_registry_read(
         self, repository_registry: RepositoryRegistry

@@ -8,6 +8,7 @@ from app.configs.restart import restart
 from app.domain.instance_settings_model import InstanceSettings
 from app.dto.enum import (
     AgentType,
+    NotFoundEntity,
     OperationTaskStatus,
     OperationTaskType,
     UserRole,
@@ -44,7 +45,7 @@ class InstanceSettingsService:
         row = self.instance_settings_repository.get(
             InstanceSettings(uuid=InstanceSettings.ROW_UUID)
         )
-        is_valid_object(row)
+        is_valid_object(row, NotFoundEntity.INSTANCE_SETTINGS)
         return row
 
     def update(self, data: InstanceSettingsUpdate) -> InstanceSettings:
@@ -55,7 +56,7 @@ class InstanceSettingsService:
         row = self.instance_settings_repository.get(
             InstanceSettings(uuid=InstanceSettings.ROW_UUID)
         )
-        is_valid_object(row)
+        is_valid_object(row, NotFoundEntity.INSTANCE_SETTINGS)
         merged = merge_two_dict_first_priority(
             data.dict(exclude_unset=True), row.dict()
         )

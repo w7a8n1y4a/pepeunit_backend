@@ -7,6 +7,7 @@ import time
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import MqttError
 from app.configs.utils import acquire_file_lock
 from app.dto.agent.abc import AgentBackend
@@ -140,11 +141,13 @@ class MqttManager:
 
         if self._loop is None:
             msg = f"Error when publish message to topic {topic}: MQTT loop is not initialized"
-            raise MqttError(msg)
+            raise MqttError(
+                msg, code=ErrorCode.MQTT_PUBLISH_LOOP_NOT_INITIALIZED
+            )
 
         if not self.is_connected():
             msg = f"Error when publish message to topic {topic}: MQTT client is disconnected"
-            raise MqttError(msg)
+            raise MqttError(msg, code=ErrorCode.MQTT_PUBLISH_DISCONNECTED)
 
         try:
             running_loop = asyncio.get_running_loop()
@@ -169,10 +172,10 @@ class MqttManager:
             fut.result(timeout=5)
         except concurrent.futures.TimeoutError as err:
             msg = f"Error when publish message to topic {topic}: publish timed out (MQTT loop busy or stopped)"
-            raise MqttError(msg) from err
+            raise MqttError(msg, code=ErrorCode.MQTT_PUBLISH_TIMEOUT) from err
         except Exception as err:
             msg = f"Error when publish message to topic {topic}: {err}"
-            raise MqttError(msg) from err
+            raise MqttError(msg, code=ErrorCode.MQTT_PUBLISH_FAILED) from err
 
 
 mqtt_manager = MqttManager()

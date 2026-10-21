@@ -1,249 +1,132 @@
 from fastapi import status
 
+from app.configs.error_codes import ErrorCode
+
 
 class CustomException(Exception):
-    def __init__(
-        self,
-        message: str,
-        status_code: int,
-        message_template: str,
-        error_code: int,
-    ):
+    status_code: int
+    message_template: str
+
+    def __init__(self, message: str, *, code: ErrorCode) -> None:
         self.raw_message = message
-        self.message = (
-            f"{status_code}: {error_code}: {message_template.format(message)}"
+        self.error_code = int(code)
+        body = self.message_template.format(message)
+        self.message = f"{self.status_code}: {self.error_code}: {body}"
+        super().__init__(
+            f"{self.status_code}: {ErrorCode.console(code)}: {body}"
         )
-        self.status_code = status_code
-        self.message_template = message_template
-        self.error_code = error_code
-        super().__init__(self.message)
 
 
 class NoAccessError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_403_FORBIDDEN,
-            message_template="No Access: {}",
-            error_code=1,
-        )
+    status_code = status.HTTP_403_FORBIDDEN
+    message_template = "No Access: {}"
 
 
 class ValidationError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Validation Error: {}",
-            error_code=2,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Validation Error: {}"
 
 
 class UserError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="User Validation Error: {}",
-            error_code=3,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "User Validation Error: {}"
 
 
 class CustomPermissionError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Permission Validation Error: {}",
-            error_code=4,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Permission Validation Error: {}"
 
 
 class GitRepoError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Git Repo Validation Error: {}",
-            error_code=5,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Git Repo Validation Error: {}"
 
 
 class RepoError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Repo Validation Error: {}",
-            error_code=6,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Repo Validation Error: {}"
 
 
 class UnitError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Unit Validation Error: {}",
-            error_code=7,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Unit Validation Error: {}"
 
 
 class UnitIOError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="UnitIO Validation Error: {}",
-            error_code=8,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "UnitIO Validation Error: {}"
 
 
 class DataPipeError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="DataPipe Validation Error: {}",
-            error_code=8,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "DataPipe Validation Error: {}"
 
 
 class CustomJSONDecodeError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="JSON Decode Error: {}",
-            error_code=9,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "JSON Decode Error: {}"
 
 
 class MqttError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="MQTT Error: {}",
-            error_code=10,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "MQTT Error: {}"
 
 
 class UpdateError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Update Error: {}",
-            error_code=11,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Update Error: {}"
 
 
 class CipherError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Cipher Error: {}",
-            error_code=12,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Cipher Error: {}"
 
 
 class RepositoryRegistryError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Repository Registry Validation Error: {}",
-            error_code=13,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Repository Registry Validation Error: {}"
 
 
 class GitPlatformClientError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Git Platform Client Error: {}",
-            error_code=14,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Git Platform Client Error: {}"
 
 
 class GrafanaError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Grafana Error: {}",
-            error_code=14,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Grafana Error: {}"
 
 
 class FeatureFlagError(CustomException):
-    def __init__(self):
-        super().__init__(
-            "This feature has been disabled by the instance Owner",
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            message_template="Feature Flag Error: {}",
-            error_code=15,
-        )
+    status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+    message_template = "Feature Flag Error: {}"
 
 
 class ReadmeGenerationError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Readme Generation Error: {}",
-            error_code=16,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Readme Generation Error: {}"
 
 
 class InstanceError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Instance Validation Error: {}",
-            error_code=17,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Instance Validation Error: {}"
 
 
 class OperationTaskError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Operation Task Validation Error: {}",
-            error_code=18,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Operation Task Validation Error: {}"
 
 
 class NotificationError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Notification Validation Error: {}",
-            error_code=19,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Notification Validation Error: {}"
 
 
 class LokiError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Loki Error: {}",
-            error_code=20,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Loki Error: {}"
 
 
 class UnitGroupError(CustomException):
-    def __init__(self, message):
-        super().__init__(
-            message,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            message_template="Unit Group Validation Error: {}",
-            error_code=21,
-        )
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    message_template = "Unit Group Validation Error: {}"

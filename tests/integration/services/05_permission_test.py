@@ -2,7 +2,11 @@ import uuid as uuid_pkg
 
 import pytest
 
-from app.configs.errors import CustomPermissionError, NoAccessError, ValidationError
+from app.configs.errors import (
+    CustomPermissionError,
+    NoAccessError,
+    ValidationError,
+)
 from app.dto.enum import PermissionEntities, UnitIOTypeEnum
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.schemas.pydantic.unit import UnitFilter

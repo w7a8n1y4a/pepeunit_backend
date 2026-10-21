@@ -3,9 +3,10 @@ from fastapi.params import Query
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import RepositoryRegistryError
 from app.domain.repository_registry_model import RepositoryRegistry
-from app.dto.enum import GitPlatform
+from app.dto.enum import GitPlatform, UuidEntity
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_ilike_search_string,
@@ -45,14 +46,17 @@ class RepositoryRegistryRepository(BaseRepository):
         if filters.uuids:
             query = query.filter(
                 RepositoryRegistry.uuid.in_(
-                    [is_valid_uuid(item) for item in filters.uuids]
+                    [
+                        is_valid_uuid(item, UuidEntity.REPOSITORY_REGISTRY)
+                        for item in filters.uuids
+                    ]
                 )
             )
 
         if filters.creator_uuid:
             query = query.filter(
                 RepositoryRegistry.creator_uuid
-                == is_valid_uuid(filters.creator_uuid)
+                == is_valid_uuid(filters.creator_uuid, UuidEntity.USER)
             )
 
         if filters.is_public_repository is not None:
@@ -83,13 +87,17 @@ class RepositoryRegistryRepository(BaseRepository):
 
         if repository_registry:
             msg = f'Url "{url}" is exist'
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_URL_EXISTS
+            )
 
     @staticmethod
     def is_private_repository(repository_registry: RepositoryRegistry):
         if repository_registry.is_public_repository:
             msg = "Is public repo"
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_IS_PUBLIC
+            )
 
     @staticmethod
     def is_valid_platform(repository_registry: RepositoryRegistry):
@@ -97,4 +105,6 @@ class RepositoryRegistryRepository(BaseRepository):
             msg = "Platform {} is not supported - available: {}".format(
                 repository_registry.platform, ", ".join(list(GitPlatform))
             )
-            raise RepositoryRegistryError(msg)
+            raise RepositoryRegistryError(
+                msg, code=ErrorCode.REPOSITORY_REGISTRY_PLATFORM_UNSUPPORTED
+            )

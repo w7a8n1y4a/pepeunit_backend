@@ -8,6 +8,7 @@ from fastapi import Query
 from pydantic import BaseModel, field_validator
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.dto.enum import (
     FilterTypeValueFiltering,
     FilterTypeValueThreshold,
@@ -318,7 +319,7 @@ class NotificationSettingsUpdate(BaseModel):
         if value is None or re.fullmatch(r"^([01]\d|2[0-3]):[0-5]\d$", value):
             return value
         msg = "scheduled_notification_time must be HH:MM in UTC"
-        raise ValueError(msg)
+        raise ErrorCode.coded(ErrorCode.NOTIFICATION_TIME_INVALID, msg)
 
 
 @dataclass

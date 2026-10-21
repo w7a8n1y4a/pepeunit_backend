@@ -13,7 +13,12 @@ from app import runtime, settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.rest import get_bot_unit_io_service, get_bot_unit_service
-from app.dto.enum import EntityNames, UnitIOTypeEnum, VisibilityLevel
+from app.dto.enum import (
+    EntityNames,
+    JsonPayload,
+    UnitIOTypeEnum,
+    VisibilityLevel,
+)
 from app.schemas.bot.base_bot_router import (
     BaseBotFilters,
     BaseBotRouter,
@@ -219,7 +224,9 @@ class UnitIOBotRouter(BaseBotRouter):
             text += "\nState:\n\n"
 
             try:
-                unit_state = is_valid_json(unit_io.state, "UnitIO state")
+                unit_state = is_valid_json(
+                    unit_io.state, JsonPayload.UNIT_IO_STATE
+                )
                 text += json.dumps(unit_state, indent=4)
 
             except JSONDecodeError:

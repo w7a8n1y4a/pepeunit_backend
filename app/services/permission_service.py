@@ -2,12 +2,13 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import PermissionBaseType
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.dto.enum import AgentType, OwnershipType
+from app.dto.enum import AgentType, NotFoundEntity, OwnershipType, UuidEntity
 from app.repositories.permission_repository import PermissionRepository
 from app.schemas.pydantic.permission import PermissionCreate, PermissionFilter
 from app.services.access_service import AccessService
@@ -28,8 +29,8 @@ class PermissionService:
         data: PermissionCreate | PermissionBaseType,
         is_api: bool = True,
     ) -> PermissionBaseType:
-        is_valid_uuid(data.agent_uuid)
-        is_valid_uuid(data.resource_uuid)
+        is_valid_uuid(data.agent_uuid, UuidEntity.PERMISSION_AGENT)
+        is_valid_uuid(data.resource_uuid, UuidEntity.PERMISSION_RESOURCE)
 
         if is_api:
             self.access_service.authorization.check_access([AgentType.USER])
@@ -40,7 +41,7 @@ class PermissionService:
         self.permission_repository.is_valid_resource_type(new_permission)
 
         resource = self.permission_repository.get_resource(new_permission)
-        is_valid_object(resource)
+        is_valid_object(resource, NotFoundEntity(new_permission.resource_type))
 
         if is_api:
             self.access_service.authorization.check_ownership(
@@ -48,11 +49,11 @@ class PermissionService:
             )
 
         agent = self.permission_repository.get_agent(new_permission)
-        is_valid_object(agent)
+        is_valid_object(agent, NotFoundEntity(new_permission.agent_type))
 
         if self.permission_repository.check(new_permission):
             msg = "Permission is exist"
-            raise CustomPermissionError(msg)
+            raise CustomPermissionError(msg, code=ErrorCode.PERMISSION_EXISTS)
 
         return self.permission_repository.create(new_permission)
 
@@ -74,7 +75,7 @@ class PermissionService:
     def get_resource_agents(
         self, filters: PermissionFilter
     ) -> tuple[int, list[PermissionBaseType]]:
-        is_valid_uuid(filters.resource_uuid)
+        is_valid_uuid(filters.resource_uuid, UuidEntity.PERMISSION_RESOURCE)
 
         self.access_service.authorization.check_access([AgentType.USER])
 
@@ -85,7 +86,7 @@ class PermissionService:
             )
         )
 
-        is_valid_object(resource_entity)
+        is_valid_object(resource_entity, NotFoundEntity(filters.resource_type))
 
         self.access_service.authorization.check_ownership(
             resource_entity, [[OwnershipType.CREATOR]]
@@ -105,7 +106,7 @@ class PermissionService:
         permission = self.permission_repository.get_by_uuid(
             agent_uuid=agent_uuid, resource_uuid=resource_uuid
         )
-        is_valid_object(permission)
+        is_valid_object(permission, NotFoundEntity.PERMISSION)
 
         base_permission = self.permission_repository.domain_to_base_type(
             permission
@@ -121,11 +122,15 @@ class PermissionService:
 
         if agent.uuid == resource.uuid:
             msg = "A resource's access to itself cannot be removed"
-            raise CustomPermissionError(msg)
+            raise CustomPermissionError(
+                msg, code=ErrorCode.PERMISSION_SELF_ACCESS
+            )
 
         if agent.uuid == resource.creator_uuid:
             msg = "The creator of the resource cannot remove his access to the resource"
-            raise CustomPermissionError(msg)
+            raise CustomPermissionError(
+                msg, code=ErrorCode.PERMISSION_CREATOR_ACCESS
+            )
 
         if (
             isinstance(agent, Unit)
@@ -133,6 +138,8 @@ class PermissionService:
             and resource.unit_uuid == agent.uuid
         ):
             msg = "You cannot remove a Unit's access to its child UnitIOs"
-            raise CustomPermissionError(msg)
+            raise CustomPermissionError(
+                msg, code=ErrorCode.PERMISSION_UNIT_CHILD_IO
+            )
 
         return self.permission_repository.delete(permission)

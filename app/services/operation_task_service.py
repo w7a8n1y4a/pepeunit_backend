@@ -11,11 +11,13 @@ from sqlmodel import Session
 
 from app import runtime
 from app.configs.db import get_hand_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import CustomException, OperationTaskError
 from app.domain.notification_model import Notification
 from app.domain.operation_task_model import OperationTask
 from app.dto.enum import (
     AgentType,
+    NotFoundEntity,
     NotificationType,
     OperationTaskStatus,
     OperationTaskType,
@@ -88,7 +90,9 @@ class OperationTaskService:
 
         if delta <= cooldown.total_seconds():
             msg = f"Operation {task_type.value} is not available, last run was {round(delta)} s ago, but it should have taken at least {round(cooldown.total_seconds())} s"
-            raise OperationTaskError(msg)
+            raise OperationTaskError(
+                msg, code=ErrorCode.OPERATION_TASK_COOLDOWN
+            )
 
     @staticmethod
     async def _execute_background(
@@ -145,7 +149,7 @@ class OperationTaskService:
         result: str | None,
     ) -> OperationTask:
         task = repository.get(OperationTask(uuid=task_uuid))
-        is_valid_object(task)
+        is_valid_object(task, NotFoundEntity.OPERATION_TASK)
 
         task.status = status.value
         task.finish_datetime = datetime.now(UTC)

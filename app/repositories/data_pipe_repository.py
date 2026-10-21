@@ -14,6 +14,7 @@ from sqlmodel import Session
 
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import DataPipeError
 from app.configs.utc_json import UtcJson
 from app.domain.unit_io_model import UnitIO
@@ -42,7 +43,9 @@ class DataPipeRepository:
     def bulk_create(self, policy: ProcessingPolicyType, data: list[BaseModel]):
         if policy == ProcessingPolicyType.LAST_VALUE:
             msg = "Bulk create for LastValue not available"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_BULK_CREATE_LAST_VALUE_UNAVAILABLE
+            )
 
         table_names = {
             ProcessingPolicyType.AGGREGATION: "aggregation_entry",
@@ -255,7 +258,7 @@ class DataPipeRepository:
     ) -> str:
         if not len(data):
             msg = "No data found"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_NO_DATA)
 
         csv_data = StringIO()
         writer = csv.writer(csv_data)

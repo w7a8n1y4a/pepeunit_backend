@@ -1,11 +1,12 @@
 import random
 
-from locust import HttpUser, between, task
+from locust import HttpUser, between, constant, task
 
 from app import runtime, settings
 from app.dto.enum import InstanceTrustStatus
 
 REST_INSTANCES = f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/instances"
+ERROR_CODES = f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}/error_codes"
 
 TRUST_STATUS_REST = [item.value for item in InstanceTrustStatus]
 
@@ -49,6 +50,26 @@ class InstanceRestUser(InstanceBaseUser):
             params=random_rest_filters(),
             name=REST_INSTANCES,
         )
+
+
+class ErrorCodeUser(InstanceBaseUser):
+    """Public catalog of every error number. No pause, so the run shows capacity."""
+
+    wait_time = constant(0)
+
+    @task
+    def catalog(self):
+        with self.client.get(
+            ERROR_CODES,
+            name=ERROR_CODES,
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                response.failure(f"status {response.status_code}")
+            elif b"ACCESS_TOKEN_EXPIRED" not in response.content:
+                response.failure("catalog has no error codes")
+            else:
+                response.success()
 
 
 class InstanceCatalogUser(InstanceBaseUser):

@@ -5,6 +5,7 @@ from sqlmodel import Session
 from app import runtime
 from app.configs.clickhouse import get_clickhouse_client
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import FeatureFlagError
 from app.repositories.dashboard_panel_repository import (
     DashboardPanelRepository,
@@ -207,7 +208,8 @@ class ServiceFactory:
 
     def get_grafana_service(self) -> GrafanaService:
         if not runtime.get().pu_ff_grafana_integration_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
         return GrafanaService(
             dashboard_repository=self.dashboard_repository,
             dashboard_panel_repository=self.dashboard_panel_repository,

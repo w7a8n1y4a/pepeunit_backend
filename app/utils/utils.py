@@ -17,6 +17,7 @@ from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import CipherError
 from app.configs.utc_json import UtcJson
 
@@ -31,7 +32,7 @@ def aes_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
     len_content = len(data)
     if len_content > runtime.get().pu_instance_cipher_max_length:
         msg = f"The encryption content is {len_content} long, although only <= {runtime.get().pu_instance_cipher_max_length} is allowed"
-        raise CipherError(msg)
+        raise CipherError(msg, code=ErrorCode.CIPHER_CONTENT_TOO_LONG)
 
     key = base64.b64decode(key.encode())
     iv = os.urandom(16)
@@ -72,7 +73,7 @@ def aes_gcm_encode(data: str, key: str = settings.pu_encrypt_key) -> str:
     len_content = len(data)
     if len_content > runtime.get().pu_instance_cipher_max_length:
         msg = f"The encryption content is {len_content} long, although only <= {runtime.get().pu_instance_cipher_max_length} is allowed"
-        raise CipherError(msg)
+        raise CipherError(msg, code=ErrorCode.CIPHER_CONTENT_TOO_LONG)
 
     key = base64.b64decode(key.encode())
     nonce = os.urandom(12)  # 96-bit nonce for AES-GCM
@@ -221,7 +222,9 @@ def parse_interval(s: str) -> datetime.timedelta | relativedelta:
             return relativedelta(years=value)
         case _:
             msg = f"Unknown interval: {s}"
-            raise ValueError(msg)
+            raise ErrorCode.coded(
+                ErrorCode.DATAPIPE_RELATIVE_TIME_INVALID, msg
+            )
 
 
 def logo_to_console():

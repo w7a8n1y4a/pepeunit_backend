@@ -8,12 +8,12 @@ Create Date: 2025-07-05 15:33:56.160129
 
 import json
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
-
 from sqlalchemy.orm import Session
 
+from alembic import op
+from app.dto.enum import JsonPayload
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
@@ -55,7 +55,7 @@ def upgrade() -> None:
         ) in repos:
             current_credentials = is_valid_json(
                 aes_gcm_decode(cipher_credentials_private_repository),
-                "Old credentials struct",
+                JsonPayload.OLD_CREDENTIALS_STRUCT,
             )
 
             if str(repository_registry_uuid) not in registry_credentials:

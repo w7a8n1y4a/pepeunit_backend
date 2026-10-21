@@ -5,9 +5,11 @@ from fastapi.params import Query
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import UnitGroupError
 from app.domain.unit_group_model import UnitGroup
 from app.domain.unit_group_unit_model import UnitGroupUnit
+from app.dto.enum import UuidEntity
 from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
     apply_ilike_search_string,
@@ -34,7 +36,8 @@ class UnitGroupRepository(UniqueNameMixin, BaseRepository):
                 UnitGroupUnit,
                 UnitGroupUnit.unit_group_uuid == UnitGroup.uuid,
             ).filter(
-                UnitGroupUnit.unit_uuid == is_valid_uuid(filters.unit_uuid)
+                UnitGroupUnit.unit_uuid
+                == is_valid_uuid(filters.unit_uuid, UuidEntity.UNIT)
             )
 
         filters.uuids = (
@@ -45,7 +48,10 @@ class UnitGroupRepository(UniqueNameMixin, BaseRepository):
         if filters.uuids:
             query = query.filter(
                 UnitGroup.uuid.in_(
-                    [is_valid_uuid(item) for item in filters.uuids]
+                    [
+                        is_valid_uuid(item, UuidEntity.UNIT_GROUP)
+                        for item in filters.uuids
+                    ]
                 )
             )
 
@@ -70,4 +76,4 @@ class UnitGroupRepository(UniqueNameMixin, BaseRepository):
     def is_valid_name(self, name: str):
         if not is_valid_string_with_rules(name):
             msg = "Name is not correct"
-            raise UnitGroupError(msg)
+            raise UnitGroupError(msg, code=ErrorCode.UNIT_GROUP_NAME_INVALID)

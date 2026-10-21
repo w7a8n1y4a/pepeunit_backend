@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from io import StringIO
 
 from app import settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import DataPipeError
 from app.dto.clickhouse.aggregation import Aggregation
 from app.dto.clickhouse.n_records import NRecords
@@ -135,12 +136,16 @@ class StreamingCSVValidator:
             - timedelta(seconds=self.config.processing_policy.time_window_size)
         ):
             msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: create_datetime is outside the range of valid values from time_window_size"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_CSV_WINDOW_DATETIME
+            )
 
     def check_n_last_entry(self) -> None:
         if self.current_row > self.config.processing_policy.n_records_count:
             msg = f"For {self.config.processing_policy.policy_type.value}: number of records exceeds limit n_records_count"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_CSV_N_RECORDS_LIMIT
+            )
 
     def check_aggregation_entry(
         self,
@@ -158,23 +163,29 @@ class StreamingCSVValidator:
             or end_window_datetime.second != 0
         ):
             msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: start_window_datetime or end_window_datetime have seconds"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_CSV_WINDOW_SECONDS
+            )
 
         if end_window_datetime < start_window_datetime:
             msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: end_window_datetime < start_window_datetime"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_CSV_WINDOW_ORDER)
 
         actual_delta = (create_datetime - end_window_datetime).total_seconds()
         if abs(actual_delta) >= settings.pu_time_window_sizes[0]:
             msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: The difference between create_datetime and end_window_datetime is greater than the minimum time_window_sizes"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_CSV_WINDOW_MIN_DELTA
+            )
 
         actual_delta = (
             end_window_datetime - start_window_datetime
         ).total_seconds()
         if actual_delta != self.config.processing_policy.time_window_size:
             msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - start_window_datetime"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_CSV_WINDOW_SIZE_MISMATCH
+            )
         if previous_end_window_datetime:
             actual_delta = (
                 end_window_datetime - previous_end_window_datetime
@@ -184,7 +195,9 @@ class StreamingCSVValidator:
                 != 0
             ):
                 msg = f"Row {self.current_row}: For {self.config.processing_policy.policy_type.value}: config time_window_size is not {actual_delta} end_window_datetime - previous_end_window_datetime"
-                raise DataPipeError(msg)
+                raise DataPipeError(
+                    msg, code=ErrorCode.DATAPIPE_CSV_PREVIOUS_WINDOW_SIZE
+                )
 
     def check_active_period(self, create_datetime: datetime) -> None:
         create_datetime = create_datetime.astimezone(UTC)
@@ -195,18 +208,24 @@ class StreamingCSVValidator:
             case ActivePeriodType.FROM_DATE:
                 if self.config.active_period.start > create_datetime:
                     msg = f"Row {self.current_row}: create_datetime is outside the start of the active period"
-                    raise DataPipeError(msg)
+                    raise DataPipeError(
+                        msg, code=ErrorCode.DATAPIPE_CSV_BEFORE_ACTIVE_START
+                    )
             case ActivePeriodType.TO_DATE:
                 if self.config.active_period.end < create_datetime:
                     msg = f"Row {self.current_row}: create_datetime is outside the end of the active period"
-                    raise DataPipeError(msg)
+                    raise DataPipeError(
+                        msg, code=ErrorCode.DATAPIPE_CSV_AFTER_ACTIVE_END
+                    )
             case ActivePeriodType.DATE_RANGE:
                 if (
                     self.config.active_period.start > create_datetime
                     or self.config.active_period.end < create_datetime
                 ):
                     msg = f"Row {self.current_row}: create_datetime is outside the start or end of the active period"
-                    raise DataPipeError(msg)
+                    raise DataPipeError(
+                        msg, code=ErrorCode.DATAPIPE_CSV_OUTSIDE_ACTIVE_RANGE
+                    )
 
     def check_black_white_list(self, state: str | float) -> None:
         if self.config.filters.type_value_filtering:
@@ -214,11 +233,15 @@ class StreamingCSVValidator:
                 case FilterTypeValueFiltering.WHITELIST:
                     if not self._state_in_list(state):
                         msg = f"Row {self.current_row}: state not in whitelist"
-                        raise DataPipeError(msg)
+                        raise DataPipeError(
+                            msg, code=ErrorCode.DATAPIPE_CSV_NOT_IN_WHITELIST
+                        )
                 case FilterTypeValueFiltering.BLACKLIST:
                     if self._state_in_list(state):
                         msg = f"Row {self.current_row}: state in blacklist"
-                        raise DataPipeError(msg)
+                        raise DataPipeError(
+                            msg, code=ErrorCode.DATAPIPE_CSV_IN_BLACKLIST
+                        )
 
     def check_threshold(self, state: float) -> None:
         if (
@@ -229,18 +252,24 @@ class StreamingCSVValidator:
                 case FilterTypeValueThreshold.MIN:
                     if state < self.config.filters.threshold_min:
                         msg = f"Row {self.current_row}: state < threshold_min"
-                        raise DataPipeError(msg)
+                        raise DataPipeError(
+                            msg, code=ErrorCode.DATAPIPE_CSV_BELOW_THRESHOLD
+                        )
                 case FilterTypeValueThreshold.MAX:
                     if state > self.config.filters.threshold_max:
                         msg = f"Row {self.current_row}: state > threshold_max"
-                        raise DataPipeError(msg)
+                        raise DataPipeError(
+                            msg, code=ErrorCode.DATAPIPE_CSV_ABOVE_THRESHOLD
+                        )
                 case FilterTypeValueThreshold.RANGE:
                     if (
                         state < self.config.filters.threshold_min
                         or state > self.config.filters.threshold_max
                     ):
                         msg = f"Row {self.current_row}: state < threshold_min or state > threshold_max"
-                        raise DataPipeError(msg)
+                        raise DataPipeError(
+                            msg, code=ErrorCode.DATAPIPE_CSV_OUTSIDE_THRESHOLD
+                        )
 
     def check_max_rate(
         self,
@@ -260,7 +289,7 @@ class StreamingCSVValidator:
             > create_datetime
         ):
             msg = f"Row {self.current_row}: the time difference between the previous entry and the current one, less than max_rate"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_CSV_MAX_RATE)
 
     def check_last_unique(
         self, state: str | float, previous_state: str | float
@@ -276,7 +305,7 @@ class StreamingCSVValidator:
             and state == previous_state
         ):
             msg = f"Row {self.current_row}: previous_state is identical current state"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_CSV_LAST_UNIQUE)
 
     def check_max_size(self, state: str | float) -> None:
         if (
@@ -284,7 +313,7 @@ class StreamingCSVValidator:
             and len(str(state)) > self.config.filters.max_size
         ):
             msg = f"Row {self.current_row}: length state > max_size"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_CSV_MAX_SIZE)
 
     def check_monotonicity(
         self,
@@ -296,7 +325,7 @@ class StreamingCSVValidator:
             and create_datetime < previous_create_datetime
         ):
             msg = f"Row {self.current_row}: create_datetime < previous_create_datetime"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_CSV_NOT_MONOTONIC)
 
     def _state_in_list(self, state: str | float) -> bool:
         for filter_value in self.config.filters.filtering_values:
@@ -316,13 +345,17 @@ class StreamingCSVValidator:
                     return str(state)
                 except ValueError as err:
                     msg = f"Row {self.current_row}: state is not a valid python string"
-                    raise DataPipeError(msg) from err
+                    raise DataPipeError(
+                        msg, code=ErrorCode.DATAPIPE_CSV_STATE_NOT_TEXT
+                    ) from err
             case TypeInputValue.NUMBER:
                 try:
                     return float(state)
                 except ValueError as err:
                     msg = f"Row {self.current_row}: state is not a valid python float"
-                    raise DataPipeError(msg) from err
+                    raise DataPipeError(
+                        msg, code=ErrorCode.DATAPIPE_CSV_STATE_NOT_NUMBER
+                    ) from err
 
     def _parse_datetime(self, datetime_str: str) -> datetime:
         text = datetime_str.strip()
@@ -333,7 +366,9 @@ class StreamingCSVValidator:
                 f"Row {self.current_row}: datetime must be ISO 8601, "
                 f"got {text!r}"
             )
-            raise DataPipeError(msg) from err
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_CSV_DATETIME_INVALID
+            ) from err
         if parsed.tzinfo is None:
             return parsed.replace(tzinfo=UTC)
         return parsed

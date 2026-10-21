@@ -6,6 +6,7 @@ from typing import NamedTuple
 
 from PIL import Image, ImageChops, ImageDraw, UnidentifiedImageError
 
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import ValidationError
 
 Rgb = tuple[int, int, int]
@@ -83,7 +84,7 @@ class IconImage:
     def validate(cls, data: bytes) -> None:
         if len(data) > cls.MAX_BYTES:
             msg = "Image is larger than 128KB"
-            raise ValidationError(msg)
+            raise ValidationError(msg, code=ErrorCode.ICON_TOO_LARGE)
         cls._require_header(data)
         cls._require_decoded(data)
 
@@ -96,12 +97,12 @@ class IconImage:
             or data[12:16] != b"IHDR"
         ):
             msg = "Image is not a PNG"
-            raise ValidationError(msg)
+            raise ValidationError(msg, code=ErrorCode.ICON_NOT_PNG)
         width = int.from_bytes(data[16:20], "big")
         height = int.from_bytes(data[20:24], "big")
         if (width, height) != (cls.SIDE, cls.SIDE):
             msg = "Image must be 192x192 px"
-            raise ValidationError(msg)
+            raise ValidationError(msg, code=ErrorCode.ICON_WRONG_SIZE)
 
     @classmethod
     def _require_decoded(cls, data: bytes) -> None:
@@ -110,10 +111,10 @@ class IconImage:
                 image.load()
                 if image.format != "PNG" or getattr(image, "n_frames", 1) != 1:
                     msg = "Image is not a PNG"
-                    raise ValidationError(msg)
+                    raise ValidationError(msg, code=ErrorCode.ICON_NOT_PNG)
                 if image.size != (cls.SIDE, cls.SIDE):
                     msg = "Image must be 192x192 px"
-                    raise ValidationError(msg)
+                    raise ValidationError(msg, code=ErrorCode.ICON_WRONG_SIZE)
         except ValidationError:
             raise
         except (
@@ -124,7 +125,7 @@ class IconImage:
             SyntaxError,
         ) as err:
             msg = "Image is not a PNG"
-            raise ValidationError(msg) from err
+            raise ValidationError(msg, code=ErrorCode.ICON_NOT_PNG) from err
 
     @classmethod
     def _render(cls, digest: bytes) -> bytes:

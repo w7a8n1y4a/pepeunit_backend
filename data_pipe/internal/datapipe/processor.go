@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/config"
 	"data_pipe/internal/database"
 	"data_pipe/internal/datapipe/active_period"
@@ -111,7 +112,7 @@ func (p *Processor) ProcessMessage(ctx context.Context, topic string, payload []
 	// Extract the IO UUID from the topic
 	ioUUID := extractIOUUID(topic)
 	if ioUUID == "" {
-		return fmt.Errorf("invalid topic format: %s", topic)
+		return apperr.New(apperr.InvalidTopic, "invalid topic format: %s", topic)
 	}
 
 	config, target, exists := p.configs.Get(ioUUID)
@@ -145,7 +146,7 @@ func (p *Processor) ProcessMessage(ctx context.Context, topic string, payload []
 	// Apply processing policy
 	uuid, err := uuid.Parse(ioUUID)
 	if err != nil {
-		return fmt.Errorf("invalid node UUID: %w", err)
+		return apperr.Wrap(apperr.InvalidNodeUUID, err, "invalid node UUID")
 	}
 
 	// Create a new context with the policy and filters configurations

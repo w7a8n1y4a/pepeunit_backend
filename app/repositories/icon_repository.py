@@ -5,6 +5,7 @@ from sqlmodel import Session, SQLModel
 
 from app.configs.db import get_session
 from app.domain.icon_model import Icon
+from app.dto.enum import NotFoundEntity
 from app.repositories.base_repository import BaseRepository
 from app.services.icon_image import IconImage
 from app.services.validators import is_valid_object
@@ -29,7 +30,7 @@ class IconRepository(BaseRepository):
         target_entity = self.db.get(
             type(entity), entity.uuid, with_for_update=True
         )
-        is_valid_object(target_entity)
+        is_valid_object(target_entity, NotFoundEntity(type(entity).__name__))
 
         icon = self.stage(image)
 

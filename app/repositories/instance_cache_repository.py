@@ -2,6 +2,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any
 
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import InstanceError
 from app.repositories.utils import resolve_query_default
 from app.schemas.pydantic.instance import (
@@ -39,7 +40,9 @@ class InstanceCacheRepository:
         with self._lock:
             if self._snapshot is None:
                 msg = "Instance cache is not initialized"
-                raise InstanceError(msg)
+                raise InstanceError(
+                    msg, code=ErrorCode.INSTANCE_CACHE_NOT_INITIALIZED
+                )
             return self._snapshot
 
     def get_current(self) -> CurrentInstanceSchemaV1:

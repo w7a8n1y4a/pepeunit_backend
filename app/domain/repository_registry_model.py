@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 from app.domain.icon_model import Icon
-from app.dto.enum import CredentialStatus
+from app.dto.enum import CredentialStatus, JsonPayload
 from app.schemas.pydantic.repository_registry import (
     Credentials,
     OneRepositoryRegistryCredentials,
@@ -104,7 +104,7 @@ class RepositoryRegistry(SQLModel, table=True):
                 creator_uuid: OneRepositoryRegistryCredentials(**credentials)
                 for creator_uuid, credentials in is_valid_json(
                     aes_gcm_decode(self.cipher_credentials_private_repository),
-                    "Cipher credentials private repository",
+                    JsonPayload.CIPHER_CREDENTIALS_PRIVATE_REPOSITORY,
                 ).items()
             }
         return None

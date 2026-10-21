@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlmodel import Session
 
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import CustomPermissionError
 from app.domain.permission_model import Permission, PermissionBaseType
 from app.domain.unit_io_model import UnitIO
@@ -190,7 +191,9 @@ class PermissionRepository(BaseRepository):
             msg = "Agent type {} is invalid, available: {}".format(
                 permission.agent_type, ", ".join(entities)
             )
-            raise CustomPermissionError(msg)
+            raise CustomPermissionError(
+                msg, code=ErrorCode.PERMISSION_AGENT_TYPE_INVALID
+            )
 
     @staticmethod
     def is_valid_resource_type(permission: Permission) -> None:
@@ -201,4 +204,6 @@ class PermissionRepository(BaseRepository):
             msg = "Resource type {} is invalid, available: {}".format(
                 permission.resource_type, ", ".join(entities)
             )
-            raise CustomPermissionError(msg)
+            raise CustomPermissionError(
+                msg, code=ErrorCode.PERMISSION_RESOURCE_TYPE_INVALID
+            )

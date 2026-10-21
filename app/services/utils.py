@@ -10,6 +10,7 @@ from fastapi.security import APIKeyHeader
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app import settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import ReadmeGenerationError
 from app.dto.enum import GlobalPrefixTopic, VisibilityLevel
 
@@ -120,7 +121,9 @@ class TomlToMdConverter:
                 val = raw_val.strip()
                 if len(val) > max_len:
                     msg = f'"general.{key}" is too long ({len(val)}) – max {max_len} characters'
-                    raise ReadmeGenerationError(msg)
+                    raise ReadmeGenerationError(
+                        msg, code=ErrorCode.README_FIELD_TOO_LONG
+                    )
 
         # List size limits
         list_limits = {
@@ -133,7 +136,9 @@ class TomlToMdConverter:
             raw_val = self.general.get(key)
             if isinstance(raw_val, list) and len(raw_val) > max_items:
                 msg = f'"general.{key}" has too many items ({len(raw_val)}) – max {max_items}'
-                raise ReadmeGenerationError(msg)
+                raise ReadmeGenerationError(
+                    msg, code=ErrorCode.README_FIELD_TOO_MANY_ITEMS
+                )
 
     def _fmt_mixed_list(self, items):
         formatted = []
@@ -410,12 +415,14 @@ async def toml_file_to_md(toml_file) -> str:
 
     if len(content) > 10000:
         msg = f"toml is too large ({len(content)}) limit 10000 characters"
-        raise ReadmeGenerationError(msg)
+        raise ReadmeGenerationError(msg, code=ErrorCode.README_TOML_TOO_LARGE)
 
     try:
         data = toml.loads(content)
     except Exception as e:
         msg = f"Error toml deserialization: {e}"
-        raise ReadmeGenerationError(msg) from None
+        raise ReadmeGenerationError(
+            msg, code=ErrorCode.README_TOML_INVALID
+        ) from None
 
     return toml_to_md(data)

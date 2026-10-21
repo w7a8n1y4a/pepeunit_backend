@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.routers.v1.error_code_router import router as error_code_router
 from app.routers.v1.grafana import router as grafana_router
 from app.routers.v1.icon_router import router as icon_router
 from app.routers.v1.instance_router import router as instance_router
@@ -18,6 +19,7 @@ api_router = APIRouter()
 include_api = api_router.include_router
 
 routers = (
+    (error_code_router, "error_codes", "error_codes"),
     (user_router, "users", "users"),
     (icon_router, "icons", "icons"),
     (repository_registry_router, "repository_registry", "repository_registry"),

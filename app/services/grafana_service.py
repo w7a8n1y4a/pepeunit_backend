@@ -5,6 +5,7 @@ import uuid as uuid_pkg
 from fastapi import Depends
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import GrafanaError
 from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
@@ -14,6 +15,7 @@ from app.domain.unit_model import Unit
 from app.dto.enum import (
     AgentType,
     DashboardStatus,
+    NotFoundEntity,
     OwnershipType,
 )
 from app.repositories.dashboard_panel_repository import (
@@ -82,13 +84,13 @@ class GrafanaService:
         unit_io = self.unit_io_repository.get(
             UnitIO(uuid=self.access_service.current_agent.uuid)
         )
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         unit_io_panel = self.panels_unit_ios_repository.get_by_parent(
             unit_io,
             DashboardPanel(uuid=self.access_service.current_agent.panel_uuid),
         )
-        is_valid_object(unit_io_panel)
+        is_valid_object(unit_io_panel, NotFoundEntity.PANELS_UNIT_IOS)
 
         self.unit_io_service.is_valid_active_data_pipe(unit_io)
         data_pipe_entity = is_valid_data_pipe_config(
@@ -115,7 +117,7 @@ class GrafanaService:
 
         if not is_valid_string_with_rules(data.name):
             msg = "Name is not correct"
-            raise GrafanaError(msg)
+            raise GrafanaError(msg, code=ErrorCode.GRAFANA_NAME_INVALID)
 
         dashboard = Dashboard(
             name=data.name,
@@ -133,14 +135,14 @@ class GrafanaService:
         dashboard = self.dashboard_repository.get(
             Dashboard(uuid=data.dashboard_uuid)
         )
-        is_valid_object(dashboard)
+        is_valid_object(dashboard, NotFoundEntity.DASHBOARD)
         self.access_service.authorization.check_ownership(
             dashboard, [OwnershipType.CREATOR]
         )
 
         if not is_valid_string_with_rules(data.title):
             msg = "Title is not correct"
-            raise GrafanaError(msg)
+            raise GrafanaError(msg, code=ErrorCode.GRAFANA_TITLE_INVALID)
 
         dashboard_panel = DashboardPanel(
             title=data.title,
@@ -156,7 +158,7 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=data.unit_io_uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR]
         )
@@ -164,7 +166,7 @@ class GrafanaService:
         dashboard_panel = self.dashboard_panel_repository.get(
             DashboardPanel(uuid=data.dashboard_panels_uuid)
         )
-        is_valid_object(dashboard_panel)
+        is_valid_object(dashboard_panel, NotFoundEntity.DASHBOARD_PANEL)
         self.access_service.authorization.check_ownership(
             dashboard_panel, [OwnershipType.CREATOR]
         )
@@ -196,7 +198,7 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
-        is_valid_object(dashboard)
+        is_valid_object(dashboard, NotFoundEntity.DASHBOARD)
         self.access_service.authorization.check_ownership(
             dashboard, [OwnershipType.CREATOR]
         )
@@ -221,7 +223,7 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
-        is_valid_object(dashboard)
+        is_valid_object(dashboard, NotFoundEntity.DASHBOARD)
         self.access_service.authorization.check_ownership(
             dashboard, [OwnershipType.CREATOR]
         )
@@ -233,7 +235,7 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
-        is_valid_object(dashboard)
+        is_valid_object(dashboard, NotFoundEntity.DASHBOARD)
         self.access_service.authorization.check_ownership(
             dashboard, [OwnershipType.CREATOR]
         )
@@ -270,7 +272,7 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         dashboard = self.dashboard_repository.get(Dashboard(uuid=uuid))
-        is_valid_object(dashboard)
+        is_valid_object(dashboard, NotFoundEntity.DASHBOARD)
 
         self.access_service.authorization.check_ownership(
             dashboard, [OwnershipType.CREATOR]
@@ -284,7 +286,7 @@ class GrafanaService:
         dashboard_panel = self.dashboard_panel_repository.get(
             DashboardPanel(uuid=uuid)
         )
-        is_valid_object(dashboard_panel)
+        is_valid_object(dashboard_panel, NotFoundEntity.DASHBOARD_PANEL)
 
         self.access_service.authorization.check_ownership(
             dashboard_panel, [OwnershipType.CREATOR]
@@ -300,7 +302,7 @@ class GrafanaService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=unit_io_uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR]
         )
@@ -308,7 +310,7 @@ class GrafanaService:
         dashboard_panel = self.dashboard_panel_repository.get(
             DashboardPanel(uuid=dashboard_panel_uuid)
         )
-        is_valid_object(dashboard_panel)
+        is_valid_object(dashboard_panel, NotFoundEntity.DASHBOARD_PANEL)
         self.access_service.authorization.check_ownership(
             dashboard_panel, [OwnershipType.CREATOR]
         )
@@ -322,7 +324,7 @@ class GrafanaService:
             dashboard_panel, unit_io
         ):
             msg = "This UnitIO is not unique for this Panel"
-            raise GrafanaError(msg)
+            raise GrafanaError(msg, code=ErrorCode.GRAFANA_UNIT_IO_NOT_UNIQUE)
 
     def is_valid_unit_io_in_panel_count(self, uuid: uuid_pkg.UUID):
         limit = runtime.get().pu_datapipe_limit_unit_io_per_one_panel
@@ -331,4 +333,4 @@ class GrafanaService:
             >= limit
         ):
             msg = f"Limit UnitIO for one panel is {limit}"
-            raise GrafanaError(msg)
+            raise GrafanaError(msg, code=ErrorCode.GRAFANA_PANEL_UNIT_IO_LIMIT)

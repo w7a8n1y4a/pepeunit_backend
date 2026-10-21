@@ -7,12 +7,13 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import UnitError
 from app.domain.unit_group_unit_model import UnitGroupUnit
 from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
-from app.dto.enum import VisibilityLevel
+from app.dto.enum import UuidEntity, VisibilityLevel
 from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
     apply_enums,
@@ -52,7 +53,10 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
                     )
                     .filter(
                         unit_io_edge_alias.input_uuid
-                        == is_valid_uuid(filters.unit_io_input_uuid),
+                        == is_valid_uuid(
+                            filters.unit_io_input_uuid,
+                            UuidEntity.UNIT_IO_INPUT,
+                        ),
                         unit_io_alias.unit_uuid == Unit.uuid,
                     )
                 )
@@ -69,7 +73,10 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
                     )
                     .filter(
                         UnitIOEdge.input_uuid
-                        == is_valid_uuid(filters.unit_io_input_uuid)
+                        == is_valid_uuid(
+                            filters.unit_io_input_uuid,
+                            UuidEntity.UNIT_IO_INPUT,
+                        )
                     )
                     .group_by(Unit.uuid)
                 )
@@ -112,17 +119,26 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
         )
         if filters.uuids:
             query = query.filter(
-                Unit.uuid.in_([is_valid_uuid(item) for item in filters.uuids])
+                Unit.uuid.in_(
+                    [
+                        is_valid_uuid(item, UuidEntity.UNIT)
+                        for item in filters.uuids
+                    ]
+                )
             )
 
         if filters.creator_uuid:
             query = query.filter(
-                Unit.creator_uuid == is_valid_uuid(filters.creator_uuid)
+                Unit.creator_uuid
+                == is_valid_uuid(filters.creator_uuid, UuidEntity.USER)
             )
         if filters.repository_registry_uuid:
             query = query.filter(
                 Unit.repository_registry_uuid
-                == is_valid_uuid(filters.repository_registry_uuid)
+                == is_valid_uuid(
+                    filters.repository_registry_uuid,
+                    UuidEntity.REPOSITORY_REGISTRY,
+                )
             )
         if filters.is_auto_update_unit is not None:
             query = query.filter(
@@ -172,7 +188,7 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
     def is_valid_name(self, name: str):
         if not is_valid_string_with_rules(name):
             msg = "Name is not correct"
-            raise UnitError(msg)
+            raise UnitError(msg, code=ErrorCode.UNIT_NAME_INVALID)
 
     def get_public_count(self) -> int:
         return self.db.exec(

@@ -11,13 +11,13 @@ from app.configs.errors import (
     OperationTaskError,
     ValidationError,
 )
+from app.domain.instance_settings_model import InstanceSettings
 from app.dto.enum import (
     InstanceCollectionStatus,
     InstanceTrustStatus,
     OperationTaskStatus,
     OperationTaskType,
 )
-from app.domain.instance_settings_model import InstanceSettings
 from app.repositories.instance_settings_repository import (
     InstanceSettingsRepository,
 )

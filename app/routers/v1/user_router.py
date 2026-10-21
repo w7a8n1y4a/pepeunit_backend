@@ -3,6 +3,7 @@ import uuid as uuid_pkg
 from fastapi import APIRouter, Depends, Response, status
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import FeatureFlagError
 from app.configs.rest import ServiceFactory, get_user_service
 from app.dto.enum import CookieName
@@ -101,7 +102,8 @@ def set_grafana_cookie(
     user_service: UserService = Depends(get_user_service),
 ):
     if not runtime.get().pu_ff_grafana_integration_enable:
-        raise FeatureFlagError()
+        msg = "This feature has been disabled by the instance Owner"
+        raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
     _set_grafana_cookie(response, user_service.get_grafana_token())
 

@@ -2,6 +2,7 @@ from fastapi import Depends
 from sqlmodel import Session, col
 
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import InstanceError
 from app.domain.instance_model import Instance
 from app.repositories.base_repository import BaseRepository
@@ -32,4 +33,4 @@ class InstanceRepository(BaseRepository[Instance]):
 
         if instance:
             msg = f'Url "{url}" is exist'
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_EXISTS)

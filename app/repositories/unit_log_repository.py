@@ -9,6 +9,7 @@ from fastapi.params import Query
 from app.configs.clickhouse import get_clickhouse_client
 from app.dto.clickhouse.log import UnitErrorCount, UnitLog
 from app.dto.clickhouse.orm import ClickhouseOrm
+from app.dto.enum import UuidEntity
 from app.repositories.utils import get_offset_and_limit_clause
 from app.schemas.pydantic.unit import UnitLogFilter
 from app.services.validators import is_valid_uuid
@@ -121,6 +122,9 @@ class UnitLogRepository:
             },
         )
         return [
-            UnitErrorCount(unit_uuid=is_valid_uuid(row[0]), count=int(row[1]))
+            UnitErrorCount(
+                unit_uuid=is_valid_uuid(row[0], UuidEntity.UNIT),
+                count=int(row[1]),
+            )
             for row in rows
         ]

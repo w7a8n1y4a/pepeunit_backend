@@ -5,6 +5,7 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from app.configs.db import get_hand_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import NoAccessError
 from app.configs.rest import get_notification_service
 from app.dto.enum import AgentType
@@ -64,7 +65,9 @@ async def notifications_stream(
     # connection for as long as the client stays connected.
     if not jwt_token:
         msg = "Notification access not allowed"
-        raise NoAccessError(msg)
+        raise NoAccessError(
+            msg, code=ErrorCode.ACCESS_NOTIFICATION_NOT_ALLOWED
+        )
     with get_hand_session() as db:
         service = get_notification_service(db, None, jwt_token)
         service.access_service.authorization.check_access([AgentType.USER])

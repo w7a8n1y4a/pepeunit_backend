@@ -3,7 +3,7 @@ from sqlmodel import Session, col
 
 from app.configs.db import get_session
 from app.domain.operation_task_model import OperationTask
-from app.dto.enum import OperationTaskType
+from app.dto.enum import OperationTaskType, UuidEntity
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_enums, apply_offset_and_limit
 from app.schemas.pydantic.operation_task import OperationTaskFilter
@@ -22,7 +22,7 @@ class OperationTaskRepository(BaseRepository[OperationTask]):
         if filters.creator_uuid:
             query = query.filter(
                 OperationTask.creator_uuid
-                == is_valid_uuid(filters.creator_uuid)
+                == is_valid_uuid(filters.creator_uuid, UuidEntity.USER)
             )
 
         fields = {

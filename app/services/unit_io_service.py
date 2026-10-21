@@ -7,6 +7,7 @@ import uuid as uuid_pkg
 from fastapi import Depends
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import (
     CustomException,
     CustomPermissionError,
@@ -31,6 +32,8 @@ from app.dto.enum import (
     BackendTopicCommand,
     DestinationTopicType,
     GlobalPrefixTopic,
+    JsonPayload,
+    NotFoundEntity,
     OrderByDate,
     OwnershipType,
     PermissionEntities,
@@ -39,6 +42,7 @@ from app.dto.enum import (
     ReservedInputBaseTopic,
     UnitFirmwareUpdateStatus,
     UnitIOTypeEnum,
+    UuidEntity,
 )
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -108,7 +112,7 @@ class UnitIOService:
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
         self.access_service.authorization.check_visibility(unit_io)
 
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
         return unit_io
 
     def bulk_create(
@@ -261,7 +265,7 @@ class UnitIOService:
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR]
@@ -274,14 +278,14 @@ class UnitIOService:
             and data.is_data_pipe_active
         ):
             msg = "DataPipe cannot be activated if the topic does not have the suffix /pepeunit"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_TOPIC_SUFFIX)
 
         if data.is_rewritable_input is not None:
             self.is_valid_input_unit_io(unit_io)
 
         if data.max_connections is not None and data.max_connections < 1:
             msg = "max_connections must be at least 1"
-            raise UnitIOError(msg)
+            raise UnitIOError(msg, code=ErrorCode.UNIT_IO_MAX_CONNECTIONS)
 
         update_unit_io = UnitIO(
             **merge_two_dict_first_priority(
@@ -325,7 +329,7 @@ class UnitIOService:
         )
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
         self.is_valid_input_unit_io(unit_io)
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.UNIT_TO_INPUT_NODE]
@@ -356,7 +360,7 @@ class UnitIOService:
             )
 
         unit = self.unit_repository.get(Unit(uuid=uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
 
         if not is_auto_update:
             self.access_service.authorization.check_ownership(
@@ -366,7 +370,9 @@ class UnitIOService:
         repository_registry = self.repository_registry_repository.get(
             RepositoryRegistry(uuid=unit.repository_registry_uuid)
         )
-        is_valid_object(repository_registry)
+        is_valid_object(
+            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
+        )
 
         self.git_repo_repository.is_valid_firmware_platform(
             repository_registry, unit, unit.target_firmware_platform
@@ -446,7 +452,7 @@ class UnitIOService:
             if unit.is_compilable_unit:
                 links = is_valid_json(
                     repository_registry.releases_data,
-                    "Releases for compile repo",
+                    JsonPayload.RELEASES_FOR_COMPILE_REPO_TITLE,
                 )[target_tag]
                 _, link = self.git_repo_repository.find_by_platform(
                     links, unit.target_firmware_platform
@@ -459,20 +465,24 @@ class UnitIOService:
         return message_dict
 
     def create_node_edge(self, data: UnitIOEdgeCreate) -> UnitIOEdge:
-        data.input_uuid = is_valid_uuid(data.input_uuid)
-        data.output_uuid = is_valid_uuid(data.output_uuid)
+        data.input_uuid = is_valid_uuid(
+            data.input_uuid, UuidEntity.UNIT_IO_INPUT
+        )
+        data.output_uuid = is_valid_uuid(
+            data.output_uuid, UuidEntity.UNIT_IO_OUTPUT
+        )
 
         self.access_service.authorization.check_access([AgentType.USER])
 
         output_node = self.unit_io_repository.get(
             UnitIO(uuid=data.output_uuid)
         )
-        is_valid_object(output_node)
+        is_valid_object(output_node, NotFoundEntity.UNIT_IO)
         self.is_valid_output_unit_io(output_node)
         self.access_service.authorization.check_visibility(output_node)
 
         input_node = self.unit_io_repository.get(UnitIO(uuid=data.input_uuid))
-        is_valid_object(input_node)
+        is_valid_object(input_node, NotFoundEntity.UNIT_IO)
         self.is_valid_input_unit_io(input_node)
         self.access_service.authorization.check_visibility(input_node)
 
@@ -482,7 +492,9 @@ class UnitIOService:
         )
         if current_input_connections >= input_node.max_connections:
             msg = f"Maximum number of incoming connections ({input_node.max_connections}) reached for input node {input_node.uuid}"
-            raise UnitIOError(msg)
+            raise UnitIOError(
+                msg, code=ErrorCode.UNIT_IO_INPUT_CONNECTION_LIMIT
+            )
 
         # Check connection limit for output node (outgoing connections)
         current_output_connections = (
@@ -490,14 +502,16 @@ class UnitIOService:
         )
         if current_output_connections >= output_node.max_connections:
             msg = f"Maximum number of outgoing connections ({output_node.max_connections}) reached for output node {output_node.uuid}"
-            raise UnitIOError(msg)
+            raise UnitIOError(
+                msg, code=ErrorCode.UNIT_IO_OUTPUT_CONNECTION_LIMIT
+            )
 
         new_edge = UnitIOEdge(**data.dict())
         new_edge.creator_uuid = self.access_service.current_agent.uuid
 
         if self.unit_io_edge_repository.check(new_edge):
             msg = "Edge exist"
-            raise UnitIOError(msg)
+            raise UnitIOError(msg, code=ErrorCode.UNIT_IO_EDGE_EXISTS)
 
         with contextlib.suppress(CustomPermissionError):
             self.permission_service.create_by_domains(
@@ -555,7 +569,8 @@ class UnitIOService:
         self, data_pipe
     ) -> list[DataPipeValidationErrorRead]:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER, AgentType.UNIT, AgentType.BACKEND]
@@ -571,12 +586,13 @@ class UnitIOService:
         self, uuid: uuid_pkg.UUID, data_pipe
     ) -> None:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR]
@@ -600,30 +616,34 @@ class UnitIOService:
 
     def get_data_pipe_config(self, uuid: uuid_pkg.UUID) -> str:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.is_valid_active_data_pipe(unit_io)
         self.is_valid_filled_config(unit_io)
 
         return dict_to_yml_file(
             remove_dict_none(
-                is_valid_json(unit_io.data_pipe_yml, "DataPipe config")
+                is_valid_json(
+                    unit_io.data_pipe_yml, JsonPayload.DATA_PIPE_CONFIG
+                )
             )
         )
 
     def delete_data_pipe_data(self, uuid: uuid_pkg.UUID) -> None:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR]
@@ -635,14 +655,15 @@ class UnitIOService:
         self, filters: DataPipeFilter
     ) -> tuple[int, list[NRecords | TimeWindow | Aggregation | LastValue]]:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access(
             [AgentType.USER, AgentType.UNIT]
         )
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=filters.uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -652,14 +673,15 @@ class UnitIOService:
 
     def get_data_pipe_data_csv(self, uuid: uuid_pkg.UUID) -> str:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access(
             [AgentType.USER, AgentType.UNIT]
         )
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR, OwnershipType.UNIT]
@@ -687,12 +709,13 @@ class UnitIOService:
         self, uuid: uuid_pkg.UUID, data_csv
     ) -> None:
         if not runtime.get().pu_ff_datapipe_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
         self.access_service.authorization.check_access([AgentType.USER])
 
         unit_io = self.unit_io_repository.get(UnitIO(uuid=uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
 
         self.access_service.authorization.check_ownership(
             unit_io, [OwnershipType.CREATOR]
@@ -726,17 +749,17 @@ class UnitIOService:
         unit_io_edge = self.unit_io_edge_repository.get_by_two_uuid(
             input_uuid, output_uuid
         )
-        is_valid_object(unit_io_edge)
+        is_valid_object(unit_io_edge, NotFoundEntity.UNIT_IO_EDGE)
 
         input_node = self.unit_io_repository.get(
             UnitIO(uuid=unit_io_edge.input_uuid)
         )
-        is_valid_object(input_node)
+        is_valid_object(input_node, NotFoundEntity.UNIT_IO)
 
         output_node = self.unit_io_repository.get(
             UnitIO(uuid=unit_io_edge.output_uuid)
         )
-        is_valid_object(output_node)
+        is_valid_object(output_node, NotFoundEntity.UNIT_IO)
 
         if unit_io_edge.creator_uuid != self.access_service.current_agent.uuid:
             self.access_service.authorization.check_ownership(
@@ -752,7 +775,7 @@ class UnitIOService:
                 output_node.unit_uuid, input_uuid, is_api=False
             )
         except CustomException as ex:
-            logging.info(ex.message)
+            logging.info(ex)
             # At the time of deletion, the user may have already deleted access,
             # so there should be immunity to this error.
 
@@ -782,7 +805,7 @@ class UnitIOService:
 
     def set_state(self, unit_io_uuid: uuid_pkg.UUID, state: str) -> UnitIO:
         unit_io = self.unit_io_repository.get(UnitIO(uuid=unit_io_uuid))
-        is_valid_object(unit_io)
+        is_valid_object(unit_io, NotFoundEntity.UNIT_IO)
         unit_io.state = state
         unit_io.last_update_datetime = datetime.datetime.now(datetime.UTC)
 
@@ -792,25 +815,25 @@ class UnitIOService:
     def is_valid_input_unit_io(unit_io: UnitIO) -> None:
         if unit_io.type != UnitIOTypeEnum.INPUT:
             msg = f"This Node {unit_io.uuid} is not Input"
-            raise UnitIOError(msg)
+            raise UnitIOError(msg, code=ErrorCode.UNIT_IO_NOT_INPUT)
 
     @staticmethod
     def is_valid_output_unit_io(unit_io: UnitIO) -> None:
         if unit_io.type != UnitIOTypeEnum.OUTPUT:
             msg = f"This Node {unit_io.uuid} is not Output"
-            raise UnitIOError(msg)
+            raise UnitIOError(msg, code=ErrorCode.UNIT_IO_NOT_OUTPUT)
 
     @staticmethod
     def is_valid_active_data_pipe(unit_io: UnitIO) -> None:
         if not unit_io.is_data_pipe_active:
             msg = "Data pipe is not active"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_NOT_ACTIVE)
 
     @staticmethod
     def is_valid_filled_config(unit_io: UnitIO) -> None:
         if not unit_io.data_pipe_yml:
             msg = "Data pipe is not filled"
-            raise DataPipeError(msg)
+            raise DataPipeError(msg, code=ErrorCode.DATAPIPE_NOT_FILLED)
 
     @staticmethod
     def is_valid_policy(data_pipe_entity: DataPipeValidationErrorRead) -> None:
@@ -819,4 +842,6 @@ class UnitIOService:
             == ProcessingPolicyType.LAST_VALUE
         ):
             msg = "LastValue type is not supported on this function"
-            raise DataPipeError(msg)
+            raise DataPipeError(
+                msg, code=ErrorCode.DATAPIPE_LAST_VALUE_UNSUPPORTED
+            )

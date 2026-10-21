@@ -6,6 +6,7 @@ import jwt
 from pydantic import BaseModel, Field
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import NoAccessError
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
@@ -70,7 +71,7 @@ class Agent(ABC, BaseModel):
             )
         else:
             msg = "Unknown agent type"
-            raise NoAccessError(msg)
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_UNKNOWN_AGENT_TYPE)
 
         return token
 

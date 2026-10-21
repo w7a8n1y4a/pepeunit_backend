@@ -1,5 +1,6 @@
 from app import settings
 from app.configs.errors import CustomJSONDecodeError
+from app.dto.enum import JsonPayload
 from app.services.validators import is_valid_json
 
 
@@ -9,9 +10,9 @@ def load_private_repo_specs() -> list[dict]:
         return []
 
     try:
-        data = is_valid_json(raw, "Private Repo")
+        data = is_valid_json(raw, JsonPayload.PRIVATE_REPO)
         if isinstance(data, str):
-            data = is_valid_json(data, "Private Repo")
+            data = is_valid_json(data, JsonPayload.PRIVATE_REPO)
     except (CustomJSONDecodeError, TypeError, ValueError):
         return []
 

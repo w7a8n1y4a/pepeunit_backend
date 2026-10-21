@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"data_pipe/internal/apperr"
 )
 
 // Levels and formats match the backend instance settings.
@@ -142,7 +144,8 @@ func parseLevel(raw string) (string, error) {
 	case LevelDebug, LevelInfo, LevelWarning, LevelError, LevelCritical:
 		return strings.ToUpper(strings.TrimSpace(raw)), nil
 	default:
-		return "", fmt.Errorf(
+		return "", apperr.New(
+			apperr.LogLevelInvalid,
 			"pu_instance_log_min_level must be DEBUG, INFO, WARNING, ERROR or CRITICAL",
 		)
 	}
@@ -153,7 +156,7 @@ func parseFormat(raw string) (string, error) {
 	case FormatJSON, FormatPlain:
 		return strings.ToLower(strings.TrimSpace(raw)), nil
 	default:
-		return "", fmt.Errorf("pu_instance_log_format must be json or plain")
+		return "", apperr.New(apperr.LogFormatInvalid, "pu_instance_log_format must be json or plain")
 	}
 }
 

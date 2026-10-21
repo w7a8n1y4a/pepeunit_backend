@@ -13,6 +13,7 @@ from fastapi import Depends
 from pydantic import ValidationError as PydanticValidationError
 
 from app import runtime, settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import (
     CustomException,
     FeatureFlagError,
@@ -27,6 +28,7 @@ from app.dto.enum import (
     InstanceCollectionStatus,
     InstanceTrustStatus,
     IntegrationTestsStatus,
+    NotFoundEntity,
     OperationTaskStatus,
     OperationTaskType,
     OrderByText,
@@ -343,7 +345,10 @@ class InstanceService:
         log = f"{process.stdout}{process.stderr}".strip()
 
         if process.returncode:
-            raise InstanceError(log or "Integration tests failed")
+            raise InstanceError(
+                log or "Integration tests failed",
+                code=ErrorCode.INSTANCE_INTEGRATION_TESTS_FAILED,
+            )
 
         return log
 
@@ -394,7 +399,12 @@ class InstanceService:
             collected = await self.instance_external_repository.collect(
                 instance.url
             )
-        except (httpx.HTTPError, PydanticValidationError, ValueError) as e:
+        except (
+            httpx.HTTPError,
+            PydanticValidationError,
+            ValueError,
+            InstanceError,
+        ) as e:
             return self.set_collection_failure(instance, e)
 
         instance = self.set_collection_success(instance, collected)
@@ -484,7 +494,7 @@ class InstanceService:
             try:
                 valid_url = self.is_valid_url(url)
             except InstanceError as e:
-                logging.warning(f"Skip discovered Instance {url}: {e.message}")
+                logging.warning(f"Skip discovered Instance {url}: {e}")
                 continue
 
             if valid_url in known_urls:
@@ -523,12 +533,12 @@ class InstanceService:
                 )
             except CustomException as e:
                 logging.warning(
-                    f"Skip discovered RepositoryRegistry {registry.url}: {e.message}"
+                    f"Skip discovered RepositoryRegistry {registry.url}: {e}"
                 )
 
     def get_instance(self, uuid: uuid_pkg.UUID) -> Instance:
         instance = self.instance_repository.get(Instance(uuid=uuid))
-        is_valid_object(instance)
+        is_valid_object(instance, NotFoundEntity.INSTANCE)
         return instance
 
     @staticmethod
@@ -568,13 +578,14 @@ class InstanceService:
     @staticmethod
     def is_federation_enable() -> None:
         if not runtime.get().pu_ff_federation_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
     @staticmethod
     def is_collection_available(instance: Instance) -> None:
         if instance.trust_status != InstanceTrustStatus.TRUST.value:
             msg = f"Collection is not available, Instance trust status is {instance.trust_status}, but it should have been {InstanceTrustStatus.TRUST.value}"
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_COLLECTION_TRUST)
 
     @staticmethod
     def is_valid_collection_status(instance: Instance) -> None:
@@ -586,7 +597,7 @@ class InstanceService:
                 instance.last_collection_error
                 or f"Collection {instance.url} is failed"
             )
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_COLLECTION_FAILED)
 
     @staticmethod
     def is_valid_trust_status(trust_status: InstanceTrustStatus) -> None:
@@ -595,7 +606,9 @@ class InstanceService:
             InstanceTrustStatus.BLOCKING,
         ):
             msg = f"Trust status can only be {InstanceTrustStatus.TRUST.value} or {InstanceTrustStatus.BLOCKING.value}"
-            raise InstanceError(msg)
+            raise InstanceError(
+                msg, code=ErrorCode.INSTANCE_TRUST_STATUS_INVALID
+            )
 
     @staticmethod
     def instance_origin(url: str) -> str:
@@ -608,23 +621,23 @@ class InstanceService:
 
         if parsed.scheme not in ("http", "https"):
             msg = "Instance URL scheme must be http or https"
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_SCHEME)
         if not parsed.hostname:
             msg = "Instance URL must include a host"
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_HOST)
         if parsed.query or parsed.fragment:
             msg = "Instance URL must not include query or fragment"
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_QUERY)
         if parsed.username or parsed.password:
             msg = "Instance URL must not include credentials"
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_CREDENTIALS)
 
         path = parsed.path.rstrip("/")
         if not path.endswith("/instances/current"):
             msg = (
                 'Instance URL must point to the "/instances/current" endpoint'
             )
-            raise InstanceError(msg)
+            raise InstanceError(msg, code=ErrorCode.INSTANCE_URL_ENDPOINT)
 
         netloc = parsed.hostname.lower()
         if parsed.port is not None:

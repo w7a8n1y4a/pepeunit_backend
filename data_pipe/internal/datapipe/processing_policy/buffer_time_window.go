@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/database"
 	"data_pipe/internal/logging"
 	"data_pipe/internal/types"
@@ -74,17 +75,17 @@ func (b *TimeWindowBuffer) Add(ctx context.Context, uuid uuid.UUID, state string
 	// Get the policy config from the context
 	policy, ok := ctx.Value("policy").(types.ProcessingPolicyConfig)
 	if !ok {
-		return fmt.Errorf("policy config not found in context")
+		return apperr.New(apperr.PolicyConfigMissing, "policy config not found in context")
 	}
 
 	if policy.TimeWindowSize == nil {
-		return fmt.Errorf("time window size not specified in policy")
+		return apperr.New(apperr.TimeWindowSizeMissing, "time window size not specified in policy")
 	}
 
 	// Get filters config from context
 	filters, ok := ctx.Value("filters").(types.FiltersConfig)
 	if !ok {
-		return fmt.Errorf("filters config not found in context")
+		return apperr.New(apperr.FiltersConfigMissing, "filters config not found in context")
 	}
 
 	// Calculate expiration time based on the time window size

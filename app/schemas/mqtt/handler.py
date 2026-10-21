@@ -7,16 +7,20 @@ import uuid
 from app import BackendLogLevel, runtime, settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import MqttError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.domain.unit_model import Unit
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
     DestinationTopicType,
+    JsonPayload,
+    NotFoundEntity,
     ReservedEnvVariableName,
     ReservedOutputBaseTopic,
     ReservedStateKey,
     UnitFirmwareUpdateStatus,
+    UuidEntity,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.repository_registry_repository import (
@@ -44,7 +48,7 @@ class MqttMessageHandler:
                 f"Payload size is {payload_size}, "
                 f"limit is {runtime.get().pu_mqtt_max_payload_size} KB"
             )
-            raise MqttError(msg)
+            raise MqttError(msg, code=ErrorCode.MQTT_PAYLOAD_TOO_LARGE)
 
         backend_domain, destination, unit_uuid, topic_name, *_ = (
             get_topic_split(topic)
@@ -56,9 +60,9 @@ class MqttMessageHandler:
                 f"Topic domain {backend_domain} is invalid, "
                 f"expected {settings.pu_domain}"
             )
-            raise MqttError(msg)
+            raise MqttError(msg, code=ErrorCode.MQTT_TOPIC_DOMAIN)
 
-        unit_uuid = is_valid_uuid(unit_uuid)
+        unit_uuid = is_valid_uuid(unit_uuid, UuidEntity.UNIT)
 
         if topic_name == ReservedOutputBaseTopic.STATE:
             await self.handle_state(topic, unit_uuid, payload)
@@ -71,11 +75,11 @@ class MqttMessageHandler:
         with get_hand_session() as db:
             unit_repository = UnitRepository(db)
             unit_state_dict = get_only_reserved_keys(
-                is_valid_json(payload.decode(), "Hardware state")
+                is_valid_json(payload.decode(), JsonPayload.HARDWARE_STATE)
             )
 
             unit = unit_repository.get(Unit(uuid=unit_uuid))
-            is_valid_object(unit)
+            is_valid_object(unit, NotFoundEntity.UNIT)
 
             new_commit = self._get_commit_version(unit_state_dict)
             waiting_firmware = (
@@ -104,10 +108,12 @@ class MqttMessageHandler:
                 unit_repository = UnitRepository(db)
                 unit_log_repository = UnitLogRepository(cc)
 
-                log_data = is_valid_json(payload.decode(), "Unit hardware log")
+                log_data = is_valid_json(
+                    payload.decode(), JsonPayload.UNIT_HARDWARE_LOG
+                )
 
                 unit = unit_repository.get(Unit(uuid=unit_uuid))
-                is_valid_object(unit)
+                is_valid_object(unit, NotFoundEntity.UNIT)
 
                 if isinstance(log_data, dict):
                     log_data = [log_data]
@@ -172,7 +178,7 @@ class MqttMessageHandler:
         commit = unit_state_dict.get(ReservedStateKey.PU_COMMIT_VERSION.value)
         if not commit:
             msg = "State dict has no pu_commit_version key"
-            raise MqttError(msg)
+            raise MqttError(msg, code=ErrorCode.MQTT_STATE_NO_COMMIT)
         return commit
 
     @staticmethod
@@ -184,7 +190,7 @@ class MqttMessageHandler:
             f"Exceeding the message sending rate for the {topic} topic, "
             f"you need to send values no more often than {interval}"
         )
-        raise MqttError(msg)
+        raise MqttError(msg, code=ErrorCode.MQTT_RATE_LIMIT)
 
     @staticmethod
     def _sync_firmware_update_status(db, unit: Unit, interval: int) -> None:

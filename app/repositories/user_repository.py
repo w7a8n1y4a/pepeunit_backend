@@ -7,9 +7,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import UserError
 from app.domain.user_model import User
-from app.dto.enum import UserRole
+from app.dto.enum import UserRole, UuidEntity
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
@@ -35,7 +36,9 @@ class UserRepository(BaseRepository):
                 "users_hash_public_key_key",
             }:
                 msg = "Public key is not unique"
-                raise UserError(msg) from err
+                raise UserError(
+                    msg, code=ErrorCode.USER_PUBLIC_KEY_NOT_UNIQUE
+                ) from err
             raise
 
     def get_user_by_hash_public_key(self, hash_public_key: str) -> User | None:
@@ -70,7 +73,7 @@ class UserRepository(BaseRepository):
         if not result.rowcount:
             self.db.rollback()
             msg = "User does not exist"
-            raise UserError(msg)
+            raise UserError(msg, code=ErrorCode.USER_NOT_FOUND)
 
         self.db.commit()
         self.db.expire_all()
@@ -86,7 +89,12 @@ class UserRepository(BaseRepository):
         )
         if filters.uuids:
             query = query.filter(
-                User.uuid.in_([is_valid_uuid(item) for item in filters.uuids])
+                User.uuid.in_(
+                    [
+                        is_valid_uuid(item, UuidEntity.USER)
+                        for item in filters.uuids
+                    ]
+                )
             )
 
         fields = [User.login]
@@ -104,7 +112,7 @@ class UserRepository(BaseRepository):
     def is_valid_login(self, login: str) -> None:
         if not is_valid_string_with_rules(login):
             msg = "Login is not correct"
-            raise UserError(msg)
+            raise UserError(msg, code=ErrorCode.USER_LOGIN_INVALID)
 
     def is_valid_telegram_chat_id(
         self, telegram_chat_id: str, uuid: uuid_pkg.UUID | None = None
@@ -119,4 +127,4 @@ class UserRepository(BaseRepository):
             uuid and user_uuid != uuid and user_uuid is not None
         ):
             msg = "This Telegram account is already linked"
-            raise UserError(msg)
+            raise UserError(msg, code=ErrorCode.USER_TELEGRAM_ALREADY_LINKED)

@@ -8,6 +8,7 @@ from app.domain.dashboard_model import Dashboard
 from app.domain.dashboard_panel_model import DashboardPanel
 from app.domain.panels_unit_ios_model import PanelsUnitIOs
 from app.domain.unit_io_model import UnitIO
+from app.dto.enum import UuidEntity
 from app.repositories.base_repository import BaseRepository, UniqueNameMixin
 from app.repositories.utils import (
     apply_ilike_search_string,
@@ -30,7 +31,7 @@ class DashboardPanelRepository(UniqueNameMixin, BaseRepository):
         if filters.dashboard_uuid:
             query = query.filter(
                 DashboardPanel.dashboard_uuid
-                == is_valid_uuid(filters.dashboard_uuid)
+                == is_valid_uuid(filters.dashboard_uuid, UuidEntity.DASHBOARD)
             )
 
         fields = [DashboardPanel.title]

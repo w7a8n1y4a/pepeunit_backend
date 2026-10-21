@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/database"
 	"data_pipe/internal/logging"
 	"data_pipe/internal/types"
@@ -74,11 +75,11 @@ func (b *NRecordsBuffer) Add(ctx context.Context, uuid uuid.UUID, state string, 
 	// Get the policy config from the context
 	policy, ok := ctx.Value("policy").(types.ProcessingPolicyConfig)
 	if !ok {
-		return fmt.Errorf("policy config not found in context")
+		return apperr.New(apperr.PolicyConfigMissing, "policy config not found in context")
 	}
 
 	if policy.NRecordsCount == nil {
-		return fmt.Errorf("NRecords count not specified in policy")
+		return apperr.New(apperr.NRecordsCountMissing, "NRecords count not specified in policy")
 	}
 
 	// Store policy in buffer
@@ -89,7 +90,7 @@ func (b *NRecordsBuffer) Add(ctx context.Context, uuid uuid.UUID, state string, 
 	// Get filters config from context
 	filters, ok := ctx.Value("filters").(types.FiltersConfig)
 	if !ok {
-		return fmt.Errorf("filters config not found in context")
+		return apperr.New(apperr.FiltersConfigMissing, "filters config not found in context")
 	}
 
 	// Create new entry
@@ -154,7 +155,7 @@ func (b *NRecordsBuffer) Flush(ctx context.Context) error {
 	b.mu.Unlock()
 
 	if policy == nil || policy.NRecordsCount == nil {
-		return fmt.Errorf("NRecords count not specified in policy")
+		return apperr.New(apperr.NRecordsCountMissing, "NRecords count not specified in policy")
 	}
 
 	// Convert updates to NLastEntry slice

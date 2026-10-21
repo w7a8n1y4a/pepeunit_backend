@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import httpx
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
+from app.configs.errors import InstanceError
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
     InstancePublicRegistry,
@@ -89,4 +91,6 @@ class InstanceExternalRepository:
     def is_valid_response_size(response: httpx.Response) -> None:
         if len(response.content) > runtime.get().pu_instance_max_state_size:
             msg = f"Instance response {len(response.content)} B exceeds the limit {runtime.get().pu_instance_max_state_size} B"
-            raise ValueError(msg)
+            raise InstanceError(
+                msg, code=ErrorCode.INSTANCE_RESPONSE_TOO_LARGE
+            )

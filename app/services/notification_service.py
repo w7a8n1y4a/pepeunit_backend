@@ -6,6 +6,7 @@ from operator import attrgetter
 from fastapi import Depends
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import FeatureFlagError
 from app.domain.notification_model import Notification
 from app.domain.notification_settings_model import NotificationSettings
@@ -13,6 +14,7 @@ from app.domain.user_model import User
 from app.dto.enum import (
     AgentType,
     LogLevel,
+    NotFoundEntity,
     NotificationType,
     OwnershipType,
     UserRole,
@@ -80,7 +82,8 @@ class NotificationService:
     @staticmethod
     def is_notification_enable() -> None:
         if not runtime.get().pu_ff_notification_enable:
-            raise FeatureFlagError()
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
 
     def list(
         self, filters: NotificationFilter
@@ -97,7 +100,7 @@ class NotificationService:
         notification = self.notification_repository.get(
             Notification(uuid=uuid), is_visible=True
         )
-        is_valid_object(notification)
+        is_valid_object(notification, NotFoundEntity.NOTIFICATION)
         self.access_service.authorization.check_ownership(
             notification, [OwnershipType.CREATOR]
         )
@@ -109,7 +112,7 @@ class NotificationService:
         notification = self.notification_repository.get(
             Notification(uuid=uuid), is_visible=True
         )
-        is_valid_object(notification)
+        is_valid_object(notification, NotFoundEntity.NOTIFICATION)
         self.access_service.authorization.check_ownership(
             notification, [OwnershipType.CREATOR]
         )

@@ -97,6 +97,30 @@ class PepeunitJsonFormatter(jsonlogger.JsonFormatter):
         log_record.update(ordered)
 
 
+class UvicornAccessFilter(logging.Filter):
+    """Drop the caller address. It is a container on this network, and the port changes every call."""
+
+    _client = re.compile(r"^[^\s:]+:\d+ - ")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name != "uvicorn.access":
+            return True
+
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+
+        if not isinstance(msg, str):
+            return True
+
+        trimmed = self._client.sub("", msg, count=1)
+        if trimmed != msg:
+            record.msg = trimmed
+            record.args = ()
+        return True
+
+
 class GmqttPacketIdMaskFilter(logging.Filter):
     _pattern = re.compile(r"(\[[A-Z0-9 _-]+\])\s+\d+\b")
 
@@ -155,16 +179,19 @@ def _build_logging_config(
         "version": 1,
         "disable_existing_loggers": False,
         "filters": {
+            "uvicorn_access": {
+                "()": "app.configs.logging_config.UvicornAccessFilter",
+            },
             "gmqtt_mask_packet_id": {
                 "()": "app.configs.logging_config.GmqttPacketIdMaskFilter",
-            }
+            },
         },
         "formatters": _build_formatters(log_format),
         "handlers": {
             "stdout": {
                 "class": "logging.StreamHandler",
                 "formatter": formatter_name,
-                "filters": ["gmqtt_mask_packet_id"],
+                "filters": ["uvicorn_access", "gmqtt_mask_packet_id"],
             },
         },
         "root": {

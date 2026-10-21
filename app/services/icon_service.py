@@ -2,13 +2,20 @@ import uuid as uuid_pkg
 
 from fastapi import Depends
 
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import NoAccessError, ValidationError
 from app.domain.icon_model import Icon
 from app.domain.instance_settings_model import InstanceSettings
 from app.domain.unit_group_model import UnitGroup
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
-from app.dto.enum import AgentType, IconEntityType, OwnershipType, UserRole
+from app.dto.enum import (
+    AgentType,
+    IconEntityType,
+    NotFoundEntity,
+    OwnershipType,
+    UserRole,
+)
 from app.repositories.icon_repository import IconRepository
 from app.repositories.instance_settings_repository import (
     InstanceSettingsRepository,
@@ -40,7 +47,7 @@ class IconService:
 
     def get(self, uuid: uuid_pkg.UUID) -> Icon:
         icon = self.icon_repository.get(Icon(uuid=uuid))
-        is_valid_object(icon)
+        is_valid_object(icon, NotFoundEntity.ICON)
         return icon
 
     def upload(
@@ -65,21 +72,23 @@ class IconService:
                 return self._instance(entity_uuid)
             case _:
                 msg = "Image target is not supported"
-                raise ValidationError(msg)
+                raise ValidationError(
+                    msg, code=ErrorCode.ICON_TARGET_UNSUPPORTED
+                )
 
     def _user(self, entity_uuid: uuid_pkg.UUID) -> User:
         self.access_service.authorization.check_access([AgentType.USER])
         if self.access_service.current_agent.uuid != entity_uuid:
             msg = "Only the user can change this icon"
-            raise NoAccessError(msg)
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_ICON_OWNER_ONLY)
         user = self.user_repository.get(User(uuid=entity_uuid))
-        is_valid_object(user)
+        is_valid_object(user, NotFoundEntity.USER)
         return user
 
     def _unit(self, entity_uuid: uuid_pkg.UUID) -> Unit:
         self.access_service.authorization.check_access([AgentType.USER])
         unit = self.unit_repository.get(Unit(uuid=entity_uuid))
-        is_valid_object(unit)
+        is_valid_object(unit, NotFoundEntity.UNIT)
         self.access_service.authorization.check_ownership(
             unit, [OwnershipType.CREATOR]
         )
@@ -88,7 +97,7 @@ class IconService:
     def _unit_group(self, entity_uuid: uuid_pkg.UUID) -> UnitGroup:
         self.access_service.authorization.check_access([AgentType.USER])
         group = self.unit_group_repository.get(UnitGroup(uuid=entity_uuid))
-        is_valid_object(group)
+        is_valid_object(group, NotFoundEntity.UNIT_GROUP)
         self.access_service.authorization.check_ownership(
             group, [OwnershipType.CREATOR]
         )
@@ -99,9 +108,9 @@ class IconService:
             [AgentType.USER], [UserRole.OWNER]
         )
         if entity_uuid != InstanceSettings.ROW_UUID:
-            is_valid_object(None)
+            is_valid_object(None, NotFoundEntity.INSTANCE_SETTINGS)
         row = self.instance_settings_repository.get(
             InstanceSettings(uuid=InstanceSettings.ROW_UUID)
         )
-        is_valid_object(row)
+        is_valid_object(row, NotFoundEntity.INSTANCE_SETTINGS)
         return row

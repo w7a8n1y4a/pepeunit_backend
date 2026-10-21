@@ -2,9 +2,9 @@ package processing_policy
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"data_pipe/internal/apperr"
 	"data_pipe/internal/types"
 
 	"github.com/google/uuid"
@@ -49,7 +49,7 @@ func (p *ProcessingPolicy) ApplyProcessingPolicy(
 	if !exists {
 		buffer = p.bufferFactory.GetBuffer(policy.PolicyType)
 		if buffer == nil {
-			return fmt.Errorf("no buffer available for policy type: %s", policy.PolicyType)
+			return apperr.New(apperr.NoBuffer, "no buffer available for policy type: %s", policy.PolicyType)
 		}
 		p.buffers[policy.PolicyType] = buffer
 		buffer.Start(p.ctx)
@@ -69,6 +69,6 @@ func (p *ProcessingPolicy) ApplyProcessingPolicy(
 		return buffer.Add(ctx, ioUUID, value, currentTime)
 
 	default:
-		return fmt.Errorf("unknown processing policy type: %s", policy.PolicyType)
+		return apperr.New(apperr.UnknownPolicyType, "unknown processing policy type: %s", policy.PolicyType)
 	}
 }

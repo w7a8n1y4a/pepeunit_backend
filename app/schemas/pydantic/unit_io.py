@@ -66,6 +66,7 @@ class UnitIOEdgeCreate(BaseModel):
 class DataPipeValidationErrorRead(BaseModel):
     stage: DataPipeStage
     message: str
+    error_code: int
 
 
 @dataclass

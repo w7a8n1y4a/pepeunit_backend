@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
-from app.dto.enum import VisibilityLevel
+from app.dto.enum import UuidEntity, VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
     apply_enums,
@@ -104,13 +104,17 @@ class UnitIORepository(BaseRepository):
         if filters.uuids:
             query = query.filter(
                 UnitIO.uuid.in_(
-                    [is_valid_uuid(item) for item in filters.uuids]
+                    [
+                        is_valid_uuid(item, UuidEntity.UNIT_IO)
+                        for item in filters.uuids
+                    ]
                 )
             )
 
         if filters.unit_uuid:
             query = query.filter(
-                UnitIO.unit_uuid == is_valid_uuid(filters.unit_uuid)
+                UnitIO.unit_uuid
+                == is_valid_uuid(filters.unit_uuid, UuidEntity.UNIT)
             )
 
         fields = [UnitIO.topic_name]

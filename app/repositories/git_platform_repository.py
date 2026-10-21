@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import httpx
 
 from app import runtime
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import GitPlatformClientError
 from app.domain.repository_registry_model import RepositoryRegistry
 from app.schemas.pydantic.repository_registry import Credentials
@@ -70,10 +71,14 @@ class GitPlatformClientABC(ABC):
             )
         except httpx.TimeoutException as err:
             msg = "External git platform request timed out"
-            raise GitPlatformClientError(msg) from err
+            raise GitPlatformClientError(
+                msg, code=ErrorCode.GIT_PLATFORM_TIMEOUT
+            ) from err
         except httpx.HTTPError as err:
             msg = "External git platform request failed"
-            raise GitPlatformClientError(msg) from err
+            raise GitPlatformClientError(
+                msg, code=ErrorCode.GIT_PLATFORM_REQUEST_FAILED
+            ) from err
 
 
 class GitlabPlatformClient(GitPlatformClientABC):
@@ -109,7 +114,9 @@ class GitlabPlatformClient(GitPlatformClientABC):
             target_id = result_data.json()["id"]
         except KeyError as err:
             msg = "Invalid Credentials"
-            raise GitPlatformClientError(msg) from err
+            raise GitPlatformClientError(
+                msg, code=ErrorCode.GIT_PLATFORM_INVALID_CREDENTIALS
+            ) from err
 
         return target_id
 
@@ -179,7 +186,9 @@ class GitlabPlatformClient(GitPlatformClientABC):
             repo_size = repo_data.json()["statistics"]["repository_size"]
         except KeyError as err:
             msg = "Invalid Credentials"
-            raise GitPlatformClientError(msg) from err
+            raise GitPlatformClientError(
+                msg, code=ErrorCode.GIT_PLATFORM_INVALID_CREDENTIALS
+            ) from err
 
         return repo_size
 
@@ -262,9 +271,13 @@ class GithubPlatformClient(GitPlatformClientABC):
         except KeyError as err:
             if repo_data.status_code == 403:
                 msg = "Rate limit external API"
-                raise GitPlatformClientError(msg) from err
+                raise GitPlatformClientError(
+                    msg, code=ErrorCode.GIT_PLATFORM_RATE_LIMIT
+                ) from err
             msg = "Invalid Credentials"
-            raise GitPlatformClientError(msg) from err
+            raise GitPlatformClientError(
+                msg, code=ErrorCode.GIT_PLATFORM_INVALID_CREDENTIALS
+            ) from err
 
         return repo_size * 1024
 

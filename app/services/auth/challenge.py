@@ -9,9 +9,11 @@ from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA87PublicKey
 
 from app import settings
+from app.configs.error_codes import ErrorCode
 from app.configs.errors import NoAccessError, UserError
 from app.configs.redis import get_redis_session
 from app.domain.user_model import User
+from app.dto.enum import UuidEntity
 from app.repositories.user_repository import UserRepository
 from app.services.validators import is_valid_uuid
 
@@ -33,17 +35,21 @@ class ChallengeService:
             raw = base64.b64decode(public_key.strip(), validate=True)
         except (binascii.Error, ValueError) as err:
             msg = "Public key is not correct"
-            raise UserError(msg) from err
+            raise UserError(
+                msg, code=ErrorCode.USER_PUBLIC_KEY_INVALID
+            ) from err
 
         if len(raw) != self.PUBLIC_KEY_BYTES:
             msg = "Public key is not correct"
-            raise UserError(msg)
+            raise UserError(msg, code=ErrorCode.USER_PUBLIC_KEY_INVALID)
 
         try:
             MLDSA87PublicKey.from_public_bytes(raw)
         except (ValueError, UnsupportedAlgorithm) as err:
             msg = "Public key is not correct"
-            raise UserError(msg) from err
+            raise UserError(
+                msg, code=ErrorCode.USER_PUBLIC_KEY_INVALID
+            ) from err
 
         canonical = base64.b64encode(raw).decode("ascii")
         digest = hashlib.sha256(raw).hexdigest()
@@ -55,7 +61,7 @@ class ChallengeService:
             char not in "0123456789abcdef" for char in digest
         ):
             msg = "Public key hash is not correct"
-            raise UserError(msg)
+            raise UserError(msg, code=ErrorCode.USER_PUBLIC_KEY_HASH_INVALID)
         return digest
 
     async def issue(self, user: User) -> str:
@@ -85,11 +91,11 @@ class ChallengeService:
 
     async def accept(self, challenge: str, signature: str) -> User:
         data = self._decode(challenge)
-        user_uuid = is_valid_uuid(str(data["uuid"]))
+        user_uuid = is_valid_uuid(str(data["uuid"]), UuidEntity.USER)
         user = self.user_repository.get(User(uuid=user_uuid))
         if not user or user.hash_public_key != data["hash_public_key"]:
             msg = "Challenge is invalid"
-            raise NoAccessError(msg)
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_CHALLENGE_INVALID)
 
         self._verify_signature(user.public_key, challenge, signature)
         await self._consume(data["jti"], str(user.uuid))
@@ -107,17 +113,23 @@ class ChallengeService:
             )
         except jwt.ExpiredSignatureError as err:
             msg = "Challenge expired"
-            raise NoAccessError(msg) from err
+            raise NoAccessError(
+                msg, code=ErrorCode.ACCESS_CHALLENGE_EXPIRED
+            ) from err
         except jwt.InvalidTokenError as err:
             msg = "Challenge is invalid"
-            raise NoAccessError(msg) from err
+            raise NoAccessError(
+                msg, code=ErrorCode.ACCESS_CHALLENGE_INVALID
+            ) from err
 
         if data.get("type") != self.TYPE:
             msg = "Challenge is invalid"
-            raise NoAccessError(msg)
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_CHALLENGE_INVALID)
         if data.get("domain") != settings.pu_domain:
             msg = "Challenge domain mismatched"
-            raise NoAccessError(msg)
+            raise NoAccessError(
+                msg, code=ErrorCode.ACCESS_CHALLENGE_DOMAIN_MISMATCH
+            )
         return data
 
     def _verify_signature(
@@ -136,7 +148,9 @@ class ChallengeService:
             UnsupportedAlgorithm,
         ) as err:
             msg = "Signature mismatched"
-            raise NoAccessError(msg) from err
+            raise NoAccessError(
+                msg, code=ErrorCode.ACCESS_SIGNATURE_MISMATCH
+            ) from err
 
     async def _consume(self, jti: str, user_uuid: str) -> None:
         redis = await anext(get_redis_session())
@@ -146,4 +160,6 @@ class ChallengeService:
             await redis.close()
         if stored != user_uuid:
             msg = "Challenge is used or expired"
-            raise NoAccessError(msg)
+            raise NoAccessError(
+                msg, code=ErrorCode.ACCESS_CHALLENGE_USED_OR_EXPIRED
+            )

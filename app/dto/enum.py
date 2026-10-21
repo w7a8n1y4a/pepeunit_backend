@@ -538,3 +538,88 @@ class FileLock(str, enum.Enum):
     COLLECT_INSTANCES = "tmp/collect_instances.lock"
     NOTIFICATION_SCHEDULE = "tmp/notification_schedule.lock"
     NOTIFICATION_PROCESS = "tmp/notification_process.lock"
+
+
+class ErrorEntity(str, enum.Enum):
+    """Entity that owns an error-code domain. The first letter picks the band."""
+
+    ACCESS = "Access"
+    CIPHER = "Cipher"
+    DASHBOARD = "Dashboard"
+    DATA_PIPE = "DataPipe"
+    FEATURE_FLAG = "FeatureFlag"
+    GIT_PLATFORM = "GitPlatform"
+    GIT_REPO = "GitRepo"
+    GRAFANA = "Grafana"
+    ICON = "Icon"
+    INSTANCE = "Instance"
+    MQTT = "Mqtt"
+    NOTIFICATION = "Notification"
+    OPERATION_TASK = "OperationTask"
+    PAGINATION = "Pagination"
+    PERMISSION = "Permission"
+    README = "Readme"
+    REPOSITORY_REGISTRY = "RepositoryRegistry"
+    UNIT = "Unit"
+    UNIT_GROUP = "UnitGroup"
+    UNIT_IO = "UnitIO"
+    USER = "User"
+
+
+class NotFoundEntity(str, enum.Enum):
+    """Name passed to is_valid_object when the record is missing."""
+
+    USER = "User"
+    UNIT = "Unit"
+    UNIT_IO = "UnitIO"
+    UNIT_GROUP = "UnitGroup"
+    UNIT_GROUP_UNIT = "UnitGroupUnit"
+    UNIT_IO_EDGE = "UnitIOEdge"
+    REPOSITORY_REGISTRY = "RepositoryRegistry"
+    DASHBOARD = "Dashboard"
+    DASHBOARD_PANEL = "DashboardPanel"
+    PANELS_UNIT_IOS = "PanelsUnitIOs"
+    ICON = "Icon"
+    NOTIFICATION = "Notification"
+    INSTANCE = "Instance"
+    INSTANCE_SETTINGS = "InstanceSettings"
+    PERMISSION = "Permission"
+    OPERATION_TASK = "OperationTask"
+    COMMIT = "Commit"
+    RELEASES = "Releases"
+    VERIFICATION_CODE = "VerificationCode"
+
+
+class UuidEntity(str, enum.Enum):
+    """Name passed to is_valid_uuid."""
+
+    UNIT = "Unit"
+    UNIT_IO = "UnitIO"
+    UNIT_GROUP = "UnitGroup"
+    USER = "User"
+    REPOSITORY_REGISTRY = "RepositoryRegistry"
+    DASHBOARD = "Dashboard"
+    PERMISSION_AGENT = "PermissionAgent"
+    PERMISSION_RESOURCE = "PermissionResource"
+    UNIT_IO_INPUT = "UnitIOInput"
+    UNIT_IO_OUTPUT = "UnitIOOutput"
+
+
+class JsonPayload(str, enum.Enum):
+    """Name passed to is_valid_json."""
+
+    HARDWARE_STATE = "Hardware state"
+    UNIT_HARDWARE_LOG = "Unit hardware log"
+    DATA_PIPE_CONFIG = "DataPipe config"
+    UNIT_IO_STATE = "UnitIO state"
+    CIPHER_ENV = "Cipher env"
+    RELEASES_FOR_COMPILE_REPO = "releases for compile repo"
+    RELEASES_FOR_COMPILE_REPO_TITLE = "Releases for compile repo"
+    CIPHER_CREDENTIALS_PRIVATE_REPOSITORY = (
+        "Cipher credentials private repository"
+    )
+    OLD_CREDENTIALS_STRUCT = "Old credentials struct"
+    PRIVATE_REPO = "Private Repo"
+    ENV = "env.json"
+    ENV_EXAMPLE = "env_example.json"
+    SCHEMA_EXAMPLE = "schema_example.json"
