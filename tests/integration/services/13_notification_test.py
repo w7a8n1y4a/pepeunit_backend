@@ -354,7 +354,7 @@ def test_notification_stream(
                 database, regular_user_token
             ).create(
                 OperationTaskCreate(
-                    task_type=OperationTaskType.UPDATE_REGISTRY
+                    task_type=OperationTaskType.UPDATE_REPO
                 )
             )
             service = notification_service(database, cc, regular_user_token)
@@ -373,10 +373,10 @@ def test_notification_stream(
                     break
         assert message is not None
         assert message["uuid"] == str(notification.uuid)
-        assert message["type"] == NotificationType.UPDATE_REGISTRY.value
+        assert message["type"] == NotificationType.UPDATE_REPO.value
         assert "is_processed" not in message
         assert "data" not in message
-        assert "Update Registry" in message["table_text"]
+        assert "Update Repo" in message["table_text"]
         assert message["small_text"]
         assert "text" not in message
     finally:
@@ -491,13 +491,13 @@ def test_get_many_notification(
 
     count, notifications = service.list(
         NotificationFilter.unlimited(
-            type=[NotificationType.UPDATE_REGISTRY.value],
+            type=[NotificationType.UPDATE_REPO.value],
             is_read=False,
         )
     )
     assert any(item.uuid == crud_notification.uuid for item in notifications)
     assert all(
-        item.type == NotificationType.UPDATE_REGISTRY.value
+        item.type == NotificationType.UPDATE_REPO.value
         for item in notifications
     )
     assert all(item.is_read is False for item in notifications)

@@ -19,7 +19,7 @@ async def info_resolver(message: types.Message):
 
         metrics_dict = {
             "User": metrics.user_count,
-            "RepositoryRegistry": metrics.repository_registry_count,
+            "Repo": metrics.repo_count,
             "Unit": metrics.unit_count,
             "UnitIO": metrics.unit_io_count,
             "UnitIOEdge": metrics.unit_io_edge_count,

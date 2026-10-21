@@ -37,17 +37,17 @@ def _delete_groups(service, groups) -> None:
 
 
 @pytest.fixture(scope="module")
-def group_source(universal_registry, regular_user_token, database):
+def group_source(universal_repo, regular_user_token, database):
     read, commits = branch_commits(
-        database, regular_user_token, universal_registry.uuid
+        database, regular_user_token, universal_repo.uuid
     )
-    return universal_registry, read.branches[0], commits[0].commit
+    return universal_repo, read.branches[0], commits[0].commit
 
 
-def _unit(database, cc, token, registry, branch, commit, name, visibility):
+def _unit(database, cc, token, repo, branch, commit, name, visibility):
     return unit_service(database, cc, token).create(
         UnitCreate(
-            repository_registry_uuid=registry.uuid,
+            repo_uuid=repo.uuid,
             visibility_level=visibility,
             name=name,
             is_auto_update_unit=False,
@@ -59,14 +59,14 @@ def _unit(database, cc, token, registry, branch, commit, name, visibility):
 
 @pytest.fixture(scope="module")
 def group_units(group_source, regular_user_token, database, cc):
-    registry, branch, commit = group_source
+    repo, branch, commit = group_source
     token = regular_user_token
     created = [
         _unit(
             database,
             cc,
             token,
-            registry,
+            repo,
             branch,
             commit,
             unique_name("gua"),
@@ -76,7 +76,7 @@ def group_units(group_source, regular_user_token, database, cc):
             database,
             cc,
             token,
-            registry,
+            repo,
             branch,
             commit,
             unique_name("gub"),
@@ -86,7 +86,7 @@ def group_units(group_source, regular_user_token, database, cc):
             database,
             cc,
             token,
-            registry,
+            repo,
             branch,
             commit,
             unique_name("gup"),
@@ -321,13 +321,13 @@ def test_deleted_group_drops_icon_and_membership(
 def test_deleted_unit_leaves_the_group(
     database, cc, regular_user_token, group_source
 ) -> None:
-    registry, branch, commit = group_source
+    repo, branch, commit = group_source
     token = regular_user_token
     unit = _unit(
         database,
         cc,
         token,
-        registry,
+        repo,
         branch,
         commit,
         unique_name("gux"),

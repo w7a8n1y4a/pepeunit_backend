@@ -14,7 +14,7 @@ from tests.integration.helpers.services import (
     operation_task_service,
 )
 
-TASK_TYPE = OperationTaskType.UPDATE_REGISTRY
+TASK_TYPE = OperationTaskType.UPDATE_REPO
 
 
 def _task_alerts(database, user_uuid) -> list[Notification]:
@@ -77,14 +77,14 @@ def test_operation_task_finish_alert(
         if row.table_text is not None
     ]
     assert all(row.big_text is None for row in stored)
-    assert any(row.small_text == "UpdateRegistry: Running" for row in stored)
-    assert any(row.small_text == "UpdateRegistry: 1 passed" for row in stored)
+    assert any(row.small_text == "UpdateRepo: Running" for row in stored)
+    assert any(row.small_text == "UpdateRepo: 1 passed" for row in stored)
     texts = [row.table_text for row in stored]
     assert any(
-        "Update Registry" in text and "Running" in text for text in texts
+        "Update Repo" in text and "Running" in text for text in texts
     )
     assert any(
-        "Update Registry" in text and "Success" in text and "1 passed" in text
+        "Update Repo" in text and "Success" in text and "1 passed" in text
         for text in texts
     )
 

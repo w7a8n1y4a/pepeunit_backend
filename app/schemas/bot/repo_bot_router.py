@@ -11,32 +11,30 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app import runtime, settings
 from app.configs.db import get_hand_session
 from app.configs.errors import NoAccessError
-from app.configs.rest import get_bot_repository_registry_service
+from app.configs.rest import get_bot_repo_service
 from app.dto.enum import (
     CommandNames,
     DecreesNames,
     EntityNames,
-    RepositoryRegistryType,
+    RepoType,
 )
 from app.schemas.bot.base_bot_router import (
     BaseBotFilters,
     BaseBotRouter,
-    RepositoryRegistryStates,
+    RepoStates,
 )
 from app.schemas.bot.utils import (
     byte_converter,
     make_monospace_table_with_title,
 )
-from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
+from app.schemas.pydantic.repo import RepoFilter
 
 
-class RepositoryRegistryBotRouter(BaseBotRouter):
+class RepoBotRouter(BaseBotRouter):
     def __init__(self):
-        entity_name = EntityNames.REGISTRY.value
-        super().__init__(
-            entity_name=entity_name, states_group=RepositoryRegistryStates
-        )
-        self.router.message(Command(CommandNames.REGISTRY.value))(
+        entity_name = EntityNames.REPO.value
+        super().__init__(entity_name=entity_name, states_group=RepoStates)
+        self.router.message(Command(CommandNames.REPO.value))(
             self.repo_resolver
         )
 
@@ -62,7 +60,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
         )
         keyboard = self.build_entities_keyboard(entities, filters, total_pages)
 
-        text = "*Registry*"
+        text = "*Repo*"
         if filters.search_string:
             text += f" - `{filters.search_string}`"
 
@@ -72,20 +70,18 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
         self, filters: BaseBotFilters, chat_id: str
     ) -> tuple[list, int]:
         with get_hand_session() as db:
-            repository_registry_service = get_bot_repository_registry_service(
-                db, chat_id
-            )
+            repo_service = get_bot_repo_service(db, chat_id)
 
-            count, repositories_registry = repository_registry_service.list(
-                RepositoryRegistryFilter(
+            count, repos = repo_service.list(
+                RepoFilter(
                     offset=(filters.page - 1)
                     * runtime.get().pu_telegram_items_per_page,
                     limit=runtime.get().pu_telegram_items_per_page,
-                    is_public_repository=self.registry_type_to_bool(
+                    is_public_repository=self.repo_type_to_bool(
                         filters.repository_types
                     ),
                     creator_uuid=(
-                        repository_registry_service.access_service.current_agent.uuid
+                        repo_service.access_service.current_agent.uuid
                         if filters.is_only_my_entity
                         else None
                     ),
@@ -97,7 +93,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                 count + runtime.get().pu_telegram_items_per_page - 1
             ) // runtime.get().pu_telegram_items_per_page
 
-        return repositories_registry, total_pages
+        return repos, total_pages
 
     def build_entities_keyboard(
         self, entities: list, filters: BaseBotFilters, total_pages: int
@@ -110,7 +106,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             ),
             InlineKeyboardButton(
                 text=("🟢 " if filters.is_only_my_entity else "🔴 ")
-                + "My registry",
+                + "My repo",
                 callback_data=f"{self.entity_name}_toggle_mine",
             ),
         ]
@@ -124,16 +120,16 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                 + item.value,
                 callback_data=f"{self.entity_name}_toggle_" + item.value,
             )
-            for item in RepositoryRegistryType
+            for item in RepoType
         ]
         builder.row(*filter_visibility_buttons)
 
         if entities:
-            for registry in entities:
+            for repo in entities:
                 builder.row(
                     InlineKeyboardButton(
-                        text=f"{registry.platform} - {self.registry_name_limit(self.registry_url_small(registry.repository_url), 2)}",
-                        callback_data=f"{self.entity_name}_uuid_{registry.uuid}_{filters.page}",
+                        text=f"{repo.platform} - {self.repo_name_limit(self.repo_url_small(repo.repository_url), 2)}",
+                        callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
                     )
                 )
         else:
@@ -176,7 +172,7 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             else BaseBotFilters()
         )
 
-        registry_uuid = UUID(callback.data.split("_")[-2])
+        repo_uuid = UUID(callback.data.split("_")[-2])
         current_page = int(callback.data.split("_")[-1])
 
         if not filters.previous_filters:
@@ -185,49 +181,41 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             await state.update_data(current_filters=new_filters)
 
         with get_hand_session() as db:
-            repository_registry_service = get_bot_repository_registry_service(
-                db, str(callback.from_user.id)
-            )
-            repository_registry = repository_registry_service.get(
-                registry_uuid
-            )
+            repo_service = get_bot_repo_service(db, str(callback.from_user.id))
+            repo = repo_service.get(repo_uuid)
 
             is_available = True
             try:
-                repository_registry_service.access_service.authorization.check_repository_registry_access(
-                    repository_registry
+                repo_service.access_service.authorization.check_repo_access(
+                    repo
                 )
             except NoAccessError:
                 is_available = False
 
-        text = f"*Registry* - `{self.registry_name_limit(self.registry_url_small(repository_registry.repository_url), 1.25)}`"
+        text = f"*Repo* - `{self.repo_name_limit(self.repo_url_small(repo.repository_url), 1.25)}`"
 
         text += "\n```text\n"
 
         table = [
-            ["Platform", repository_registry.platform],
-            ["Sync status", repository_registry.sync_status],
+            ["Platform", repo.platform],
+            ["Sync status", repo.sync_status],
             [
                 "Sync last time",
                 (
-                    repository_registry.sync_last_datetime.strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                    if repository_registry.sync_last_datetime
+                    repo.sync_last_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    if repo.sync_last_datetime
                     else None
                 ),
             ],
-            ["Sync error", repository_registry.sync_error],
+            ["Sync error", repo.sync_error],
             [
                 "Local size",
-                byte_converter(repository_registry.local_repository_size),
+                byte_converter(repo.local_repository_size),
             ],
         ]
 
-        if not repository_registry.is_public_repository:
-            credentials = repository_registry_service.get_credentials(
-                repository_registry.uuid
-            )
+        if not repo.is_public_repository:
+            credentials = repo_service.get_credentials(repo.uuid)
             if credentials:
                 table.append(
                     ["Creds status", credentials.status.value.capitalize()]
@@ -244,8 +232,8 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        text="🫀 Update Local Registry",
-                        callback_data=f"{self.entity_name}_decres_{DecreesNames.LOCAL_UPDATE.value}_{repository_registry.uuid}",
+                        text="🫀 Update Local Repo",
+                        callback_data=f"{self.entity_name}_decres_{DecreesNames.LOCAL_UPDATE.value}_{repo.uuid}",
                     ),
                 ],
             )
@@ -258,11 +246,11 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
                     ),
                     InlineKeyboardButton(
                         text="↻ Refresh",
-                        callback_data=f"{self.entity_name}_uuid_{repository_registry.uuid}_{filters.page}",
+                        callback_data=f"{self.entity_name}_uuid_{repo.uuid}_{filters.page}",
                     ),
                     InlineKeyboardButton(
                         text="Browser",
-                        url=f"{settings.pu_link}/registry/{repository_registry.uuid}",
+                        url=f"{settings.pu_link}/repo/{repo.uuid}",
                     ),
                 ],
             ]
@@ -277,18 +265,14 @@ class RepositoryRegistryBotRouter(BaseBotRouter):
     async def handle_entity_decrees(
         self, callback: types.CallbackQuery
     ) -> None:
-        *_, decrees_type, repository_registry_uuid = callback.data.split("_")
-        repository_registry_uuid = UUID(repository_registry_uuid)
+        *_, decrees_type, repo_uuid = callback.data.split("_")
+        repo_uuid = UUID(repo_uuid)
 
         with get_hand_session() as db:
-            repository_registry_service = get_bot_repository_registry_service(
-                db, str(callback.from_user.id)
-            )
+            repo_service = get_bot_repo_service(db, str(callback.from_user.id))
 
             match decrees_type:
                 case DecreesNames.LOCAL_UPDATE:
-                    repository_registry_service.schedule_update(
-                        repository_registry_uuid
-                    )
+                    repo_service.schedule_update(repo_uuid)
 
         await callback.answer(parse_mode="Markdown")

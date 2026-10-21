@@ -67,7 +67,7 @@ class UnitRead(BaseModel):
     last_update_datetime: datetime
 
     creator_uuid: uuid_pkg.UUID
-    repository_registry_uuid: uuid_pkg.UUID
+    repo_uuid: uuid_pkg.UUID
 
     firmware_update_status: UnitFirmwareUpdateStatus | None = None
     firmware_update_error: str | None = None
@@ -102,7 +102,7 @@ class TargetVersionRead(BaseModel):
 
 
 class UnitCreate(BaseModel):
-    repository_registry_uuid: uuid_pkg.UUID
+    repo_uuid: uuid_pkg.UUID
 
     visibility_level: VisibilityLevel
     name: str
@@ -134,7 +134,7 @@ class UnitFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     creator_uuid: uuid_pkg.UUID | None = None
-    repository_registry_uuid: uuid_pkg.UUID | None = None
+    repo_uuid: uuid_pkg.UUID | None = None
 
     search_string: str | None = None
 

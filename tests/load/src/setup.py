@@ -8,7 +8,7 @@ from tests.load.src.dto.config import LoadTestConfig
 
 
 class MqttTestPreparation:
-    registry: dict
+    repo: dict
     units: list[dict]
     rest_client: RestClient
     mqtt_token: str
@@ -18,8 +18,8 @@ class MqttTestPreparation:
         self.rest_client = RestClient(config)
 
     async def setup(self):
-        self.registry = self.rest_client.get_registry()
-        self.units = await self.rest_client.generation_units(self.registry)
+        self.repo = self.rest_client.get_repo()
+        self.units = await self.rest_client.generation_units(self.repo)
         self.mqtt_token = self.get_bearer()
 
     def teardown(self):

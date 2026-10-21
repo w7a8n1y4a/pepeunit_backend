@@ -9,8 +9,8 @@ from app.configs.error_codes import ErrorCode
 from app.configs.errors import InstanceError
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
-    InstancePublicRegistry,
-    InstanceRegistriesPage,
+    InstancePublicRepo,
+    InstanceReposPage,
     InstanceUrlsPage,
 )
 
@@ -19,27 +19,27 @@ from app.schemas.pydantic.instance import (
 class CollectedInstance:
     state: CurrentInstanceSchemaV1
     urls: list[str]
-    registries: list[InstancePublicRegistry]
+    repos: list[InstancePublicRepo]
     last_ping: float
 
 
 class InstanceExternalRepository:
     async def collect(self, current_url: str) -> CollectedInstance:
         started_at = time.perf_counter()
-        state, urls, registries = await asyncio.gather(
+        state, urls, repos = await asyncio.gather(
             self._get_current(current_url),
             self._get_all_items(current_url, "urls", InstanceUrlsPage, "urls"),
             self._get_all_items(
                 current_url,
-                "registries",
-                InstanceRegistriesPage,
-                "registries",
+                "repos",
+                InstanceReposPage,
+                "repos",
             ),
         )
         return CollectedInstance(
             state=state,
             urls=urls,
-            registries=registries,
+            repos=repos,
             last_ping=round((time.perf_counter() - started_at) * 1000, 3),
         )
 
@@ -51,7 +51,7 @@ class InstanceExternalRepository:
         self,
         current_url: str,
         endpoint: str,
-        page_model: type[InstanceUrlsPage] | type[InstanceRegistriesPage],
+        page_model: type[InstanceUrlsPage] | type[InstanceReposPage],
         items_field: str,
     ) -> list:
         url = f"{current_url.rsplit('/', 1)[0]}/{endpoint}"

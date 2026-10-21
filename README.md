@@ -48,8 +48,7 @@ make help
 
 ### Набор команд для установки в BotFather
 ```text
-registry - Repo Registry
-repo - Repo Actions
+repo - Repo
 unit - Unit Actions
 dashboard - Dashboard List url
 instances - Instance List

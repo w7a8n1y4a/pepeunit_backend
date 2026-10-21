@@ -94,10 +94,10 @@ class Unit(SQLModel, table=True):
             UUID(as_uuid=True), ForeignKey("users.uuid", ondelete="CASCADE")
         )
     )
-    repository_registry_uuid: uuid_pkg.UUID = Field(
+    repo_uuid: uuid_pkg.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("repository_registry.uuid", ondelete="CASCADE"),
+            ForeignKey("repo.uuid", ondelete="CASCADE"),
             nullable=False,
             index=True,
         )

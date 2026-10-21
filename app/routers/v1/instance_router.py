@@ -11,7 +11,7 @@ from app.schemas.pydantic.instance import (
     InstanceCreate,
     InstanceFilter,
     InstanceRead,
-    InstanceRegistriesPage,
+    InstanceReposPage,
     InstancesPage,
     InstanceUpdate,
     InstanceUrlsPage,
@@ -77,12 +77,12 @@ def get_instance_urls(
     return instance_service.get_cached_urls(filters)
 
 
-@router.get("/registries", response_model=InstanceRegistriesPage)
-def get_instance_registries(
+@router.get("/repos", response_model=InstanceReposPage)
+def get_instance_repos(
     filters: InstanceFilter = Depends(InstanceFilter),
     instance_service: InstanceService = Depends(get_instance_service),
 ):
-    return instance_service.get_cached_registries(filters)
+    return instance_service.get_cached_repos(filters)
 
 
 @router.post(

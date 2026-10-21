@@ -82,9 +82,9 @@ class InstanceCatalogUser(InstanceBaseUser):
         )
 
     @task
-    def registries(self):
+    def repos(self):
         self.client.get(
-            f"{REST_INSTANCES}/registries",
+            f"{REST_INSTANCES}/repos",
             params=random_rest_filters(),
-            name=f"{REST_INSTANCES}/registries",
+            name=f"{REST_INSTANCES}/repos",
         )

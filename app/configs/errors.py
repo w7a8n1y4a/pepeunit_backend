@@ -82,11 +82,6 @@ class CipherError(CustomException):
     message_template = "Cipher Error: {}"
 
 
-class RepositoryRegistryError(CustomException):
-    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
-    message_template = "Repository Registry Validation Error: {}"
-
-
 class GitPlatformClientError(CustomException):
     status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
     message_template = "Git Platform Client Error: {}"

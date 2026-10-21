@@ -10,7 +10,7 @@ from tests.integration.helpers.tasks import drop_task
 @pytest.fixture
 def crud_task(admin_user_token, database) -> OperationTask:
     task = operation_task_service(database, admin_user_token).create(
-        OperationTaskCreate(task_type=OperationTaskType.UPDATE_REGISTRY)
+        OperationTaskCreate(task_type=OperationTaskType.UPDATE_REPO)
     )
     yield task
     drop_task(database, task.uuid)

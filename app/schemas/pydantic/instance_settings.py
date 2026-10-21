@@ -66,8 +66,8 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_instance_max_state_size: int = Field(ge=4096, le=65536)
     pu_instance_owner_email: str = Field(max_length=128)
     pu_instance_owner_tg: str = Field(max_length=128)
-    pu_instance_registry_max_size: int = Field(ge=0, le=1024)
-    pu_instance_registry_min_interval_sync: int = Field(ge=1, le=1800)
+    pu_instance_repo_max_size: int = Field(ge=0, le=1024)
+    pu_instance_repo_min_interval_sync: int = Field(ge=1, le=1800)
     pu_instance_retention_days: int = Field(ge=1, le=120)
     pu_instance_unit_log_expiration: int = Field(ge=60, le=604_800)
     pu_instance_unit_state_send_interval: int = Field(ge=1, le=600)
@@ -245,8 +245,8 @@ class InstanceSettingsUpdate(BaseModel):
     pu_instance_max_state_size: int | None = None
     pu_instance_owner_email: str | None = None
     pu_instance_owner_tg: str | None = None
-    pu_instance_registry_max_size: int | None = None
-    pu_instance_registry_min_interval_sync: int | None = None
+    pu_instance_repo_max_size: int | None = None
+    pu_instance_repo_min_interval_sync: int | None = None
     pu_instance_retention_days: int | None = None
     pu_instance_unit_log_expiration: int | None = None
     pu_instance_unit_state_send_interval: int | None = None

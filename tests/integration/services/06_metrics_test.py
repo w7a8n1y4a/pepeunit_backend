@@ -14,7 +14,7 @@ def test_get_metrics(live_units, chain_edges, regular_user_token, database) -> N
 
     assert metrics.user_count >= 2
     assert metrics.unit_count >= 9
-    assert metrics.repository_registry_count >= 3
+    assert metrics.repo_count >= 3
     assert metrics.unit_io_count >= 18
     assert metrics.unit_io_edge_count >= 1
 
@@ -49,8 +49,8 @@ def test_get_public_metrics(
     assert 0 < public_metrics.unit_count <= all_metrics.unit_count
     assert 0 < public_metrics.unit_io_count <= all_metrics.unit_io_count
     assert (
-        public_metrics.repository_registry_count
-        <= all_metrics.repository_registry_count
+        public_metrics.repo_count
+        <= all_metrics.repo_count
     )
     assert (
         public_metrics.unit_io_edge_count

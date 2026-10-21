@@ -3,7 +3,7 @@ import uuid as uuid_pkg
 from app.configs.error_codes import ErrorCode
 from app.configs.errors import NoAccessError
 from app.domain.permission_model import PermissionBaseType
-from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.repo_model import Repo
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
 from app.dto.agent.abc import Agent
@@ -96,19 +96,17 @@ class AuthorizationService:
                 msg, code=ErrorCode.ACCESS_VISIBILITY_LEVEL_NOT_ALLOWED
             )
 
-    def _check_repository_registry_visibility(self, check_entity) -> None:
+    def _check_repo_visibility(self, check_entity) -> None:
         if (
             not check_entity.is_public_repository
             and self.current_agent.type == AgentType.BOT
         ):
-            msg = "Private RepositoryRegistry is not allowed"
-            raise NoAccessError(
-                msg, code=ErrorCode.ACCESS_PRIVATE_REPOSITORY_REGISTRY
-            )
+            msg = "Private Repo is not allowed"
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_PRIVATE_REPO)
 
     def check_visibility(self, check_entity):
-        if isinstance(check_entity, RepositoryRegistry):
-            self._check_repository_registry_visibility(check_entity)
+        if isinstance(check_entity, Repo):
+            self._check_repo_visibility(check_entity)
             return
 
         if (
@@ -135,26 +133,22 @@ class AuthorizationService:
                     msg, code=ErrorCode.ACCESS_PRIVATE_VISIBILITY
                 )
 
-    def check_repository_registry_access(self, check_entity):
-        if not isinstance(check_entity, RepositoryRegistry):
-            msg = "Only RepositoryRegistry entity"
-            raise NoAccessError(
-                msg, code=ErrorCode.ACCESS_REPOSITORY_REGISTRY_ONLY
-            )
+    def check_repo_access(self, check_entity):
+        if not isinstance(check_entity, Repo):
+            msg = "Only Repo entity"
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_REPO_ONLY)
 
         if self.current_agent.type is not AgentType.USER:
-            msg = "RepositoryRegistry operation allowed only for Users"
-            raise NoAccessError(
-                msg, code=ErrorCode.ACCESS_REPOSITORY_REGISTRY_USERS_ONLY
-            )
+            msg = "Repo operation allowed only for Users"
+            raise NoAccessError(msg, code=ErrorCode.ACCESS_REPO_USERS_ONLY)
 
         if not check_entity.is_public_repository:
             all_credentials_with_status = check_entity.get_credentials()
             if not all_credentials_with_status:
-                msg = "This RepositoryRegistry has no Credentials"
+                msg = "This Repo has no Credentials"
                 raise NoAccessError(
                     msg,
-                    code=ErrorCode.ACCESS_REPOSITORY_REGISTRY_NO_CREDENTIALS,
+                    code=ErrorCode.ACCESS_REPO_NO_CREDENTIALS,
                 )
 
             current_user_credentials = check_entity.get_credentials_by_user(
@@ -162,7 +156,7 @@ class AuthorizationService:
             )
 
             if not current_user_credentials:
-                msg = "This User has no external Platform Credentials for operation with RepositoryRegistry"
+                msg = "This User has no external Platform Credentials for operation with Repo"
                 raise NoAccessError(
                     msg, code=ErrorCode.ACCESS_NO_PLATFORM_CREDENTIALS
                 )

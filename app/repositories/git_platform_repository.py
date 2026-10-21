@@ -5,25 +5,25 @@ import httpx
 from app import runtime
 from app.configs.error_codes import ErrorCode
 from app.configs.errors import GitPlatformClientError
-from app.domain.repository_registry_model import RepositoryRegistry
-from app.schemas.pydantic.repository_registry import Credentials
+from app.domain.repo_model import Repo
+from app.schemas.pydantic.repo import Credentials
 
 
 class GitPlatformClientABC(ABC):
     def __init__(
         self,
-        repository_registry: RepositoryRegistry,
+        repo: Repo,
         credentials: Credentials | None = None,
     ):
-        self.repository_registry = repository_registry
+        self.repo = repo
         self.credentials = credentials
 
     @abstractmethod
     def get_cloning_url(self) -> str:
         """Get url for cloning"""
 
-        repo_url = self.repository_registry.repository_url
-        if not self.repository_registry.is_public_repository:
+        repo_url = self.repo.repository_url
+        if not self.repo.is_public_repository:
             username = self.credentials.username
             pat_token = self.credentials.pat_token
             repo_url = repo_url.replace(
@@ -39,7 +39,7 @@ class GitPlatformClientABC(ABC):
     @abstractmethod
     def _get_repository_name(self) -> str:
         """Get repository name with group/creator"""
-        _, _, _, *name = self.repository_registry.repository_url.split("/")
+        _, _, _, *name = self.repo.repository_url.split("/")
 
         return "/".join(name).replace(".git", "")
 
@@ -88,9 +88,7 @@ class GitlabPlatformClient(GitPlatformClientABC):
         return super().get_cloning_url()
 
     def _get_api_url(self) -> str:
-        http_str, _, domain, *_ = (
-            self.repository_registry.repository_url.split("/")
-        )
+        http_str, _, domain, *_ = self.repo.repository_url.split("/")
 
         return f"{http_str}//{domain}/api/v4/projects/"
 

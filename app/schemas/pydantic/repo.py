@@ -13,7 +13,7 @@ from app.dto.enum import (
     GitPlatform,
     OrderByDate,
     OrderByText,
-    RepositoryRegistryStatus,
+    RepoStatus,
 )
 from app.schemas.pydantic.pagination import BasePaginationRestMixin
 
@@ -23,12 +23,12 @@ class Credentials(BaseModel):
     pat_token: str
 
 
-class OneRepositoryRegistryCredentials(BaseModel):
+class OneRepoCredentials(BaseModel):
     credentials: Credentials
     status: CredentialStatus
 
 
-class RepositoryRegistryCreate(BaseModel):
+class RepoCreate(BaseModel):
     platform: GitPlatform
     repository_url: str
 
@@ -36,7 +36,7 @@ class RepositoryRegistryCreate(BaseModel):
     credentials: Credentials | None = None
 
 
-class RepositoryRegistryRead(BaseModel):
+class RepoRead(BaseModel):
     uuid: uuid_pkg.UUID
     icon_uuid: uuid_pkg.UUID
 
@@ -48,7 +48,7 @@ class RepositoryRegistryRead(BaseModel):
 
     local_repository_size: int
 
-    sync_status: RepositoryRegistryStatus | None = None
+    sync_status: RepoStatus | None = None
     sync_error: str | None = None
     sync_last_datetime: datetime | None = None
 
@@ -60,13 +60,13 @@ class RepositoryRegistryRead(BaseModel):
     branches: list[str]
 
 
-class RepositoriesRegistryResult(BaseModel):
+class ReposResult(BaseModel):
     count: int
-    repositories_registry: list[RepositoryRegistryRead]
+    repos: list[RepoRead]
 
 
 @dataclass
-class RepositoryRegistryFilter(BasePaginationRestMixin):
+class RepoFilter(BasePaginationRestMixin):
     uuids: list[uuid_pkg.UUID] | None = Query([])
 
     creator_uuid: uuid_pkg.UUID | None = None

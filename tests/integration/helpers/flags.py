@@ -30,8 +30,7 @@ FIXTURE_MARKERS = {
     "trusted_instances": "federation",
     "unreachable_instance": "federation",
     "private_repo_enabled": "private_repo",
-    "private_registries": "private_repo",
-    "private_registry": "private_repo",
+    "private_repos": "private_repo",
     "private_repo": "private_repo",
 }
 

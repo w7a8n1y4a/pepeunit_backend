@@ -26,7 +26,7 @@ from app.schemas.pydantic.instance import (
     InstanceFilter,
     InstanceUpdate,
 )
-from app.schemas.pydantic.repository_registry import RepositoryRegistryFilter
+from app.schemas.pydantic.repo import RepoFilter
 from app.services.instance_service import InstanceService
 from tests.integration.helpers.instance_settings import (
     owner_setting,
@@ -35,7 +35,7 @@ from tests.integration.helpers.instance_settings import (
 from tests.integration.helpers.names import unique_instance_url
 from tests.integration.helpers.services import (
     instance_service,
-    registry_service,
+    repo_service,
 )
 from tests.integration.helpers.tasks import age_tasks
 from tests.integration.helpers.wait import wait_task_finish
@@ -200,19 +200,19 @@ def test_get_cached_urls(crud_instance, admin_user_token, database) -> None:
     assert cached_urls.total_count == service.list(InstanceFilter())[0]
 
 
-def test_get_cached_registries(
-    public_registries, admin_user_token, regular_user_token, database
+def test_get_cached_repos(
+    public_repos, admin_user_token, regular_user_token, database
 ) -> None:
     service = instance_service(database, admin_user_token)
     service.refresh_cache()
 
-    page = service.get_cached_registries(InstanceFilter.unlimited())
-    count, public = registry_service(database, regular_user_token).list(
-        RepositoryRegistryFilter.unlimited(is_public_repository=True)
+    page = service.get_cached_repos(InstanceFilter.unlimited())
+    count, public = repo_service(database, regular_user_token).list(
+        RepoFilter.unlimited(is_public_repository=True)
     )
     assert page.total_count == count
-    assert {item.url for item in page.registries} >= {
-        registry.repository_url for registry in public_registries
+    assert {item.url for item in page.repos} >= {
+        repo.repository_url for repo in public_repos
     }
 
 

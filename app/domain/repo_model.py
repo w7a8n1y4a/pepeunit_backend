@@ -8,18 +8,18 @@ from sqlmodel import Field, SQLModel
 
 from app.domain.icon_model import Icon
 from app.dto.enum import CredentialStatus, JsonPayload
-from app.schemas.pydantic.repository_registry import (
+from app.schemas.pydantic.repo import (
     Credentials,
-    OneRepositoryRegistryCredentials,
+    OneRepoCredentials,
 )
 from app.services.validators import is_valid_json
 from app.utils.utils import aes_gcm_decode, aes_gcm_encode
 
 
-class RepositoryRegistry(SQLModel, table=True):
-    """Repository Registry"""
+class Repo(SQLModel, table=True):
+    """Repo"""
 
-    __tablename__ = "repository_registry"
+    __tablename__ = "repo"
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,
@@ -34,7 +34,7 @@ class RepositoryRegistry(SQLModel, table=True):
             UUID(as_uuid=True),
             ForeignKey(
                 Icon.__table__.c.uuid,
-                name="repository_registry_icon_uuid_fkey",
+                name="repo_icon_uuid_fkey",
                 ondelete="RESTRICT",
             ),
             nullable=False,
@@ -78,7 +78,7 @@ class RepositoryRegistry(SQLModel, table=True):
     def set_credentials(
         self,
         creator_uuid: uuid_pkg.UUID,
-        data: OneRepositoryRegistryCredentials,
+        data: OneRepoCredentials,
     ) -> None:
         all_repository_credentials = self.get_credentials()
 
@@ -98,10 +98,10 @@ class RepositoryRegistry(SQLModel, table=True):
 
     def get_credentials(
         self,
-    ) -> dict[str, OneRepositoryRegistryCredentials] | None:
+    ) -> dict[str, OneRepoCredentials] | None:
         if self.cipher_credentials_private_repository:
             return {
-                creator_uuid: OneRepositoryRegistryCredentials(**credentials)
+                creator_uuid: OneRepoCredentials(**credentials)
                 for creator_uuid, credentials in is_valid_json(
                     aes_gcm_decode(self.cipher_credentials_private_repository),
                     JsonPayload.CIPHER_CREDENTIALS_PRIVATE_REPOSITORY,
@@ -111,7 +111,7 @@ class RepositoryRegistry(SQLModel, table=True):
 
     @staticmethod
     def get_first_valid_credentials(
-        data: dict[str, OneRepositoryRegistryCredentials],
+        data: dict[str, OneRepoCredentials],
     ) -> Credentials | None:
         for credentials in data.values():
             if credentials.status == CredentialStatus.VALID:
@@ -120,9 +120,9 @@ class RepositoryRegistry(SQLModel, table=True):
 
     @staticmethod
     def get_credentials_by_user(
-        data: dict[str, OneRepositoryRegistryCredentials],
+        data: dict[str, OneRepoCredentials],
         target_user_uuid: str,
-    ) -> OneRepositoryRegistryCredentials | None:
+    ) -> OneRepoCredentials | None:
         for user_uuid, credentials in data.items():
             if user_uuid == target_user_uuid:
                 return credentials

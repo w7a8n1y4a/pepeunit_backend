@@ -214,7 +214,7 @@ class CommandNames(str, enum.Enum):
 
     START = "start"
     HELP = "help"
-    REGISTRY = "registry"
+    REPO = "repo"
     UNIT = "unit"
     INFO = "info"
     VERIFICATION = "verification"
@@ -229,7 +229,7 @@ class EntityNames(str, enum.Enum):
     Commands supported by the bot
     """
 
-    REGISTRY = "Registry"
+    REPO = "Repo"
     UNIT = "Unit"
     UNIT_IO = "UnitIO"
     UNIT_LOG = "UnitLog"
@@ -249,7 +249,7 @@ class DecreesNames(str, enum.Enum):
     SCAN = "Scan"
     SCAN_ALL = "ScanAll"
     INTEGRATION_TESTS = "IntegrationTests"
-    UPDATE_ALL_REGISTRIES = "UpdateAllRegistries"
+    UPDATE_ALL_REPOS = "UpdateAllRepos"
     UPDATE_ALL_UNITS_FIRMWARE = "UpdateAllUnitsFirmware"
     GET_ENV = "GetEnv"
     TAR = "Tar"
@@ -351,9 +351,9 @@ class DatasourceFormat(str, enum.Enum):
     TIME_SERIES = "timeseries"
 
 
-class RepositoryRegistryStatus(str, enum.Enum):
+class RepoStatus(str, enum.Enum):
     """
-    Types of state RepositoryRegistry
+    Types of state Repo
     """
 
     UPDATED = "Updated"
@@ -371,7 +371,7 @@ class CredentialStatus(str, enum.Enum):
     ERROR = "Error"
 
 
-class RepositoryRegistryType(str, enum.Enum):
+class RepoType(str, enum.Enum):
     """
     Types of log levels
     """
@@ -490,8 +490,8 @@ class OperationTaskType(str, enum.Enum):
     INTEGRATION_TESTS = "IntegrationTests"
     SCAN_ALL_INSTANCES = "ScanAllInstances"
     SCAN_INSTANCE = "ScanInstance"
-    UPDATE_ALL_REGISTRIES = "UpdateAllRegistries"
-    UPDATE_REGISTRY = "UpdateRegistry"
+    UPDATE_ALL_REPOS = "UpdateAllRepos"
+    UPDATE_REPO = "UpdateRepo"
     UPDATE_UNITS_FIRMWARE = "UpdateUnitsFirmware"
     UPDATE_ALL_UNITS_FIRMWARE = "UpdateAllUnitsFirmware"
     REBOOT_INSTANCE = "RebootInstance"
@@ -520,8 +520,8 @@ class NotificationType(str, enum.Enum):
     INTEGRATION_TESTS = OperationTaskType.INTEGRATION_TESTS.value
     SCAN_ALL_INSTANCES = OperationTaskType.SCAN_ALL_INSTANCES.value
     SCAN_INSTANCE = OperationTaskType.SCAN_INSTANCE.value
-    UPDATE_ALL_REGISTRIES = OperationTaskType.UPDATE_ALL_REGISTRIES.value
-    UPDATE_REGISTRY = OperationTaskType.UPDATE_REGISTRY.value
+    UPDATE_ALL_REPOS = OperationTaskType.UPDATE_ALL_REPOS.value
+    UPDATE_REPO = OperationTaskType.UPDATE_REPO.value
     UPDATE_UNITS_FIRMWARE = OperationTaskType.UPDATE_UNITS_FIRMWARE.value
     UPDATE_ALL_UNITS_FIRMWARE = (
         OperationTaskType.UPDATE_ALL_UNITS_FIRMWARE.value
@@ -534,7 +534,7 @@ class FileLock(str, enum.Enum):
     MQTT_RUN = "tmp/mqtt_run_lock.lock"
     MQTT_SUBSCRIBE = "tmp/mqtt_subscribe.lock"
     UPDATE_REPOS = "tmp/update_repos.lock"
-    UPDATE_REGISTRY = "tmp/update_registry.lock"
+    UPDATE_REPO = "tmp/update_repo.lock"
     COLLECT_INSTANCES = "tmp/collect_instances.lock"
     NOTIFICATION_SCHEDULE = "tmp/notification_schedule.lock"
     NOTIFICATION_PROCESS = "tmp/notification_process.lock"
@@ -559,7 +559,7 @@ class ErrorEntity(str, enum.Enum):
     PAGINATION = "Pagination"
     PERMISSION = "Permission"
     README = "Readme"
-    REPOSITORY_REGISTRY = "RepositoryRegistry"
+    REPO = "Repo"
     UNIT = "Unit"
     UNIT_GROUP = "UnitGroup"
     UNIT_IO = "UnitIO"
@@ -575,7 +575,7 @@ class NotFoundEntity(str, enum.Enum):
     UNIT_GROUP = "UnitGroup"
     UNIT_GROUP_UNIT = "UnitGroupUnit"
     UNIT_IO_EDGE = "UnitIOEdge"
-    REPOSITORY_REGISTRY = "RepositoryRegistry"
+    REPO = "Repo"
     DASHBOARD = "Dashboard"
     DASHBOARD_PANEL = "DashboardPanel"
     PANELS_UNIT_IOS = "PanelsUnitIOs"
@@ -597,7 +597,7 @@ class UuidEntity(str, enum.Enum):
     UNIT_IO = "UnitIO"
     UNIT_GROUP = "UnitGroup"
     USER = "User"
-    REPOSITORY_REGISTRY = "RepositoryRegistry"
+    REPO = "Repo"
     DASHBOARD = "Dashboard"
     PERMISSION_AGENT = "PermissionAgent"
     PERMISSION_RESOURCE = "PermissionResource"

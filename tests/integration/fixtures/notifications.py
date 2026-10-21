@@ -38,7 +38,7 @@ def crud_notification(
 ) -> Notification:
     """The alert OperationTaskService writes when a task is created."""
     task = operation_task_service(database, regular_user_token).create(
-        OperationTaskCreate(task_type=OperationTaskType.UPDATE_REGISTRY)
+        OperationTaskCreate(task_type=OperationTaskType.UPDATE_REPO)
     )
     service = notification_service(database, cc, regular_user_token)
     pending = latest_notification(database, regular_user.uuid)

@@ -8,9 +8,9 @@ from app.repositories.utils import resolve_query_default
 from app.schemas.pydantic.instance import (
     CurrentInstanceSchemaV1,
     InstanceFilter,
-    InstancePublicRegistry,
+    InstancePublicRepo,
     InstanceRead,
-    InstanceRegistriesPage,
+    InstanceReposPage,
     InstancesPage,
     InstanceUrlsPage,
 )
@@ -22,7 +22,7 @@ class InstanceCacheSnapshot:
     current: CurrentInstanceSchemaV1
     instances: tuple[InstanceRead, ...]
     urls: tuple[str, ...]
-    registries: tuple[InstancePublicRegistry, ...]
+    repos: tuple[InstancePublicRepo, ...]
 
 
 class InstanceCacheRepository:
@@ -63,13 +63,9 @@ class InstanceCacheRepository:
         count, page = self.apply_offset_and_limit(self.get().urls, filters)
         return InstanceUrlsPage(total_count=count, urls=page)
 
-    def get_registries(
-        self, filters: InstanceFilter
-    ) -> InstanceRegistriesPage:
-        count, page = self.apply_offset_and_limit(
-            self.get().registries, filters
-        )
-        return InstanceRegistriesPage(total_count=count, registries=page)
+    def get_repos(self, filters: InstanceFilter) -> InstanceReposPage:
+        count, page = self.apply_offset_and_limit(self.get().repos, filters)
+        return InstanceReposPage(total_count=count, repos=page)
 
     @staticmethod
     def apply_offset_and_limit(

@@ -241,14 +241,12 @@ class ScanInstanceAlertData(OperationTaskAlertData):
     task_type: ClassVar[OperationTaskType] = OperationTaskType.SCAN_INSTANCE
 
 
-class UpdateAllRegistriesAlertData(OperationTaskAlertData):
-    task_type: ClassVar[OperationTaskType] = (
-        OperationTaskType.UPDATE_ALL_REGISTRIES
-    )
+class UpdateAllReposAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.UPDATE_ALL_REPOS
 
 
-class UpdateRegistryAlertData(OperationTaskAlertData):
-    task_type: ClassVar[OperationTaskType] = OperationTaskType.UPDATE_REGISTRY
+class UpdateRepoAlertData(OperationTaskAlertData):
+    task_type: ClassVar[OperationTaskType] = OperationTaskType.UPDATE_REPO
 
 
 class UpdateUnitsFirmwareAlertData(OperationTaskAlertData):
@@ -271,8 +269,8 @@ OPERATION_TASK_ALERTS: dict[NotificationType, type[OperationTaskAlertData]] = {
     NotificationType.INTEGRATION_TESTS: IntegrationTestsAlertData,
     NotificationType.SCAN_ALL_INSTANCES: ScanAllInstancesAlertData,
     NotificationType.SCAN_INSTANCE: ScanInstanceAlertData,
-    NotificationType.UPDATE_ALL_REGISTRIES: UpdateAllRegistriesAlertData,
-    NotificationType.UPDATE_REGISTRY: UpdateRegistryAlertData,
+    NotificationType.UPDATE_ALL_REPOS: UpdateAllReposAlertData,
+    NotificationType.UPDATE_REPO: UpdateRepoAlertData,
     NotificationType.UPDATE_UNITS_FIRMWARE: UpdateUnitsFirmwareAlertData,
     NotificationType.UPDATE_ALL_UNITS_FIRMWARE: (
         UpdateAllUnitsFirmwareAlertData

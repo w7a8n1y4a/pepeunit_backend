@@ -12,7 +12,7 @@ from app.dto.enum import (
     EntityNames,
     LogLevel,
     NotificationType,
-    RepositoryRegistryType,
+    RepoType,
     UnitIOTypeEnum,
     VisibilityLevel,
 )
@@ -30,7 +30,7 @@ class DashboardStates(StatesGroup):
     waiting_for_search = State()
 
 
-class RepositoryRegistryStates(StatesGroup):
+class RepoStates(StatesGroup):
     waiting_for_search = State()
 
 
@@ -49,9 +49,7 @@ class BaseBotFilters(BaseModel):
     )
     unit_types: list[str] = Query([item.value for item in UnitIOTypeEnum])
     log_levels: list[str] = Query([item.value for item in LogLevel])
-    repository_types: list[str] = Query(
-        [item.value for item in RepositoryRegistryType]
-    )
+    repository_types: list[str] = Query([item.value for item in RepoType])
     notification_types: list[str] = Query(
         [item.value for item in NotificationType]
     )
@@ -153,7 +151,7 @@ class BaseBotRouter(ABC):
             F.data.startswith(f"{self.entity_name}_decres_")
         )(self.handle_entity_decrees)
         if self.states_group in (
-            RepositoryRegistryStates,
+            RepoStates,
             UnitStates,
             UnitIOStates,
             DashboardStates,
@@ -192,7 +190,7 @@ class BaseBotRouter(ABC):
         self, callback: types.CallbackQuery, state: FSMContext
     ):
         if self.states_group in (
-            RepositoryRegistryStates,
+            RepoStates,
             UnitStates,
             UnitIOStates,
             DashboardStates,
@@ -220,7 +218,7 @@ class BaseBotRouter(ABC):
 
         if target == "mine":
             filters.is_only_my_entity = not filters.is_only_my_entity
-        elif entity != EntityNames.REGISTRY.value and target in [
+        elif entity != EntityNames.REPO.value and target in [
             item.value for item in VisibilityLevel
         ]:
             self._toggle_filter_value(filters.visibility_levels, target)
@@ -228,7 +226,7 @@ class BaseBotRouter(ABC):
             self._toggle_filter_value(filters.unit_types, target)
         elif target in [item.value for item in LogLevel]:
             self._toggle_filter_value(filters.log_levels, target)
-        elif target in [item.value for item in RepositoryRegistryType]:
+        elif target in [item.value for item in RepoType]:
             self._toggle_filter_value(filters.repository_types, target)
         elif target in [item.value for item in NotificationType]:
             self._toggle_filter_value(filters.notification_types, target)
@@ -269,7 +267,7 @@ class BaseBotRouter(ABC):
         return data[: runtime.get().pu_telegram_header_entity_length]
 
     @staticmethod
-    def registry_name_limit(data: str, coefficient: float = 1) -> str:
+    def repo_name_limit(data: str, coefficient: float = 1) -> str:
         return data[
             -int(
                 runtime.get().pu_telegram_header_entity_length * coefficient
@@ -277,24 +275,24 @@ class BaseBotRouter(ABC):
         ]
 
     @staticmethod
-    def registry_url_small(data: str) -> str:
+    def repo_url_small(data: str) -> str:
         return data.replace(
             "https://" if data.find("https://") == 0 else "http://", ""
         )[:-4]
 
     @staticmethod
-    def registry_type_to_bool(
-        data: list[RepositoryRegistryType],
+    def repo_type_to_bool(
+        data: list[RepoType],
     ) -> bool | None:
         result = None
         if (
-            RepositoryRegistryType.PUBLIC.value in data
-            and RepositoryRegistryType.PRIVATE.value not in data
+            RepoType.PUBLIC.value in data
+            and RepoType.PRIVATE.value not in data
         ):
             result = True
         if (
-            RepositoryRegistryType.PRIVATE.value in data
-            and RepositoryRegistryType.PUBLIC.value not in data
+            RepoType.PRIVATE.value in data
+            and RepoType.PUBLIC.value not in data
         ):
             result = False
         return result

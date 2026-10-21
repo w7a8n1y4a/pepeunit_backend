@@ -92,7 +92,7 @@ class DashboardBotRouter(BaseBotRouter):
             for dashboard in entities:
                 builder.row(
                     InlineKeyboardButton(
-                        text=f"{self.registry_name_limit(dashboard.name, 2)}",
+                        text=f"{self.repo_name_limit(dashboard.name, 2)}",
                         url=f"{settings.pu_link}/dashboard/{dashboard.uuid}",
                     )
                 )

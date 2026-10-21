@@ -127,11 +127,11 @@ class StartupService:
         self._singleton_tasks.append(
             asyncio.create_task(
                 self._run_locked_hourly(
-                    FileLock.UPDATE_REGISTRY,
+                    FileLock.UPDATE_REPO,
                     30,
-                    self._update_registry,
+                    self._update_repo,
                 ),
-                name="automatic_update_registry",
+                name="automatic_update_repo",
             )
         )
         if runtime.get().pu_ff_notification_enable:
@@ -182,7 +182,7 @@ class StartupService:
         with BackgroundService(
             AgentBackend(name=settings.pu_domain).generate_agent_token()
         ) as services:
-            services.get_repository_registry_service().sync_local_repository_storage()
+            services.get_repo_service().sync_local_repository_storage()
 
     def _start_telegram_bot(self) -> None:
         if (
@@ -348,11 +348,9 @@ class StartupService:
         with BackgroundService() as services:
             services.get_unit_service().bulk_update_units_firmware()
 
-    def _update_registry(self) -> None:
+    def _update_repo(self) -> None:
         with BackgroundService() as services:
-            services.get_repository_registry_service().sync_local_repository_storage(
-                True
-            )
+            services.get_repo_service().sync_local_repository_storage(True)
 
     async def _start_telegram_alert_queue(self) -> None:
         if (

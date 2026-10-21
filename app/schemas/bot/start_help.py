@@ -52,7 +52,7 @@ async def start_help_resolver(message: types.Message):
     table = [
         ["Command", "Info"],
         ["/info", "Instance metrics"],
-        ["/registry", "Information about the global repository registry"],
+        ["/repo", "Information about repos"],
         [
             "/unit",
             "Unit search, Unit base information, get env file, send mqtt command, get firmware archives, check IO nodes and check logs",

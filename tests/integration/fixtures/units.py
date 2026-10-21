@@ -12,7 +12,7 @@ from app.schemas.pydantic.unit import UnitCreate
 from tests.integration.helpers.names import entity_name, unique_name
 from tests.integration.helpers.services import (
     branch_commits,
-    registry_read,
+    repo_read,
     unit_service,
 )
 from tests.integration.helpers.wait import wait_until
@@ -22,7 +22,7 @@ def _create_manual_unit(
     database,
     cc,
     token,
-    registry,
+    repo,
     name: str,
     visibility_level: VisibilityLevel,
     *,
@@ -30,10 +30,10 @@ def _create_manual_unit(
     is_only_tag_update: bool = True,
 ):
     service = unit_service(database, cc, token)
-    read, commits = branch_commits(database, token, registry.uuid)
+    read, commits = branch_commits(database, token, repo.uuid)
     return service.create(
         UnitCreate(
-            repository_registry_uuid=registry.uuid,
+            repo_uuid=repo.uuid,
             visibility_level=visibility_level,
             name=name,
             target_branch=read.branches[0],
@@ -50,16 +50,16 @@ def _create_auto_unit(
     database,
     cc,
     token,
-    registry,
+    repo,
     name: str,
     visibility_level: VisibilityLevel,
     *,
     is_only_tag_update: bool = True,
 ):
-    read = registry_read(database, token, registry)
+    read = repo_read(database, token, repo)
     return unit_service(database, cc, token).create(
         UnitCreate(
-            repository_registry_uuid=registry.uuid,
+            repo_uuid=repo.uuid,
             visibility_level=visibility_level,
             name=name,
             target_branch=read.branches[0],
@@ -101,17 +101,17 @@ class LiveUnits:
 
 
 @pytest.fixture(scope="session")
-def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnits:
+def live_units(universal_repo, regular_user_token, database, cc) -> LiveUnits:
     token = regular_user_token
     service = unit_service(database, cc, token)
-    registry = universal_registry
+    repo = universal_repo
 
     units = LiveUnits(
         universal_auto_unit=_create_auto_unit(
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_auto"),
             VisibilityLevel.PRIVATE,
         ),
@@ -119,7 +119,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_man"),
             VisibilityLevel.PUBLIC,
         ),
@@ -127,7 +127,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_last"),
             VisibilityLevel.PUBLIC,
         ),
@@ -135,7 +135,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_nrec"),
             VisibilityLevel.INTERNAL,
             is_only_tag_update=False,
@@ -144,7 +144,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_twin"),
             VisibilityLevel.PRIVATE,
         ),
@@ -152,7 +152,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_csrc"),
             VisibilityLevel.PUBLIC,
         ),
@@ -160,7 +160,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_cmid"),
             VisibilityLevel.INTERNAL,
             is_only_tag_update=False,
@@ -169,7 +169,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_csnk"),
             VisibilityLevel.PRIVATE,
         ),
@@ -177,7 +177,7 @@ def live_units(universal_registry, regular_user_token, database, cc) -> LiveUnit
             database,
             cc,
             token,
-            registry,
+            repo,
             entity_name("u_cmp"),
             VisibilityLevel.PUBLIC,
             compile_unit=True,
@@ -322,20 +322,20 @@ def chain_edges(running_units, regular_user_token, database, cc):
     return io_units_list
 
 
-def _create_crud_unit(database, cc, token, registry, visibility_level, name: str):
+def _create_crud_unit(database, cc, token, repo, visibility_level, name: str):
     return _create_manual_unit(
-        database, cc, token, registry, name, visibility_level
+        database, cc, token, repo, name, visibility_level
     )
 
 
 @pytest.fixture
-def crud_unit(universal_registry, regular_user_token, database, cc):
+def crud_unit(universal_repo, regular_user_token, database, cc):
     token = regular_user_token
     unit = _create_crud_unit(
         database,
         cc,
         token,
-        universal_registry,
+        universal_repo,
         VisibilityLevel.PUBLIC,
         unique_name("ucrud"),
     )
@@ -347,13 +347,13 @@ def crud_unit(universal_registry, regular_user_token, database, cc):
 
 
 @pytest.fixture
-def private_crud_unit(universal_registry, regular_user_token, database, cc):
+def private_crud_unit(universal_repo, regular_user_token, database, cc):
     token = regular_user_token
     unit = _create_crud_unit(
         database,
         cc,
         token,
-        universal_registry,
+        universal_repo,
         VisibilityLevel.PRIVATE,
         unique_name("upriv"),
     )

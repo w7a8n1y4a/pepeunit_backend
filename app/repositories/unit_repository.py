@@ -132,12 +132,12 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
                 Unit.creator_uuid
                 == is_valid_uuid(filters.creator_uuid, UuidEntity.USER)
             )
-        if filters.repository_registry_uuid:
+        if filters.repo_uuid:
             query = query.filter(
-                Unit.repository_registry_uuid
+                Unit.repo_uuid
                 == is_valid_uuid(
-                    filters.repository_registry_uuid,
-                    UuidEntity.REPOSITORY_REGISTRY,
+                    filters.repo_uuid,
+                    UuidEntity.REPO,
                 )
             )
         if filters.is_auto_update_unit is not None:

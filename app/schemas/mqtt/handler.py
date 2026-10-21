@@ -9,7 +9,7 @@ from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.error_codes import ErrorCode
 from app.configs.errors import MqttError
-from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.repo_model import Repo
 from app.domain.unit_model import Unit
 from app.dto.clickhouse.log import UnitLog
 from app.dto.enum import (
@@ -23,8 +23,8 @@ from app.dto.enum import (
     UuidEntity,
 )
 from app.repositories.git_repo_repository import GitRepoRepository
-from app.repositories.repository_registry_repository import (
-    RepositoryRegistryRepository,
+from app.repositories.repo_repository import (
+    RepoRepository,
 )
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
@@ -200,11 +200,9 @@ class MqttMessageHandler:
         ):
             return
 
-        repository_registry = RepositoryRegistryRepository(db).get(
-            RepositoryRegistry(uuid=unit.repository_registry_uuid)
-        )
+        repo = RepoRepository(db).get(Repo(uuid=unit.repo_uuid))
         target_commit, _ = GitRepoRepository().get_target_unit_version(
-            repository_registry, unit
+            repo, unit
         )
 
         elapsed = (

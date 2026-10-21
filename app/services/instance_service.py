@@ -21,7 +21,7 @@ from app.configs.errors import (
 )
 from app.domain.instance_model import Instance
 from app.domain.operation_task_model import OperationTask
-from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.repo_model import Repo
 from app.dto.enum import (
     AgentType,
     GitPlatform,
@@ -45,8 +45,8 @@ from app.repositories.instance_external_repository import (
 )
 from app.repositories.instance_repository import InstanceRepository
 from app.repositories.operation_task_repository import OperationTaskRepository
-from app.repositories.repository_registry_repository import (
-    RepositoryRegistryRepository,
+from app.repositories.repo_repository import (
+    RepoRepository,
 )
 from app.schemas.pydantic.instance import (
     CurrentInstanceMetricsV1,
@@ -54,23 +54,23 @@ from app.schemas.pydantic.instance import (
     CurrentInstanceStateV1,
     InstanceCreate,
     InstanceFilter,
-    InstancePublicRegistry,
+    InstancePublicRepo,
     InstanceRead,
-    InstanceRegistriesPage,
+    InstanceReposPage,
     InstancesPage,
     InstanceUpdate,
     InstanceUrlsPage,
 )
 from app.schemas.pydantic.operation_task import OperationTaskCreate
-from app.schemas.pydantic.repository_registry import (
-    RepositoryRegistryCreate,
-    RepositoryRegistryFilter,
+from app.schemas.pydantic.repo import (
+    RepoCreate,
+    RepoFilter,
 )
 from app.services.access_service import AccessService
 from app.services.background import BackgroundService
 from app.services.metrics_service import MetricsService
 from app.services.operation_task_service import OperationTaskService
-from app.services.repository_registry_service import RepositoryRegistryService
+from app.services.repo_service import RepoService
 from app.services.validators import is_valid_object
 from app.utils.utils import ensure_timezone_aware
 
@@ -91,8 +91,8 @@ class InstanceService:
         instance_repository: InstanceRepository = Depends(),
         instance_external_repository: InstanceExternalRepository = Depends(),
         operation_task_repository: OperationTaskRepository = Depends(),
-        repository_registry_repository: RepositoryRegistryRepository = Depends(),
-        repository_registry_service: RepositoryRegistryService = Depends(),
+        repo_repository: RepoRepository = Depends(),
+        repo_service: RepoService = Depends(),
         metrics_service: MetricsService = Depends(),
         operation_task_service: OperationTaskService = Depends(),
         access_service: AccessService = Depends(),
@@ -100,9 +100,9 @@ class InstanceService:
         self.instance_repository = instance_repository
         self.instance_external_repository = instance_external_repository
         self.operation_task_repository = operation_task_repository
-        self.repository_registry_repository = repository_registry_repository
+        self.repo_repository = repo_repository
         self.instance_cache_repository = instance_cache
-        self.repository_registry_service = repository_registry_service
+        self.repo_service = repo_service
         self.metrics_service = metrics_service
         self.operation_task_service = operation_task_service
         self.access_service = access_service
@@ -183,17 +183,15 @@ class InstanceService:
     def get_cached_urls(self, filters: InstanceFilter) -> InstanceUrlsPage:
         return self.instance_cache_repository.get_urls(filters)
 
-    def get_cached_registries(
-        self, filters: InstanceFilter
-    ) -> InstanceRegistriesPage:
-        return self.instance_cache_repository.get_registries(filters)
+    def get_cached_repos(self, filters: InstanceFilter) -> InstanceReposPage:
+        return self.instance_cache_repository.get_repos(filters)
 
     def refresh_cache(self) -> None:
         count, instances = self.instance_repository.list(
             InstanceFilter.unlimited()
         )
-        count, registries = self.repository_registry_repository.list(
-            RepositoryRegistryFilter.unlimited(
+        count, repos = self.repo_repository.list(
+            RepoFilter.unlimited(
                 is_public_repository=True,
                 order_by_create_date=None,
                 order_by_last_update=None,
@@ -209,9 +207,8 @@ class InstanceService:
                     for instance in instances
                 ),
                 urls=tuple(sorted(instance.url for instance in instances)),
-                registries=tuple(
-                    self.mapper_registry_to_public_registry(registry)
-                    for registry in registries
+                repos=tuple(
+                    self.mapper_repo_to_public_repo(repo) for repo in repos
                 ),
             )
         )
@@ -410,7 +407,7 @@ class InstanceService:
         instance = self.set_collection_success(instance, collected)
 
         self.insert_discovered_urls(collected.urls)
-        self.insert_discovered_registries(collected.registries)
+        self.insert_discovered_repos(collected.repos)
         return instance
 
     def set_collection_success(
@@ -509,32 +506,28 @@ class InstanceService:
                 )
             )
 
-    def insert_discovered_registries(
-        self, registries: Sequence[InstancePublicRegistry]
+    def insert_discovered_repos(
+        self, repos: Sequence[InstancePublicRepo]
     ) -> None:
-        count, known_registries = self.repository_registry_repository.list(
-            RepositoryRegistryFilter.unlimited()
-        )
-        known_urls = {item.repository_url for item in known_registries}
+        count, known_repos = self.repo_repository.list(RepoFilter.unlimited())
+        known_urls = {item.repository_url for item in known_repos}
 
-        for registry in registries:
-            if registry.url in known_urls:
+        for repo in repos:
+            if repo.url in known_urls:
                 continue
 
-            known_urls.add(registry.url)
+            known_urls.add(repo.url)
             try:
-                self.repository_registry_service.create(
-                    RepositoryRegistryCreate(
-                        platform=registry.platform,
-                        repository_url=registry.url,
+                self.repo_service.create(
+                    RepoCreate(
+                        platform=repo.platform,
+                        repository_url=repo.url,
                         is_public_repository=True,
                     ),
                     is_api=True,
                 )
             except CustomException as e:
-                logging.warning(
-                    f"Skip discovered RepositoryRegistry {registry.url}: {e}"
-                )
+                logging.warning(f"Skip discovered Repo {repo.url}: {e}")
 
     def get_instance(self, uuid: uuid_pkg.UUID) -> Instance:
         instance = self.instance_repository.get(Instance(uuid=uuid))
@@ -650,10 +643,10 @@ class InstanceService:
         return InstanceRead(**instance.dict())
 
     @staticmethod
-    def mapper_registry_to_public_registry(
-        registry: RepositoryRegistry,
-    ) -> InstancePublicRegistry:
-        return InstancePublicRegistry(
-            url=registry.repository_url,
-            platform=GitPlatform(registry.platform),
+    def mapper_repo_to_public_repo(
+        repo: Repo,
+    ) -> InstancePublicRepo:
+        return InstancePublicRepo(
+            url=repo.repository_url,
+            platform=GitPlatform(repo.platform),
         )

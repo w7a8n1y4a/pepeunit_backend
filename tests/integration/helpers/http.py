@@ -78,7 +78,7 @@ def patch_input_state(token: str, unit_io_uuid: uuid_pkg.UUID, state: str) -> in
     return _status(response)
 
 
-def patch_backend_sync_registry(token: str) -> int:
-    url = f"{settings.pu_link_prefix_and_v1}/repository_registry/backend_sync_registry"
+def patch_backend_sync_repo(token: str) -> int:
+    url = f"{settings.pu_link_prefix_and_v1}/repo/backend_sync_repo"
     response = httpx.patch(url=url, headers=_headers(token), timeout=runtime.get().http_timeout())
     return _status(response)

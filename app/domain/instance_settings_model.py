@@ -91,10 +91,8 @@ class InstanceSettings(SQLModel, table=True):
     pu_instance_owner_tg: str = Field(
         nullable=False, default="", max_length=128
     )
-    pu_instance_registry_max_size: int = Field(nullable=False, default=50)
-    pu_instance_registry_min_interval_sync: int = Field(
-        nullable=False, default=10
-    )
+    pu_instance_repo_max_size: int = Field(nullable=False, default=50)
+    pu_instance_repo_min_interval_sync: int = Field(nullable=False, default=10)
     pu_instance_retention_days: int = Field(nullable=False, default=60)
     pu_instance_unit_log_expiration: int = Field(
         nullable=False, default=86_400

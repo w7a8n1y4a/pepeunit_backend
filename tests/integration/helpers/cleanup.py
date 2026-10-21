@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlmodel import Session
 
 from app.domain.instance_model import Instance
-from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.repo_model import Repo
 from app.domain.user_model import User
 from app.dto.enum import InstanceTrustStatus
 from app.repositories.git_repo_repository import GitRepoRepository
@@ -32,29 +32,29 @@ def ensure_own_instance(database: Session) -> None:
     )
 
 
-def _drop_test_registries(database: Session) -> None:
+def _drop_test_repos(database: Session) -> None:
     urls = all_known_repo_urls()
     if not urls:
         return
 
     git_repo_repository = GitRepoRepository()
-    registries = (
-        database.query(RepositoryRegistry)
-        .where(RepositoryRegistry.repository_url.in_(urls))
+    repos = (
+        database.query(Repo)
+        .where(Repo.repository_url.in_(urls))
         .all()
     )
-    for registry in registries:
-        git_repo_repository.delete_repo(registry)
+    for repo in repos:
+        git_repo_repository.delete_repo(repo)
 
-    database.query(RepositoryRegistry).where(
-        RepositoryRegistry.repository_url.in_(urls)
+    database.query(Repo).where(
+        Repo.repository_url.in_(urls)
     ).delete()
 
 
 def clear_integration_data(database: Session) -> None:
     shutil.rmtree("tmp/test_units", ignore_errors=True)
     shutil.rmtree("tmp/test_units_tar_tgz", ignore_errors=True)
-    _drop_test_registries(database)
+    _drop_test_repos(database)
 
     # OperationTask is deleted by cascade together with test Users
     own_url = InstanceService.get_own_url()

@@ -18,7 +18,7 @@ from app.configs.errors import (
 )
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
 from app.domain.permission_model import PermissionBaseType
-from app.domain.repository_registry_model import RepositoryRegistry
+from app.domain.repo_model import Repo
 from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
@@ -46,8 +46,8 @@ from app.dto.enum import (
 )
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
-from app.repositories.repository_registry_repository import (
-    RepositoryRegistryRepository,
+from app.repositories.repo_repository import (
+    RepoRepository,
 )
 from app.repositories.unit_io_edge_repository import UnitIOEdgeRepository
 from app.repositories.unit_io_repository import UnitIORepository
@@ -87,7 +87,7 @@ class UnitIOService:
     def __init__(
         self,
         unit_repository: UnitRepository = Depends(),
-        repository_registry_repository: RepositoryRegistryRepository = Depends(),
+        repo_repository: RepoRepository = Depends(),
         unit_io_repository: UnitIORepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
@@ -96,7 +96,7 @@ class UnitIOService:
         access_service: AccessService = Depends(),
     ) -> None:
         self.unit_repository = unit_repository
-        self.repository_registry_repository = repository_registry_repository
+        self.repo_repository = repo_repository
         self.git_repo_repository = GitRepoRepository()
         self.unit_io_repository = unit_io_repository
         self.unit_log_repository = unit_log_repository
@@ -367,23 +367,17 @@ class UnitIOService:
                 unit, [OwnershipType.CREATOR, OwnershipType.UNIT]
             )
 
-        repository_registry = self.repository_registry_repository.get(
-            RepositoryRegistry(uuid=unit.repository_registry_uuid)
-        )
-        is_valid_object(
-            repository_registry, NotFoundEntity.REPOSITORY_REGISTRY
-        )
+        repo = self.repo_repository.get(Repo(uuid=unit.repo_uuid))
+        is_valid_object(repo, NotFoundEntity.REPO)
 
         self.git_repo_repository.is_valid_firmware_platform(
-            repository_registry, unit, unit.target_firmware_platform
+            repo, unit, unit.target_firmware_platform
         )
         target_version, target_tag = (
-            self.git_repo_repository.get_target_unit_version(
-                repository_registry, unit
-            )
+            self.git_repo_repository.get_target_unit_version(repo, unit)
         )
         schema_dict = self.git_repo_repository.get_schema_dict(
-            repository_registry, target_version
+            repo, target_version
         )
 
         command_to_topic_dict = {
@@ -401,7 +395,7 @@ class UnitIOService:
         if target_topic in schema_dict["input_base_topic"]:
             update_message_dict = self._build_message_dict(
                 command,
-                repository_registry,
+                repo,
                 unit,
                 target_version,
                 target_tag,
@@ -438,7 +432,7 @@ class UnitIOService:
     def _build_message_dict(
         self,
         command: BackendTopicCommand,
-        repository_registry: RepositoryRegistry,
+        repo: Repo,
         unit: Unit,
         target_version: str,
         target_tag: str,
@@ -451,7 +445,7 @@ class UnitIOService:
             )
             if unit.is_compilable_unit:
                 links = is_valid_json(
-                    repository_registry.releases_data,
+                    repo.releases_data,
                     JsonPayload.RELEASES_FOR_COMPILE_REPO_TITLE,
                 )[target_tag]
                 _, link = self.git_repo_repository.find_by_platform(

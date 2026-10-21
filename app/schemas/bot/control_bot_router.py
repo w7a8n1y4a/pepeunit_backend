@@ -10,7 +10,7 @@ from app.configs.db import get_hand_session
 from app.configs.errors import CustomException
 from app.configs.rest import (
     get_bot_instance_service,
-    get_bot_repository_registry_service,
+    get_bot_repo_service,
     get_bot_unit_service,
 )
 from app.dto.enum import (
@@ -83,7 +83,7 @@ class ControlBotRouter(BaseBotRouter):
             actions.append((DecreesNames.SCAN_ALL, "Scan All Instances"))
         actions.extend(
             [
-                (DecreesNames.UPDATE_ALL_REGISTRIES, "Update All Registries"),
+                (DecreesNames.UPDATE_ALL_REPOS, "Update All Repos"),
                 (
                     DecreesNames.UPDATE_ALL_UNITS_FIRMWARE,
                     "Update All Units Firmware",
@@ -119,10 +119,8 @@ class ControlBotRouter(BaseBotRouter):
                         ).start_integration_tests()
                     case DecreesNames.SCAN_ALL:
                         get_bot_instance_service(db, chat_id).scan_all()
-                    case DecreesNames.UPDATE_ALL_REGISTRIES:
-                        get_bot_repository_registry_service(
-                            db, chat_id
-                        ).schedule_update_all()
+                    case DecreesNames.UPDATE_ALL_REPOS:
+                        get_bot_repo_service(db, chat_id).schedule_update_all()
                     case DecreesNames.UPDATE_ALL_UNITS_FIRMWARE:
                         get_bot_unit_service(
                             db, cc, chat_id

@@ -59,14 +59,14 @@ class InstanceUrlsPage(BaseModel):
     urls: list[str]
 
 
-class InstancePublicRegistry(BaseModel):
+class InstancePublicRepo(BaseModel):
     url: str
     platform: GitPlatform
 
 
-class InstanceRegistriesPage(BaseModel):
+class InstanceReposPage(BaseModel):
     total_count: int
-    registries: list[InstancePublicRegistry]
+    repos: list[InstancePublicRepo]
 
 
 class CurrentInstanceSettingsV1(BaseModel):
@@ -80,8 +80,8 @@ class CurrentInstanceSettingsV1(BaseModel):
     pu_instance_http_timeout: float
     pu_instance_max_pagination_size: int
     pu_instance_max_state_size: int
-    pu_instance_registry_max_size: int
-    pu_instance_registry_min_interval_sync: int
+    pu_instance_repo_max_size: int
+    pu_instance_repo_min_interval_sync: int
     pu_instance_retention_days: int
     pu_instance_unit_log_expiration: int
     pu_instance_unit_state_send_interval: int
@@ -125,11 +125,11 @@ class CurrentInstanceSettingsV1(BaseModel):
                 runtime.get().pu_instance_max_pagination_size
             ),
             pu_instance_max_state_size=runtime.get().pu_instance_max_state_size,
-            pu_instance_registry_max_size=(
-                runtime.get().pu_instance_registry_max_size
+            pu_instance_repo_max_size=(
+                runtime.get().pu_instance_repo_max_size
             ),
-            pu_instance_registry_min_interval_sync=(
-                runtime.get().pu_instance_registry_min_interval_sync
+            pu_instance_repo_min_interval_sync=(
+                runtime.get().pu_instance_repo_min_interval_sync
             ),
             pu_instance_retention_days=runtime.get().pu_instance_retention_days,
             pu_instance_unit_log_expiration=(
@@ -181,7 +181,7 @@ class CurrentInstanceStateV1(BaseModel):
 
 class CurrentInstanceMetricsV1(BaseModel):
     user_count: int = Field(ge=0)
-    repository_registry_count: int = Field(ge=0)
+    repo_count: int = Field(ge=0)
     unit_count: int = Field(ge=0)
     unit_io_count: int = Field(ge=0)
     unit_io_edge_count: int = Field(ge=0)

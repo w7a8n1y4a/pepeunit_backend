@@ -30,8 +30,8 @@ from app.repositories.panels_unit_ios_repository import (
     PanelsUnitIOsRepository,
 )
 from app.repositories.permission_repository import PermissionRepository
-from app.repositories.repository_registry_repository import (
-    RepositoryRegistryRepository,
+from app.repositories.repo_repository import (
+    RepoRepository,
 )
 from app.repositories.unit_group_repository import UnitGroupRepository
 from app.repositories.unit_group_unit_repository import (
@@ -51,7 +51,7 @@ from app.services.metrics_service import MetricsService
 from app.services.notification_service import NotificationService
 from app.services.operation_task_service import OperationTaskService
 from app.services.permission_service import PermissionService
-from app.services.repository_registry_service import RepositoryRegistryService
+from app.services.repo_service import RepoService
 from app.services.unit_group_service import UnitGroupService
 from app.services.unit_io_service import UnitIOService
 from app.services.unit_service import UnitService
@@ -79,7 +79,7 @@ class ServiceFactory:
         self.unit_group_repository = UnitGroupRepository(db)
         self.unit_group_unit_repository = UnitGroupUnitRepository(db)
         self.permission_repository = PermissionRepository(db)
-        self.repository_registry_repository = RepositoryRegistryRepository(db)
+        self.repo_repository = RepoRepository(db)
         self.instance_repository = InstanceRepository(db)
         self.instance_settings_repository = InstanceSettingsRepository(db)
         self.instance_external_repository = InstanceExternalRepository()
@@ -157,9 +157,9 @@ class ServiceFactory:
             instance_repository=self.instance_repository,
             instance_external_repository=self.instance_external_repository,
             operation_task_repository=self.operation_task_repository,
-            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
             access_service=self.access_service,
-            repository_registry_service=self.get_repository_registry_service(),
+            repo_service=self.get_repo_service(),
             metrics_service=self.get_metrics_service(),
             operation_task_service=self.get_operation_task_service(),
         )
@@ -170,9 +170,9 @@ class ServiceFactory:
             access_service=self.access_service,
         )
 
-    def get_repository_registry_service(self) -> RepositoryRegistryService:
-        return RepositoryRegistryService(
-            repository_registry_repository=self.repository_registry_repository,
+    def get_repo_service(self) -> RepoService:
+        return RepoService(
+            repo_repository=self.repo_repository,
             icon_repository=self.icon_repository,
             unit_repository=self.unit_repository,
             user_repository=self.user_repository,
@@ -183,7 +183,7 @@ class ServiceFactory:
 
     def get_unit_service(self) -> UnitService:
         return UnitService(
-            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
             icon_repository=self.icon_repository,
             unit_io_repository=self.unit_io_repository,
@@ -197,7 +197,7 @@ class ServiceFactory:
     def get_unit_io_service(self) -> UnitIOService:
         return UnitIOService(
             unit_repository=self.unit_repository,
-            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
             unit_io_repository=self.unit_io_repository,
             unit_io_edge_repository=self.unit_io_edge_repository,
             unit_log_repository=self.unit_log_repository,
@@ -224,7 +224,7 @@ class ServiceFactory:
 
     def get_metrics_service(self) -> MetricsService:
         return MetricsService(
-            repository_registry_repository=self.repository_registry_repository,
+            repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
             unit_io_repository=self.unit_io_repository,
             unit_io_edge_repository=self.unit_io_edge_repository,
@@ -298,13 +298,11 @@ def get_operation_task_service(
     ).get_operation_task_service()
 
 
-def get_repository_registry_service(
+def get_repo_service(
     db: Session = Depends(get_session),
     jwt_token: str | None = Depends(token_depends),
-) -> RepositoryRegistryService:
-    return create_service_factory(
-        db, None, jwt_token
-    ).get_repository_registry_service()
+) -> RepoService:
+    return create_service_factory(db, None, jwt_token).get_repo_service()
 
 
 def get_unit_group_service(
@@ -378,13 +376,11 @@ def get_bot_user_service(
     return create_bot_service_factory(db, client, jwt_token).get_user_service()
 
 
-def get_bot_repository_registry_service(
+def get_bot_repo_service(
     db: Session = Depends(get_session),
     jwt_token: str | None = Depends(token_depends),
-) -> RepositoryRegistryService:
-    return create_bot_service_factory(
-        db, None, jwt_token
-    ).get_repository_registry_service()
+) -> RepoService:
+    return create_bot_service_factory(db, None, jwt_token).get_repo_service()
 
 
 def get_bot_unit_service(
