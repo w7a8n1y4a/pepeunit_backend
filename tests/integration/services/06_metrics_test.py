@@ -8,7 +8,7 @@ from app.services.metrics_service import MetricsService
 from tests.integration.helpers.services import metrics_service
 
 
-def test_get_metrics(live_units, chain_edges, regular_user_token, database) -> None:
+def test_get_metrics(live_units, chain_links, regular_user_token, database) -> None:
     unit_metrics_service = metrics_service(database, regular_user_token)
     metrics = unit_metrics_service.get_instance_metrics()
 
@@ -16,7 +16,7 @@ def test_get_metrics(live_units, chain_edges, regular_user_token, database) -> N
     assert metrics.unit_count >= 9
     assert metrics.repo_count >= 3
     assert metrics.unit_io_count >= 18
-    assert metrics.unit_io_edge_count >= 1
+    assert metrics.link_count >= 1
 
 
 def test_get_metrics_anonymous(live_units, database) -> None:
@@ -35,7 +35,7 @@ def test_get_metrics_backend_agent(database) -> None:
 
 
 def test_get_public_metrics(
-    live_units, chain_edges, regular_user_token, database
+    live_units, chain_links, regular_user_token, database
 ) -> None:
     service = metrics_service(database, regular_user_token)
     MetricsService._cache.clear()
@@ -53,8 +53,8 @@ def test_get_public_metrics(
         <= all_metrics.repo_count
     )
     assert (
-        public_metrics.unit_io_edge_count
-        <= all_metrics.unit_io_edge_count
+        public_metrics.link_count
+        <= all_metrics.link_count
     )
 
 

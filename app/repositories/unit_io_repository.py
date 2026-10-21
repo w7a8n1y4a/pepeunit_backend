@@ -7,7 +7,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
 from app.configs.db import get_session
-from app.domain.unit_io_edge_model import UnitIOEdge
+from app.domain.link_model import Link
 from app.domain.unit_io_model import UnitIO
 from app.dto.enum import UuidEntity, VisibilityLevel
 from app.repositories.base_repository import BaseRepository
@@ -43,25 +43,25 @@ class UnitIORepository(BaseRepository):
             .first()
         )
 
-    def get_nodes_with_edges(self, unit_uuid: uuid_pkg.UUID) -> list[tuple]:
-        unit_io_edge_alias = aliased(UnitIOEdge)
+    def get_nodes_with_links(self, unit_uuid: uuid_pkg.UUID) -> list[tuple]:
+        link_alias = aliased(Link)
         unit_io_alias = aliased(UnitIO)
 
-        edge_subquery = (
+        link_subquery = (
             self.db.query(
                 func.json_agg(
                     func.json_build_array(
-                        unit_io_edge_alias.output_uuid,
+                        link_alias.output_uuid,
                         unit_io_alias.topic_name,
                     )
                 ).label("test")
             )
-            .select_from(unit_io_edge_alias)
+            .select_from(link_alias)
             .join(
                 unit_io_alias,
-                unit_io_edge_alias.output_uuid == unit_io_alias.uuid,
+                link_alias.output_uuid == unit_io_alias.uuid,
             )
-            .filter(unit_io_edge_alias.input_uuid == UnitIO.uuid)
+            .filter(link_alias.input_uuid == UnitIO.uuid)
         )
 
         return (
@@ -69,12 +69,12 @@ class UnitIORepository(BaseRepository):
                 UnitIO.uuid,
                 UnitIO.topic_name,
                 UnitIO.type,
-                edge_subquery.label("edges"),
+                link_subquery.label("links"),
             )
-            .select_from(UnitIOEdge)
+            .select_from(Link)
             .outerjoin(
                 UnitIO,
-                UnitIOEdge.input_uuid == UnitIO.uuid,
+                Link.input_uuid == UnitIO.uuid,
                 full=True,
             )
             .filter(UnitIO.unit_uuid == unit_uuid)
@@ -92,9 +92,9 @@ class UnitIORepository(BaseRepository):
         query = self.db.query(UnitIO)
 
         if filters.output_uuid:
-            query = query.join(
-                UnitIOEdge, UnitIOEdge.input_uuid == UnitIO.uuid
-            ).filter(UnitIOEdge.output_uuid == filters.output_uuid)
+            query = query.join(Link, Link.input_uuid == UnitIO.uuid).filter(
+                Link.output_uuid == filters.output_uuid
+            )
 
         filters.uuids = (
             filters.uuids.default

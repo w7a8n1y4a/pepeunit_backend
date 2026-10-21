@@ -16,7 +16,7 @@ from app.dto.enum import (
 )
 from app.schemas.pydantic.unit_io import (
     DataPipeFilter,
-    UnitIOEdgeCreate,
+    LinkCreate,
     UnitIOFilter,
     UnitIOUpdate,
 )
@@ -165,8 +165,8 @@ async def test_get_data_pipe_config(
         service.get_data_pipe_config(output_unit_io[0].uuid)
 
 
-def test_create_unit_io_edge(
-    running_units, chain_edges, regular_user_token, database, cc
+def test_create_link(
+    running_units, chain_links, regular_user_token, database, cc
 ) -> None:
     token = regular_user_token
     target_units = running_units.chain()
@@ -228,15 +228,15 @@ def test_create_unit_io_edge(
     )
 
 
-def test_duplicate_unit_io_edge(
-    running_units, chain_edges, regular_user_token, database, cc
+def test_duplicate_link(
+    running_units, chain_links, regular_user_token, database, cc
 ) -> None:
     service = unit_io_service(database, cc, regular_user_token)
     with pytest.raises(UnitIOError):
-        service.create_node_edge(
-            UnitIOEdgeCreate(
-                output_uuid=chain_edges[0][1].uuid,
-                input_uuid=chain_edges[1][0].uuid,
+        service.create_link(
+            LinkCreate(
+                output_uuid=chain_links[0][1].uuid,
+                input_uuid=chain_links[1][0].uuid,
             )
         )
 
@@ -263,15 +263,15 @@ async def test_set_state_input_unit_io(
     )
 
 
-def test_get_unit_io_edge(
-    running_units, chain_edges, chain_middle_unit, regular_user_token, database, cc
+def test_get_link(
+    running_units, chain_links, chain_middle_unit, regular_user_token, database, cc
 ) -> None:
     service = unit_io_service(database, cc, regular_user_token)
-    count, target_edges = service.get_unit_io_edges(chain_middle_unit.uuid)
-    assert len(target_edges) == 2
+    count, target_links = service.get_links(chain_middle_unit.uuid)
+    assert len(target_links) == 2
 
 
-async def test_max_connections_blocks_edge(
+async def test_max_connections_blocks_link(
     running_units,
     last_value_unit,
     n_records_unit,
@@ -298,37 +298,37 @@ async def test_max_connections_blocks_edge(
     created = None
     try:
         await service.update(sink_input.uuid, UnitIOUpdate(max_connections=1))
-        created = service.create_node_edge(
-            UnitIOEdgeCreate(
+        created = service.create_link(
+            LinkCreate(
                 output_uuid=source_a.uuid,
                 input_uuid=sink_input.uuid,
             )
         )
         with pytest.raises(UnitIOError):
-            service.create_node_edge(
-                UnitIOEdgeCreate(
+            service.create_link(
+                LinkCreate(
                     output_uuid=source_b.uuid,
                     input_uuid=sink_input.uuid,
                 )
             )
     finally:
         if created:
-            service.delete_node_edge(sink_input.uuid, source_a.uuid)
+            service.delete_link(sink_input.uuid, source_a.uuid)
         await service.update(
             sink_input.uuid, UnitIOUpdate(max_connections=original_max)
         )
 
 
-def test_delete_unit_io_edge(
-    running_units, chain_edges, chain_middle_unit, regular_user_token, database, cc
+def test_delete_link(
+    running_units, chain_links, chain_middle_unit, regular_user_token, database, cc
 ) -> None:
     service = unit_io_service(database, cc, regular_user_token)
-    count, target_edges = service.get_unit_io_edges(chain_middle_unit.uuid)
-    target_edge = target_edges[0]
-    service.delete_node_edge(target_edge.input_uuid, target_edge.output_uuid)
+    count, target_links = service.get_links(chain_middle_unit.uuid)
+    target_link = target_links[0]
+    service.delete_link(target_link.input_uuid, target_link.output_uuid)
 
     with pytest.raises(ValidationError):
-        service.delete_node_edge(uuid_pkg.uuid4(), uuid_pkg.uuid4())
+        service.delete_link(uuid_pkg.uuid4(), uuid_pkg.uuid4())
 
 
 def test_get_many_unit_io(live_units, regular_user_token, database, cc) -> None:

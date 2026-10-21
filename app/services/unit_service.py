@@ -719,21 +719,21 @@ class UnitService:
         repo: Repo,
         target_version: str,
     ) -> dict:
-        nodes_with_edges = self.unit_io_repository.get_nodes_with_edges(
+        nodes_with_links = self.unit_io_repository.get_nodes_with_links(
             unit.uuid
         )
 
         output_dict = {}
         input_dict = {}
-        for io_uuid, topic_name, topic_type, edges in nodes_with_edges:
-            edge_topic_list = []
-            if edges is not None:
-                for output_uuid, output_topic_name in edges:
-                    edge_topic_list.append(
+        for io_uuid, topic_name, topic_type, links in nodes_with_links:
+            link_topic_list = []
+            if links is not None:
+                for output_uuid, output_topic_name in links:
+                    link_topic_list.append(
                         get_topic_name(output_uuid, output_topic_name)
                     )
 
-            topics = [get_topic_name(io_uuid, topic_name)] + edge_topic_list
+            topics = [get_topic_name(io_uuid, topic_name)] + link_topic_list
 
             if topic_type == UnitIOTypeEnum.INPUT:
                 input_dict[topic_name] = topics

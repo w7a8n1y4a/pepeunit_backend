@@ -5,14 +5,14 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlmodel import Field, SQLModel
 
 
-class UnitIOEdge(SQLModel, table=True):
+class Link(SQLModel, table=True):
     """
     Link between different UnitIO
 
     output -> input
     """
 
-    __tablename__ = "units_io_edges"
+    __tablename__ = "links"
 
     uuid: uuid_pkg.UUID = Field(
         primary_key=True,

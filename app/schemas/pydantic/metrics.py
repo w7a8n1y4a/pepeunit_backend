@@ -6,4 +6,4 @@ class BaseMetricsRead(BaseModel):
     repo_count: int
     unit_count: int
     unit_io_count: int
-    unit_io_edge_count: int
+    link_count: int

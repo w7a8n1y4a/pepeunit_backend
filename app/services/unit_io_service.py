@@ -17,9 +17,9 @@ from app.configs.errors import (
     UnitIOError,
 )
 from app.configs.redis import DataPipeConfigAction, send_to_data_pipe_stream
+from app.domain.link_model import Link
 from app.domain.permission_model import PermissionBaseType
 from app.domain.repo_model import Repo
-from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
 from app.domain.user_model import User
@@ -46,10 +46,10 @@ from app.dto.enum import (
 )
 from app.repositories.data_pipe_repository import DataPipeRepository
 from app.repositories.git_repo_repository import GitRepoRepository
+from app.repositories.link_repository import LinkRepository
 from app.repositories.repo_repository import (
     RepoRepository,
 )
-from app.repositories.unit_io_edge_repository import UnitIOEdgeRepository
 from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
@@ -57,7 +57,7 @@ from app.schemas.mqtt.utils import publish_to_topic
 from app.schemas.pydantic.unit_io import (
     DataPipeFilter,
     DataPipeValidationErrorRead,
-    UnitIOEdgeCreate,
+    LinkCreate,
     UnitIOFilter,
     UnitIOSetState,
     UnitIOUpdate,
@@ -91,7 +91,7 @@ class UnitIOService:
         unit_io_repository: UnitIORepository = Depends(),
         unit_log_repository: UnitLogRepository = Depends(),
         data_pipe_repository: DataPipeRepository = Depends(),
-        unit_io_edge_repository: UnitIOEdgeRepository = Depends(),
+        link_repository: LinkRepository = Depends(),
         permission_service: PermissionService = Depends(),
         access_service: AccessService = Depends(),
     ) -> None:
@@ -101,7 +101,7 @@ class UnitIOService:
         self.unit_io_repository = unit_io_repository
         self.unit_log_repository = unit_log_repository
         self.data_pipe_repository = data_pipe_repository
-        self.unit_io_edge_repository = unit_io_edge_repository
+        self.link_repository = link_repository
         self.permission_service = permission_service
         self.access_service = access_service
 
@@ -458,7 +458,7 @@ class UnitIOService:
 
         return message_dict
 
-    def create_node_edge(self, data: UnitIOEdgeCreate) -> UnitIOEdge:
+    def create_link(self, data: LinkCreate) -> Link:
         data.input_uuid = is_valid_uuid(
             data.input_uuid, UuidEntity.UNIT_IO_INPUT
         )
@@ -481,8 +481,8 @@ class UnitIOService:
         self.access_service.authorization.check_visibility(input_node)
 
         # Check connection limit for input node (incoming connections)
-        current_input_connections = (
-            self.unit_io_edge_repository.count_by_input_node(input_node.uuid)
+        current_input_connections = self.link_repository.count_by_input_node(
+            input_node.uuid
         )
         if current_input_connections >= input_node.max_connections:
             msg = f"Maximum number of incoming connections ({input_node.max_connections}) reached for input node {input_node.uuid}"
@@ -491,8 +491,8 @@ class UnitIOService:
             )
 
         # Check connection limit for output node (outgoing connections)
-        current_output_connections = (
-            self.unit_io_edge_repository.count_by_output_node(output_node.uuid)
+        current_output_connections = self.link_repository.count_by_output_node(
+            output_node.uuid
         )
         if current_output_connections >= output_node.max_connections:
             msg = f"Maximum number of outgoing connections ({output_node.max_connections}) reached for output node {output_node.uuid}"
@@ -500,12 +500,12 @@ class UnitIOService:
                 msg, code=ErrorCode.UNIT_IO_OUTPUT_CONNECTION_LIMIT
             )
 
-        new_edge = UnitIOEdge(**data.dict())
-        new_edge.creator_uuid = self.access_service.current_agent.uuid
+        new_link = Link(**data.dict())
+        new_link.creator_uuid = self.access_service.current_agent.uuid
 
-        if self.unit_io_edge_repository.check(new_edge):
-            msg = "Edge exist"
-            raise UnitIOError(msg, code=ErrorCode.UNIT_IO_EDGE_EXISTS)
+        if self.link_repository.check(new_link):
+            msg = "Link exist"
+            raise UnitIOError(msg, code=ErrorCode.LINK_EXISTS)
 
         with contextlib.suppress(CustomPermissionError):
             self.permission_service.create_by_domains(
@@ -523,7 +523,7 @@ class UnitIOService:
                 Unit(uuid=input_node.unit_uuid),
             )
 
-        unit_io_edge = self.unit_io_edge_repository.create(new_edge)
+        link = self.link_repository.create(new_link)
 
         with contextlib.suppress(MqttError):
             self.command_to_input_base_topic(
@@ -532,11 +532,9 @@ class UnitIOService:
                 is_auto_update=True,
             )
 
-        return unit_io_edge
+        return link
 
-    def get_unit_io_edges(
-        self, unit_uuid: uuid_pkg.UUID
-    ) -> tuple[int, list[UnitIOEdge]]:
+    def get_links(self, unit_uuid: uuid_pkg.UUID) -> tuple[int, list[Link]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER]
         )
@@ -557,7 +555,7 @@ class UnitIOService:
             filters=filters, restriction=restriction
         )
 
-        return count, self.unit_io_edge_repository.get_by_nodes(unit_ios)
+        return count, self.link_repository.get_by_nodes(unit_ios)
 
     async def check_data_pipe_config(
         self, data_pipe
@@ -735,33 +733,29 @@ class UnitIOService:
                 data_pipe_entity.processing_policy.policy_type, batch
             )
 
-    def delete_node_edge(
+    def delete_link(
         self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID
     ) -> None:
         self.access_service.authorization.check_access([AgentType.USER])
 
-        unit_io_edge = self.unit_io_edge_repository.get_by_two_uuid(
-            input_uuid, output_uuid
-        )
-        is_valid_object(unit_io_edge, NotFoundEntity.UNIT_IO_EDGE)
+        link = self.link_repository.get_by_two_uuid(input_uuid, output_uuid)
+        is_valid_object(link, NotFoundEntity.LINK)
 
-        input_node = self.unit_io_repository.get(
-            UnitIO(uuid=unit_io_edge.input_uuid)
-        )
+        input_node = self.unit_io_repository.get(UnitIO(uuid=link.input_uuid))
         is_valid_object(input_node, NotFoundEntity.UNIT_IO)
 
         output_node = self.unit_io_repository.get(
-            UnitIO(uuid=unit_io_edge.output_uuid)
+            UnitIO(uuid=link.output_uuid)
         )
         is_valid_object(output_node, NotFoundEntity.UNIT_IO)
 
-        if unit_io_edge.creator_uuid != self.access_service.current_agent.uuid:
+        if link.creator_uuid != self.access_service.current_agent.uuid:
             self.access_service.authorization.check_ownership(
                 input_node, [OwnershipType.CREATOR]
             )
         else:
             self.access_service.authorization.check_ownership(
-                unit_io_edge, [OwnershipType.CREATOR]
+                link, [OwnershipType.CREATOR]
             )
 
         try:
@@ -773,7 +767,7 @@ class UnitIOService:
             # At the time of deletion, the user may have already deleted access,
             # so there should be immunity to this error.
 
-        self.unit_io_edge_repository.delete(unit_io_edge)
+        self.link_repository.delete(link)
 
         with contextlib.suppress(MqttError):
             self.command_to_input_base_topic(

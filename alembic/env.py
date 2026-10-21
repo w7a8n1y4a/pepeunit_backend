@@ -28,7 +28,7 @@ MODEL_MODULES = (
     "unit_group_model",
     "unit_group_unit_model",
     "unit_model",
-    "unit_io_edge_model",
+    "link_model",
     "unit_io_model",
     "user_model",
 )

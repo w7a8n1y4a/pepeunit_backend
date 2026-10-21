@@ -16,6 +16,7 @@ from app.repositories.icon_repository import IconRepository
 from app.repositories.instance_settings_repository import (
     InstanceSettingsRepository,
 )
+from app.repositories.link_repository import LinkRepository
 from app.repositories.loki_repository import LokiRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.notification_settings_repository import (
@@ -37,7 +38,6 @@ from app.repositories.unit_group_repository import UnitGroupRepository
 from app.repositories.unit_group_unit_repository import (
     UnitGroupUnitRepository,
 )
-from app.repositories.unit_io_edge_repository import UnitIOEdgeRepository
 from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_log_repository import UnitLogRepository
 from app.repositories.unit_repository import UnitRepository
@@ -90,7 +90,7 @@ class ServiceFactory:
             db
         )
         self.unit_io_repository = UnitIORepository(db)
-        self.unit_io_edge_repository = UnitIOEdgeRepository(db)
+        self.link_repository = LinkRepository(db)
         self.unit_log_repository = (
             UnitLogRepository(client) if client else None
         )
@@ -199,7 +199,7 @@ class ServiceFactory:
             unit_repository=self.unit_repository,
             repo_repository=self.repo_repository,
             unit_io_repository=self.unit_io_repository,
-            unit_io_edge_repository=self.unit_io_edge_repository,
+            link_repository=self.link_repository,
             unit_log_repository=self.unit_log_repository,
             data_pipe_repository=self.data_pipe_repository,
             permission_service=self.permission_service,
@@ -227,7 +227,7 @@ class ServiceFactory:
             repo_repository=self.repo_repository,
             unit_repository=self.unit_repository,
             unit_io_repository=self.unit_io_repository,
-            unit_io_edge_repository=self.unit_io_edge_repository,
+            link_repository=self.link_repository,
             user_repository=self.user_repository,
             access_service=self.access_service,
         )

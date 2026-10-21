@@ -10,9 +10,9 @@ from app.schemas.pydantic.shared import UnitIORead, UnitIOsResult
 from app.schemas.pydantic.unit_io import (
     DataPipeFilter,
     DataPipeValidationErrorRead,
+    LinkCreate,
+    LinkRead,
     PipeDataResult,
-    UnitIOEdgeCreate,
-    UnitIOEdgeRead,
     UnitIOFilter,
     UnitIOSetState,
     UnitIOUpdate,
@@ -134,12 +134,12 @@ def get_unit_ios(
 
 
 @router.post(
-    "/create_unit_io_edge",
-    response_model=UnitIOEdgeRead,
+    "/create_link",
+    response_model=LinkRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create_unit_io_edge(
-    data: UnitIOEdgeCreate,
+def create_link(
+    data: LinkCreate,
     unit_io_service: UnitIOService = Depends(get_unit_io_service),
 ):
-    return UnitIOEdgeRead(**unit_io_service.create_node_edge(data).dict())
+    return LinkRead(**unit_io_service.create_link(data).dict())

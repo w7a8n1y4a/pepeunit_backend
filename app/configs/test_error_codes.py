@@ -232,6 +232,7 @@ _CODE_ENTITY = (
     ("PANELS_", "Dashboard"),
     ("ICON_", "Icon"),
     ("INSTANCE_", "Instance"),
+    ("LINK_", "Link"),
     ("MQTT_", "Mqtt"),
     ("NOTIFICATION_", "Notification"),
     ("OPERATION_TASK_", "OperationTask"),

@@ -124,7 +124,7 @@ class CurrentInstanceMetricsV1(BaseModel):
     repo_count: int = Field(ge=0)
     unit_count: int = Field(ge=0)
     unit_io_count: int = Field(ge=0)
-    unit_io_edge_count: int = Field(ge=0)
+    link_count: int = Field(ge=0)
 
 
 class CurrentInstanceContactsV1(BaseModel):

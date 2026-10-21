@@ -6,26 +6,26 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, func, select
 
 from app.configs.db import get_session
-from app.domain.unit_io_edge_model import UnitIOEdge
+from app.domain.link_model import Link
 from app.domain.unit_io_model import UnitIO
 from app.dto.enum import UuidEntity, VisibilityLevel
 from app.repositories.base_repository import BaseRepository
 from app.services.validators import is_valid_uuid
 
 
-class UnitIOEdgeRepository(BaseRepository):
+class LinkRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
-        super().__init__(UnitIOEdge, db)
+        super().__init__(Link, db)
 
-    def get_by_nodes(self, unit_ios: list[UnitIO]) -> list[UnitIOEdge]:
+    def get_by_nodes(self, unit_ios: list[UnitIO]) -> list[Link]:
         uuids = [unit_io.uuid for unit_io in unit_ios]
 
         return (
-            self.db.query(UnitIOEdge)
+            self.db.query(Link)
             .filter(
                 or_(
-                    UnitIOEdge.input_uuid.in_(uuids),
-                    UnitIOEdge.output_uuid.in_(uuids),
+                    Link.input_uuid.in_(uuids),
+                    Link.output_uuid.in_(uuids),
                 )
             )
             .all()
@@ -35,22 +35,22 @@ class UnitIOEdgeRepository(BaseRepository):
         self, input_uuid: uuid_pkg.UUID, output_uuid: uuid_pkg.UUID
     ):
         return (
-            self.db.query(UnitIOEdge)
+            self.db.query(Link)
             .filter(
-                UnitIOEdge.input_uuid
+                Link.input_uuid
                 == is_valid_uuid(input_uuid, UuidEntity.UNIT_IO_INPUT),
-                UnitIOEdge.output_uuid
+                Link.output_uuid
                 == is_valid_uuid(output_uuid, UuidEntity.UNIT_IO_OUTPUT),
             )
             .first()
         )
 
-    def check(self, unit_io_edge: UnitIOEdge) -> bool:
+    def check(self, link: Link) -> bool:
         check = (
-            self.db.query(UnitIOEdge)
+            self.db.query(Link)
             .filter(
-                UnitIOEdge.input_uuid == unit_io_edge.input_uuid,
-                UnitIOEdge.output_uuid == unit_io_edge.output_uuid,
+                Link.input_uuid == link.input_uuid,
+                Link.output_uuid == link.output_uuid,
             )
             .first()
         )
@@ -58,22 +58,22 @@ class UnitIOEdgeRepository(BaseRepository):
         return bool(check)
 
     def count_by_input_node(self, input_uuid: uuid_pkg.UUID) -> int:
-        """Count the number of edges connected to an input node"""
+        """Count the number of links connected to an input node"""
         return (
-            self.db.query(UnitIOEdge)
+            self.db.query(Link)
             .filter(
-                UnitIOEdge.input_uuid
+                Link.input_uuid
                 == is_valid_uuid(input_uuid, UuidEntity.UNIT_IO_INPUT)
             )
             .count()
         )
 
     def count_by_output_node(self, output_uuid: uuid_pkg.UUID) -> int:
-        """Count the number of edges connected from an output node"""
+        """Count the number of links connected from an output node"""
         return (
-            self.db.query(UnitIOEdge)
+            self.db.query(Link)
             .filter(
-                UnitIOEdge.output_uuid
+                Link.output_uuid
                 == is_valid_uuid(output_uuid, UuidEntity.UNIT_IO_OUTPUT)
             )
             .count()
@@ -84,14 +84,14 @@ class UnitIOEdgeRepository(BaseRepository):
         output_node = aliased(UnitIO)
         return self.db.exec(
             select(func.count())
-            .select_from(UnitIOEdge)
+            .select_from(Link)
             .join(
                 input_node,
-                UnitIOEdge.input_uuid == input_node.uuid,
+                Link.input_uuid == input_node.uuid,
             )
             .join(
                 output_node,
-                UnitIOEdge.output_uuid == output_node.uuid,
+                Link.output_uuid == output_node.uuid,
             )
             .where(
                 and_(

@@ -52,13 +52,13 @@ class UnitIOFilter(BasePaginationRestMixin):
         return self.__dict__
 
 
-class UnitIOEdgeRead(BaseModel):
+class LinkRead(BaseModel):
     uuid: uuid_pkg.UUID
     output_uuid: uuid_pkg.UUID
     input_uuid: uuid_pkg.UUID
 
 
-class UnitIOEdgeCreate(BaseModel):
+class LinkCreate(BaseModel):
     output_uuid: uuid_pkg.UUID
     input_uuid: uuid_pkg.UUID
 

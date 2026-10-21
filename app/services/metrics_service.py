@@ -2,10 +2,10 @@ from cachetools import TTLCache
 from fastapi import Depends
 
 from app.dto.enum import AgentType, CacheKey
+from app.repositories.link_repository import LinkRepository
 from app.repositories.repo_repository import (
     RepoRepository,
 )
-from app.repositories.unit_io_edge_repository import UnitIOEdgeRepository
 from app.repositories.unit_io_repository import UnitIORepository
 from app.repositories.unit_repository import UnitRepository
 from app.repositories.user_repository import UserRepository
@@ -20,7 +20,7 @@ class MetricsService:
     def __init__(
         self,
         repo_repository: RepoRepository = Depends(),
-        unit_io_edge_repository: UnitIOEdgeRepository = Depends(),
+        link_repository: LinkRepository = Depends(),
         unit_io_repository: UnitIORepository = Depends(),
         unit_repository: UnitRepository = Depends(),
         user_repository: UserRepository = Depends(),
@@ -29,7 +29,7 @@ class MetricsService:
         self.repo_repository = repo_repository
         self.unit_repository = unit_repository
         self.unit_io_repository = unit_io_repository
-        self.unit_io_edge_repository = unit_io_edge_repository
+        self.link_repository = link_repository
         self.user_repository = user_repository
         self.access_service = access_service
 
@@ -63,9 +63,7 @@ class MetricsService:
                 )[0],
                 unit_count=self.unit_repository.get_public_count(),
                 unit_io_count=self.unit_io_repository.get_public_count(),
-                unit_io_edge_count=(
-                    self.unit_io_edge_repository.get_public_count()
-                ),
+                link_count=self.link_repository.get_public_count(),
             )
         else:
             metrics = BaseMetricsRead(
@@ -73,7 +71,7 @@ class MetricsService:
                 repo_count=self.repo_repository.get_all_count(),
                 unit_count=self.unit_repository.get_all_count(),
                 unit_io_count=self.unit_io_repository.get_all_count(),
-                unit_io_edge_count=self.unit_io_edge_repository.get_all_count(),
+                link_count=self.link_repository.get_all_count(),
             )
 
         self._cache[cache_key] = metrics

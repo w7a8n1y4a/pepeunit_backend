@@ -294,9 +294,9 @@ def running_units(unpacked_firmwares, client_emulator, regular_user_token, datab
 
 
 @pytest.fixture(scope="session")
-def chain_edges(running_units, regular_user_token, database, cc):
+def chain_links(running_units, regular_user_token, database, cc):
     from app.dto.enum import UnitIOTypeEnum
-    from app.schemas.pydantic.unit_io import UnitIOEdgeCreate, UnitIOFilter
+    from app.schemas.pydantic.unit_io import LinkCreate, UnitIOFilter
     from tests.integration.helpers.services import unit_io_service
 
     service = unit_io_service(database, cc, regular_user_token)
@@ -307,14 +307,14 @@ def chain_edges(running_units, regular_user_token, database, cc):
             unit_ios = unit_ios[::-1]
         io_units_list.append(unit_ios)
 
-    service.create_node_edge(
-        UnitIOEdgeCreate(
+    service.create_link(
+        LinkCreate(
             output_uuid=io_units_list[0][1].uuid,
             input_uuid=io_units_list[1][0].uuid,
         )
     )
-    service.create_node_edge(
-        UnitIOEdgeCreate(
+    service.create_link(
+        LinkCreate(
             output_uuid=io_units_list[1][1].uuid,
             input_uuid=io_units_list[2][0].uuid,
         )

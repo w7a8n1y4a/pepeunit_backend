@@ -1,6 +1,7 @@
 import shutil
 from datetime import UTC, datetime
 
+from sqlalchemy import or_
 from sqlmodel import Session
 
 from app.domain.peer_model import Peer
@@ -10,6 +11,7 @@ from app.dto.enum import PeerTrustStatus
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.repositories.peer_repository import PeerRepository
 from app.services.peer_service import PeerService
+from tests.integration.helpers.keys import ADMIN_USER_KEY, REGULAR_USER_KEY
 from tests.integration.helpers.names import TEST_HASH
 from tests.integration.helpers.private_repos import all_known_repo_urls
 
@@ -55,6 +57,18 @@ def clear_integration_data(database: Session) -> None:
         Peer.url != own_url,
     ).delete()
 
-    database.query(User).where(User.login.ilike(f"%{TEST_HASH}%")).delete()
+    # Login is written after insert. A failed run can leave the stable test
+    # key with an empty login, which the login filter does not see.
+    database.query(User).where(
+        or_(
+            User.login.ilike(f"%{TEST_HASH}%"),
+            User.hash_public_key.in_(
+                [
+                    REGULAR_USER_KEY.hash_public_key,
+                    ADMIN_USER_KEY.hash_public_key,
+                ]
+            ),
+        )
+    ).delete()
     database.commit()
     ensure_own_peer(database)

@@ -9,8 +9,8 @@ from sqlmodel import Session, select
 from app.configs.db import get_session
 from app.configs.error_codes import ErrorCode
 from app.configs.errors import UnitError
+from app.domain.link_model import Link
 from app.domain.unit_group_unit_model import UnitGroupUnit
-from app.domain.unit_io_edge_model import UnitIOEdge
 from app.domain.unit_io_model import UnitIO
 from app.domain.unit_model import Unit
 from app.dto.enum import UuidEntity, VisibilityLevel
@@ -37,7 +37,7 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
         restriction: list[str] = None,
         is_include_output_unit_ios: bool = False,
     ) -> tuple[int, list[tuple[Unit, list[dict]]]]:
-        unit_io_edge_alias = aliased(UnitIOEdge)
+        link_alias = aliased(Link)
         unit_io_alias = aliased(UnitIO, name="unit_io_alias")
 
         if is_include_output_unit_ios:
@@ -48,11 +48,11 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
                     )
                     .select_from(unit_io_alias)
                     .join(
-                        unit_io_edge_alias,
-                        unit_io_edge_alias.output_uuid == unit_io_alias.uuid,
+                        link_alias,
+                        link_alias.output_uuid == unit_io_alias.uuid,
                     )
                     .filter(
-                        unit_io_edge_alias.input_uuid
+                        link_alias.input_uuid
                         == is_valid_uuid(
                             filters.unit_io_input_uuid,
                             UuidEntity.UNIT_IO_INPUT,
@@ -68,11 +68,11 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
                     .select_from(Unit)
                     .join(UnitIO, Unit.uuid == UnitIO.unit_uuid)
                     .join(
-                        UnitIOEdge,
-                        UnitIO.uuid == UnitIOEdge.output_uuid,
+                        Link,
+                        UnitIO.uuid == Link.output_uuid,
                     )
                     .filter(
-                        UnitIOEdge.input_uuid
+                        Link.input_uuid
                         == is_valid_uuid(
                             filters.unit_io_input_uuid,
                             UuidEntity.UNIT_IO_INPUT,

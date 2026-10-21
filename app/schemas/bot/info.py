@@ -22,7 +22,7 @@ async def info_resolver(message: types.Message):
             "Repo": metrics.repo_count,
             "Unit": metrics.unit_count,
             "UnitIO": metrics.unit_io_count,
-            "UnitIOEdge": metrics.unit_io_edge_count,
+            "Link": metrics.link_count,
         }
 
         for k, v in metrics_dict.items():
