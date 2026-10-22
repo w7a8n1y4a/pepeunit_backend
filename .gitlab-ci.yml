@@ -3,147 +3,150 @@ variables:
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
 
 stages:
+  - build
+  - deploy
+  - test
   - tag
 
-# build:image:master:
-#   stage: build
-#   tags:
-#     - shell-build-runer
-#   rules:
-#     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
-#       when: on_success
-#     - when: never
-#   before_script:
-#     - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
-#     - docker run --privileged --rm tonistiigi/binfmt --install all
-#     - docker buildx create --use --name multiarch-builder || docker buildx use multiarch-builder
-#     - docker buildx inspect --bootstrap
-#   script:
-#     - docker buildx build --platform linux/amd64,linux/arm64 -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG --push .
+build:image:master:
+  stage: build
+  tags:
+    - shell-build-runer
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
+    - docker run --privileged --rm tonistiigi/binfmt --install all
+    - docker buildx create --use --name multiarch-builder || docker buildx use multiarch-builder
+    - docker buildx inspect --bootstrap
+  script:
+    - docker buildx build --platform linux/amd64,linux/arm64 -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG --push .
 
-# deploy:image:master:
-#   stage: deploy
-#   tags:
-#     - shell-runer
-#   variables:
-#     PROJ: pepeunit-backend-dev
-#   rules:
-#     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
-#       when: on_success
-#     - when: never
-#   before_script:
-#     - echo $USER
-#     - echo $PROJ
-#     - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
-#   script:
-#     - docker pull $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
-#     - docker stop $PROJ || echo $?
-#     - docker rm $PROJ || echo $?
-#     - docker run -d --name=$PROJ -p 5401:5000 --restart=always -v /root/pepeunit/repo_cache:/app/repo_cache --env-file $ENV_FILE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
-#     - docker system prune -a -f
+deploy:image:master:
+  stage: deploy
+  tags:
+    - shell-runer
+  variables:
+    PROJ: pepeunit-backend-dev
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - echo $USER
+    - echo $PROJ
+    - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
+  script:
+    - docker pull $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker stop $PROJ || echo $?
+    - docker rm $PROJ || echo $?
+    - docker run -d --name=$PROJ -p 5401:5000 --restart=always -v /root/pepeunit/repo_cache:/app/repo_cache --env-file $ENV_FILE $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG
+    - docker system prune -a -f
 
-# module_test:image:master:
-#   stage: test
-#   tags:
-#     - shell-build-runer
-#   variables:
-#     PROJ: pepeunit-backend-dev
-#   rules:
-#     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
-#       when: on_success
-#     - when: never
-#   script:
-#     - docker build -f DockerfileLoad -t pepeunit-unit-test .
-#     - docker run --rm --env-file $ENV_FILE pepeunit-unit-test make test-module
-#     - docker container prune -f
-#     - docker images -f "dangling=true" -q | xargs -r docker rmi || true
+module_test:image:master:
+  stage: test
+  tags:
+    - shell-build-runer
+  variables:
+    PROJ: pepeunit-backend-dev
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  script:
+    - docker build -f DockerfileLoad -t pepeunit-unit-test .
+    - docker run --rm --env-file $ENV_FILE pepeunit-unit-test make test-module
+    - docker container prune -f
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
-# integration_test:image:master:
-#   stage: test
-#   tags:
-#     - shell-build-runer
-#   variables:
-#     PROJ: pepeunit-backend-dev
-#   rules:
-#     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
-#       when: on_success
-#     - when: never
-#   before_script:
-#     - echo "Waiting for the backend to be responsive..."
-#     - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
-#   script:
-#     - |
-#       for i in {1..30}; do
-#         if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit/api/v1/instances/current | grep -q "200"; then
-#           echo "Backend is responsive, continuing..."
-#           break
-#         else
-#           echo "Waiting for backend to respond..."
-#           sleep 1
-#         fi
-#       done
-#     - docker build -f DockerfileLoad -t pepeunit-integra-test .
-#     - docker run --rm --env-file $ENV_FILE pepeunit-integra-test make test-integration
-#     - docker container prune -f
-#     - docker images -f "dangling=true" -q | xargs -r docker rmi || true
+integration_test:image:master:
+  stage: test
+  tags:
+    - shell-build-runer
+  variables:
+    PROJ: pepeunit-backend-dev
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  before_script:
+    - echo "Waiting for the backend to be responsive..."
+    - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
+  script:
+    - |
+      for i in {1..30}; do
+        if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit/api/v1/instances/current | grep -q "200"; then
+          echo "Backend is responsive, continuing..."
+          break
+        else
+          echo "Waiting for backend to respond..."
+          sleep 1
+        fi
+      done
+    - docker build -f DockerfileLoad -t pepeunit-integra-test .
+    - docker run --rm --env-file $ENV_FILE pepeunit-integra-test make test-integration
+    - docker container prune -f
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
-# load_test_api:image:master:
-#   stage: test
-#   tags:
-#     - shell-build-runer
-#   variables:
-#     PROJ: pepeunit-backend-dev
-#   rules:
-#     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
-#       when: manual
-#     - when: never
-#   before_script:
-#     - echo "Waiting for the backend to be responsive..."
-#     - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
-#   script:
-#     - |
-#       for i in {1..30}; do
-#         if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit/api/v1/instances/current | grep -q "200"; then
-#           echo "Backend is responsive, continuing..."
-#           break
-#         else
-#           echo "Waiting for backend to respond..."
-#           sleep 1
-#         fi
-#       done
-#     - docker build -f DockerfileLoad -t pepeunit-load-test .
-#     - docker run --rm --env-file $ENV_FILE pepeunit-load-test make test-load-rest
-#     - docker container prune -f
-#     - docker images -f "dangling=true" -q | xargs -r docker rmi || true
+load_test_api:image:master:
+  stage: test
+  tags:
+    - shell-build-runer
+  variables:
+    PROJ: pepeunit-backend-dev
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: manual
+    - when: never
+  before_script:
+    - echo "Waiting for the backend to be responsive..."
+    - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
+  script:
+    - |
+      for i in {1..30}; do
+        if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit/api/v1/instances/current | grep -q "200"; then
+          echo "Backend is responsive, continuing..."
+          break
+        else
+          echo "Waiting for backend to respond..."
+          sleep 1
+        fi
+      done
+    - docker build -f DockerfileLoad -t pepeunit-load-test .
+    - docker run --rm --env-file $ENV_FILE pepeunit-load-test make test-load-rest
+    - docker container prune -f
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
-# load_test_mqtt:image:master:
-#   stage: test
-#   tags:
-#     - shell-build-runer
-#   variables:
-#     PROJ: pepeunit-backend-dev
-#   rules:
-#     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
-#       when: manual
-#     - when: never
-#   before_script:
-#     - echo "Waiting for the backend to be responsive..."
-#     - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
-#   script:
-#     - |
-#       for i in {1..30}; do
-#         if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit/api/v1/instances/current | grep -q "200"; then
-#           echo "Backend is responsive, continuing..."
-#           break
-#         else
-#           echo "Waiting for backend to respond..."
-#           sleep 1
-#         fi
-#       done
-#     - docker build -f DockerfileLoad -t pepeunit-load-test .
-#     - docker run --rm --env-file $ENV_FILE pepeunit-load-test make test-load-mqtt
-#     - docker container prune -f
-#     - docker images -f "dangling=true" -q | xargs -r docker rmi || true
+load_test_mqtt:image:master:
+  stage: test
+  tags:
+    - shell-build-runer
+  variables:
+    PROJ: pepeunit-backend-dev
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: manual
+    - when: never
+  before_script:
+    - echo "Waiting for the backend to be responsive..."
+    - export PU_DOMAIN=$(grep '^PU_DOMAIN=' $ENV_FILE | cut -d '=' -f2)
+  script:
+    - |
+      for i in {1..30}; do
+        if curl -s -o /dev/null -w "%{http_code}" https://$PU_DOMAIN/pepeunit/api/v1/instances/current | grep -q "200"; then
+          echo "Backend is responsive, continuing..."
+          break
+        else
+          echo "Waiting for backend to respond..."
+          sleep 1
+        fi
+      done
+    - docker build -f DockerfileLoad -t pepeunit-load-test .
+    - docker run --rm --env-file $ENV_FILE pepeunit-load-test make test-load-mqtt
+    - docker container prune -f
+    - docker images -f "dangling=true" -q | xargs -r docker rmi || true
 
 tag:
   stage: tag
