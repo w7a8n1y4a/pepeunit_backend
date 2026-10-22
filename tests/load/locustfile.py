@@ -1,6 +1,6 @@
 import random
 
-from locust import HttpUser, between, constant, task
+from locust import HttpUser, between, task
 
 from app import runtime, settings
 from app.dto.enum import PeerTrustStatus
@@ -52,28 +52,6 @@ class InstanceRestUser(InstanceBaseUser):
             name=REST_PEERS,
         )
 
-
-class ErrorCodeUser(InstanceBaseUser):
-    """Public catalog of every error number. No pause, so the run shows capacity."""
-
-    wait_time = constant(0)
-
-    @task
-    def catalog(self):
-        with self.client.get(
-            ERROR_CODES,
-            name=ERROR_CODES,
-            catch_response=True,
-        ) as response:
-            if response.status_code != 200:
-                response.failure(f"status {response.status_code}")
-            elif b"ACCESS_TOKEN_EXPIRED" not in response.content:
-                response.failure("catalog has no error codes")
-            else:
-                response.success()
-
-
-class InstanceCatalogUser(InstanceBaseUser):
     @task
     def urls(self):
         self.client.get(
@@ -89,3 +67,17 @@ class InstanceCatalogUser(InstanceBaseUser):
             params=random_rest_filters(),
             name=f"{REST_PEERS}/repos",
         )
+
+    @task
+    def error_codes(self):
+        with self.client.get(
+            ERROR_CODES,
+            name=ERROR_CODES,
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                response.failure(f"status {response.status_code}")
+            elif b"ACCESS_TOKEN_EXPIRED" not in response.content:
+                response.failure("catalog has no error codes")
+            else:
+                response.success()
