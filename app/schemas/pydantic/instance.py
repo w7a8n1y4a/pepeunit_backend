@@ -10,9 +10,6 @@ from app.schemas.pydantic.shared import FeatureFlags
 
 
 class CurrentInstanceSettingsV1(BaseModel):
-    pu_available_name_entity_symbols: str
-    pu_available_topic_symbols: str
-
     pu_datapipe_default_last_value_enable: bool
     pu_datapipe_limit_unit_io_per_one_panel: int
 
@@ -50,10 +47,6 @@ class CurrentInstanceSettingsV1(BaseModel):
     @classmethod
     def current(cls) -> CurrentInstanceSettingsV1:
         return cls(
-            pu_available_name_entity_symbols=(
-                settings.pu_available_name_entity_symbols
-            ),
-            pu_available_topic_symbols=settings.pu_available_topic_symbols,
             pu_datapipe_default_last_value_enable=(
                 runtime.get().pu_datapipe_default_last_value_enable
             ),
