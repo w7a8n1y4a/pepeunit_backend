@@ -16,6 +16,7 @@ from tests.integration.helpers.cleanup import (
     ensure_own_peer,
 )
 from tests.integration.helpers.frontend_state import preserve_demo_dashboard
+from tests.integration.helpers.owner import preserve_instance_owner
 
 
 @pytest.fixture(scope="session")
@@ -26,6 +27,13 @@ def database() -> Session:
 @pytest.fixture(scope="session")
 def cc() -> Client:
     return next(get_clickhouse_client())
+
+
+@pytest.fixture(scope="session", autouse=True)
+def keep_instance_owner(clean_leftovers, database) -> None:  # noqa: ARG001
+    """Snapshot the owner after leftover test users are removed."""
+    with preserve_instance_owner(database):
+        yield
 
 
 @pytest.fixture(scope="session", autouse=True)

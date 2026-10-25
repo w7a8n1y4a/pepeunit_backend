@@ -7,7 +7,7 @@ from PIL import Image
 from app.configs.errors import NoAccessError, ValidationError
 from app.domain.instance_settings_model import InstanceSettings
 from app.domain.user_model import User
-from app.dto.enum import IconEntityType, UserRole
+from app.dto.enum import IconEntityType
 from app.repositories.instance_settings_repository import (
     InstanceSettingsRepository,
 )
@@ -15,6 +15,7 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.user import UserCreate
 from app.services.icon_image import IconImage
 from tests.integration.helpers.keys import fresh_key
+from tests.integration.helpers.owner import as_owner
 from tests.integration.helpers.services import (
     icon_service,
     unit_service,
@@ -26,21 +27,6 @@ def _jpeg() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (192, 192), "red").save(buffer, format="JPEG")
     return buffer.getvalue()
-
-
-def _as_owner(database, user: User):
-    repository = UserRepository(db=database)
-    previous = repository.get_owner()
-    repository.set_single_owner(user.uuid)
-    return repository, previous
-
-
-def _restore_owner(database, repository, user: User, previous: User | None):
-    database.expire_all()
-    user.role = UserRole.USER
-    repository.update(user.uuid, user)
-    if previous and previous.uuid != user.uuid:
-        repository.set_single_owner(previous.uuid)
 
 
 def test_user_icon_is_generated_from_public_key(database, cc) -> None:
@@ -177,26 +163,29 @@ def test_instance_icon_is_owner_only(
             InstanceSettings.ROW_UUID, IconEntityType.INSTANCE, replacement
         )
 
-    repository, previous = _as_owner(database, extra_user)
-    try:
-        with pytest.raises(ValidationError):
-            icon_service(database, extra_user_token).upload(
-                uuid.uuid4(), IconEntityType.INSTANCE, replacement
+    with as_owner(database, extra_user):
+        try:
+            with pytest.raises(ValidationError):
+                icon_service(database, extra_user_token).upload(
+                    uuid.uuid4(), IconEntityType.INSTANCE, replacement
+                )
+            updated = icon_service(database, extra_user_token).upload(
+                InstanceSettings.ROW_UUID,
+                IconEntityType.INSTANCE,
+                replacement,
             )
-        updated = icon_service(database, extra_user_token).upload(
-            InstanceSettings.ROW_UUID, IconEntityType.INSTANCE, replacement
-        )
-        database.expire_all()
-        with pytest.raises(ValidationError):
-            icons.get(original_uuid)
-        assert bytes(icons.get(updated.uuid).image_bin) == replacement
-    finally:
-        database.expire_all()
-        current = InstanceSettingsRepository(database).get(
-            InstanceSettings(uuid=InstanceSettings.ROW_UUID)
-        )
-        if current.icon_uuid != original_uuid:
-            icon_service(database, extra_user_token).upload(
-                InstanceSettings.ROW_UUID, IconEntityType.INSTANCE, original
+            database.expire_all()
+            with pytest.raises(ValidationError):
+                icons.get(original_uuid)
+            assert bytes(icons.get(updated.uuid).image_bin) == replacement
+        finally:
+            database.expire_all()
+            current = InstanceSettingsRepository(database).get(
+                InstanceSettings(uuid=InstanceSettings.ROW_UUID)
             )
-        _restore_owner(database, repository, extra_user, previous)
+            if current.icon_uuid != original_uuid:
+                icon_service(database, extra_user_token).upload(
+                    InstanceSettings.ROW_UUID,
+                    IconEntityType.INSTANCE,
+                    original,
+                )

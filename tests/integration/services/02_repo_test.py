@@ -16,9 +16,7 @@ from app.dto.enum import (
     OperationTaskStatus,
     OperationTaskType,
     RepoStatus,
-    UserRole,
 )
-from app.repositories.user_repository import UserRepository
 from app.schemas.pydantic.repo import (
     CommitFilter,
     Credentials,
@@ -28,6 +26,7 @@ from app.schemas.pydantic.repo import (
 from app.services.icon_image import IconImage
 from tests.integration.helpers.instance_settings import owner_setting
 from tests.integration.helpers.names import UNIVERSAL_FIRST_COMMIT
+from tests.integration.helpers.owner import as_owner
 from tests.integration.helpers.services import (
     all_branch_commits,
     icon_service,
@@ -277,11 +276,7 @@ def test_create_repo_by_api_duplicate(
     github_public_repo, admin_user, database
 ) -> None:
     """A repo discovered on another instance is created without an agent token"""
-    repository = UserRepository(db=database)
-    previous_role = admin_user.role
-    admin_user.role = UserRole.OWNER
-    repository.update(admin_user.uuid, admin_user)
-    try:
+    with as_owner(database, admin_user):
         service = repo_service(database, None)
         with pytest.raises(RepoError):
             service.create(
@@ -292,9 +287,6 @@ def test_create_repo_by_api_duplicate(
                 ),
                 is_api=True,
             )
-    finally:
-        admin_user.role = previous_role
-        repository.update(admin_user.uuid, admin_user)
 
 
 def test_schedule_update_repo(

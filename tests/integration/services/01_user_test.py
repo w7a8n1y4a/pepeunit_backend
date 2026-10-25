@@ -18,6 +18,7 @@ from app.schemas.pydantic.user import (
 )
 from tests.integration.fixtures.users import telegram_chat_id
 from tests.integration.helpers.keys import REGULAR_USER_KEY, fresh_key
+from tests.integration.helpers.owner import as_owner, preserve_instance_owner
 from tests.integration.helpers.services import token_for, user_service
 
 
@@ -241,45 +242,59 @@ def test_assign_owner_replaces_previous(database, cc, extra_user) -> None:
     from scripts.set_owner import assign_owner
 
     repository = UserRepository(db=database)
+    database.expire_all()
+    instance_owner = repository.get_owner()
+    instance_owner_uuid = (
+        instance_owner.uuid if instance_owner is not None else None
+    )
     previous = user_service(database, cc, None).create(
         UserCreate(public_key=fresh_key().public_key)
     )
-    try:
-        repository.set_single_owner(previous.uuid)
-        assign_owner(extra_user.uuid)
-        database.expire_all()
+    with preserve_instance_owner(database):
+        try:
+            repository.set_single_owner(previous.uuid)
+            assign_owner(extra_user.uuid)
+            database.expire_all()
 
-        assert repository.get(User(uuid=previous.uuid)).role == UserRole.USER
-        assert repository.get(User(uuid=extra_user.uuid)).role == UserRole.OWNER
-        with pytest.raises(UserError):
-            repository.set_single_owner(uuid.uuid4())
-    finally:
-        repository.delete(User(uuid=previous.uuid))
-        extra_user.role = UserRole.USER
-        repository.update(extra_user.uuid, extra_user)
+            previous_user = repository.get(User(uuid=previous.uuid))
+            assert previous_user.role == UserRole.USER
+            promoted = repository.get(User(uuid=extra_user.uuid))
+            assert promoted.role == UserRole.OWNER
+            with pytest.raises(UserError):
+                repository.set_single_owner(uuid.uuid4())
+        finally:
+            repository.delete(User(uuid=previous.uuid))
+            extra_user.role = UserRole.USER
+            repository.update(extra_user.uuid, extra_user)
+
+    database.expire_all()
+    if instance_owner_uuid is None:
+        assert repository.get_owner() is None
+    else:
+        restored = repository.get(User(uuid=instance_owner_uuid))
+        assert restored.role == UserRole.OWNER
 
 
 def test_owner_grants_and_revokes_admin(database, cc, extra_user) -> None:
     repository = UserRepository(db=database)
-    repository.set_single_owner(extra_user.uuid)
     target = None
-    try:
-        token = token_for(database, cc, extra_user._test_key)
-        service = user_service(database, cc, token)
-        target = user_service(database, cc, None).create(
-            UserCreate(public_key=fresh_key().public_key)
-        )
+    with as_owner(database, extra_user):
+        try:
+            token = token_for(database, cc, extra_user._test_key)
+            service = user_service(database, cc, token)
+            target = user_service(database, cc, None).create(
+                UserCreate(public_key=fresh_key().public_key)
+            )
 
-        granted = service.grant_admin(target.uuid)
-        assert granted.role == UserRole.ADMIN
-        revoked = service.revoke_admin(target.uuid)
-        assert revoked.role == UserRole.USER
-        assert repository.get(User(uuid=extra_user.uuid)).role == UserRole.OWNER
-    finally:
-        if target is not None:
-            repository.delete(User(uuid=target.uuid))
-        extra_user.role = UserRole.USER
-        repository.update(extra_user.uuid, extra_user)
+            granted = service.grant_admin(target.uuid)
+            assert granted.role == UserRole.ADMIN
+            revoked = service.revoke_admin(target.uuid)
+            assert revoked.role == UserRole.USER
+            owner = repository.get(User(uuid=extra_user.uuid))
+            assert owner.role == UserRole.OWNER
+        finally:
+            if target is not None:
+                repository.delete(User(uuid=target.uuid))
 
 
 def test_grant_admin_without_owner(
