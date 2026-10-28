@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pytest
 
@@ -11,6 +12,7 @@ from app.configs.errors import (
     RepoError,
 )
 from app.domain.repo_model import Repo
+from app.repositories.git_platform_repository import GithubPlatformClient
 from app.dto.enum import (
     CredentialStatus,
     OperationTaskStatus,
@@ -324,13 +326,21 @@ def test_update_local_repository_sync_error(
     extra_user_token,
 ) -> None:
     service = repo_service(database, regular_user_token)
-    with owner_setting(
-        database,
-        extra_user,
-        extra_user_token,
-        "pu_instance_repo_max_size",
-        0,
-    ), pytest.raises(RepoError):
+    with (
+        owner_setting(
+            database,
+            extra_user,
+            extra_user_token,
+            "pu_instance_repo_max_size",
+            1,
+        ),
+        patch.object(
+            GithubPlatformClient,
+            "get_repo_size",
+            return_value=2 * 2**20,
+        ),
+        pytest.raises(RepoError),
+    ):
         service.update_local_repository(github_public_repo.uuid)
 
     repo = service.get(github_public_repo.uuid)

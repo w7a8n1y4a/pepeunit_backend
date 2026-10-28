@@ -122,8 +122,8 @@ func (cfg *Config) ApplyRuntime(settings RuntimeSettings) error {
 	if settings.NRecordsCleanupInterval < 1 {
 		return apperr.New(apperr.NRecordsCleanupIntervalInvalid, "pu_datapipe_nrecords_cleanup_interval must be >= 1")
 	}
-	if settings.MQTTKeepAlive < 0 {
-		return apperr.New(apperr.MQTTKeepAliveInvalid, "pu_datapipe_mqtt_keepalive must be >= 0")
+	if settings.MQTTKeepAlive < 1 {
+		return apperr.New(apperr.MQTTKeepAliveInvalid, "pu_datapipe_mqtt_keepalive must be >= 1")
 	}
 	if err := logging.Configure(settings.LogMinLevel, settings.LogFormat); err != nil {
 		return err

@@ -43,7 +43,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_datapipe_config_sync_interval: int = Field(ge=1, le=86_400)
     pu_datapipe_default_last_value_enable: bool
     pu_datapipe_limit_unit_io_per_one_panel: int = Field(ge=1, le=32)
-    pu_datapipe_mqtt_keepalive: int = Field(ge=0, le=600)
+    pu_datapipe_mqtt_keepalive: int = Field(ge=1, le=600)
     pu_datapipe_nrecords_cleanup_interval: int = Field(ge=1, le=604_800)
 
     pu_ff_datapipe_enable: bool
@@ -53,7 +53,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_ff_prometheus_enable: bool
     pu_ff_telegram_bot_enable: bool
 
-    pu_instance_cipher_max_length: int = Field(ge=0, le=5_000_000)
+    pu_instance_cipher_max_length: int = Field(ge=100_000, le=5_000_000)
     pu_instance_github_token_name: str = Field(max_length=128)
     pu_instance_github_token_pat: str = Field(max_length=128)
     pu_instance_http_connect_timeout: float = Field(ge=1, le=60)
@@ -66,7 +66,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
     pu_instance_max_state_size: int = Field(ge=4096, le=65536)
     pu_instance_owner_email: str = Field(max_length=128)
     pu_instance_owner_tg: str = Field(max_length=128)
-    pu_instance_repo_max_size: int = Field(ge=0, le=1024)
+    pu_instance_repo_max_size: int = Field(ge=1, le=1024)
     pu_instance_repo_min_interval_sync: int = Field(ge=1, le=1800)
     pu_instance_retention_days: int = Field(ge=1, le=120)
     pu_instance_unit_log_expiration: int = Field(ge=60, le=604_800)
@@ -77,7 +77,7 @@ class InstanceSettingsData(SettingsValidationMixin, BaseModel):
 
     pu_mqtt_client_max_bytes_rate: str = Field(max_length=64)
     pu_mqtt_client_max_messages_rate: str = Field(max_length=64)
-    pu_mqtt_keepalive: int = Field(ge=0, le=600)
+    pu_mqtt_keepalive: int = Field(ge=1, le=600)
     pu_mqtt_max_client_connection_rate: str = Field(max_length=64)
     pu_mqtt_max_client_id_len: int = Field(ge=1, le=1024)
     pu_mqtt_max_clients: int = Field(ge=1, le=1024)
