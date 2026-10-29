@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import func
 
 from app import runtime
 from app.configs.errors import (
@@ -12,6 +13,7 @@ from app.configs.errors import (
     RepoError,
 )
 from app.domain.repo_model import Repo
+from app.domain.unit_model import Unit
 from app.repositories.git_platform_repository import GithubPlatformClient
 from app.dto.enum import (
     CredentialStatus,
@@ -213,7 +215,39 @@ def test_get_many_repository(
             limit=runtime.get().pu_instance_max_pagination_size,
         )
     )
-    assert all(item.is_public_repository for item in repositories)
+    assert all(
+        repo.is_public_repository for repo, _child_unit_count in repositories
+    )
+
+
+def test_child_unit_count(
+    live_units,
+    universal_repo,
+    github_public_repo,
+    regular_user_token,
+    database,
+) -> None:
+    service = repo_service(database, regular_user_token)
+
+    def expected(repo) -> int:
+        return (
+            database.query(func.count(Unit.uuid))
+            .filter(Unit.repo_uuid == repo.uuid)
+            .scalar()
+        )
+
+    universal_count = expected(universal_repo)
+    assert universal_count >= len(live_units.all())
+    assert service.read(universal_repo.uuid).child_unit_count == universal_count
+
+    _count, repos = service.list(RepoFilter(uuids=[universal_repo.uuid]))
+    _repo, child_unit_count = repos[0]
+    assert child_unit_count == universal_count
+
+    empty_count = expected(github_public_repo)
+    assert (
+        service.read(github_public_repo.uuid).child_unit_count == empty_count
+    )
 
 
 def test_update_local_repository(

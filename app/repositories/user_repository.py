@@ -97,7 +97,7 @@ class UserRepository(BaseRepository):
                 )
             )
 
-        fields = [User.login]
+        fields = [User.login, User.hash_public_key]
         query = apply_ilike_search_string(query, filters, fields)
 
         fields = {"role": User.role, "status": User.status}

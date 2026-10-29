@@ -75,7 +75,7 @@ def notification_service(database, cc, token=None):
 def repo_read(database, token, repo_or_uuid):
     service = repo_service(database, token)
     repo_uuid = getattr(repo_or_uuid, "uuid", repo_or_uuid)
-    return service.mapper_repo_to_repo_read(service.get(repo_uuid))
+    return service.read(repo_uuid)
 
 
 def _collect_commits(service, repo_uuid, branch, only_tag, count):
@@ -107,7 +107,7 @@ def branch_commits(
 ):
     """First count commits of the default branch, count is what the caller indexes"""
     service = repo_service(database, token)
-    read = service.mapper_repo_to_repo_read(service.get(repo_uuid))
+    read = service.read(repo_uuid)
 
     return read, _collect_commits(
         service, repo_uuid, read.branches[0], only_tag, count

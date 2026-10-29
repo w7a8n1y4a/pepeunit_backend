@@ -324,3 +324,13 @@ def test_get_many_user(database, cc, admin_user_token, test_hash, regular_user) 
     )
     assert any(user.uuid == regular_user.uuid for user in users)
     assert count >= 1
+
+    fragment = regular_user.hash_public_key[8:24]
+    assert fragment not in (regular_user.login or "")
+    _count, by_hash = service.list(
+        UserFilter.unlimited(
+            search_string=fragment.upper(),
+            role=[UserRole.USER],
+        )
+    )
+    assert any(user.uuid == regular_user.uuid for user in by_hash)

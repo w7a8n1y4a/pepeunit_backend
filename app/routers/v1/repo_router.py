@@ -28,7 +28,7 @@ def create(
     data: RepoCreate,
     repo_service: RepoService = Depends(get_repo_service),
 ):
-    return repo_service.mapper_repo_to_repo_read(repo_service.create(data))
+    return repo_service.mapper_repo_to_repo_read(repo_service.create(data), 0)
 
 
 @router.get("/{uuid}", response_model=RepoRead)
@@ -36,7 +36,7 @@ def get(
     uuid: uuid_pkg.UUID,
     repo_service: RepoService = Depends(get_repo_service),
 ):
-    return repo_service.mapper_repo_to_repo_read(repo_service.get(uuid))
+    return repo_service.read(uuid)
 
 
 @router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
@@ -118,7 +118,10 @@ def get_repos(
     count, repos = repo_service.list(filters)
     return ReposResult(
         count=count,
-        repos=[repo_service.mapper_repo_to_repo_read(item) for item in repos],
+        repos=[
+            repo_service.mapper_repo_to_repo_read(repo, child_unit_count)
+            for repo, child_unit_count in repos
+        ],
     )
 
 

@@ -365,9 +365,7 @@ def test_auto_update_firmware_unit(
     assert post_bulk_update_units(admin_user_token) < 400
 
     repo_svc = repo_service(database, token)
-    repo = repo_svc.mapper_repo_to_repo_read(
-        repo_svc.get(source.repo_uuid)
-    )
+    repo = repo_svc.read(source.repo_uuid)
     commits_with_tag = service.git_repo_repository.get_branch_commits_with_tag(
         repo, source.target_branch
     )

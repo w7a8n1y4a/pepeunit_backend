@@ -72,7 +72,7 @@ class RepoBotRouter(BaseBotRouter):
         with get_hand_session() as db:
             repo_service = get_bot_repo_service(db, chat_id)
 
-            count, repos = repo_service.list(
+            count, rows = repo_service.list(
                 RepoFilter(
                     offset=(filters.page - 1)
                     * runtime.get().pu_telegram_items_per_page,
@@ -89,6 +89,7 @@ class RepoBotRouter(BaseBotRouter):
                 )
             )
 
+            repos = [repo for repo, _child_unit_count in rows]
             total_pages = (
                 count + runtime.get().pu_telegram_items_per_page - 1
             ) // runtime.get().pu_telegram_items_per_page

@@ -206,7 +206,8 @@ class PeerService:
                 ),
                 urls=tuple(sorted(peer.url for peer in peers)),
                 repos=tuple(
-                    self.mapper_repo_to_public_repo(repo) for repo in repos
+                    self.mapper_repo_to_public_repo(repo)
+                    for repo, _child_unit_count in repos
                 ),
             )
         )
@@ -486,7 +487,9 @@ class PeerService:
 
     def insert_discovered_repos(self, repos: Sequence[PeerPublicRepo]) -> None:
         count, known_repos = self.repo_repository.list(RepoFilter.unlimited())
-        known_urls = {item.repository_url for item in known_repos}
+        known_urls = {
+            repo.repository_url for repo, _child_unit_count in known_repos
+        }
 
         for repo in repos:
             if repo.url in known_urls:

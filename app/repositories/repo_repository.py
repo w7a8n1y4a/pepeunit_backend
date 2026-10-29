@@ -1,11 +1,15 @@
+import uuid as uuid_pkg
+
 from fastapi import Depends
 from fastapi.params import Query
-from sqlmodel import Session
+from sqlalchemy import func
+from sqlmodel import Session, select
 
 from app.configs.db import get_session
 from app.configs.error_codes import ErrorCode
 from app.configs.errors import RepoError
 from app.domain.repo_model import Repo
+from app.domain.unit_model import Unit
 from app.dto.enum import GitPlatform, UuidEntity
 from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import (
@@ -28,7 +32,7 @@ class RepoRepository(BaseRepository):
             .first()
         )
 
-    def list(self, filters: RepoFilter) -> tuple[int, list[Repo]]:
+    def list(self, filters: RepoFilter) -> tuple[int, list[tuple[Repo, int]]]:
         query = self.db.query(Repo)
 
         filters.uuids = (
@@ -68,7 +72,29 @@ class RepoRepository(BaseRepository):
         query = apply_orders_by(query, filters, fields)
 
         count, query = apply_offset_and_limit(query, filters)
-        return count, query.all()
+        return count, [
+            (repo, int(child_unit_count))
+            for repo, child_unit_count in query.add_columns(
+                self._child_unit_count()
+            ).all()
+        ]
+
+    def get_with_child_unit_count(
+        self, repo_uuid: uuid_pkg.UUID
+    ) -> tuple[Repo, int] | None:
+        return (
+            self.db.query(Repo, self._child_unit_count())
+            .filter(Repo.uuid == repo_uuid)
+            .first()
+        )
+
+    @staticmethod
+    def _child_unit_count():
+        return (
+            select(func.count(Unit.uuid))
+            .where(Unit.repo_uuid == Repo.uuid)
+            .scalar_subquery()
+        )
 
     def is_unique_url(self, url: str) -> None:
         repo = self.db.query(Repo).filter(Repo.repository_url == url).first()

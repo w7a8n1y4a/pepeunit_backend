@@ -203,6 +203,16 @@ class RepoService:
         self.access_service.authorization.check_visibility(repo)
         return repo
 
+    def read(self, uuid: uuid_pkg.UUID) -> RepoRead:
+        self.access_service.authorization.check_access(
+            [AgentType.BOT, AgentType.USER]
+        )
+        row = self.repo_repository.get_with_child_unit_count(uuid)
+        is_valid_object(row, NotFoundEntity.REPO)
+        repo, child_unit_count = row
+        self.access_service.authorization.check_visibility(repo)
+        return self.mapper_repo_to_repo_read(repo, int(child_unit_count))
+
     def get_branch_commits(
         self, uuid: uuid_pkg.UUID, filters: CommitFilter
     ) -> list[CommitRead]:
@@ -325,7 +335,7 @@ class RepoService:
 
         self.repo_repository.update(repo.uuid, repo)
 
-    def list(self, filters: RepoFilter) -> tuple[int, list[Repo]]:
+    def list(self, filters: RepoFilter) -> tuple[int, list[tuple[Repo, int]]]:
         self.access_service.authorization.check_access(
             [AgentType.BOT, AgentType.USER]
         )
@@ -573,10 +583,16 @@ class RepoService:
             msg = f"No valid external repo size {round(repo_size / 2**20, 2)} MB, max {runtime.get().pu_instance_repo_max_size} MB"
             raise GitRepoError(msg, code=ErrorCode.GIT_REPO_TOO_LARGE)
 
-    def mapper_repo_to_repo_read(self, repo: Repo) -> RepoRead:
+    def mapper_repo_to_repo_read(
+        self, repo: Repo, child_unit_count: int
+    ) -> RepoRead:
         try:
             branches = self.git_repo_repository.get_branches(repo)
         except Exception:
             branches = []
 
-        return RepoRead(branches=branches, **repo.dict())
+        return RepoRead(
+            branches=branches,
+            child_unit_count=child_unit_count,
+            **repo.dict(),
+        )

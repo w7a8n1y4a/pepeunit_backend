@@ -56,6 +56,7 @@ class RepoRead(BaseModel):
     last_update_datetime: datetime
 
     creator_uuid: uuid_pkg.UUID | None = None
+    child_unit_count: int
 
     branches: list[str]
 
