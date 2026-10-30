@@ -41,6 +41,11 @@ def _extract_pepeunit_archive(file_path: str, extract_path: str) -> None:
 
 FileManager.extract_pepeunit_archive = staticmethod(_extract_pepeunit_archive)
 
+# QoS 0 publish returns success once the packet is queued. Right after connect
+# that packet is often dropped, so the first minute repeats state instead of
+# waiting a full PU_STATE_SEND_INTERVAL.
+_STARTUP_STATE_INTERVAL = 2
+
 
 class MQTTClient:
     def __init__(self, unit):
@@ -48,6 +53,7 @@ class MQTTClient:
         self.client: PepeunitClient | None = None
         self._running = False
         self._thread: threading.Thread | None = None
+        self._connected_since: float | None = None
 
         self.env_file = f"tmp/test_units/{unit.uuid}/env.json"
         self.schema_file = f"tmp/test_units/{unit.uuid}/schema.json"
@@ -69,6 +75,7 @@ class MQTTClient:
         def update_env_schema_and_report_state() -> None:
             original_update()
             self.client._last_state_send = 0
+            self._connected_since = None
 
         self.client._update_env_schema_only = update_env_schema_and_report_state
         self.client.set_mqtt_input_handler(self.mqtt_input_handler)
@@ -129,20 +136,32 @@ class MQTTClient:
                 await asyncio.sleep(1)
 
     def _report_state(self) -> None:
-        """Publish state only after the broker has accepted the connection.
+        """Publish state after the broker has accepted the connection.
 
-        paho drops a QoS 0 publish while the socket is still down and still
-        returns. The library would mark that attempt as sent, so the next
-        state waits a full PU_STATE_SEND_INTERVAL.
+        For the first PU_STATE_SEND_INTERVAL of a connection, repeat every
+        couple of seconds. A queued QoS 0 publish can still be dropped, and
+        the backend keeps the first state it stores.
         """
         mqtt = self.client.mqtt_client
         paho = mqtt._client if mqtt else None
         if paho is None or not paho.is_connected():
+            if self._connected_since is not None:
+                self.client._last_state_send = 0
+            self._connected_since = None
             return
 
         now = time.time()
-        elapsed = now - self.client._last_state_send
-        if elapsed < self.client.settings.PU_STATE_SEND_INTERVAL:
+        if self._connected_since is None:
+            self._connected_since = now
+            self.client._last_state_send = 0
+
+        interval = self.client.settings.PU_STATE_SEND_INTERVAL
+        gap = (
+            _STARTUP_STATE_INTERVAL
+            if now - self._connected_since < interval
+            else interval
+        )
+        if now - self.client._last_state_send < gap:
             return
 
         topics = self.client.schema.output_base_topic.get(
