@@ -9,7 +9,12 @@ import zlib
 from collections import namedtuple
 
 from pepeunit_client import PepeunitClient
-from pepeunit_client.enums import RestartMode, SearchScope, SearchTopicType
+from pepeunit_client.enums import (
+    BaseOutputTopicType,
+    RestartMode,
+    SearchScope,
+    SearchTopicType,
+)
 from pepeunit_client.file_manager import FileManager
 
 
@@ -115,13 +120,41 @@ class MQTTClient:
                     self.client.publish_to_topics("output/pepeunit", msg)
                     msg_count += 1
 
-                self.client._base_mqtt_output_handler()
+                self._report_state()
 
                 await asyncio.sleep(0.25)
 
             except Exception as e:
                 self.client.logger.error(f"Error in publish_messages: {e}")
                 await asyncio.sleep(1)
+
+    def _report_state(self) -> None:
+        """Publish state only after the broker has accepted the connection.
+
+        paho drops a QoS 0 publish while the socket is still down and still
+        returns. The library would mark that attempt as sent, so the next
+        state waits a full PU_STATE_SEND_INTERVAL.
+        """
+        mqtt = self.client.mqtt_client
+        paho = mqtt._client if mqtt else None
+        if paho is None or not paho.is_connected():
+            return
+
+        now = time.time()
+        elapsed = now - self.client._last_state_send
+        if elapsed < self.client.settings.PU_STATE_SEND_INTERVAL:
+            return
+
+        topics = self.client.schema.output_base_topic.get(
+            BaseOutputTopicType.STATE_PEPEUNIT.value
+        )
+        if not topics:
+            return
+
+        payload = json.dumps(self.client.get_system_state())
+        info = paho.publish(topics[0], payload)
+        if info.rc == 0:
+            self.client._last_state_send = now
 
     async def run(self):
         try:

@@ -7,6 +7,7 @@ from dataclasses import dataclass, fields
 
 import pytest
 
+from app import runtime
 from app.dto.enum import StaticRepoFileName, VisibilityLevel
 from app.schemas.pydantic.unit import UnitCreate
 from tests.integration.helpers.names import entity_name, unique_name
@@ -286,7 +287,7 @@ def running_units(unpacked_firmwares, client_emulator, regular_user_token, datab
         lambda: all(
             service.get(unit.uuid).current_commit_version for unit in unpacked_firmwares.all()
         ),
-        timeout=30,
+        timeout=runtime.get().pu_instance_unit_state_send_interval * 2 + 10,
         message="emulators did not report current_commit_version",
         session=database,
     )
