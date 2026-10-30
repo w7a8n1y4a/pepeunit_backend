@@ -78,7 +78,16 @@ def patch_input_state(token: str, unit_io_uuid: uuid_pkg.UUID, state: str) -> in
     return _status(response)
 
 
-def patch_backend_sync_repo(token: str) -> int:
-    url = f"{settings.pu_link_prefix_and_v1}/repo/backend_sync_repo"
-    response = httpx.patch(url=url, headers=_headers(token), timeout=runtime.get().http_timeout())
+def patch_update_local_repository(
+    token: str, repo_uuid: uuid_pkg.UUID
+) -> int:
+    url = (
+        f"{settings.pu_link_prefix_and_v1}"
+        f"/repo/update_local_repository/{repo_uuid}"
+    )
+    response = httpx.patch(
+        url=url,
+        headers=_headers(token),
+        timeout=runtime.get().http_timeout(),
+    )
     return _status(response)

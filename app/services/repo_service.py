@@ -484,11 +484,6 @@ class RepoService:
         logging.info("End sync of all repos")
         return f"Synced {synced} of {len(local_repo)} repos"
 
-    def backend_force_sync_local_repository_storage(self) -> None:
-        self.access_service.authorization.check_access([AgentType.BACKEND])
-
-        self.sync_local_repository_storage()
-
     @staticmethod
     def is_valid_repo_url(
         repo: RepoCreate | Repo,

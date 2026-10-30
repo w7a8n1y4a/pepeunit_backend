@@ -5,14 +5,14 @@ import pytest
 
 from app import settings
 from app.domain.repo_model import Repo
-from app.dto.agent.abc import AgentBackend
 from app.dto.enum import GitPlatform, RepoStatus
 from app.repositories.git_repo_repository import GitRepoRepository
 from app.schemas.pydantic.repo import (
     Credentials,
     RepoCreate,
 )
-from tests.integration.helpers.http import patch_backend_sync_repo
+from app.utils.utils import ensure_timezone_aware
+from tests.integration.helpers.http import patch_update_local_repository
 from tests.integration.helpers.services import repo_service
 from tests.integration.helpers.wait import wait_until
 
@@ -58,6 +58,49 @@ def _create_repo(database, token, spec: dict, *, require_clone: bool = True):
     if require_clone:
         assert cloned
     return repo, cloned
+
+
+def _sync_stamp(value) -> float | None:
+    if value is None:
+        return None
+    return ensure_timezone_aware(value).timestamp()
+
+
+def _sync_repos_on_backend(database, token, repos) -> None:
+    """The test process already cloned these repos. The backend must clone them too."""
+    service = repo_service(database, token)
+    stamps = {
+        repo.uuid: _sync_stamp(service.get(repo.uuid).sync_last_datetime)
+        for repo in repos
+    }
+    for repo in repos:
+        assert patch_update_local_repository(token, repo.uuid) < 400
+
+    def backend_caught_up() -> bool:
+        for repo in repos:
+            current = service.get(repo.uuid)
+            stamp = _sync_stamp(current.sync_last_datetime)
+            if stamp == stamps[repo.uuid]:
+                return False
+            if current.sync_status not in (
+                RepoStatus.UPDATED,
+                RepoStatus.ERROR,
+            ):
+                return False
+        return True
+
+    wait_until(
+        backend_caught_up,
+        timeout=180,
+        message="backend did not finish repo sync",
+        session=database,
+    )
+    failed = []
+    for repo in repos:
+        current = service.get(repo.uuid)
+        if current.sync_status != RepoStatus.UPDATED:
+            failed.append(f"{current.repository_url}: {current.sync_error}")
+    assert not failed, "; ".join(failed)
 
 
 def wait_repo_sync(database, token, repo, *, timeout: float = 180) -> None:
@@ -119,15 +162,18 @@ def universal_repo(regular_user_token, database) -> object:
 
 @pytest.fixture(scope="session")
 def public_repos(
-    github_public_repo, gitlab_public_repo, universal_repo
+    github_public_repo,
+    gitlab_public_repo,
+    universal_repo,
+    regular_user_token,
+    database,
 ) -> list:
     repos = [
         github_public_repo,
         gitlab_public_repo,
         universal_repo,
     ]
-    backend_token = AgentBackend(name=settings.pu_domain).generate_agent_token()
-    assert patch_backend_sync_repo(backend_token) < 400
+    _sync_repos_on_backend(database, regular_user_token, repos)
     return repos
 
 
@@ -154,8 +200,7 @@ def private_repos(private_repo_enabled, regular_user_token, database) -> list:
     if not created:
         pytest.skip("no private repos could be cloned")
 
-    backend_token = AgentBackend(name=settings.pu_domain).generate_agent_token()
-    assert patch_backend_sync_repo(backend_token) < 400
+    _sync_repos_on_backend(database, regular_user_token, created)
     return created
 
 

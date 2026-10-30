@@ -103,13 +103,6 @@ def update_all_repos(
     repo_service.schedule_update_all()
 
 
-@router.patch("/backend_sync_repo", status_code=status.HTTP_204_NO_CONTENT)
-def backend_force_sync(
-    repo_service: RepoService = Depends(get_repo_service),
-):
-    return repo_service.backend_force_sync_local_repository_storage()
-
-
 @router.get("", response_model=ReposResult)
 def get_repos(
     filters: RepoFilter = Depends(RepoFilter),

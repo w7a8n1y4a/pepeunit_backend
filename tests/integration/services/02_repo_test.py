@@ -299,15 +299,6 @@ def test_sync_not_available_while_processing(
         service.repo_repository.update(repo.uuid, repo)
 
 
-def test_backend_force_sync_requires_backend(
-    regular_user_token, database
-) -> None:
-    with pytest.raises(NoAccessError):
-        repo_service(
-            database, regular_user_token
-        ).backend_force_sync_local_repository_storage()
-
-
 def test_create_repo_by_api_duplicate(
     github_public_repo, admin_user, database
 ) -> None:
