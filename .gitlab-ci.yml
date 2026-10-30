@@ -2,6 +2,22 @@ variables:
   DOCKER_IMAGE_TAG: $CI_PIPELINE_IID
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
 
+# BuildKit is a Go binary. Go 1.24+ offers X25519MLKEM768 in the ClientHello,
+# and on this network the handshake to auth.docker.io times out. The setting
+# applies only at `buildx create`, so an existing builder is recreated once.
+.ensure_multiarch_builder:
+  script:
+    - |
+      BUILDER=multiarch-builder
+      CONTAINER="buildx_buildkit_${BUILDER}0"
+      if docker buildx inspect "$BUILDER" >/dev/null 2>&1 \
+        && docker inspect "$CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -qx 'GODEBUG=tlsmlkem=0'; then
+        docker buildx use "$BUILDER"
+      else
+        docker buildx rm -f "$BUILDER" >/dev/null 2>&1 || true
+        docker buildx create --use --name "$BUILDER" --driver docker-container --driver-opt env.GODEBUG=tlsmlkem=0
+      fi
+
 stages:
   - build
   - deploy
@@ -19,7 +35,7 @@ build:image:master:
   before_script:
     - docker login -u $CI_REGISTRY_USER_MAIN -p $CI_ACCESS_TOKEN $CI_REGISTRY
     - docker run --privileged --rm tonistiigi/binfmt --install all
-    - docker buildx create --use --name multiarch-builder || docker buildx use multiarch-builder
+    - !reference [.ensure_multiarch_builder, script]
     - docker buildx inspect --bootstrap
   script:
     - docker buildx build --platform linux/amd64,linux/arm64 -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG --push .
@@ -157,7 +173,7 @@ tag:
       when: on_success
   before_script:
     - docker run --privileged --rm tonistiigi/binfmt --install all
-    - docker buildx create --use --name multiarch-builder || docker buildx use multiarch-builder
+    - !reference [.ensure_multiarch_builder, script]
     - docker buildx inspect --bootstrap
   script:
     - docker buildx build --platform linux/amd64,linux/arm64 -t w7a8n1y4a/pepeunit-backend:$CI_COMMIT_TAG --push .
