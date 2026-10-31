@@ -6,6 +6,7 @@ import shutil
 import uuid as uuid_pkg
 
 from fastapi import Depends
+from sqlalchemy.orm.exc import ObjectDeletedError, StaleDataError
 
 from app import runtime
 from app.configs.error_codes import ErrorCode
@@ -476,10 +477,26 @@ class RepoService:
 
         synced = 0
         for repo in local_repo:
-            if force or (str(repo.uuid) not in local_physic_repository):
+            repo_uuid = None
+            try:
+                repo_uuid = repo.uuid
+                if not force and str(repo_uuid) in local_physic_repository:
+                    continue
                 logging.info(f"Run sync repo: {repo.repository_url}")
                 self.sync_external_repository(repo)
-                synced += 1
+            except ObjectDeletedError, StaleDataError:
+                # Clone runs between two updates. A fixture or a parallel
+                # sync can delete the row before the second one lands.
+                self.repo_repository.db.rollback()
+                if (
+                    repo_uuid is not None
+                    and self.repo_repository.get(Repo(uuid=repo_uuid))
+                    is not None
+                ):
+                    raise
+                logging.warning("Skip sync, repo row is gone")
+                continue
+            synced += 1
 
         logging.info("End sync of all repos")
         return f"Synced {synced} of {len(local_repo)} repos"

@@ -321,7 +321,7 @@ class StartupService:
                     )
                 with BackgroundService() as services:
                     service = services.get_peer_service()
-                    await service.delete_stale_instances()
+                    await service.delete_stale_peers()
                     service.refresh_cache()
             finally:
                 lock.close()

@@ -245,6 +245,8 @@ async def test_collect_response_size_limit(
     wait_runtime("pu_instance_max_state_size", 1)
     try:
         peer = await service.collect(own_peer.uuid)
+        status = peer.last_collection_status
+        error = peer.last_collection_error
     finally:
         database.expire_all()
         row = repository.get(InstanceSettings(uuid=InstanceSettings.ROW_UUID))
@@ -252,8 +254,9 @@ async def test_collect_response_size_limit(
         repository.update(row.uuid, row)
         wait_runtime("pu_instance_max_state_size", original_size)
 
-    assert peer.last_collection_status == PeerCollectionStatus.ERROR.value
-    assert "exceeds the limit" in peer.last_collection_error
+    assert status == PeerCollectionStatus.ERROR.value
+    assert error is not None
+    assert "exceeds the limit" in error
 
     peer = await service.collect(own_peer.uuid)
     assert peer.last_collection_status == PeerCollectionStatus.SUCCESS.value

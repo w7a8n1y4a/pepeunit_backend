@@ -12,6 +12,7 @@ from tests.integration.helpers.services import instance_settings_service
 def wait_runtime(name: str, value) -> None:
     deadline = time.monotonic() + Runtime.REFRESH_SECONDS + 1
     while time.monotonic() < deadline:
+        runtime.invalidate()
         if getattr(runtime.get(), name) == value:
             return
         time.sleep(0.25)
