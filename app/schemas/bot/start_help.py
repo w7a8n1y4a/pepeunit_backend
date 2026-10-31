@@ -34,8 +34,6 @@ async def start_help_resolver(message: types.Message):
                 user_service = get_bot_user_service(db, cc, None)
                 try:
                     await user_service.verification(str(message.chat.id), code)
-                    db.close()
-
                     text = "Your Telegram is linked"
                 except HTTPException as e:
                     if e.status_code == 422:

@@ -340,13 +340,9 @@ class UnitIOService:
             get_topic_name(unit_io.uuid, unit_io.topic_name), data.state
         )
 
-        return self.unit_io_repository.update(
-            uuid,
-            UnitIO(
-                last_update_datetime=datetime.datetime.now(datetime.UTC),
-                **data.dict(),
-            ),
-        )
+        unit_io.state = data.state
+        unit_io.last_update_datetime = datetime.datetime.now(datetime.UTC)
+        return self.unit_io_repository.update(uuid, unit_io)
 
     def command_to_input_base_topic(
         self,

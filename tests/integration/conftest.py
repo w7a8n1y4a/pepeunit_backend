@@ -21,7 +21,10 @@ from tests.integration.helpers.owner import preserve_instance_owner
 
 @pytest.fixture(scope="session")
 def database() -> Session:
-    return next(get_session())
+    generator = get_session()
+    session = next(generator)
+    yield session
+    generator.close()
 
 
 @pytest.fixture(scope="session")
