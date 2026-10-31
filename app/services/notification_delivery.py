@@ -92,14 +92,14 @@ class TelegramAlertQueue:
             raise
         except TelegramBadRequest as err:
             if "chat not found" not in err.message.casefold():
-                logging.exception("Failed to send telegram alert")
+                logging.error("Failed to send telegram alert: %s", err)
                 return
             logging.warning(
                 "Telegram alert skipped, chat %s was not found", chat_id
             )
             self._forget_chat(chat_id)
-        except Exception:
-            logging.exception("Failed to send telegram alert")
+        except Exception as err:
+            logging.error("Failed to send telegram alert: %s", err)
 
     def _forget_chat(self, chat_id: str) -> None:
         """A missing chat will not appear, so the rest of its lines go too."""

@@ -5,12 +5,11 @@ from contextlib import asynccontextmanager
 from aiogram import Dispatcher, types
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app import BackendLogLevel, runtime, settings
 from app.configs.errors import CustomException
@@ -54,17 +53,33 @@ async def _lifespan(_app: FastAPI):
     await startup.stop()
 
 
-class CustomExceptionMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+class CustomExceptionMiddleware:
+    """Catch domain errors without running the app in a side task.
+
+    BaseHTTPMiddleware executes the request in another task group. That
+    task can close the database session while a worker thread is still
+    inside libpq. This middleware stays on the request task, so session
+    cleanup runs only after that work has returned.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
         try:
-            return await call_next(request)
-        except CustomException as e:
-            return JSONResponse(
-                status_code=e.status_code,
-                content={"detail": e.message, "error_code": e.error_code},
+            await self.app(scope, receive, send)
+        except CustomException as exc:
+            response = JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "detail": exc.message,
+                    "error_code": exc.error_code,
+                },
             )
-        except StarletteHTTPException:
-            return await super().dispatch(request, call_next)
+            await response(scope, receive, send)
 
 
 app = FastAPI(
