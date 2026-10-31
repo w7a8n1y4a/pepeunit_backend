@@ -38,7 +38,7 @@ build:image:master:
     - !reference [.ensure_multiarch_builder, script]
     - docker buildx inspect --bootstrap
   script:
-    - docker buildx build --platform linux/amd64,linux/arm64 -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG --push .
+    - docker buildx build --platform linux/amd64,linux/arm64 --provenance=false --sbom=false -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG --push .
 
 deploy:image:master:
   stage: deploy
@@ -176,5 +176,5 @@ tag:
     - !reference [.ensure_multiarch_builder, script]
     - docker buildx inspect --bootstrap
   script:
-    - docker buildx build --platform linux/amd64,linux/arm64 -t w7a8n1y4a/pepeunit-backend:$CI_COMMIT_TAG --push .
+    - docker buildx build --platform linux/amd64,linux/arm64 --provenance=false --sbom=false -t w7a8n1y4a/pepeunit-backend:$CI_COMMIT_TAG --push .
     - 'curl --request POST "https://git.pepemoss.com/api/v4/projects/${CI_PROJECT_ID}/releases" --header "PRIVATE-TOKEN: $CI_ACCESS_TOKEN" --data "name=Release Tag - $CI_COMMIT_TAG" --data "tag_name=$CI_COMMIT_TAG" --data "description=All builds on [Docker Hub](https://hub.docker.com/r/w7a8n1y4a/pepeunit-backend/tags) - $CI_COMMIT_TAG"'
