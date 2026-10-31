@@ -9,7 +9,7 @@ DB_NAME=$(echo "$PU_SQLALCHEMY_DATABASE_URL" | sed -E 's|.*/([^/?]+).*|\1|')
 export PGPASSWORD="$DB_PASS"
 
 echo "Wait Ready PostgreSQL..."
-until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER"; do
+until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres; do
   sleep 2
   echo "Wait Ready PostgreSQL..."
 done
