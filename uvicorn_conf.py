@@ -18,13 +18,17 @@ def main() -> None:
     watchdog = JobStopWatchdog()
     watchdog.start()
     try:
+        row = runtime.get()
         uvicorn.run(
             "app.main:app",
             host="0.0.0.0",
             port=5291,
             workers=2,
             timeout_graceful_shutdown=GRACEFUL_SHUTDOWN_SECONDS,
-            log_config=_build_logging_config(),
+            log_config=_build_logging_config(
+                row.pu_instance_log_min_level,
+                row.pu_instance_log_format,
+            ),
         )
     finally:
         watchdog.stop()

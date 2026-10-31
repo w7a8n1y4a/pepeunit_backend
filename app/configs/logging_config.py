@@ -5,7 +5,7 @@ from typing import Final
 
 from pythonjsonlogger import jsonlogger
 
-from app.configs.config import LogFormat
+from app.configs.config import BackendLogLevel, LogFormat
 from app.configs.runtime import runtime
 
 
@@ -164,14 +164,73 @@ def _build_formatters(log_format: str) -> dict:
     }
 
 
+def _psycopg_dsn(url: str) -> str:
+    for prefix in ("postgresql+psycopg2://", "postgresql+asyncpg://"):
+        if url.startswith(prefix):
+            return "postgresql://" + url.removeprefix(prefix)
+    return url
+
+
+def _read_instance_log_settings() -> tuple[str, str] | None:
+    """Owner level and format. The socket is closed before return.
+
+    Gunicorn imports this module in the master, then forks. A pooled
+    connection would be copied into every worker.
+    """
+    import psycopg2
+
+    from app import settings
+    from app.domain.instance_settings_model import InstanceSettings
+
+    try:
+        connection = psycopg2.connect(
+            _psycopg_dsn(settings.pu_sqlalchemy_database_url),
+            connect_timeout=5,
+        )
+    except psycopg2.Error:
+        return None
+
+    row = None
+    try:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pu_instance_log_min_level, pu_instance_log_format "
+                "FROM instance_settings WHERE uuid = %s",
+                (InstanceSettings.ROW_UUID,),
+            )
+            row = cursor.fetchone()
+    except psycopg2.Error:
+        return None
+    finally:
+        connection.close()
+
+    if not row:
+        return None
+    level, log_format = row
+    known_levels = {item.value for item in BackendLogLevel}
+    known_formats = {item.value for item in LogFormat}
+    if level not in known_levels or log_format not in known_formats:
+        return None
+    return level, log_format
+
+
 def _build_logging_config(
     raw_level: str | None = None,
     log_format: str | None = None,
 ) -> dict:
+    if raw_level is None or log_format is None:
+        stored = _read_instance_log_settings()
+        if stored is not None:
+            stored_level, stored_format = stored
+            if raw_level is None:
+                raw_level = stored_level
+            if log_format is None:
+                log_format = stored_format
     if raw_level is None:
-        raw_level = runtime.get().pu_instance_log_min_level
+        raw_level = BackendLogLevel.INFO.value
     if log_format is None:
-        log_format = runtime.get().pu_instance_log_format
+        log_format = LogFormat.JSON.value
 
     formatter_name = log_format
 
@@ -251,5 +310,11 @@ LOGGING_CONFIG: Final = _build_logging_config()
 
 
 def setup_logging() -> None:
-    dictConfig(_build_logging_config())
+    row = runtime.get()
+    dictConfig(
+        _build_logging_config(
+            row.pu_instance_log_min_level,
+            row.pu_instance_log_format,
+        )
+    )
     logging.getLogger(__name__)
