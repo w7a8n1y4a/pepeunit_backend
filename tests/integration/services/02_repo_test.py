@@ -274,7 +274,7 @@ def test_get_commits_only_tag(
     commits = service.get_branch_commits(
         universal_repo.uuid,
         CommitFilter(repo_branch=target_branch, only_tag=True),
-    )
+    ).commits
     assert commits
     assert all(item.tag for item in commits)
 

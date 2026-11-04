@@ -94,9 +94,9 @@ def _collect_commits(service, repo_uuid, branch, only_tag, count):
                 limit=runtime.get().pu_instance_max_pagination_size,
             ),
         )
-        commits.extend(page)
+        commits.extend(page.commits)
 
-        if len(page) < runtime.get().pu_instance_max_pagination_size:
+        if len(page.commits) < runtime.get().pu_instance_max_pagination_size:
             break
 
     return commits

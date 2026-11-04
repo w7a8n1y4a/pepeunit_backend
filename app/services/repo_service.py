@@ -44,6 +44,7 @@ from app.schemas.pydantic.operation_task import OperationTaskCreate
 from app.schemas.pydantic.repo import (
     CommitFilter,
     CommitRead,
+    CommitsResult,
     Credentials,
     OneRepoCredentials,
     RepoCreate,
@@ -216,30 +217,25 @@ class RepoService:
 
     def get_branch_commits(
         self, uuid: uuid_pkg.UUID, filters: CommitFilter
-    ) -> list[CommitRead]:
+    ) -> CommitsResult:
         self.access_service.authorization.check_access([AgentType.USER])
 
         repo = self.repo_repository.get(Repo(uuid=uuid))
         is_valid_object(repo, NotFoundEntity.REPO)
         self.access_service.authorization.check_visibility(repo)
 
-        page = (
-            self.git_repo_repository.get_branch_tagged_commits_page(
-                repo,
-                filters.repo_branch,
-                filters.offset,
-                filters.limit,
-            )
-            if filters.only_tag
-            else self.git_repo_repository.get_branch_commits_page(
-                repo,
-                filters.repo_branch,
-                filters.offset,
-                filters.limit,
-            )
+        total, page = self.git_repo_repository.query_branch_commits(
+            repo,
+            filters.repo_branch,
+            filters.offset,
+            filters.limit,
+            only_tag=filters.only_tag,
+            search=filters.search_string,
         )
-
-        return [CommitRead(**item) for item in page]
+        return CommitsResult(
+            count=total,
+            commits=[CommitRead(**item) for item in page],
+        )
 
     def get_available_platforms(
         self,

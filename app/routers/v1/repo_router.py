@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from app.configs.rest import get_repo_service
 from app.schemas.pydantic.repo import (
     CommitFilter,
-    CommitRead,
+    CommitsResult,
     Credentials,
     OneRepoCredentials,
     PlatformRead,
@@ -39,7 +39,7 @@ def get(
     return repo_service.read(uuid)
 
 
-@router.get("/branch_commits/{uuid}", response_model=list[CommitRead])
+@router.get("/branch_commits/{uuid}", response_model=CommitsResult)
 def get_branch_commits(
     uuid: uuid_pkg.UUID,
     filters: CommitFilter = Depends(CommitFilter),

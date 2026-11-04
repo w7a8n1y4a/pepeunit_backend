@@ -261,6 +261,89 @@ class GitRepoRepository:
             self.get_branch_commits(repo, branch, depth=limit, skip=offset),
         )
 
+    def query_branch_commits(
+        self,
+        repo: Repo,
+        branch: str,
+        offset: int,
+        limit: int,
+        *,
+        only_tag: bool,
+        search: str | None,
+    ) -> tuple[int, list[dict]]:
+        self.is_valid_branch(repo, branch)
+        needle = (search or "").strip().lower()
+        if not needle and not only_tag:
+            counted = self.get_repo(repo).git.rev_list(
+                self._origin(branch), count=True
+            )
+            total = int(str(counted).strip())
+            page = self.get_branch_commits_page(repo, branch, offset, limit)
+            return total, page
+
+        matched = self._matching_shas(
+            repo, branch, only_tag=only_tag, needle=needle
+        )
+        page = matched[offset : offset + limit]
+        summaries = (
+            {
+                item["commit"]: item["summary"]
+                for item in self._rev_list(
+                    repo,
+                    *[sha for sha, _ in page],
+                    no_walk="unsorted",
+                )
+            }
+            if page
+            else {}
+        )
+        return len(matched), [
+            {
+                "commit": sha,
+                "summary": summaries.get(sha, ""),
+                "tag": tag,
+            }
+            for sha, tag in page
+        ]
+
+    def _matching_shas(
+        self,
+        repo: Repo,
+        branch: str,
+        *,
+        only_tag: bool,
+        needle: str,
+    ) -> list[tuple[str, str | None]]:
+        tag_by_commit = self._tag_map(repo)
+        if only_tag and not tag_by_commit:
+            return []
+
+        found = []
+        proc = self.get_repo(repo).git.rev_list(
+            self._origin(branch), as_process=True
+        )
+        try:
+            for raw in proc.stdout:
+                sha = (raw.decode() if isinstance(raw, bytes) else raw).strip()
+                if not sha:
+                    continue
+                tag = tag_by_commit.get(sha)
+                if only_tag and not tag:
+                    continue
+                if (
+                    needle
+                    and needle not in sha.lower()
+                    and needle not in (tag or "").lower()
+                ):
+                    continue
+                found.append((sha, tag))
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+            with contextlib.suppress(GitCommandError):
+                proc.wait()
+        return found
+
     def get_branch_tagged_commits_page(
         self,
         repo: Repo,

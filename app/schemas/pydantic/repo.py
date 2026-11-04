@@ -94,9 +94,15 @@ class CommitRead(BaseModel):
     tag: str | None = None
 
 
+class CommitsResult(BaseModel):
+    count: int
+    commits: list[CommitRead]
+
+
 class CommitFilter(Filter):
     repo_branch: str
     only_tag: bool = False
+    search_string: str | None = None
 
     offset: int = Field(default=0, ge=0)
     limit: int = Field(
