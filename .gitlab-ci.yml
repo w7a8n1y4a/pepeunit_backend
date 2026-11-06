@@ -30,6 +30,10 @@ variables:
     TRIVY_SEVERITY_GATE: MEDIUM,HIGH,CRITICAL
   tags:
     - shell-build-runer
+  # The shared on-host cache (trivy.db is mmap'ed by bbolt) must never be
+  # updated while another Trivy reads it, otherwise: "SIGBUS: bus error".
+  # resource_group serializes all Trivy jobs across pipelines.
+  resource_group: trivy-cache
   before_script:
     - mkdir -p "$HOME/.cache/trivy"
     - |
