@@ -48,6 +48,36 @@ variables:
           "$TRIVY_IMAGE" "$@"
       }
 
+.osv:
+  variables:
+    OSV_IMAGE: ghcr.io/google/osv-scanner:v2.7.0
+  tags:
+    - shell-build-runer
+  before_script:
+    - |
+      osv_scanner() {
+        docker run --rm --user "$(id -u):$(id -g)" \
+          -v "$CI_PROJECT_DIR:/src" -w /src \
+          "$OSV_IMAGE" "$@"
+      }
+
+.govulncheck:
+  variables:
+    GO_IMAGE: golang:1.27.3
+    GOVULNCHECK_VERSION: v1.9.0
+  tags:
+    - shell-build-runer
+  before_script:
+    - |
+      govulncheck() {
+        docker run --rm --user "$(id -u):$(id -g)" \
+          -e HOME=/tmp -e GOPATH=/tmp/go -e GOCACHE=/tmp/gocache \
+          -e GODEBUG=tlsmlkem=0 \
+          -e GOVULNCHECK_VERSION="$GOVULNCHECK_VERSION" \
+          -v "$CI_PROJECT_DIR:/src" -w /src/data_pipe \
+          "$GO_IMAGE" sh -c 'go install "golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK_VERSION" >&2 && /tmp/go/bin/govulncheck "$@"' govulncheck "$@"
+      }
+
 .semgrep:
   variables:
     SEMGREP_IMAGE: semgrep/semgrep:1.184.0
@@ -76,21 +106,16 @@ stages:
   - test
   - tag
 
-# Whole repo: Python deps (uv.lock), Go deps (data_pipe/go.sum), Dockerfiles
-# misconfigurations, hardcoded secrets.
 security:trivy_repo:
   extends: .trivy
   stage: security
   needs: []
-  # Findings turn the job orange (warning) but do not block the pipeline.
-  # Remove allow_failure to make the scan blocking again.
   allow_failure: true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_COMMIT_REF_NAME == "master"
   script:
-    # 1) full report (all severities, incl. LOW/UNKNOWN), never fails; artifact
     - >
       trivy fs
       --scanners vuln,secret,misconfig
@@ -98,7 +123,6 @@ security:trivy_repo:
       --skip-dirs .venv,repo_cache,tmp,.git
       --format json --output trivy-repo.json
       --exit-code 0 .
-    # 2) readable log + gate: fail on MEDIUM+ (fixed and unfixed)
     - >
       trivy fs
       --scanners vuln,secret,misconfig
@@ -112,6 +136,42 @@ security:trivy_repo:
     expire_in: 30 days
     paths:
       - trivy-repo.json
+
+security:osv_repo:
+  extends: .osv
+  stage: security
+  needs: []
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_REF_NAME == "master"
+  script:
+    - osv_scanner scan source -L uv.lock --format json --output-file osv-repo.json || true
+    - osv_scanner scan source -L uv.lock
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - osv-repo.json
+
+security:govulncheck_repo:
+  extends: .govulncheck
+  stage: security
+  needs: []
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_REF_NAME == "master"
+  script:
+    - govulncheck -format json ./... > govulncheck-repo.json || true
+    - govulncheck ./...
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - govulncheck-repo.json
 
 security:semgrep_repo:
   extends: .semgrep
