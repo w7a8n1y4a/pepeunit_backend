@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24.3 AS datapipe
+FROM --platform=$BUILDPLATFORM golang:1.27.3 AS datapipe
 
 # Same ML-KEM handshake failure as BuildKit, here against proxy.golang.org.
 ENV GODEBUG=tlsmlkem=0
