@@ -18,11 +18,106 @@ variables:
         docker buildx create --use --name "$BUILDER" --driver docker-container --driver-opt env.GODEBUG=tlsmlkem=0
       fi
 
+# Trivy: pinned version, DB cache lives on the runner host in $HOME/.cache/trivy.
+# If ghcr.io is unreachable from the runner, set TRIVY_DB_REPOSITORY and
+# TRIVY_JAVA_DB_REPOSITORY (CI/CD variables) to a mirror.
+.trivy:
+  variables:
+    TRIVY_IMAGE: aquasec/trivy:0.76.2
+    # Strict mode: gate on MEDIUM and above, unfixed CVEs included
+    # (no --ignore-unfixed), comprehensive detection (also reports CVEs that
+    # the distro vendor has not confirmed / marked as affected yet).
+    TRIVY_SEVERITY_GATE: MEDIUM,HIGH,CRITICAL
+  tags:
+    - shell-build-runer
+  before_script:
+    - mkdir -p "$HOME/.cache/trivy"
+    - |
+      trivy() {
+        docker run --rm --user "$(id -u):$(id -g)" \
+          -e TRIVY_CACHE_DIR=/cache \
+          -e TRIVY_NO_PROGRESS=true \
+          -e TRIVY_DB_REPOSITORY -e TRIVY_JAVA_DB_REPOSITORY \
+          -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+          -v "$HOME/.cache/trivy:/cache" \
+          -v "$CI_PROJECT_DIR:/src" -w /src \
+          "$TRIVY_IMAGE" "$@"
+      }
+
 stages:
   - build
+  - security
   - deploy
   - test
   - tag
+
+# Whole repo: Python deps (uv.lock), Go deps (data_pipe/go.sum), Dockerfiles
+# misconfigurations, hardcoded secrets.
+security:trivy_repo:
+  extends: .trivy
+  stage: security
+  needs: []
+  # Findings turn the job orange (warning) but do not block the pipeline.
+  # Remove allow_failure to make the scan blocking again.
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_REF_NAME == "master"
+  script:
+    # 1) full report (all severities, incl. LOW/UNKNOWN), never fails; artifact
+    - >
+      trivy fs
+      --scanners vuln,secret,misconfig
+      --detection-priority comprehensive
+      --skip-dirs .venv,repo_cache,tmp,.git
+      --format json --output trivy-repo.json
+      --exit-code 0 .
+    # 2) readable log + gate: fail on MEDIUM+ (fixed and unfixed)
+    - >
+      trivy fs
+      --scanners vuln,secret,misconfig
+      --detection-priority comprehensive
+      --dependency-tree
+      --skip-dirs .venv,repo_cache,tmp,.git
+      --severity "$TRIVY_SEVERITY_GATE"
+      --exit-code 1 .
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - trivy-repo.json
+
+# Final image: OS packages of python:slim + Python/Go deps + data_pipe binary.
+security:trivy_image:
+  extends: .trivy
+  stage: security
+  needs: ["build:image:master"]
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: on_success
+    - when: never
+  script:
+    - export TRIVY_USERNAME=$CI_REGISTRY_USER_MAIN TRIVY_PASSWORD=$CI_ACCESS_TOKEN
+    - >
+      trivy image
+      --scanners vuln,secret
+      --detection-priority comprehensive
+      --format json --output trivy-image.json
+      --exit-code 0 "$DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG"
+    - >
+      trivy image
+      --scanners vuln,secret
+      --detection-priority comprehensive
+      --dependency-tree
+      --severity "$TRIVY_SEVERITY_GATE"
+      --exit-code 1 "$DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - trivy-image.json
 
 build:image:master:
   stage: build
