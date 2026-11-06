@@ -16,6 +16,12 @@ from app.repositories.base_repository import BaseRepository
 from app.repositories.utils import apply_offset_and_limit
 from app.schemas.pydantic.permission import PermissionFilter
 
+ENTITY_MODELS = {
+    PermissionEntities.USER.value: User,
+    PermissionEntities.UNIT.value: Unit,
+    PermissionEntities.UNIT_IO.value: UnitIO,
+}
+
 
 class PermissionRepository(BaseRepository):
     def __init__(self, db: Session = Depends(get_session)) -> None:
@@ -39,12 +45,14 @@ class PermissionRepository(BaseRepository):
 
     def get_agent(self, base_permission: PermissionBaseType):
         return self.db.get(
-            eval(base_permission.agent_type), base_permission.agent_uuid
+            ENTITY_MODELS[base_permission.agent_type],
+            base_permission.agent_uuid,
         )
 
     def get_resource(self, base_permission: PermissionBaseType):
         return self.db.get(
-            eval(base_permission.resource_type), base_permission.resource_uuid
+            ENTITY_MODELS[base_permission.resource_type],
+            base_permission.resource_uuid,
         )
 
     @staticmethod
@@ -54,13 +62,13 @@ class PermissionRepository(BaseRepository):
             resource_type=base_permission.resource_type,
         )
 
-        agent_type = eval(base_permission.agent_type)
+        agent_type = ENTITY_MODELS[base_permission.agent_type]
         if agent_type is User:
             permission.agent_user_uuid = base_permission.agent_uuid
         elif agent_type is Unit:
             permission.agent_unit_uuid = base_permission.agent_uuid
 
-        resource_type = eval(base_permission.resource_type)
+        resource_type = ENTITY_MODELS[base_permission.resource_type]
         if resource_type is Unit:
             permission.resource_unit_uuid = base_permission.resource_uuid
         elif resource_type is UnitIO:
@@ -78,13 +86,13 @@ class PermissionRepository(BaseRepository):
         if permission.uuid:
             base_permission.uuid = permission.uuid
 
-        agent_type = eval(base_permission.agent_type)
+        agent_type = ENTITY_MODELS[base_permission.agent_type]
         if agent_type is User:
             base_permission.agent_uuid = permission.agent_user_uuid
         elif agent_type is Unit:
             base_permission.agent_uuid = permission.agent_unit_uuid
 
-        resource_type = eval(base_permission.resource_type)
+        resource_type = ENTITY_MODELS[base_permission.resource_type]
         if resource_type is Unit:
             base_permission.resource_uuid = permission.resource_unit_uuid
         elif resource_type is UnitIO:

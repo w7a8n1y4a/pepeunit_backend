@@ -35,6 +35,8 @@ class ServerRestart:
         # Workers inherit the listen socket. Close it before the new
         # process binds the same port.
         os.closerange(3, os.sysconf("SC_OPEN_MAX"))
+        # Re-exec of the current process with its own argv, no external input.
+        # nosemgrep: python.lang.security.audit.dangerous-os-exec-tainted-env-args.dangerous-os-exec-tainted-env-args
         os.execv(sys.executable, [sys.executable, *sys.argv])  # noqa: S606
 
     def request(self) -> None:
