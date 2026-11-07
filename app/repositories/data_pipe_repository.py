@@ -74,7 +74,8 @@ class DataPipeRepository:
             self.db.query(UnitIO).filter(UnitIO.uuid == filters.uuid).first()
         )
 
-        if not unit_io:
+        # state is NULL until the first message arrives in the topic
+        if not unit_io or unit_io.state is None:
             return 0, []
         return 1, [
             LastValue(
