@@ -1,4 +1,4 @@
-__pycache__d
+**/__pycache__
 .env
 venv
 .venv
@@ -8,3 +8,8 @@ connections.json
 .nvim
 prometheus_metrics
 bin
+tmp
+repo_cache
+.pytest_cache
+.ruff_cache
+.ropeproject

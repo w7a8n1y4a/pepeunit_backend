@@ -141,7 +141,6 @@ class UserService:
 
     @staticmethod
     async def redeem_grafana_ticket(ticket: str) -> dict | None:
-        """Takes the ticket once. A used or expired ticket gives `None`."""
         redis = await anext(get_redis_session())
         raw = await redis.getdel(
             f"{UserService.grafana_ticket_prefix}{ticket}"

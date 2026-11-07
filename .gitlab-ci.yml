@@ -24,9 +24,12 @@ variables:
 .trivy:
   variables:
     TRIVY_IMAGE: aquasec/trivy:0.76.2
-    # Strict mode: gate on MEDIUM and above, unfixed CVEs included
-    # (no --ignore-unfixed), comprehensive detection (also reports CVEs that
-    # the distro vendor has not confirmed / marked as affected yet).
+    # Strict mode: gate on MEDIUM and above, comprehensive detection (also
+    # reports CVEs that the distro vendor has not confirmed / marked as
+    # affected yet). Repo scan counts unfixed CVEs; the image gate uses
+    # --ignore-unfixed because Debian slim carries ~150 CVEs without a fix
+    # that cannot be remediated from the Dockerfile (the JSON report still
+    # lists them all).
     TRIVY_SEVERITY_GATE: MEDIUM,HIGH,CRITICAL
   tags:
     - shell-build-runer
