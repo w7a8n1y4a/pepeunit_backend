@@ -1,11 +1,13 @@
 import json
 import time
 import uuid as uuid_pkg
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse
 from starlette.responses import JSONResponse
 
+from app import settings
 from app.configs.clickhouse import get_hand_clickhouse_client
 from app.configs.db import get_hand_session
 from app.configs.redis import get_redis_session
@@ -21,10 +23,13 @@ from app.schemas.pydantic.grafana import (
     DashboardsResult,
     DatasourceFilter,
     DatasourceTimeSeriesData,
+    GrafanaLoginTicketCreate,
+    GrafanaLoginTicketRead,
     LinkUnitIOToPanel,
     UnitIOForPanel,
 )
 from app.services.grafana_service import GrafanaService
+from app.services.user_service import UserService
 
 router = APIRouter()
 
@@ -139,6 +144,66 @@ def delete_link(
     return grafana_service.delete_link(unit_io_uuid, dashboard_panel_uuid)
 
 
+def _authorize_cookie_params() -> dict:
+    return {
+        "key": CookieName.PEPEUNIT_GRAFANA.value,
+        "path": (
+            f"{settings.pu_app_prefix}{settings.pu_api_v1_prefix}"
+            "/grafana/oidc/authorize"
+        ),
+        "httponly": True,
+        "samesite": "lax",
+        "secure": settings.pu_secure,
+    }
+
+
+@router.post(
+    "/login_ticket",
+    response_model=GrafanaLoginTicketRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_login_ticket(
+    data: GrafanaLoginTicketCreate,
+    user_service: UserService = Depends(get_user_service),
+):
+    ticket = await user_service.create_grafana_ticket(data.path)
+    return GrafanaLoginTicketRead(
+        ticket=ticket, expires_in=UserService.grafana_ticket_ttl
+    )
+
+
+@router.get("/enter")
+async def enter(ticket: str):
+    redeemed = await UserService.redeem_grafana_ticket(ticket)
+    if redeemed is None:
+        response = RedirectResponse(
+            url=f"{GrafanaLoginTicketCreate.root_path}login",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    max_age = int(UserService.grafana_session_lifetime.total_seconds())
+    response = RedirectResponse(
+        url=f"{GrafanaLoginTicketCreate.root_path}login/generic_oauth",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    params = _authorize_cookie_params()
+    response.set_cookie(value=redeemed["token"], max_age=max_age, **params)
+    if redeemed.get("path"):
+        response.set_cookie(
+            key="redirect_to",
+            value=quote(redeemed["path"], safe=""),
+            max_age=max_age,
+            path=GrafanaLoginTicketCreate.root_path,
+            httponly=True,
+            samesite="lax",
+            secure=settings.pu_secure,
+        )
+    return response
+
+
 @router.get("/oidc/authorize")
 async def authorize(
     request: Request,
@@ -187,7 +252,18 @@ async def authorize(
         ex=60,
     )
 
-    return RedirectResponse(url=f"{redirect_uri}?code={code}&state={state}")
+    response = RedirectResponse(
+        url=f"{redirect_uri}?code={code}&state={state}"
+    )
+    params = _authorize_cookie_params()
+    response.delete_cookie(
+        params["key"],
+        path=params["path"],
+        httponly=params["httponly"],
+        samesite=params["samesite"],
+        secure=params["secure"],
+    )
+    return response
 
 
 @router.post("/oidc/token")

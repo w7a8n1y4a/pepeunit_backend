@@ -2,6 +2,7 @@ import logging
 import uuid
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
 from app import runtime
 from app.configs.errors import NoAccessError, UserError, ValidationError
@@ -9,6 +10,7 @@ from app.configs.redis import get_redis_session
 from app.domain.user_model import User
 from app.dto.enum import UserRole, UserStatus
 from app.repositories.user_repository import UserRepository
+from app.schemas.pydantic.grafana import GrafanaLoginTicketCreate
 from app.schemas.pydantic.user import (
     AuthChallengeCreate,
     AuthTokenCreate,
@@ -16,6 +18,7 @@ from app.schemas.pydantic.user import (
     UserFilter,
     UserUpdate,
 )
+from app.services.user_service import UserService
 from tests.integration.fixtures.users import telegram_chat_id
 from tests.integration.helpers.keys import REGULAR_USER_KEY, fresh_key
 from tests.integration.helpers.owner import as_owner, preserve_instance_owner
@@ -222,6 +225,46 @@ def test_get_grafana_token(
     assert grafana_token
     fetched = user_service(database, cc, grafana_token).get(regular_user.uuid)
     assert fetched.uuid == regular_user.uuid
+
+
+async def test_grafana_ticket_is_single_use(
+    database, cc, regular_user, regular_user_token
+) -> None:
+    service = user_service(database, cc, regular_user_token)
+    ticket = await service.create_grafana_ticket("/grafana/d/abc/x?orgId=2")
+
+    redeemed = await UserService.redeem_grafana_ticket(ticket)
+    assert redeemed["path"] == "/grafana/d/abc/x?orgId=2"
+    fetched = user_service(database, cc, redeemed["token"]).get(
+        regular_user.uuid
+    )
+    assert fetched.uuid == regular_user.uuid
+
+    assert await UserService.redeem_grafana_ticket(ticket) is None
+    assert await UserService.redeem_grafana_ticket("unknown") is None
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "https://evil.example/grafana/",
+        "//evil.example/grafana/x",
+        "/other/path",
+        "/grafana/../pepeunit/api",
+        "/grafana//evil.example",
+        "/grafana/d/x\r\nSet-Cookie: a=b",
+    ],
+)
+def test_grafana_ticket_path_stays_in_grafana(path) -> None:
+    with pytest.raises(PydanticValidationError):
+        GrafanaLoginTicketCreate(path=path)
+
+
+def test_grafana_ticket_path_accepts_dashboard_link() -> None:
+    link = "/grafana/d/abc/name?orgId=2"
+    assert GrafanaLoginTicketCreate(path=link).path == link
+    assert GrafanaLoginTicketCreate(path="").path is None
+    assert GrafanaLoginTicketCreate().path is None
 
 
 def test_set_owner_cli_rejects_bad_args() -> None:

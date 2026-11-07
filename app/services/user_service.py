@@ -1,4 +1,6 @@
 import datetime
+import json
+import secrets
 import uuid as uuid_pkg
 
 from fastapi import Depends
@@ -33,6 +35,10 @@ from app.utils.utils import generate_random_string
 
 
 class UserService:
+    grafana_ticket_prefix = "grafana_ticket:"
+    grafana_ticket_ttl = 60
+    grafana_session_lifetime = datetime.timedelta(seconds=120)
+
     def __init__(
         self,
         user_repository: UserRepository = Depends(),
@@ -102,14 +108,45 @@ class UserService:
         )
         return AgentUser(**user.dict()).generate_agent_token()
 
-    def get_grafana_token(self) -> str:
+    def get_grafana_token(
+        self, lifetime: datetime.timedelta | None = None
+    ) -> str:
         self.access_service.authorization.check_access([AgentType.USER])
 
         current_user = self.access_service.current_agent
+        expires = (
+            None
+            if lifetime is None
+            else datetime.datetime.now(datetime.UTC) + lifetime
+        )
         return AgentGrafana(
             uuid=current_user.uuid,
             name=current_user.login or str(current_user.uuid),
-        ).generate_agent_token()
+        ).generate_agent_token(expires)
+
+    async def create_grafana_ticket(self, path: str | None) -> str:
+        if not runtime.get().pu_ff_grafana_integration_enable:
+            msg = "This feature has been disabled by the instance Owner"
+            raise FeatureFlagError(msg, code=ErrorCode.FEATURE_DISABLED)
+
+        grafana_token = self.get_grafana_token(self.grafana_session_lifetime)
+        ticket = secrets.token_urlsafe(32)
+        redis = await anext(get_redis_session())
+        await redis.set(
+            f"{self.grafana_ticket_prefix}{ticket}",
+            json.dumps({"token": grafana_token, "path": path}),
+            ex=self.grafana_ticket_ttl,
+        )
+        return ticket
+
+    @staticmethod
+    async def redeem_grafana_ticket(ticket: str) -> dict | None:
+        """Takes the ticket once. A used or expired ticket gives `None`."""
+        redis = await anext(get_redis_session())
+        raw = await redis.getdel(
+            f"{UserService.grafana_ticket_prefix}{ticket}"
+        )
+        return json.loads(raw) if raw else None
 
     def update(self, data: UserUpdate) -> User:
         self.access_service.authorization.check_access([AgentType.USER])

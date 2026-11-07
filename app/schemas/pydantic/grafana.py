@@ -1,8 +1,10 @@
 import datetime
+import re
 import uuid as uuid_pkg
 from dataclasses import dataclass
+from typing import ClassVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.dto.enum import (
     DashboardPanelTypeEnum,
@@ -130,3 +132,32 @@ class DashboardPanelRead(BaseModel):
 class DashboardPanelsResult(BaseModel):
     count: int
     panels: list[DashboardPanelRead]
+
+
+class GrafanaLoginTicketCreate(BaseModel):
+    root_path: ClassVar[str] = "/grafana/"
+    path_pattern: ClassVar[re.Pattern[str]] = re.compile(
+        r"^/grafana/[A-Za-z0-9\-._~%/?=&:,+@!$*;]*$"
+    )
+
+    path: str | None = None
+
+    @field_validator("path")
+    @classmethod
+    def path_stays_in_grafana(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        path = value.split("?", 1)[0]
+        if (
+            not cls.path_pattern.fullmatch(value)
+            or "//" in path
+            or ".." in path.split("/")
+        ):
+            msg = f"path must stay under {cls.root_path}"
+            raise ValueError(msg)
+        return value
+
+
+class GrafanaLoginTicketRead(BaseModel):
+    ticket: str
+    expires_in: int
