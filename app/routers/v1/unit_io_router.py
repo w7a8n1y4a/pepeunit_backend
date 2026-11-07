@@ -143,3 +143,12 @@ def create_link(
     unit_io_service: UnitIOService = Depends(get_unit_io_service),
 ):
     return LinkRead(**unit_io_service.create_link(data).dict())
+
+
+@router.delete("/delete_link", status_code=status.HTTP_204_NO_CONTENT)
+def delete_link(
+    input_uuid: uuid_pkg.UUID,
+    output_uuid: uuid_pkg.UUID,
+    unit_io_service: UnitIOService = Depends(get_unit_io_service),
+):
+    return unit_io_service.delete_link(input_uuid, output_uuid)

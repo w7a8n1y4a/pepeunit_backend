@@ -101,6 +101,8 @@ class UnitRepository(UniqueNameMixin, BaseRepository):
                     self.db.query(Unit, unit_io_subquery.label("output_nodes"))
                     .select_from(Unit)
                     .join(UnitIO, Unit.uuid == UnitIO.unit_uuid)
+                    # A unit without a node of the asked type is not listed
+                    .filter(UnitIO.type.in_(filters.unit_io_type))
                     .group_by(Unit.uuid)
                 )
 

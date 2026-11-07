@@ -659,6 +659,20 @@ def test_list_units_with_output_nodes(
     assert any(nodes for _, nodes in units)
 
 
+def test_list_units_with_output_nodes_only_outputs(
+    live_units, regular_user, regular_user_token, database, cc
+) -> None:
+    _, units = unit_service(database, cc, regular_user_token).list(
+        UnitFilter.unlimited(
+            creator_uuid=regular_user.uuid,
+            unit_io_type=[UnitIOTypeEnum.OUTPUT.value],
+            unit_io_uuids=[],
+        ),
+        is_include_output_unit_ios=True,
+    )
+    assert all(nodes for _, nodes in units)
+
+
 def test_update_units_firmware(
     running_units, admin_user_token, database
 ) -> None:
