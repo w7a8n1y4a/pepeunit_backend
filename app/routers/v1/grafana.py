@@ -184,23 +184,18 @@ async def enter(ticket: str):
         return response
 
     max_age = int(UserService.grafana_session_lifetime.total_seconds())
+    login_url = f"{GrafanaLoginTicketCreate.root_path}login/generic_oauth"
+    if redeemed.get("path"):
+        sub_path = GrafanaLoginTicketCreate.root_path.rstrip("/")
+        relative = redeemed["path"].removeprefix(sub_path)
+        login_url = f"{login_url}?redirectTo={quote(relative, safe='')}"
     response = RedirectResponse(
-        url=f"{GrafanaLoginTicketCreate.root_path}login/generic_oauth",
+        url=login_url,
         status_code=status.HTTP_303_SEE_OTHER,
     )
     response.headers["Cache-Control"] = "no-store"
     params = _authorize_cookie_params()
     response.set_cookie(value=redeemed["token"], max_age=max_age, **params)
-    if redeemed.get("path"):
-        response.set_cookie(
-            key="redirect_to",
-            value=quote(redeemed["path"], safe=""),
-            max_age=max_age,
-            path=GrafanaLoginTicketCreate.root_path,
-            httponly=True,
-            samesite="lax",
-            secure=settings.pu_secure,
-        )
     return response
 
 
