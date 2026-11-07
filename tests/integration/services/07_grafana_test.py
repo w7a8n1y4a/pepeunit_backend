@@ -278,7 +278,7 @@ def test_create_org_if_not_exists(
     assert user.grafana_org_id
     assert service.data_pipe_repository.get_org_name(
         user.grafana_org_id
-    ) == str(user.grafana_org_name)
+    ) == user.hash_public_key
 
 
 @pytest.mark.grafana

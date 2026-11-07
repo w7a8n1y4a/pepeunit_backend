@@ -403,6 +403,55 @@ class GrafanaRepository:
             resp.raise_for_status()
             return resp.json().get("name")
 
+    def rename_org(self, org_id: str, name: str) -> None:
+        with self._http_client() as client:
+            resp = self._request(
+                client,
+                "PUT",
+                f"{settings.pu_link}/grafana/api/orgs/{org_id}",
+                headers=self.headers,
+                json={"name": name},
+            )
+            resp.raise_for_status()
+
+    def ensure_org_member(self, user: User, org_id: str) -> None:
+        with self._http_client() as client:
+            self._ensure_org_member(client, org_id, user)
+
+    def _ensure_org_member(
+        self, client: httpx.Client, org_id: str | int, user: User
+    ) -> None:
+        account = user.login or str(user.uuid)
+        resp = self._request(
+            client,
+            "POST",
+            f"{settings.pu_link}/grafana/api/admin/users",
+            headers=self.headers,
+            json={
+                "name": account,
+                "email": account,
+                "login": account,
+                "password": generate_random_string(16),
+            },
+        )
+
+        if resp.status_code not in (200, 412):
+            resp.raise_for_status()
+
+        resp = self._request(
+            client,
+            "POST",
+            f"{settings.pu_link}/grafana/api/orgs/{org_id}/users",
+            headers=self.headers,
+            json={
+                "loginOrEmail": account,
+                "role": GrafanaUserRole.EDITOR.value,
+            },
+        )
+
+        if resp.status_code not in (200, 409):
+            resp.raise_for_status()
+
     def create_org_if_not_exists(self, user: User):
         with self._http_client() as client:
             resp = self._request(
@@ -416,7 +465,7 @@ class GrafanaRepository:
             orgs = [
                 org
                 for org in resp.json()
-                if org["name"] == str(user.grafana_org_name)
+                if org["name"] == user.hash_public_key
             ]
             target_org = orgs[0] if orgs else None
 
@@ -426,43 +475,14 @@ class GrafanaRepository:
                     "POST",
                     f"{settings.pu_link}/grafana/api/orgs",
                     headers=self.headers,
-                    json={"name": str(user.grafana_org_name)},
+                    json={"name": user.hash_public_key},
                 )
                 resp.raise_for_status()
                 org_id = resp.json().get("orgId")
             else:
                 org_id = target_org["id"]
 
-            account = user.login or str(user.uuid)
-            resp = self._request(
-                client,
-                "POST",
-                f"{settings.pu_link}/grafana/api/admin/users",
-                headers=self.headers,
-                json={
-                    "name": account,
-                    "email": account,
-                    "login": account,
-                    "password": generate_random_string(16),
-                },
-            )
-
-            if resp.status_code not in (200, 412):
-                resp.raise_for_status()
-
-            resp = self._request(
-                client,
-                "POST",
-                f"{settings.pu_link}/grafana/api/orgs/{org_id}/users",
-                headers=self.headers,
-                json={
-                    "loginOrEmail": account,
-                    "role": GrafanaUserRole.EDITOR.value,
-                },
-            )
-
-            if resp.status_code not in (200, 409):
-                resp.raise_for_status()
+            self._ensure_org_member(client, org_id, user)
 
             datasource_payload = {
                 "name": "InfinityAPI",

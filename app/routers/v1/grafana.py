@@ -240,7 +240,7 @@ async def authorize(
                     "name": account,
                     "email": account,
                     "role": GrafanaUserRole.EDITOR.value,
-                    "organization": str(current_user.grafana_org_name),
+                    "organization": current_user.hash_public_key,
                 },
             }
         ),

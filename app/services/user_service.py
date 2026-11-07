@@ -253,13 +253,15 @@ class UserService:
             grafana_name = self.data_pipe_repository.get_org_name(
                 user.grafana_org_id
             )
-            if grafana_name and grafana_name != str(user.grafana_org_name):
-                try:
-                    user.grafana_org_name = uuid_pkg.UUID(grafana_name)
-                except ValueError:
-                    return
-                self.user_repository.update(user.uuid, user)
-            return
+            if grafana_name:
+                if grafana_name != user.hash_public_key:
+                    self.data_pipe_repository.rename_org(
+                        user.grafana_org_id, user.hash_public_key
+                    )
+                self.data_pipe_repository.ensure_org_member(
+                    user, user.grafana_org_id
+                )
+                return
 
         org_id = self.data_pipe_repository.create_org_if_not_exists(user)
         user.grafana_org_id = str(org_id)
